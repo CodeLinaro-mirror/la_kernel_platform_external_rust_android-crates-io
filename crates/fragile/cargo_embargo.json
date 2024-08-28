@@ -2,7 +2,7 @@
   "tests": true,
   "module_visibility": {
     "libfragile": [
-      "//external/rust/crates/mockall"
+      "//external/rust/android-crates-io/crates/mockall"
     ]
   }
 }
