@@ -3,7 +3,7 @@
     "//apex_available:platform",
     "com.android.resolv",
     "com.android.virt",
-    "com.sdv.*",
+    "com.sdv.*"
   ],
   "min_sdk_version": "29",
   "run_cargo": false
