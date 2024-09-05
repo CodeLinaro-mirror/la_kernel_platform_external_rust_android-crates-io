@@ -8,6 +8,7 @@ third_party {
     month: 9
     day: 4
   }
+  homepage: "https://crates.io/crates/itertools"
   identifier {
     type: "Archive"
     value: "https://static.crates.io/crates/itertools/itertools-0.13.0.crate"
