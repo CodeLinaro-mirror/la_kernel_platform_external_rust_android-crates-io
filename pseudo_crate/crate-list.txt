@@ -8,7 +8,6 @@ anyhow
 argh
 argh_derive
 argh_shared
-arrayvec
 ash
 async-stream
 async-stream-impl
