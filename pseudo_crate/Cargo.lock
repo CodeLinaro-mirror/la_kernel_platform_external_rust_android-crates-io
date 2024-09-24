@@ -259,6 +259,7 @@ dependencies = [
  "tinytemplate",
  "tokio-macros",
  "tokio-stream",
+ "tokio-test",
  "tokio-util",
  "tower",
  "tower-layer",
@@ -280,6 +281,7 @@ dependencies = [
  "userfaultfd",
  "utf-8",
  "uuid",
+ "want",
  "weak-table",
  "webpki",
  "which",
@@ -3388,6 +3390,19 @@ dependencies = [
  "futures-core",
  "pin-project-lite",
  "tokio",
+]
+
+[[package]]
+name = "tokio-test"
+version = "0.4.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "53474327ae5e166530d17f2d956afcb4f8a004de581b3cae10f12006bc8163e3"
+dependencies = [
+ "async-stream",
+ "bytes",
+ "futures-core",
+ "tokio",
+ "tokio-stream",
 ]
 
 [[package]]
