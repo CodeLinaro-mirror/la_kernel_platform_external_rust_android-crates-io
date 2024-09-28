@@ -186,6 +186,7 @@ thread_local
 tinytemplate
 tokio-macros
 tokio-stream
+tokio-test
 tokio-util
 tower
 tower-layer
@@ -207,6 +208,7 @@ url
 userfaultfd
 utf-8
 uuid
+want
 weak-table
 webpki
 which
