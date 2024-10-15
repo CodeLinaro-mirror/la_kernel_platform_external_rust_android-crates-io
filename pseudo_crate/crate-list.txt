@@ -1,3 +1,4 @@
+aarch64-paging
 ahash
 aho-corasick
 android_log-sys
@@ -112,6 +113,7 @@ glob
 googletest
 googletest_macro
 gpio-cdev
+grpcio
 grpcio-compiler
 h2
 half
@@ -138,6 +140,7 @@ lazy_static
 lazycell
 libc
 libloading
+libm
 libtest-mimic
 libz-sys
 linked-hash-map
@@ -156,6 +159,7 @@ memoffset
 merge
 merge_derive
 miette
+miette-derive
 mime
 minimal-lexical
 mio
@@ -216,6 +220,7 @@ proc-macro2
 protobuf-json-mapping
 protobuf-parse
 protobuf-support
+quiche
 quickcheck
 quote
 rand
@@ -240,6 +245,7 @@ scopeguard
 sec1
 semver
 serde
+serde-xml-rs
 serde_cbor
 serde_derive
 serde_json
@@ -275,6 +281,7 @@ tikv-jemalloc-sys
 tinytemplate
 tinyvec
 tinyvec_macros
+tokio
 tokio-io-timeout
 tokio-macros
 tokio-stream
@@ -314,6 +321,7 @@ uuid
 vhost
 vhost-user-backend
 virtio-bindings
+virtio-drivers
 virtio-queue
 virtio-vsock
 vm-memory
