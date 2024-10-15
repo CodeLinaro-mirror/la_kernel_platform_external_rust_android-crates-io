@@ -3,7 +3,7 @@
     "tests": true,
     "module_visibility": {
         "liboneshot_uniffi": [
-            "//external/rust/crates/uniffi_core"
+            "//external/rust/android-crates-io/crates/uniffi_core"
         ]
     },
     "package": {
