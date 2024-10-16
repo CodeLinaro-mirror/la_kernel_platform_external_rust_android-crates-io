@@ -61,6 +61,7 @@ crossbeam-queue
 crossbeam-utils
 csv
 csv-core
+darling
 darling_core
 darling_macro
 dashmap
@@ -278,6 +279,7 @@ thiserror-impl
 thread_local
 threadpool
 tikv-jemalloc-sys
+tikv-jemallocator
 tinytemplate
 tinyvec
 tinyvec_macros
@@ -328,6 +330,7 @@ vm-memory
 vmm-sys-util
 vsock
 vsprintf
+walkdir
 want
 weak-table
 webpki
