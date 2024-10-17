@@ -278,6 +278,7 @@ dependencies = [
  "parking_lot_core",
  "paste",
  "pathdiff",
+ "pdl-compiler",
  "pdl-runtime",
  "percent-encoding",
  "percore",
@@ -3488,6 +3489,25 @@ dependencies = [
  "hmac",
  "password-hash",
  "sha2",
+]
+
+[[package]]
+name = "pdl-compiler"
+version = "0.3.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "bb6114f8249f6d767f90884bfc4305b2e392b1bd70c2f1660a891959f3c8029f"
+dependencies = [
+ "argh",
+ "codespan-reporting",
+ "heck",
+ "pest",
+ "pest_derive",
+ "prettyplease 0.2.6",
+ "proc-macro2",
+ "quote",
+ "serde",
+ "serde_json",
+ "syn 2.0.58",
 ]
 
 [[package]]
