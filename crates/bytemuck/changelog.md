@@ -1,5 +1,24 @@
 # `bytemuck` changelog
 
+## 1.19
+
+* Adds the `#[track_caller]` attribute to functions which may panic.
+
+## 1.18
+
+* Adds the `latest_stable_rust` cargo feature, which is a blanket feature that turns all other features on that are both sound and compatible with Stable rust.
+
+## 1.17.1
+
+* Adds `#[repr(C)]` to the `union Transmute<A, B>` type that's used internally
+  for most of the transmutations.
+
+## 1.17.0
+
+* Makes the `must_cast` versions of the by-value and by-ref casts be `const`.
+  The mut ref cast is unaffected for now (mut references aren't yet stable in `const fn`).
+  This increases the MSRV of using that particular feature from 1.57 to 1.64.
+
 ## 1.16.3
 
 * Fully described in https://github.com/Lokathor/bytemuck/pull/256, This makes
