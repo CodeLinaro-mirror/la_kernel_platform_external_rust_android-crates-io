@@ -203,6 +203,7 @@ dependencies = [
  "half 2.2.1",
  "hashbrown 0.12.3",
  "hashlink",
+ "heck",
  "hex",
  "hound",
  "http 0.2.9",
