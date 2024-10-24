@@ -1,0 +1,11 @@
+name: "utf-8"
+description: "Incremental, zero-copy UTF-8 decoding with error handling"
+third_party {
+  version: "0.7.6"
+  license_type: NOTICE
+  last_upgrade_date {
+    year: 2023
+    month: 6
+    day: 2
+  }
+}
