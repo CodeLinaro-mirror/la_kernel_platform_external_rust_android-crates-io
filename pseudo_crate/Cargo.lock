@@ -301,7 +301,7 @@ dependencies = [
  "predicates",
  "predicates-core",
  "predicates-tree",
- "prettyplease 0.2.6",
+ "prettyplease 0.2.17",
  "proc-macro2",
  "protobuf-json-mapping",
  "protobuf-parse",
@@ -3503,7 +3503,7 @@ dependencies = [
  "heck",
  "pest",
  "pest_derive",
- "prettyplease 0.2.6",
+ "prettyplease 0.2.17",
  "proc-macro2",
  "quote",
  "serde",
@@ -3787,9 +3787,9 @@ dependencies = [
 
 [[package]]
 name = "prettyplease"
-version = "0.2.6"
+version = "0.2.17"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3b69d39aab54d069e7f2fe8cb970493e7834601ca2d8c65fd7bbd183578080d1"
+checksum = "8d3928fb5db768cb86f891ff014f0144589297e3c6a1aba6ed7cecfdace270c7"
 dependencies = [
  "proc-macro2",
  "syn 2.0.58",
