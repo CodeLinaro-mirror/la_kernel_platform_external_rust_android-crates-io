@@ -1,7 +1,7 @@
 {
   "package": {
     "getrandom": {
-      "license_text": "LICENSE"
+      "license_text": ["LICENSE"]
     }
   },
   "features": [
