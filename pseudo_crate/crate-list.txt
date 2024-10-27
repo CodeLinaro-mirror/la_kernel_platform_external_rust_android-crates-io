@@ -121,6 +121,7 @@ h2
 half
 hashbrown
 hashlink
+heck
 hex
 hound
 http
@@ -196,6 +197,7 @@ parking_lot
 parking_lot_core
 paste
 pathdiff
+pdl-compiler
 pdl-runtime
 percent-encoding
 percore
