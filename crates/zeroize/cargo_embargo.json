@@ -6,8 +6,7 @@
   "min_sdk_version": "Tiramisu",
   "variants": [
     {
-      "tests": true,
-      "generate_rulesmk": true
+      "tests": true
     },
     {
       "module_name_overrides": {
@@ -21,6 +20,17 @@
           "no_std": true
         }
       }
+    },
+    {
+      "package": {
+        "zeroize": {
+          "alloc": true,
+          "no_std": true
+        }
+      },
+      "tests": false,
+      "generate_androidbp": false,
+      "generate_rulesmk": true
     }
   ]
 }
