@@ -5,29 +5,21 @@
 
 LOCAL_DIR := $(GET_LOCAL_DIR)
 MODULE := $(LOCAL_DIR)
-MODULE_CRATE_NAME := once_cell
+MODULE_CRATE_NAME := buddy_system_allocator
 MODULE_RUST_CRATE_TYPES := rlib
 MODULE_SRCS := $(LOCAL_DIR)/src/lib.rs
+MODULE_ADD_IMPLICIT_DEPS := false
 MODULE_RUST_EDITION := 2021
 MODULE_RUSTFLAGS += \
 	--cfg 'feature="alloc"' \
 	--cfg 'feature="default"' \
-	--cfg 'feature="race"' \
-
-ifeq ($(call TOBOOL,$(TRUSTY_USERSPACE)),true)
-
-MODULE_RUSTFLAGS += \
-	--cfg 'feature="std"' \
-
-else
-
-MODULE_ADD_IMPLICIT_DEPS := false
+	--cfg 'feature="spin"' \
+	--cfg 'feature="use_spin"'
 
 MODULE_LIBRARY_DEPS := \
+	$(call FIND_CRATE,spin) \
 	trusty/user/base/lib/liballoc-rust \
 	trusty/user/base/lib/libcompiler_builtins-rust \
 	trusty/user/base/lib/libcore-rust
-
-endif
 
 include make/library.mk
