@@ -836,9 +836,9 @@ dependencies = [
 
 [[package]]
 name = "bindgen"
-version = "0.69.4"
+version = "0.69.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a00dc851838a2120612785d195287475a3ac45514741da670b735818822129a0"
+checksum = "271383c67ccabffb7381723dea0672a673f292304fcb45c01cc648c7a8d58088"
 dependencies = [
  "annotate-snippets",
  "bitflags 2.6.0",
@@ -859,11 +859,11 @@ dependencies = [
 
 [[package]]
 name = "bindgen-cli"
-version = "0.69.4"
+version = "0.69.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5d31479f44d2c9eed368e5f945cb4846d2c8313bd91feb16b6ae937a80b7ae01"
+checksum = "15712870dbb0b31da9d8827128b99765c1ac01e10b92bf2a7dcbc8e20a2628bd"
 dependencies = [
- "bindgen 0.69.4",
+ "bindgen 0.69.5",
  "clap 4.5.2",
  "clap_complete",
  "env_logger 0.10.2",

@@ -13,8 +13,13 @@
 edition = "2018"
 rust-version = "1.64.0"
 name = "bindgen-cli"
-version = "0.69.4"
+version = "0.69.5"
 authors = ["The rust-bindgen project contributors"]
+build = false
+autobins = false
+autoexamples = false
+autotests = false
+autobenches = false
 description = "Automatically generates Rust FFI bindings to C and C++ libraries."
 homepage = "https://rust-lang.github.io/rust-bindgen/"
 documentation = "https://docs.rs/bindgen"
@@ -42,7 +47,7 @@ name = "bindgen"
 path = "main.rs"
 
 [dependencies.bindgen]
-version = "=0.69.4"
+version = "=0.69.5"
 features = [
     "__cli",
     "experimental",
