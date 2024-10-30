@@ -25,6 +25,7 @@ base64
 bencher
 bincode
 bindgen-cli
+bitflags
 bitreader
 bstr
 buddy_system_allocator
