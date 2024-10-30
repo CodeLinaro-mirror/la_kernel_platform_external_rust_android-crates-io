@@ -107,6 +107,7 @@ dependencies = [
  "bencher",
  "bincode",
  "bindgen-cli",
+ "bitflags 2.6.0",
  "bitreader",
  "bstr",
  "buddy_system_allocator",
