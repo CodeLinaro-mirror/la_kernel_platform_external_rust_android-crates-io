@@ -2,7 +2,7 @@
 # Do not modify this file after the LOCAL_DIR line
 # because the changes will be overridden on upgrade.
 # Content before the first line starting with LOCAL_DIR is preserved.
-// DO NOT SUBMIT: Add license before submitting.
+
 LOCAL_DIR := $(GET_LOCAL_DIR)
 MODULE := $(LOCAL_DIR)
 MODULE_CRATE_NAME := lazy_static
@@ -10,7 +10,7 @@ MODULE_RUST_CRATE_TYPES := rlib
 MODULE_SRCS := $(LOCAL_DIR)/src/lib.rs
 MODULE_RUST_EDITION := 2015
 MODULE_LIBRARY_DEPS := \
-	
+
 ifeq ($(call TOBOOL,$(TRUSTY_USERSPACE)),false)
 
 # avoid cyclic dependence by adding dependencies manually
@@ -21,7 +21,7 @@ MODULE_RUSTFLAGS += \
 	--cfg 'feature="spin_no_std"' \
 
 MODULE_DEPS := \
-	external/rust/crates/spin \
+	$(call FIND_CRATE,spin) \
 	trusty/user/base/lib/libcompiler_builtins-rust \
 	trusty/user/base/lib/libcore-rust
 
