@@ -1,0 +1,11 @@
+name: "protobuf-json-mapping"
+description: "JSON printer and parser which tries to follow protobuf conventions."
+third_party {
+  version: "3.2.0"
+  license_type: NOTICE
+  last_upgrade_date {
+    year: 2023
+    month: 3
+    day: 22
+  }
+}

@@ -1,0 +1,11 @@
+name: "unicode-normalization"
+description: "This crate provides functions for normalization of Unicode strings, including Canonical and Compatible Decomposition and Recomposition, as described in Unicode Standard Annex #15."
+third_party {
+  version: "0.1.22"
+  license_type: NOTICE
+  last_upgrade_date {
+    year: 2022
+    month: 12
+    day: 19
+  }
+}
