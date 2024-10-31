@@ -1,0 +1,11 @@
+name: "linkme-impl"
+description: "Implementation detail of the linkme crate"
+third_party {
+  version: "0.3.10"
+  license_type: NOTICE
+  last_upgrade_date {
+    year: 2023
+    month: 6
+    day: 1
+  }
+}

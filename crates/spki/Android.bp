@@ -32,7 +32,7 @@ rust_library {
     visibility: [
         "//external/rust/android-crates-io/crates/pkcs1:__subpackages__",
         "//external/rust/android-crates-io/crates/pkcs8:__subpackages__",
-        "//external/rust/crates/x509-cert:__subpackages__",
+        "//external/rust/android-crates-io/crates/x509-cert:__subpackages__",
         "//packages/modules/Virtualization:__subpackages__",
         "//system/keymint:__subpackages__",
     ],
@@ -64,9 +64,15 @@ rust_library_rlib {
     visibility: [
         "//external/rust/android-crates-io/crates/pkcs1:__subpackages__",
         "//external/rust/android-crates-io/crates/pkcs8:__subpackages__",
-        "//external/rust/crates/x509-cert:__subpackages__",
+        "//external/rust/android-crates-io/crates/x509-cert:__subpackages__",
         "//packages/modules/Virtualization:__subpackages__",
         "//system/keymint:__subpackages__",
     ],
 
+}
+
+dirgroup {
+    name: "trusty_dirgroup_external_rust_crates_spki",
+    visibility: ["//trusty/vendor/google/aosp/scripts"],
+    dirs: ["."],
 }

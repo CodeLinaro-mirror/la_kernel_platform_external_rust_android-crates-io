@@ -1,0 +1,11 @@
+name: "unicode-segmentation"
+description: "This crate provides Grapheme Cluster, Word and Sentence boundaries according to Unicode Standard Annex #29 rules."
+third_party {
+  version: "1.10.1"
+  license_type: NOTICE
+  last_upgrade_date {
+    year: 2023
+    month: 2
+    day: 17
+  }
+}
