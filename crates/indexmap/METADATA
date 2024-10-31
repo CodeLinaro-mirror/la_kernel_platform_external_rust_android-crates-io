@@ -1,0 +1,11 @@
+name: "indexmap"
+description: "A hash table with consistent order and fast iteration."
+third_party {
+  version: "1.9.2"
+  license_type: NOTICE
+  last_upgrade_date {
+    year: 2022
+    month: 12
+    day: 12
+  }
+}
