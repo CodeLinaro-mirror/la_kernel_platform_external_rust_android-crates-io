@@ -203,6 +203,7 @@ dependencies = [
  "gpio-cdev",
  "grpcio",
  "grpcio-compiler",
+ "grpcio-sys",
  "h2 0.4.4",
  "half 2.2.1",
  "hashbrown 0.12.3",
