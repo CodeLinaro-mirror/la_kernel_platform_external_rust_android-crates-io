@@ -1,10 +1,12 @@
 aarch64-paging
+acpi
 ahash
 aho-corasick
 android_log-sys
 android_logger
 anes
 annotate-snippets
+anstyle
 anyhow
 arbitrary
 arc-swap
@@ -26,6 +28,7 @@ bencher
 bincode
 bindgen
 bindgen-cli
+bit_field
 bitflags
 bitreader
 bstr
@@ -44,6 +47,8 @@ ciborium
 ciborium-io
 ciborium-ll
 clang-sys
+clap
+clap_builder
 clap_complete
 clap_derive
 clap_lex
@@ -87,6 +92,7 @@ env_logger
 epoll
 equivalent
 errno
+etherparse
 fallible-iterator
 fallible-streaming-iterator
 fastrand
@@ -147,6 +153,8 @@ jni-sys
 kernlog
 lazy_static
 lazycell
+libbpf-rs
+libbpf-sys
 libc
 libfuzzer-sys
 libloading
@@ -163,9 +171,11 @@ lru-cache
 lz4_flex
 macaddr
 managed
+matches
 matchit
 maybe-async
 memchr
+memmap2
 memoffset
 merge
 merge_derive
@@ -224,6 +234,7 @@ pkcs8
 plotters
 plotters-backend
 plotters-svg
+poll_token_derive
 ppv-lite86
 predicates
 predicates-core
@@ -248,6 +259,7 @@ regex
 regex-automata
 regex-syntax
 remain
+ring
 rusqlite
 rustc-demangle
 rustc-demangle-capi
@@ -278,6 +290,7 @@ smccc
 socket2
 spin
 spki
+static_assertions
 strsim
 strum
 strum_macros
