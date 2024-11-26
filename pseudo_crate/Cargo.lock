@@ -182,7 +182,7 @@ dependencies = [
  "equivalent",
  "errno",
  "etherparse",
- "fallible-iterator",
+ "fallible-iterator 0.3.0",
  "fallible-streaming-iterator",
  "fastrand",
  "fixedbitset 0.5.7",
@@ -243,6 +243,7 @@ dependencies = [
  "lazy_static",
  "lazycell",
  "libbpf-rs",
+ "libbpf-sys",
  "libc",
  "libfuzzer-sys",
  "libloading 0.8.3",
@@ -347,6 +348,7 @@ dependencies = [
  "regex-automata",
  "regex-syntax",
  "remain",
+ "ring 0.17.2",
  "rusqlite",
  "rustc-demangle",
  "rustc-demangle-capi",
@@ -1903,6 +1905,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "4443176a9f2c162692bd3d352d745ef9413eec5782a80d8fd6f8a1ac692a07f7"
 
 [[package]]
+name = "fallible-iterator"
+version = "0.3.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "2acce4a10f12dc2fb14a218589d4f1f62ef011b2d0cc4b3cb1bba8e94da14649"
+
+[[package]]
 name = "fallible-streaming-iterator"
 version = "0.1.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2827,9 +2835,9 @@ dependencies = [
 
 [[package]]
 name = "libbpf-sys"
-version = "1.5.0+v1.5.0"
+version = "1.4.3+v1.4.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "2d8306b516a70a129cb6afed17c1e51e162d35aadfcc6339364addcebe32de90"
+checksum = "ef4996061dea5bd75d12b149b37d84ce7bfd0246997aa5ccc4fdd97ea8f72ee3"
 dependencies = [
  "cc",
  "nix 0.29.0",
@@ -4336,17 +4344,16 @@ dependencies = [
 
 [[package]]
 name = "ring"
-version = "0.17.8"
+version = "0.17.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c17fa4cb658e3583423e915b9f3acc01cceaee1860e33d59ebae66adc3a2dc0d"
+checksum = "911b295d2d302948838c8ac142da1ee09fa7863163b44e6715bc9357905878b8"
 dependencies = [
  "cc",
- "cfg-if",
  "getrandom",
  "libc",
  "spin 0.9.8",
  "untrusted 0.9.0",
- "windows-sys 0.52.0",
+ "windows-sys 0.48.0",
 ]
 
 [[package]]
@@ -4367,7 +4374,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "549b9d036d571d42e6e85d1c1425e2ac83491075078ca9a15be021c56b1641f2"
 dependencies = [
  "bitflags 2.6.0",
- "fallible-iterator",
+ "fallible-iterator 0.2.0",
  "fallible-streaming-iterator",
  "hashlink",
  "libsqlite3-sys",
@@ -5978,7 +5985,7 @@ version = "0.22.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "ed63aea5ce73d0ff405984102c42de94fc55a6b75765d621c65262469b3c9b53"
 dependencies = [
- "ring 0.17.8",
+ "ring 0.17.2",
  "untrusted 0.9.0",
 ]
 
