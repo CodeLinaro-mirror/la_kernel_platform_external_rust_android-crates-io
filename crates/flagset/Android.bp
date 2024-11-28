@@ -32,7 +32,6 @@ rust_library {
         "//external/rust/crates/x509-cert:__subpackages__",
         "//system/keymint:__subpackages__",
     ],
-
 }
 
 rust_library_rlib {
@@ -59,5 +58,10 @@ rust_library_rlib {
         "//external/rust/crates/x509-cert:__subpackages__",
         "//system/keymint:__subpackages__",
     ],
+}
 
+dirgroup {
+    name: "trusty_dirgroup_external_rust_crates_flagset",
+    visibility: ["//trusty/vendor/google/aosp/scripts"],
+    dirs: ["."],
 }

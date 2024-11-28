@@ -1,10 +1,12 @@
 aarch64-paging
+acpi
 ahash
 aho-corasick
 android_log-sys
 android_logger
 anes
 annotate-snippets
+anstyle
 anyhow
 arbitrary
 arc-swap
@@ -24,7 +26,10 @@ axum-core
 base64
 bencher
 bincode
+bindgen
 bindgen-cli
+bit_field
+bitflags
 bitreader
 bstr
 buddy_system_allocator
@@ -41,6 +46,9 @@ chrono
 ciborium
 ciborium-io
 ciborium-ll
+clang-sys
+clap
+clap_builder
 clap_complete
 clap_derive
 clap_lex
@@ -84,11 +92,13 @@ env_logger
 epoll
 equivalent
 errno
+etherparse
 fallible-iterator
 fallible-streaming-iterator
 fastrand
 fixedbitset
 flagset
+flate2
 fnv
 foreign-types
 foreign-types-shared
@@ -117,6 +127,7 @@ googletest_macro
 gpio-cdev
 grpcio
 grpcio-compiler
+grpcio-sys
 h2
 half
 hashbrown
@@ -137,11 +148,15 @@ instant
 intrusive-collections
 itertools
 itoa
+jni
 jni-sys
 kernlog
 lazy_static
 lazycell
+libbpf-rs
+libbpf-sys
 libc
+libfuzzer-sys
 libloading
 libm
 libtest-mimic
@@ -156,8 +171,11 @@ lru-cache
 lz4_flex
 macaddr
 managed
+matches
+matchit
 maybe-async
 memchr
+memmap2
 memoffset
 merge
 merge_derive
@@ -178,6 +196,7 @@ named-lock
 nix
 no-panic
 nom
+num-bigint
 num-complex
 num-derive
 num-integer
@@ -215,12 +234,15 @@ pkcs8
 plotters
 plotters-backend
 plotters-svg
+poll_token_derive
 ppv-lite86
 predicates
 predicates-core
 predicates-tree
 prettyplease
 proc-macro2
+protobuf
+protobuf-codegen
 protobuf-json-mapping
 protobuf-parse
 protobuf-support
@@ -237,6 +259,7 @@ regex
 regex-automata
 regex-syntax
 remain
+ring
 rusqlite
 rustc-demangle
 rustc-demangle-capi
@@ -255,6 +278,7 @@ serde_derive
 serde_json
 serde_spanned
 serde_test
+serde_yaml
 sharded-slab
 shared_child
 shared_library
@@ -266,6 +290,7 @@ smccc
 socket2
 spin
 spki
+static_assertions
 strsim
 strum
 strum_macros
@@ -289,6 +314,7 @@ tinyvec_macros
 tokio
 tokio-io-timeout
 tokio-macros
+tokio-openssl
 tokio-stream
 tokio-test
 tokio-util
@@ -308,6 +334,7 @@ tungstenite
 twox-hash
 ucd-trie
 unicode-bidi
+unicode-ident
 unicode-normalization
 unicode-segmentation
 unicode-width
@@ -321,6 +348,7 @@ unsafe-libyaml
 untrusted
 url
 userfaultfd
+userfaultfd-sys
 utf-8
 uuid
 vhost
@@ -333,6 +361,7 @@ vm-memory
 vmm-sys-util
 vsock
 vsprintf
+vulkano
 walkdir
 want
 weak-table
@@ -342,6 +371,7 @@ winnow
 x509-cert
 xml-rs
 yaml-rust
+zerocopy
 zerocopy-derive
 zeroize
 zeroize_derive
