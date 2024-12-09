@@ -13,13 +13,8 @@
 edition = "2021"
 rust-version = "1.56"
 name = "enumn"
-version = "0.1.14"
+version = "0.1.12"
 authors = ["David Tolnay <dtolnay@gmail.com>"]
-build = false
-autobins = false
-autoexamples = false
-autotests = false
-autobenches = false
 description = "Convert number to enum"
 documentation = "https://docs.rs/enumn"
 readme = "README.md"
@@ -40,19 +35,13 @@ rustdoc-args = ["--generate-link-to-definition"]
 targets = ["x86_64-unknown-linux-gnu"]
 
 [lib]
-name = "enumn"
-path = "src/lib.rs"
 proc-macro = true
 
-[[test]]
-name = "test"
-path = "tests/test.rs"
-
 [dependencies.proc-macro2]
-version = "1.0.74"
+version = "1.0.63"
 
 [dependencies.quote]
-version = "1.0.35"
+version = "1.0.29"
 
 [dependencies.syn]
-version = "2.0.46"
+version = "2.0.23"
