@@ -390,6 +390,7 @@ dependencies = [
  "smallvec",
  "smccc",
  "socket2",
+ "spdx",
  "spin 0.9.8",
  "spki",
  "static_assertions",
@@ -4885,6 +4886,15 @@ checksum = "c970269d99b64e60ec3bd6ad27270092a5394c4e309314b18ae3fe575695fbe8"
 dependencies = [
  "libc",
  "windows-sys 0.52.0",
+]
+
+[[package]]
+name = "spdx"
+version = "0.10.7"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "bae30cc7bfe3656d60ee99bf6836f472b0c53dddcbf335e253329abb16e535a2"
+dependencies = [
+ "smallvec",
 ]
 
 [[package]]
