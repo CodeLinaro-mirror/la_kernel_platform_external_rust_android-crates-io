@@ -18,15 +18,78 @@ rust_library {
     host_supported: true,
     crate_name: "log",
     cargo_env_compat: true,
-    cargo_pkg_version: "0.4.17",
+    cargo_pkg_version: "0.4.22",
     crate_root: "src/lib.rs",
-    edition: "2015",
+    edition: "2021",
     features: ["std"],
-    cfgs: [
-        "atomic_cas",
-        "has_atomics",
+    apex_available: [
+        "//apex_available:platform",
+        "//apex_available:anyapex",
     ],
-    rustlibs: ["libcfg_if"],
+    product_available: true,
+    vendor_available: true,
+    min_sdk_version: "29",
+    target: {
+        android: {
+            cfgs: ["default_log_impl"],
+            rustlibs: [
+                "libandroid_log_sys",
+                "libonce_cell",
+            ],
+            shared_libs: [
+                "liblog",
+            ],
+        },
+    },
+}
+
+rust_library {
+    name: "liblog_rust_max_level_info",
+    host_supported: true,
+    crate_name: "log",
+    cargo_env_compat: true,
+    cargo_pkg_version: "0.4.22",
+    crate_root: "src/lib.rs",
+    edition: "2021",
+    features: [
+        "max_level_info",
+        "release_max_level_info",
+        "std",
+    ],
+    apex_available: [
+        "//apex_available:platform",
+        "//apex_available:anyapex",
+    ],
+    product_available: true,
+    vendor_available: true,
+    min_sdk_version: "29",
+    target: {
+        android: {
+            cfgs: ["default_log_impl"],
+            rustlibs: [
+                "libandroid_log_sys",
+                "libonce_cell",
+            ],
+            shared_libs: [
+                "liblog",
+            ],
+        },
+    },
+}
+
+rust_library {
+    name: "liblog_rust_max_level_off",
+    host_supported: true,
+    crate_name: "log",
+    cargo_env_compat: true,
+    cargo_pkg_version: "0.4.22",
+    crate_root: "src/lib.rs",
+    edition: "2021",
+    features: [
+        "max_level_off",
+        "release_max_level_off",
+        "std",
+    ],
     apex_available: [
         "//apex_available:platform",
         "//apex_available:anyapex",
@@ -52,14 +115,9 @@ rust_library_rlib {
     name: "liblog_rust_nostd",
     crate_name: "log",
     cargo_env_compat: true,
-    cargo_pkg_version: "0.4.17",
+    cargo_pkg_version: "0.4.22",
     crate_root: "src/lib.rs",
-    edition: "2015",
-    cfgs: [
-        "atomic_cas",
-        "has_atomics",
-    ],
-    rustlibs: ["libcfg_if"],
+    edition: "2021",
     apex_available: [
         "//apex_available:platform",
         "//apex_available:anyapex",
@@ -73,4 +131,10 @@ rust_library_rlib {
     product_available: true,
     vendor_available: true,
     min_sdk_version: "29",
+}
+
+dirgroup {
+    name: "trusty_dirgroup_external_rust_crates_log",
+    visibility: ["//trusty/vendor/google/aosp/scripts"],
+    dirs: ["."],
 }
