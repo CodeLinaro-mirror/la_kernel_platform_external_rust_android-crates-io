@@ -215,7 +215,7 @@ dependencies = [
  "glam",
  "glob",
  "googletest",
- "googletest_macro",
+ "googletest_macro 0.13.0",
  "gpio-cdev",
  "grpcio",
  "grpcio-compiler",
@@ -2290,7 +2290,7 @@ version = "0.11.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "ee44a233e2e661240ef77ed5de92ea9ecf70d4832963a8582a6681e1517f3673"
 dependencies = [
- "googletest_macro",
+ "googletest_macro 0.11.0",
  "num-traits",
  "regex",
  "rustversion",
@@ -2302,6 +2302,17 @@ version = "0.11.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "ed3057b7d1e628480193188ccb1a7850d034a3add3a350f4ed921b48e287ada9"
 dependencies = [
+ "quote 1.0.36",
+ "syn 2.0.90",
+]
+
+[[package]]
+name = "googletest_macro"
+version = "0.13.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f5070fa86976044fe2b004d874c10af5d1aed6d8f6a72ff93a6eb29cc87048bc"
+dependencies = [
+ "proc-macro2 1.0.92",
  "quote 1.0.36",
  "syn 2.0.90",
 ]
