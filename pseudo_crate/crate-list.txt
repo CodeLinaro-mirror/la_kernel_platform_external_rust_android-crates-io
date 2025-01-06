@@ -1,10 +1,12 @@
 aarch64-paging
+acpi
 ahash
 aho-corasick
 android_log-sys
 android_logger
 anes
 annotate-snippets
+anstyle
 anyhow
 arbitrary
 arc-swap
@@ -24,7 +26,9 @@ axum-core
 base64
 bencher
 bincode
+bindgen
 bindgen-cli
+bit_field
 bitflags
 bitreader
 bstr
@@ -43,6 +47,8 @@ ciborium
 ciborium-io
 ciborium-ll
 clang-sys
+clap
+clap_builder
 clap_complete
 clap_derive
 clap_lex
@@ -86,6 +92,7 @@ env_logger
 epoll
 equivalent
 errno
+etherparse
 fallible-iterator
 fallible-streaming-iterator
 fastrand
@@ -120,6 +127,7 @@ googletest_macro
 gpio-cdev
 grpcio
 grpcio-compiler
+grpcio-sys
 h2
 half
 hashbrown
@@ -136,6 +144,8 @@ hyper-timeout
 ident_case
 idna
 indexmap
+inotify
+inotify-sys
 instant
 intrusive-collections
 itertools
@@ -145,11 +155,14 @@ jni-sys
 kernlog
 lazy_static
 lazycell
+libbpf-rs
+libbpf-sys
 libc
 libfuzzer-sys
 libloading
 libm
 libtest-mimic
+libusb1-sys
 libz-sys
 linked-hash-map
 linkme
@@ -161,9 +174,12 @@ lru-cache
 lz4_flex
 macaddr
 managed
+maplit
+matches
 matchit
 maybe-async
 memchr
+memmap2
 memoffset
 merge
 merge_derive
@@ -184,6 +200,7 @@ named-lock
 nix
 no-panic
 nom
+num-bigint
 num-complex
 num-derive
 num-integer
@@ -195,6 +212,8 @@ octets
 once_cell
 oneshot-uniffi
 oorandom
+open-enum
+open-enum-derive
 openssl-macros
 os_str_bytes
 p9
@@ -221,6 +240,7 @@ pkcs8
 plotters
 plotters-backend
 plotters-svg
+poll_token_derive
 ppv-lite86
 predicates
 predicates-core
@@ -232,6 +252,8 @@ protobuf-codegen
 protobuf-json-mapping
 protobuf-parse
 protobuf-support
+ptr_meta
+ptr_meta_derive
 quiche
 quickcheck
 quote
@@ -245,6 +267,8 @@ regex
 regex-automata
 regex-syntax
 remain
+ring
+rusb
 rusqlite
 rustc-demangle
 rustc-demangle-capi
@@ -275,6 +299,7 @@ smccc
 socket2
 spin
 spki
+static_assertions
 strsim
 strum
 strum_macros
@@ -317,6 +342,11 @@ try-lock
 tungstenite
 twox-hash
 ucd-trie
+ucs2
+uefi
+uefi-macros
+uefi-raw
+uguid
 unicode-bidi
 unicode-ident
 unicode-normalization
@@ -332,6 +362,7 @@ unsafe-libyaml
 untrusted
 url
 userfaultfd
+userfaultfd-sys
 utf-8
 uuid
 vhost
@@ -354,6 +385,7 @@ winnow
 x509-cert
 xml-rs
 yaml-rust
+zerocopy
 zerocopy-derive
 zeroize
 zeroize_derive
