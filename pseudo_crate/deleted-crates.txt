@@ -1,3 +1,4 @@
+instant
 oneshot-uniffi
 uniffi
 uniffi_checksum_derive
