@@ -173,6 +173,7 @@ libz-sys
 linked-hash-map
 linkme
 linkme-impl
+litemap
 litrs
 lock_api
 log
