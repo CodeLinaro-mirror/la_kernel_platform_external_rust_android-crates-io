@@ -300,6 +300,7 @@ slab
 smallvec
 smccc
 socket2
+spdx
 spin
 spki
 static_assertions
