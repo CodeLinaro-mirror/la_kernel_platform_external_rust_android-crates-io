@@ -148,6 +148,7 @@ inotify
 inotify-sys
 instant
 intrusive-collections
+is-terminal
 itertools
 itoa
 jni
@@ -310,6 +311,7 @@ synstructure
 tempfile
 termcolor
 termtree
+textdistance
 textwrap
 thiserror
 thiserror-impl

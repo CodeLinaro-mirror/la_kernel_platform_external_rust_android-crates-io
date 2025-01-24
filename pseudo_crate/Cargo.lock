@@ -240,6 +240,7 @@ dependencies = [
  "inotify",
  "inotify-sys",
  "intrusive-collections",
+ "is-terminal",
  "itertools 0.14.0",
  "itoa",
  "jni",
@@ -401,6 +402,7 @@ dependencies = [
  "tempfile",
  "termcolor",
  "termtree",
+ "textdistance",
  "textwrap 0.16.1",
  "thiserror 2.0.11",
  "thiserror-impl 2.0.11",
@@ -4605,9 +4607,9 @@ dependencies = [
 
 [[package]]
 name = "semver"
-version = "1.0.24"
+version = "1.0.25"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3cb6eb87a131f756572d7fb904f6e7b68633f09cca868c5df1c4b8d1a694bbba"
+checksum = "f79dfe2d285b0488816f30e700a7438c5a73d816b5b7d3ac72fbc48b0d185e03"
 
 [[package]]
 name = "serde"
@@ -5027,6 +5029,12 @@ name = "termtree"
 version = "0.4.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "3369f5ac52d5eb6ab48c6b4ffdc8efbcad6b89c765749064ba298f2c68a16a76"
+
+[[package]]
+name = "textdistance"
+version = "1.1.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "aa672c55ab69f787dbc9126cc387dbe57fdd595f585e4524cf89018fa44ab819"
 
 [[package]]
 name = "textwrap"
