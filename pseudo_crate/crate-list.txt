@@ -396,6 +396,7 @@ xml-rs
 yaml-rust
 zerocopy
 zerocopy-derive
+zerofrom
 zerofrom-derive
 zeroize
 zeroize_derive
