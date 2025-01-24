@@ -398,4 +398,5 @@ zerocopy
 zerocopy-derive
 zeroize
 zeroize_derive
+zerovec-derive
 zip
