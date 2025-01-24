@@ -404,6 +404,7 @@ writeable
 x509-cert
 xml-rs
 yaml-rust
+yoke-derive
 zerocopy
 zerocopy-derive
 zerofrom
