@@ -1,5 +1,5 @@
 {
-  "run_cargo": false,
+  "run_cargo": true,
   "variants": [
     {
       "features": [
