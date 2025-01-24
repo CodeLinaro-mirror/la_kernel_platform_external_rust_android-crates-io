@@ -301,6 +301,7 @@ smallvec
 smccc
 socket2
 spdx
+spidev
 spin
 spki
 static_assertions
