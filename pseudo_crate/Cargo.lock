@@ -470,9 +470,9 @@ dependencies = [
  "vhost-user-backend",
  "virtio-bindings",
  "virtio-drivers",
- "virtio-queue 0.14.0",
+ "virtio-queue",
  "virtio-vsock",
- "vm-memory 0.16.0",
+ "vm-memory",
  "vmm-sys-util",
  "vsock",
  "vsprintf",
@@ -5912,7 +5912,7 @@ dependencies = [
  "bitflags 2.8.0",
  "libc",
  "uuid",
- "vm-memory 0.16.0",
+ "vm-memory",
  "vmm-sys-util",
 ]
 
@@ -5926,8 +5926,8 @@ dependencies = [
  "log",
  "vhost",
  "virtio-bindings",
- "virtio-queue 0.14.0",
- "vm-memory 0.16.0",
+ "virtio-queue",
+ "vm-memory",
  "vmm-sys-util",
 ]
 
@@ -5953,37 +5953,25 @@ dependencies = [
 
 [[package]]
 name = "virtio-queue"
-version = "0.12.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "07d8406e7250c934462de585d8f2d2781c31819bca1fbb7c5e964ca6bbaabfe8"
-dependencies = [
- "log",
- "virtio-bindings",
- "vm-memory 0.14.1",
- "vmm-sys-util",
-]
-
-[[package]]
-name = "virtio-queue"
 version = "0.14.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "872e2f3fbd70a7e6f01689720cce3d5c2c5efe52b484dd07b674246ada0e9a8d"
 dependencies = [
  "log",
  "virtio-bindings",
- "vm-memory 0.16.0",
+ "vm-memory",
  "vmm-sys-util",
 ]
 
 [[package]]
 name = "virtio-vsock"
-version = "0.6.0"
+version = "0.8.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f32bf3cad748b3004afe3afd860f060c4ec57f5ac329dd46f0b5bf8520244332"
+checksum = "4118ce26599dc8a238c6ee795d90250c88d8ebfece9e65c1f01dec6e4e2aeb67"
 dependencies = [
  "virtio-bindings",
- "virtio-queue 0.12.0",
- "vm-memory 0.14.1",
+ "virtio-queue",
+ "vm-memory",
 ]
 
 [[package]]
@@ -5993,17 +5981,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "4c6a0bda9bbe6b9e50e6456c80aa8fe4cca3b21e4311a1130c41e4915ec2e32a"
 dependencies = [
  "xml-rs",
-]
-
-[[package]]
-name = "vm-memory"
-version = "0.14.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3c3aba5064cc5f6f7740cddc8dae34d2d9a311cac69b60d942af7f3ab8fc49f4"
-dependencies = [
- "libc",
- "thiserror 1.0.49",
- "winapi",
 ]
 
 [[package]]
