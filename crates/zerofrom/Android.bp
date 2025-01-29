@@ -21,7 +21,10 @@ rust_library {
     cargo_pkg_version: "0.1.5",
     crate_root: "src/lib.rs",
     edition: "2021",
-    features: ["derive"],
+    features: [
+        "alloc",
+        "derive",
+    ],
     proc_macros: ["libzerofrom_derive"],
     apex_available: [
         "//apex_available:platform",
