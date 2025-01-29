@@ -313,6 +313,7 @@ spdx
 spidev
 spin
 spki
+stable_deref_trait
 static_assertions
 strck
 strsim
