@@ -430,6 +430,7 @@ dependencies = [
  "threadpool",
  "tikv-jemalloc-sys",
  "tikv-jemallocator",
+ "tinystr",
  "tinytemplate",
  "tinyvec",
  "tinyvec_macros",
@@ -495,8 +496,13 @@ dependencies = [
  "yaml-rust",
  "zerocopy 0.8.14",
  "zerocopy-derive 0.8.14",
+ "zerofrom",
+ "zerofrom-derive",
  "zeroize",
  "zeroize_derive",
+ "zerotrie",
+ "zerovec",
+ "zerovec-derive",
  "zip",
 ]
 
@@ -5371,6 +5377,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "ef927ca75afb808a4d64dd374f00a2adf8d0fcff8e7b184af886c3c87ec4a3f3"
 
 [[package]]
+name = "tinystr"
+version = "0.8.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b2b56a820bb70060f096338fcc02edb78cb3f8fb21c5078503f48588cfcaf494"
+dependencies = [
+ "displaydoc",
+]
+
+[[package]]
 name = "tinytemplate"
 version = "1.2.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -6705,6 +6720,24 @@ dependencies = [
 ]
 
 [[package]]
+name = "zerofrom"
+version = "0.1.5"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "cff3ee08c995dee1859d998dea82f7374f2826091dd9cd47def953cae446cd2e"
+
+[[package]]
+name = "zerofrom-derive"
+version = "0.1.5"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "595eed982f7d355beb85837f651fa22e90b3c044842dc7f2c2842c086f295808"
+dependencies = [
+ "proc-macro2 1.0.93",
+ "quote 1.0.38",
+ "syn 2.0.96",
+ "synstructure",
+]
+
+[[package]]
 name = "zeroize"
 version = "1.8.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -6718,6 +6751,35 @@ name = "zeroize_derive"
 version = "1.4.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "ce36e65b0d2999d2aafac989fb249189a141aee1f53c612c1f37d72631959f69"
+dependencies = [
+ "proc-macro2 1.0.93",
+ "quote 1.0.38",
+ "syn 2.0.96",
+]
+
+[[package]]
+name = "zerotrie"
+version = "0.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "fa766b97d68da210d29cc0bc8d072d87de9359cb998e4bc30ab4982a1c795d47"
+dependencies = [
+ "displaydoc",
+]
+
+[[package]]
+name = "zerovec"
+version = "0.11.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "9b622856b789971a6fe0442b69f3a2d7ac949005c4c8586b2c4ef09cc5182f2b"
+dependencies = [
+ "zerofrom",
+]
+
+[[package]]
+name = "zerovec-derive"
+version = "0.11.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "996c67268f00e216986ac140d8de9f47968c330b96aeefcae9ed296f23934448"
 dependencies = [
  "proc-macro2 1.0.93",
  "quote 1.0.38",
