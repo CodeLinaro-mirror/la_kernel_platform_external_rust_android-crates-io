@@ -21,7 +21,10 @@ rust_library {
     cargo_pkg_version: "0.8.0",
     crate_root: "src/lib.rs",
     edition: "2021",
-    features: ["zerovec"],
+    features: [
+        "alloc",
+        "zerovec",
+    ],
     rustlibs: ["libzerovec"],
     proc_macros: ["libdisplaydoc"],
     apex_available: [
