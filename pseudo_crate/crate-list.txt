@@ -61,6 +61,8 @@ configparser
 const-oid
 coset
 cov-mark
+crc
+crc-catalog
 crc32fast
 criterion
 criterion-plot
@@ -164,6 +166,7 @@ libc
 libfuzzer-sys
 libloading
 libm
+libsqlite3-sys
 libtest-mimic
 libusb1-sys
 libz-sys
@@ -301,6 +304,7 @@ smallvec
 smccc
 socket2
 spdx
+spidev
 spin
 spki
 static_assertions
