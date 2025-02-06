@@ -26,6 +26,8 @@ use_as_trait_name!(
     FromBytes => derive_from_bytes_inner,
     IntoBytes => derive_into_bytes_inner,
     Unaligned => derive_unaligned_inner,
+    ByteHash => derive_hash_inner,
+    ByteEq => derive_eq_inner,
 );
 
 /// Test that the given derive input expands to the expected output.
@@ -191,6 +193,7 @@ fn test_known_layout() {
                 #[repr(C)]
                 #[repr(align(2))]
                 #[doc(hidden)]
+                #[allow(private_bounds)]
                 struct __ZerocopyKnownLayoutMaybeUninit<T, U>(
                     ::zerocopy::util::macro_util::core_reexport::mem::MaybeUninit<
                         <Foo<T, U> as ::zerocopy::util::macro_util::Field<__Zerocopy_Field_0>>::Type,
@@ -1977,6 +1980,76 @@ fn test_try_from_bytes_trivial_is_bit_valid_enum() {
                 {
                     true
                 }
+            }
+        } no_build
+    }
+}
+
+#[test]
+fn test_hash() {
+    test! {
+        ByteHash {
+            struct Foo<T: Clone>(T) where Self: Sized;
+        } expands to {
+            #[allow(deprecated)]
+            #[automatically_derived]
+            impl<T: Clone> ::zerocopy::util::macro_util::core_reexport::hash::Hash for Foo<T>
+            where
+                Self: ::zerocopy::IntoBytes + ::zerocopy::Immutable,
+                Self: Sized,
+            {
+                fn hash<H>(&self, state: &mut H)
+                where
+                    H: ::zerocopy::util::macro_util::core_reexport::hash::Hasher,
+                {
+                    ::zerocopy::util::macro_util::core_reexport::hash::Hasher::write(
+                        state,
+                        ::zerocopy::IntoBytes::as_bytes(self)
+                    )
+                }
+
+                fn hash_slice<H>(data: &[Self], state: &mut H)
+                where
+                    H: ::zerocopy::util::macro_util::core_reexport::hash::Hasher,
+                {
+                    ::zerocopy::util::macro_util::core_reexport::hash::Hasher::write(
+                        state,
+                        ::zerocopy::IntoBytes::as_bytes(data)
+                    )
+                }
+            }
+        } no_build
+    }
+}
+
+#[test]
+fn test_eq() {
+    test! {
+        ByteEq {
+            struct Foo<T: Clone>(T) where Self: Sized;
+        } expands to {
+            #[allow(deprecated)]
+            #[automatically_derived]
+            impl<T: Clone> ::zerocopy::util::macro_util::core_reexport::cmp::PartialEq for Foo<T>
+            where
+                Self: ::zerocopy::IntoBytes + ::zerocopy::Immutable,
+                Self: Sized,
+            {
+                fn eq(&self, other: &Self) -> bool {
+                    ::zerocopy::util::macro_util::core_reexport::cmp::PartialEq::eq(
+                        ::zerocopy::IntoBytes::as_bytes(self),
+                        ::zerocopy::IntoBytes::as_bytes(other),
+                    )
+                }
+            }
+
+            #[allow(deprecated)]
+            #[automatically_derived]
+            impl<T: Clone> ::zerocopy::util::macro_util::core_reexport::cmp::Eq for Foo<T>
+            where
+                Self: ::zerocopy::IntoBytes + ::zerocopy::Immutable,
+                Self: Sized,
+            {
             }
         } no_build
     }

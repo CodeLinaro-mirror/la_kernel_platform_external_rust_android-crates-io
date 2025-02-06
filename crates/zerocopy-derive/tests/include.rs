@@ -26,16 +26,17 @@ mod imp {
     #[allow(unused)]
     pub use {
         ::core::{
-            assert_eq,
+            assert_eq, assert_ne,
             cell::UnsafeCell,
             convert::TryFrom,
+            hash,
             marker::PhantomData,
             mem::{ManuallyDrop, MaybeUninit},
             option::IntoIter,
             prelude::v1::*,
             primitive::*,
         },
-        ::std::prelude::v1::*,
+        ::std::{collections::hash_map::DefaultHasher, prelude::v1::*},
         ::zerocopy::*,
     };
 }

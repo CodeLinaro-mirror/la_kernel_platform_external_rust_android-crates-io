@@ -314,9 +314,6 @@
     feature(layout_for_ptr, coverage_attribute)
 )]
 
-#[cfg(android_dylib)]
-extern crate std;
-
 // This is a hack to allow zerocopy-derive derives to work in this crate. They
 // assume that zerocopy is linked as an extern crate, so they access items from
 // it as `zerocopy::Xxx`. This makes that still work.
@@ -867,7 +864,10 @@ impl PointerMetadata for usize {
 // SAFETY: Delegates safety to `DstLayout::for_slice`.
 unsafe impl<T> KnownLayout for [T] {
     #[allow(clippy::missing_inline_in_public_items)]
-    #[cfg_attr(coverage_nightly, coverage(off))]
+    #[cfg_attr(
+        all(coverage_nightly, __ZEROCOPY_INTERNAL_USE_ONLY_NIGHTLY_FEATURES_IN_TESTS),
+        coverage(off)
+    )]
     fn only_derive_is_allowed_to_implement_this_trait()
     where
         Self: Sized,
@@ -951,6 +951,14 @@ impl_known_layout!(
     bool, char,
     NonZeroU8, NonZeroI8, NonZeroU16, NonZeroI16, NonZeroU32, NonZeroI32,
     NonZeroU64, NonZeroI64, NonZeroU128, NonZeroI128, NonZeroUsize, NonZeroIsize
+);
+#[rustfmt::skip]
+#[cfg(feature = "float-nightly")]
+impl_known_layout!(
+    #[cfg_attr(doc_cfg, doc(cfg(feature = "float-nightly")))]
+    f16,
+    #[cfg_attr(doc_cfg, doc(cfg(feature = "float-nightly")))]
+    f128
 );
 #[rustfmt::skip]
 impl_known_layout!(
@@ -5434,6 +5442,33 @@ pub unsafe trait Unaligned {
     where
         Self: Sized;
 }
+
+/// Derives an optimized implementation of [`Hash`] for types that implement
+/// [`IntoBytes`] and [`Immutable`].
+///
+/// The standard library's derive for `Hash` generates a recursive descent
+/// into the fields of the type it is applied to. Instead, the implementation
+/// derived by this macro makes a single call to [`Hasher::write()`] for both
+/// [`Hash::hash()`] and [`Hash::hash_slice()`], feeding the hasher the bytes
+/// of the type or slice all at once.
+///
+/// [`Hash`]: core::hash::Hash
+/// [`Hash::hash()`]: core::hash::Hash::hash()
+/// [`Hash::hash_slice()`]: core::hash::Hash::hash_slice()
+#[cfg(any(feature = "derive", test))]
+#[cfg_attr(doc_cfg, doc(cfg(feature = "derive")))]
+pub use zerocopy_derive::ByteHash;
+
+/// Derives an optimized implementation of [`PartialEq`] and [`Eq`] for types
+/// that implement [`IntoBytes`] and [`Immutable`].
+///
+/// The standard library's derive for [`PartialEq`] generates a recursive
+/// descent into the fields of the type it is applied to. Instead, the
+/// implementation derived by this macro performs a single slice comparison of
+/// the bytes of the two values being compared.
+#[cfg(any(feature = "derive", test))]
+#[cfg_attr(doc_cfg, doc(cfg(feature = "derive")))]
+pub use zerocopy_derive::ByteEq;
 
 #[cfg(feature = "alloc")]
 #[cfg_attr(doc_cfg, doc(cfg(feature = "alloc")))]
