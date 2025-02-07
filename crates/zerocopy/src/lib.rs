@@ -314,9 +314,6 @@
     feature(layout_for_ptr, coverage_attribute)
 )]
 
-#[cfg(android_dylib)]
-extern crate std;
-
 // This is a hack to allow zerocopy-derive derives to work in this crate. They
 // assume that zerocopy is linked as an extern crate, so they access items from
 // it as `zerocopy::Xxx`. This makes that still work.
@@ -5434,6 +5431,22 @@ pub unsafe trait Unaligned {
     where
         Self: Sized;
 }
+
+/// Derives an optimized implementation of [`Hash`] for types that implement
+/// [`IntoBytes`] and [`Immutable`].
+///
+/// The standard library's derive for `Hash` generates a recursive descent
+/// into the fields of the type it is applied to. Instead, the implementation
+/// derived by this macro makes a single call to [`Hasher::write()`] for both
+/// [`Hash::hash()`] and [`Hash::hash_slice()`], feeding the hasher the bytes
+/// of the type or slice all at once.
+///
+/// [`Hash`]: core::hash::Hash
+/// [`Hash::hash()`]: core::hash::Hash::hash()
+/// [`Hash::hash_slice()`]: core::hash::Hash::hash_slice()
+#[cfg(any(feature = "derive", test))]
+#[cfg_attr(doc_cfg, doc(cfg(feature = "derive")))]
+pub use zerocopy_derive::ByteHash;
 
 #[cfg(feature = "alloc")]
 #[cfg_attr(doc_cfg, doc(cfg(feature = "alloc")))]

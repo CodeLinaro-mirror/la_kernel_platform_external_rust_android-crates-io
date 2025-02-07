@@ -18,7 +18,7 @@ rust_library {
     host_supported: true,
     crate_name: "x509_cert",
     cargo_env_compat: true,
-    cargo_pkg_version: "0.2.4",
+    cargo_pkg_version: "0.2.5",
     crate_root: "src/lib.rs",
     edition: "2021",
     rustlibs: [
@@ -35,6 +35,8 @@ rust_library {
     visibility: [
         "//packages/modules/Virtualization:__subpackages__",
         "//system/keymint:__subpackages__",
+        "//system/security/keystore2/tests:__subpackages__",
+        "//system/security/keystore2/test_utils:__subpackages__",
     ],
 }
 
@@ -42,7 +44,7 @@ rust_library_rlib {
     name: "libx509_cert_nostd",
     crate_name: "x509_cert",
     cargo_env_compat: true,
-    cargo_pkg_version: "0.2.4",
+    cargo_pkg_version: "0.2.5",
     crate_root: "src/lib.rs",
     edition: "2021",
     rustlibs: [
