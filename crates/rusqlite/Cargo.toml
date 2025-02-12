@@ -12,7 +12,7 @@
 [package]
 edition = "2021"
 name = "rusqlite"
-version = "0.32.0"
+version = "0.32.1"
 authors = ["The rusqlite developers"]
 build = false
 exclude = [
@@ -112,10 +112,10 @@ path = "benches/exec.rs"
 harness = false
 
 [dependencies.bitflags]
-version = "2.0"
+version = "2.6.0"
 
 [dependencies.chrono]
-version = "0.4"
+version = "0.4.38"
 features = ["clock"]
 optional = true
 default-features = false
@@ -134,7 +134,7 @@ version = "0.1"
 version = "0.9"
 
 [dependencies.libsqlite3-sys]
-version = "0.30.0"
+version = "0.30.1"
 
 [dependencies.rusqlite-macros]
 version = "0.3.0"
@@ -148,7 +148,7 @@ optional = true
 version = "1.6.1"
 
 [dependencies.time]
-version = "0.3.0"
+version = "0.3.36"
 features = [
     "formatting",
     "macros",
