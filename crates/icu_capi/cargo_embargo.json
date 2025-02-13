@@ -1,0 +1,8 @@
+{
+    "features": ["compiled_data", "properties"],
+    "package": {
+        "icu_capi": {
+            "exported_c_header_dir": ["bindings/cpp"]
+        }
+    }
+}
