@@ -180,6 +180,7 @@ jni-sys
 json-strip-comments
 kernlog
 khronos
+khronos-egl
 lazy_static
 lazycell
 libbpf-rs
