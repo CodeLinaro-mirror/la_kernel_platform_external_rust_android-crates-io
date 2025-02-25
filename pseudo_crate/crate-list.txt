@@ -311,6 +311,7 @@ sec1
 semver
 serde
 serde-xml-rs
+serde_bytes
 serde_cbor
 serde_derive
 serde_json
