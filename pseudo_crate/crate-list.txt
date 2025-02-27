@@ -135,6 +135,7 @@ glob
 googletest
 googletest_macro
 gpio-cdev
+grid
 grpcio
 grpcio-compiler
 grpcio-sys
@@ -324,6 +325,7 @@ signal-hook
 signal-hook-registry
 siphasher
 slab
+slotmap
 smallvec
 smccc
 socket2
@@ -341,6 +343,7 @@ syn
 syn-mid
 sync_wrapper
 synstructure
+taffy
 tempfile
 termcolor
 termtree
