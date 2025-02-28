@@ -18,7 +18,7 @@ use core::mem::{size_of, take};
 use core::ptr;
 use core::ptr::NonNull;
 use core::sync::atomic::{fence, AtomicU16, Ordering};
-use zerocopy::{AsBytes, FromBytes, FromZeroes};
+use zerocopy::{FromBytes, FromZeros, Immutable, IntoBytes, KnownLayout};
 
 /// The mechanism for bulk data transport on virtio devices.
 ///
@@ -110,7 +110,7 @@ impl<H: Hal, const SIZE: usize> VirtQueue<H, SIZE> {
         let avail = layout.avail_vaddr().cast();
         let used = layout.used_vaddr().cast();
 
-        let mut desc_shadow: [Descriptor; SIZE] = FromZeroes::new_zeroed();
+        let mut desc_shadow: [Descriptor; SIZE] = FromZeros::new_zeroed();
         // Link descriptors together.
         for i in 0..(size - 1) {
             desc_shadow[i as usize].next = i + 1;
@@ -251,7 +251,8 @@ impl<H: Hal, const SIZE: usize> VirtQueue<H, SIZE> {
         let head = self.free_head;
 
         // Allocate and fill in indirect descriptor list.
-        let mut indirect_list = Descriptor::new_box_slice_zeroed(inputs.len() + outputs.len());
+        let mut indirect_list =
+            <[Descriptor]>::new_box_zeroed_with_elems(inputs.len() + outputs.len()).unwrap();
         for (i, (buffer, direction)) in InputOutputIter::new(inputs, outputs).enumerate() {
             let desc = &mut indirect_list[i];
             // Safe because our caller promises that the buffers live at least until `pop_used`
@@ -436,7 +437,7 @@ impl<H: Hal, const SIZE: usize> VirtQueue<H, SIZE> {
                 unsafe {
                     H::unshare(
                         paddr as usize,
-                        indirect_list.as_bytes_mut().into(),
+                        indirect_list.as_mut_bytes().into(),
                         BufferDirection::DriverToDevice,
                     );
                 }
@@ -697,7 +698,7 @@ fn queue_part_sizes(queue_size: u16) -> (usize, usize, usize) {
 }
 
 #[repr(C, align(16))]
-#[derive(AsBytes, Clone, Debug, FromBytes, FromZeroes)]
+#[derive(Clone, Debug, FromBytes, Immutable, IntoBytes, KnownLayout)]
 pub(crate) struct Descriptor {
     addr: u64,
     len: u32,
@@ -752,7 +753,9 @@ impl Descriptor {
 }
 
 /// Descriptor flags
-#[derive(AsBytes, Copy, Clone, Debug, Default, Eq, FromBytes, FromZeroes, PartialEq)]
+#[derive(
+    Copy, Clone, Debug, Default, Eq, FromBytes, Immutable, IntoBytes, KnownLayout, PartialEq,
+)]
 #[repr(transparent)]
 struct DescFlags(u16);
 
@@ -808,7 +811,7 @@ impl<'a, 'b> InputOutputIter<'a, 'b> {
     }
 }
 
-impl<'a, 'b> Iterator for InputOutputIter<'a, 'b> {
+impl Iterator for InputOutputIter<'_, '_> {
     type Item = (NonNull<[u8]>, BufferDirection);
 
     fn next(&mut self) -> Option<Self::Item> {
@@ -877,11 +880,13 @@ pub(crate) fn fake_read_write_queue<const QUEUE_SIZE: usize>(
 
             // Loop through all input descriptors in the indirect descriptor list, reading data from
             // them.
-            let indirect_descriptor_list: &[Descriptor] = zerocopy::Ref::new_slice(
-                slice::from_raw_parts(descriptor.addr as *const u8, descriptor.len as usize),
-            )
-            .unwrap()
-            .into_slice();
+            let indirect_descriptor_list: &[Descriptor] = zerocopy::Ref::into_ref(
+                zerocopy::Ref::<_, [Descriptor]>::from_bytes(slice::from_raw_parts(
+                    descriptor.addr as *const u8,
+                    descriptor.len as usize,
+                ))
+                .unwrap(),
+            );
             let mut input = Vec::new();
             let mut indirect_descriptor_index = 0;
             while indirect_descriptor_index < indirect_descriptor_list.len() {
@@ -990,7 +995,9 @@ mod tests {
     #[test]
     fn queue_too_big() {
         let mut header = VirtIOHeader::make_fake_header(MODERN_VERSION, 1, 0, 0, 4);
-        let mut transport = unsafe { MmioTransport::new(NonNull::from(&mut header)) }.unwrap();
+        let mut transport =
+            unsafe { MmioTransport::new(NonNull::from(&mut header), size_of::<VirtIOHeader>()) }
+                .unwrap();
         assert_eq!(
             VirtQueue::<FakeHal, 8>::new(&mut transport, 0, false, false).unwrap_err(),
             Error::InvalidParam
@@ -1000,7 +1007,9 @@ mod tests {
     #[test]
     fn queue_already_used() {
         let mut header = VirtIOHeader::make_fake_header(MODERN_VERSION, 1, 0, 0, 4);
-        let mut transport = unsafe { MmioTransport::new(NonNull::from(&mut header)) }.unwrap();
+        let mut transport =
+            unsafe { MmioTransport::new(NonNull::from(&mut header), size_of::<VirtIOHeader>()) }
+                .unwrap();
         VirtQueue::<FakeHal, 4>::new(&mut transport, 0, false, false).unwrap();
         assert_eq!(
             VirtQueue::<FakeHal, 4>::new(&mut transport, 0, false, false).unwrap_err(),
@@ -1011,7 +1020,9 @@ mod tests {
     #[test]
     fn add_empty() {
         let mut header = VirtIOHeader::make_fake_header(MODERN_VERSION, 1, 0, 0, 4);
-        let mut transport = unsafe { MmioTransport::new(NonNull::from(&mut header)) }.unwrap();
+        let mut transport =
+            unsafe { MmioTransport::new(NonNull::from(&mut header), size_of::<VirtIOHeader>()) }
+                .unwrap();
         let mut queue = VirtQueue::<FakeHal, 4>::new(&mut transport, 0, false, false).unwrap();
         assert_eq!(
             unsafe { queue.add(&[], &mut []) }.unwrap_err(),
@@ -1022,7 +1033,9 @@ mod tests {
     #[test]
     fn add_too_many() {
         let mut header = VirtIOHeader::make_fake_header(MODERN_VERSION, 1, 0, 0, 4);
-        let mut transport = unsafe { MmioTransport::new(NonNull::from(&mut header)) }.unwrap();
+        let mut transport =
+            unsafe { MmioTransport::new(NonNull::from(&mut header), size_of::<VirtIOHeader>()) }
+                .unwrap();
         let mut queue = VirtQueue::<FakeHal, 4>::new(&mut transport, 0, false, false).unwrap();
         assert_eq!(queue.available_desc(), 4);
         assert_eq!(
@@ -1034,7 +1047,9 @@ mod tests {
     #[test]
     fn add_buffers() {
         let mut header = VirtIOHeader::make_fake_header(MODERN_VERSION, 1, 0, 0, 4);
-        let mut transport = unsafe { MmioTransport::new(NonNull::from(&mut header)) }.unwrap();
+        let mut transport =
+            unsafe { MmioTransport::new(NonNull::from(&mut header), size_of::<VirtIOHeader>()) }
+                .unwrap();
         let mut queue = VirtQueue::<FakeHal, 4>::new(&mut transport, 0, false, false).unwrap();
         assert_eq!(queue.available_desc(), 4);
 
@@ -1097,7 +1112,9 @@ mod tests {
         use core::ptr::slice_from_raw_parts;
 
         let mut header = VirtIOHeader::make_fake_header(MODERN_VERSION, 1, 0, 0, 4);
-        let mut transport = unsafe { MmioTransport::new(NonNull::from(&mut header)) }.unwrap();
+        let mut transport =
+            unsafe { MmioTransport::new(NonNull::from(&mut header), size_of::<VirtIOHeader>()) }
+                .unwrap();
         let mut queue = VirtQueue::<FakeHal, 4>::new(&mut transport, 0, true, false).unwrap();
         assert_eq!(queue.available_desc(), 4);
 
@@ -1147,16 +1164,11 @@ mod tests {
     /// Tests that the queue advises the device that notifications are needed.
     #[test]
     fn set_dev_notify() {
-        let mut config_space = ();
-        let state = Arc::new(Mutex::new(State {
-            queues: vec![QueueStatus::default()],
-            ..Default::default()
-        }));
+        let state = Arc::new(Mutex::new(State::new(vec![QueueStatus::default()], ())));
         let mut transport = FakeTransport {
             device_type: DeviceType::Block,
             max_queue_size: 4,
             device_features: 0,
-            config_space: NonNull::from(&mut config_space),
             state: state.clone(),
         };
         let mut queue = VirtQueue::<FakeHal, 4>::new(&mut transport, 0, false, false).unwrap();
@@ -1188,16 +1200,11 @@ mod tests {
     /// notifications.
     #[test]
     fn add_notify() {
-        let mut config_space = ();
-        let state = Arc::new(Mutex::new(State {
-            queues: vec![QueueStatus::default()],
-            ..Default::default()
-        }));
+        let state = Arc::new(Mutex::new(State::new(vec![QueueStatus::default()], ())));
         let mut transport = FakeTransport {
             device_type: DeviceType::Block,
             max_queue_size: 4,
             device_features: 0,
-            config_space: NonNull::from(&mut config_space),
             state: state.clone(),
         };
         let mut queue = VirtQueue::<FakeHal, 4>::new(&mut transport, 0, false, false).unwrap();
@@ -1223,16 +1230,11 @@ mod tests {
     /// notifications with the `avail_event` index.
     #[test]
     fn add_notify_event_idx() {
-        let mut config_space = ();
-        let state = Arc::new(Mutex::new(State {
-            queues: vec![QueueStatus::default()],
-            ..Default::default()
-        }));
+        let state = Arc::new(Mutex::new(State::new(vec![QueueStatus::default()], ())));
         let mut transport = FakeTransport {
             device_type: DeviceType::Block,
             max_queue_size: 4,
             device_features: Feature::RING_EVENT_IDX.bits(),
-            config_space: NonNull::from(&mut config_space),
             state: state.clone(),
         };
         let mut queue = VirtQueue::<FakeHal, 4>::new(&mut transport, 0, false, true).unwrap();

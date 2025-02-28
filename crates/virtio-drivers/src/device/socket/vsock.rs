@@ -6,14 +6,14 @@ use super::protocol::{
     Feature, StreamShutdown, VirtioVsockConfig, VirtioVsockHdr, VirtioVsockOp, VsockAddr,
 };
 use super::DEFAULT_RX_BUFFER_SIZE;
+use crate::config::read_config;
 use crate::hal::Hal;
 use crate::queue::{owning::OwningQueue, VirtQueue};
 use crate::transport::Transport;
-use crate::volatile::volread;
 use crate::Result;
 use core::mem::size_of;
 use log::debug;
-use zerocopy::{AsBytes, FromBytes};
+use zerocopy::{FromBytes, IntoBytes};
 
 pub(crate) const RX_QUEUE_IDX: u16 = 0;
 pub(crate) const TX_QUEUE_IDX: u16 = 1;
@@ -248,12 +248,12 @@ impl<H: Hal, T: Transport, const RX_BUFFER_SIZE: usize> VirtIOSocket<H, T, RX_BU
 
         let negotiated_features = transport.begin_init(SUPPORTED_FEATURES);
 
-        let config = transport.config_space::<VirtioVsockConfig>()?;
-        debug!("config: {:?}", config);
-        // Safe because config is a valid pointer to the device configuration space.
-        let guest_cid = unsafe {
-            volread!(config, guest_cid_low) as u64 | (volread!(config, guest_cid_high) as u64) << 32
-        };
+        let guest_cid = transport.read_consistent(|| {
+            Ok(
+                read_config!(transport, VirtioVsockConfig, guest_cid_low)? as u64
+                    | (read_config!(transport, VirtioVsockConfig, guest_cid_high)? as u64) << 32,
+            )
+        })?;
         debug!("guest cid: {guest_cid:?}");
 
         let rx = VirtQueue::new(
@@ -441,7 +441,9 @@ impl<H: Hal, T: Transport, const RX_BUFFER_SIZE: usize> VirtIOSocket<H, T, RX_BU
 
 fn read_header_and_body(buffer: &[u8]) -> Result<(VirtioVsockHdr, &[u8])> {
     // This could fail if the device returns a buffer used length shorter than the header size.
-    let header = VirtioVsockHdr::read_from_prefix(buffer).ok_or(SocketError::BufferTooShort)?;
+    let header = VirtioVsockHdr::read_from_prefix(buffer)
+        .map_err(|_| SocketError::BufferTooShort)?
+        .0;
     let body_length = header.len() as usize;
 
     // This could fail if the device returns an unreasonably long body length.
@@ -460,36 +462,34 @@ fn read_header_and_body(buffer: &[u8]) -> Result<(VirtioVsockHdr, &[u8])> {
 mod tests {
     use super::*;
     use crate::{
+        config::ReadOnly,
         hal::fake::FakeHal,
         transport::{
             fake::{FakeTransport, QueueStatus, State},
             DeviceType,
         },
-        volatile::ReadOnly,
     };
     use alloc::{sync::Arc, vec};
-    use core::ptr::NonNull;
     use std::sync::Mutex;
 
     #[test]
     fn config() {
-        let mut config_space = VirtioVsockConfig {
+        let config_space = VirtioVsockConfig {
             guest_cid_low: ReadOnly::new(66),
             guest_cid_high: ReadOnly::new(0),
         };
-        let state = Arc::new(Mutex::new(State {
-            queues: vec![
+        let state = Arc::new(Mutex::new(State::new(
+            vec![
                 QueueStatus::default(),
                 QueueStatus::default(),
                 QueueStatus::default(),
             ],
-            ..Default::default()
-        }));
+            config_space,
+        )));
         let transport = FakeTransport {
             device_type: DeviceType::Socket,
             max_queue_size: 32,
             device_features: 0,
-            config_space: NonNull::from(&mut config_space),
             state: state.clone(),
         };
         let socket =
