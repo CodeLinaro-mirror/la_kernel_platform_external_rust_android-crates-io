@@ -13,10 +13,14 @@
 edition = "2021"
 rust-version = "1.56.0"
 name = "zerocopy"
-version = "0.8.17"
-authors = ["Joshua Liebow-Feeser <joshlf@google.com>"]
+version = "0.8.20"
+authors = [
+    "Joshua Liebow-Feeser <joshlf@google.com>",
+    "Jack Wrenn <jswrenn@amazon.com>",
+]
 build = "build.rs"
 exclude = [".*"]
+autolib = false
 autobins = false
 autoexamples = false
 autotests = false
@@ -72,7 +76,7 @@ name = "trybuild"
 path = "tests/trybuild.rs"
 
 [dependencies.zerocopy-derive]
-version = "=0.8.17"
+version = "=0.8.20"
 optional = true
 
 [dev-dependencies.elain]
@@ -97,7 +101,7 @@ version = "=1.0.89"
 features = ["diff"]
 
 [dev-dependencies.zerocopy-derive]
-version = "=0.8.17"
+version = "=0.8.20"
 
 [features]
 __internal_use_only_features_that_work_on_stable = [
@@ -114,4 +118,4 @@ simd-nightly = ["simd"]
 std = ["alloc"]
 
 [target."cfg(any())".dependencies.zerocopy-derive]
-version = "=0.8.17"
+version = "=0.8.20"
