@@ -7,22 +7,13 @@ import type { pointer, codepoint } from "./diplomat-runtime.d.ts";
 *
 *See the [Rust documentation for `LocaleFallbackConfig`](https://docs.rs/icu/latest/icu/locale/fallback/struct.LocaleFallbackConfig.html) for more information.
 */
-type LocaleFallbackConfig_obj = {
+type LocaleFallbackConfig_Obj = {
     priority: LocaleFallbackPriority;
 };
 
-
-
 export class LocaleFallbackConfig {
-    
-    get priority() : LocaleFallbackPriority; 
+
+    get priority() : LocaleFallbackPriority;
     set priority(value: LocaleFallbackPriority); 
-    
-    /** Create `LocaleFallbackConfig` from an object that contains all of `LocaleFallbackConfig`s fields.
-    * Optional fields do not need to be included in the provided object.
-    */
-    static fromFields(structObj : LocaleFallbackConfig_obj) : LocaleFallbackConfig;
-
-
-    constructor(structObj : LocaleFallbackConfig_obj);
+    constructor(structObj : LocaleFallbackConfig_Obj);
 }

@@ -4,25 +4,23 @@ import type { DataError } from "./DataError"
 import type { DataProvider } from "./DataProvider"
 import type { Locale } from "./Locale"
 import type { TitlecaseOptions } from "./TitlecaseOptions"
-import type { TitlecaseOptions_obj } from "./TitlecaseOptions"
 import type { pointer, codepoint } from "./diplomat-runtime.d.ts";
 
 
 /** See the [Rust documentation for `CaseMapper`](https://docs.rs/icu/latest/icu/casemap/struct.CaseMapper.html) for more information.
 */
-
-
 export class CaseMapper {
     
+
     get ffiValue(): pointer;
 
-    static createWithProvider(provider: DataProvider): CaseMapper;
+    static create(provider: DataProvider): CaseMapper;
 
     lowercase(s: string, locale: Locale): string;
 
     uppercase(s: string, locale: Locale): string;
 
-    titlecaseSegmentWithOnlyCaseData(s: string, locale: Locale, options: TitlecaseOptions_obj): string;
+    titlecaseSegmentWithOnlyCaseData(s: string, locale: Locale, options: TitlecaseOptions): string;
 
     fold(s: string): string;
 
@@ -39,6 +37,4 @@ export class CaseMapper {
     simpleFold(ch: codepoint): codepoint;
 
     simpleFoldTurkic(ch: codepoint): codepoint;
-
-    constructor();
 }

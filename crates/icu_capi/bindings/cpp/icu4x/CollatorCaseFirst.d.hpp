@@ -6,7 +6,6 @@
 #include <stddef.h>
 #include <stdbool.h>
 #include <memory>
-#include <functional>
 #include <optional>
 #include "../diplomat_runtime.hpp"
 
@@ -15,8 +14,8 @@ namespace icu4x {
 namespace capi {
     enum CollatorCaseFirst {
       CollatorCaseFirst_Off = 0,
-      CollatorCaseFirst_Lower = 1,
-      CollatorCaseFirst_Upper = 2,
+      CollatorCaseFirst_LowerFirst = 1,
+      CollatorCaseFirst_UpperFirst = 2,
     };
     
     typedef struct CollatorCaseFirst_option {union { CollatorCaseFirst ok; }; bool is_ok; } CollatorCaseFirst_option;
@@ -28,8 +27,8 @@ class CollatorCaseFirst {
 public:
   enum Value {
     Off = 0,
-    Lower = 1,
-    Upper = 2,
+    LowerFirst = 1,
+    UpperFirst = 2,
   };
 
   CollatorCaseFirst() = default;

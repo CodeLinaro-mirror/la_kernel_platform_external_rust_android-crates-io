@@ -11,9 +11,9 @@
 
 [package]
 edition = "2021"
-rust-version = "1.81"
+rust-version = "1.71.1"
 name = "icu_provider"
-version = "2.0.0-beta2"
+version = "2.0.0-beta1"
 authors = ["The ICU4X Project Developers"]
 build = false
 include = [
@@ -26,7 +26,6 @@ include = [
     "LICENSE",
     "README.md",
 ]
-autolib = false
 autobins = false
 autoexamples = false
 autotests = false
@@ -44,41 +43,6 @@ max_combination_size = 3
 
 [package.metadata.docs.rs]
 all-features = true
-
-[features]
-alloc = [
-    "icu_locale_core/alloc",
-    "zerovec/alloc",
-]
-deserialize_bincode_1 = [
-    "serde",
-    "dep:bincode",
-    "std",
-]
-deserialize_json = [
-    "serde",
-    "dep:serde_json",
-]
-deserialize_postcard_1 = [
-    "serde",
-    "dep:postcard",
-]
-export = [
-    "serde",
-    "dep:erased-serde",
-    "dep:databake",
-    "std",
-    "sync",
-    "dep:postcard",
-    "zerovec/databake",
-]
-logging = ["dep:log"]
-serde = [
-    "dep:serde",
-    "yoke/serde",
-]
-std = ["alloc"]
-sync = []
 
 [lib]
 name = "icu_provider"
@@ -110,7 +74,12 @@ features = ["alloc"]
 optional = true
 
 [dependencies.icu_locale_core]
-version = "2.0.0-beta2"
+version = "2.0.0-beta1"
+default-features = false
+
+[dependencies.icu_provider_macros]
+version = "~2.0.0-beta1"
+optional = true
 default-features = false
 
 [dependencies.log]
@@ -119,7 +88,7 @@ optional = true
 default-features = false
 
 [dependencies.postcard]
-version = "1.0.3"
+version = "1.0.1"
 optional = true
 default-features = false
 
@@ -149,7 +118,7 @@ version = "0.6.0"
 default-features = false
 
 [dependencies.yoke]
-version = "0.8.0"
+version = "0.7.5"
 features = [
     "alloc",
     "derive",
@@ -165,12 +134,44 @@ features = [
 default-features = false
 
 [dependencies.zerovec]
-version = "0.11.1"
+version = "0.11.0"
 features = ["derive"]
 default-features = false
 
 [dev-dependencies.serde_json]
 version = "1.0.45"
+
+[features]
+bench = []
+deserialize_bincode_1 = [
+    "serde",
+    "dep:bincode",
+    "std",
+]
+deserialize_json = [
+    "serde",
+    "dep:serde_json",
+]
+deserialize_postcard_1 = [
+    "serde",
+    "dep:postcard",
+]
+export = [
+    "serde",
+    "dep:erased-serde",
+    "dep:databake",
+    "std",
+    "sync",
+    "dep:postcard",
+]
+logging = ["dep:log"]
+macros = ["dep:icu_provider_macros"]
+serde = [
+    "dep:serde",
+    "yoke/serde",
+]
+std = ["icu_locale_core/std"]
+sync = []
 
 [target.'cfg(not(target_arch = "wasm32"))'.dev-dependencies.criterion]
 version = "0.5.0"

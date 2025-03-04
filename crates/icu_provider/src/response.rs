@@ -6,19 +6,16 @@ use crate::buf::BufferMarker;
 use crate::DataError;
 use crate::DataLocale;
 use crate::DynamicDataMarker;
-#[cfg(feature = "alloc")]
 use alloc::boxed::Box;
 use core::fmt::Debug;
 use core::marker::PhantomData;
-#[cfg(feature = "alloc")]
 use core::ops::Deref;
 use yoke::cartable_ptr::CartableOptionPointer;
+use yoke::trait_hack::YokeTraitHack;
 use yoke::*;
 
-#[cfg(feature = "alloc")]
 #[cfg(not(feature = "sync"))]
 use alloc::rc::Rc as SelectedRc;
-#[cfg(feature = "alloc")]
 #[cfg(feature = "sync")]
 use alloc::sync::Arc as SelectedRc;
 
@@ -30,18 +27,6 @@ pub struct DataResponseMetadata {
     pub locale: Option<DataLocale>,
     /// The format of the buffer for buffer-backed data, if known (for example, JSON).
     pub buffer_format: Option<crate::buf::BufferFormat>,
-    /// An optional checksum. This can be used to ensure consistency across different markers.
-    pub checksum: Option<u64>,
-}
-
-impl DataResponseMetadata {
-    /// Sets the checksum.
-    pub fn with_checksum(self, checksum: u64) -> Self {
-        Self {
-            checksum: Some(checksum),
-            ..self
-        }
-    }
 }
 
 /// A container for data payloads returned from a data provider.
@@ -73,14 +58,14 @@ impl DataResponseMetadata {
 ///
 /// # Examples
 ///
-/// Basic usage, using the `HelloWorldV1` marker:
+/// Basic usage, using the `HelloWorldV1Marker` marker:
 ///
 /// ```
 /// use icu_provider::hello_world::*;
 /// use icu_provider::prelude::*;
 /// use std::borrow::Cow;
 ///
-/// let payload = DataPayload::<HelloWorldV1>::from_owned(HelloWorld {
+/// let payload = DataPayload::<HelloWorldV1Marker>::from_owned(HelloWorldV1 {
 ///     message: Cow::Borrowed("Demo"),
 /// });
 ///
@@ -104,7 +89,7 @@ pub struct DataPayload<M: DynamicDataMarker>(pub(crate) DataPayloadInner<M>);
 /// use icu_provider::prelude::*;
 /// use icu_provider::DataPayloadOr;
 ///
-/// let response: DataResponse<HelloWorldV1> = HelloWorldProvider
+/// let response: DataResponse<HelloWorldV1Marker> = HelloWorldProvider
 ///     .load(DataRequest {
 ///         id: DataIdentifierBorrowed::for_locale(&langid!("de").into()),
 ///         ..Default::default()
@@ -112,12 +97,12 @@ pub struct DataPayload<M: DynamicDataMarker>(pub(crate) DataPayloadInner<M>);
 ///     .expect("Loading should succeed");
 ///
 /// let payload_some =
-///     DataPayloadOr::<HelloWorldV1, ()>::from_payload(response.payload);
-/// let payload_none = DataPayloadOr::<HelloWorldV1, ()>::from_other(());
+///     DataPayloadOr::<HelloWorldV1Marker, ()>::from_payload(response.payload);
+/// let payload_none = DataPayloadOr::<HelloWorldV1Marker, ()>::from_other(());
 ///
 /// assert_eq!(
 ///     payload_some.get(),
-///     Ok(&HelloWorld {
+///     Ok(&HelloWorldV1 {
 ///         message: "Hallo Welt".into()
 ///     })
 /// );
@@ -133,22 +118,24 @@ pub struct DataPayload<M: DynamicDataMarker>(pub(crate) DataPayloadInner<M>);
 ///
 /// const W: usize = size_of::<usize>();
 ///
-/// // Data struct is 3 words:
-/// icu_provider::data_marker!(SampleV1, [usize; 3]);
+/// // SampleStruct is 3 words:
+/// # #[icu_provider::data_struct(SampleStructMarker)]
+/// # pub struct SampleStruct<'data>(usize, usize, &'data ());
+/// assert_eq!(W * 3, size_of::<SampleStruct>());
 ///
 /// // DataPayload adds a word for a total of 4 words:
-/// assert_eq!(W * 4, size_of::<DataPayload<SampleV1>>());
+/// assert_eq!(W * 4, size_of::<DataPayload<SampleStructMarker>>());
 ///
 /// // Option<DataPayload> balloons to 5 words:
-/// assert_eq!(W * 5, size_of::<Option<DataPayload<SampleV1>>>());
+/// assert_eq!(W * 5, size_of::<Option<DataPayload<SampleStructMarker>>>());
 ///
 /// // But, using DataPayloadOr is the same size as DataPayload:
-/// assert_eq!(W * 4, size_of::<DataPayloadOr<SampleV1, ()>>());
+/// assert_eq!(W * 4, size_of::<DataPayloadOr<SampleStructMarker, ()>>());
 ///
 /// // The largest optimized Other type is two words smaller than the DataPayload:
-/// assert_eq!(W * 4, size_of::<DataPayloadOr<SampleV1, [usize; 1]>>());
-/// assert_eq!(W * 4, size_of::<DataPayloadOr<SampleV1, [usize; 2]>>());
-/// assert_eq!(W * 5, size_of::<DataPayloadOr<SampleV1, [usize; 3]>>());
+/// assert_eq!(W * 4, size_of::<DataPayloadOr<SampleStructMarker, [usize; 1]>>());
+/// assert_eq!(W * 4, size_of::<DataPayloadOr<SampleStructMarker, [usize; 2]>>());
+/// assert_eq!(W * 5, size_of::<DataPayloadOr<SampleStructMarker, [usize; 3]>>());
 /// ```
 pub struct DataPayloadOr<M: DynamicDataMarker, O>(pub(crate) DataPayloadOrInner<M, O>);
 
@@ -174,30 +161,23 @@ pub(crate) enum DataPayloadOrInnerInner<M: DynamicDataMarker, O> {
 /// it to a [`DataPayload`] with [`DataPayload::from_yoked_buffer`].
 #[derive(Clone, Debug)]
 #[allow(clippy::redundant_allocation)] // false positive, it's cheaper to wrap an existing Box in an Rc than to reallocate a huge Rc
-pub struct Cart(#[allow(dead_code)] CartInner);
+pub struct Cart(CartInner);
 
 /// The actual cart type (private typedef).
-#[cfg(feature = "alloc")]
 pub(crate) type CartInner = SelectedRc<Box<[u8]>>;
-#[cfg(not(feature = "alloc"))]
-pub(crate) type CartInner = &'static ();
 
-// Safety: Rc, Arc, and () are CloneableCart, and our impl delegates.
-unsafe impl yoke::CloneableCart for Cart {}
-
-#[cfg(feature = "alloc")]
 impl Deref for Cart {
     type Target = Box<[u8]>;
     fn deref(&self) -> &Self::Target {
         &self.0
     }
 }
-// Safety: both Rc and Arc are StableDeref, and our impl delegates.
-#[cfg(feature = "alloc")]
+// Safe because both Rc and Arc are StableDeref, and our impl delegates.
 unsafe impl stable_deref_trait::StableDeref for Cart {}
+// Safe because both Rc and Arc are CloneableCart, and our impl delegates.
+unsafe impl yoke::CloneableCart for Cart {}
 
 impl Cart {
-    #[cfg(feature = "alloc")]
     /// Creates a `Yoke<Y, Option<Cart>>` from owned bytes by applying `f`.
     pub fn try_make_yoke<Y, F, E>(cart: Box<[u8]>, f: F) -> Result<Yoke<Y, Option<Self>>, E>
     where
@@ -205,7 +185,7 @@ impl Cart {
         F: FnOnce(&[u8]) -> Result<<Y as Yokeable>::Output, E>,
     {
         Yoke::try_attach_to_cart(SelectedRc::new(cart), |b| f(b))
-            // Safety: The cart is only wrapped, no data is leaked
+            // Safe because the cart is only wrapped
             .map(|yoke| unsafe { yoke.replace_cart(Cart) })
             .map(Yoke::wrap_cart_in_option)
     }
@@ -254,13 +234,13 @@ where
 /// use icu_provider::hello_world::*;
 /// use icu_provider::prelude::*;
 ///
-/// let resp1: DataPayload<HelloWorldV1> = todo!();
+/// let resp1: DataPayload<HelloWorldV1Marker> = todo!();
 /// let resp2 = resp1.clone();
 /// ```
 impl<M> Clone for DataPayload<M>
 where
     M: DynamicDataMarker,
-    for<'a> <M::DataStruct as Yokeable<'a>>::Output: Clone,
+    for<'a> YokeTraitHack<<M::DataStruct as Yokeable<'a>>::Output>: Clone,
 {
     fn clone(&self) -> Self {
         Self(match &self.0 {
@@ -273,7 +253,7 @@ where
 impl<M, O> Clone for DataPayloadOr<M, O>
 where
     M: DynamicDataMarker,
-    for<'a> <M::DataStruct as Yokeable<'a>>::Output: Clone,
+    for<'a> YokeTraitHack<<M::DataStruct as Yokeable<'a>>::Output>: Clone,
     O: Clone,
 {
     fn clone(&self) -> Self {
@@ -292,21 +272,22 @@ where
 impl<M> PartialEq for DataPayload<M>
 where
     M: DynamicDataMarker,
-    for<'a> <M::DataStruct as Yokeable<'a>>::Output: PartialEq,
+    for<'a> YokeTraitHack<<M::DataStruct as Yokeable<'a>>::Output>: PartialEq,
 {
     fn eq(&self, other: &Self) -> bool {
-        self.get() == other.get()
+        YokeTraitHack(self.get()).into_ref() == YokeTraitHack(other.get()).into_ref()
     }
 }
+
 impl<M, O> PartialEq for DataPayloadOr<M, O>
 where
     M: DynamicDataMarker,
-    for<'a> <M::DataStruct as Yokeable<'a>>::Output: PartialEq,
+    for<'a> YokeTraitHack<<M::DataStruct as Yokeable<'a>>::Output>: PartialEq,
     O: Eq,
 {
     fn eq(&self, other: &Self) -> bool {
         match (self.get(), other.get()) {
-            (Ok(x), Ok(y)) => x == y,
+            (Ok(x), Ok(y)) => YokeTraitHack(x).into_ref() == YokeTraitHack(y).into_ref(),
             (Err(x), Err(y)) => x == y,
             _ => false,
         }
@@ -316,14 +297,14 @@ where
 impl<M> Eq for DataPayload<M>
 where
     M: DynamicDataMarker,
-    for<'a> <M::DataStruct as Yokeable<'a>>::Output: Eq,
+    for<'a> YokeTraitHack<<M::DataStruct as Yokeable<'a>>::Output>: Eq,
 {
 }
 
 impl<M, O> Eq for DataPayloadOr<M, O>
 where
     M: DynamicDataMarker,
-    for<'a> <M::DataStruct as Yokeable<'a>>::Output: Eq,
+    for<'a> YokeTraitHack<<M::DataStruct as Yokeable<'a>>::Output>: Eq,
     O: Eq,
 {
 }
@@ -331,22 +312,22 @@ where
 #[test]
 fn test_clone_eq() {
     use crate::hello_world::*;
-    let p1 = DataPayload::<HelloWorldV1>::from_static_str("Demo");
+    let p1 = DataPayload::<HelloWorldV1Marker>::from_static_str("Demo");
     #[allow(clippy::redundant_clone)]
     let p2 = p1.clone();
     assert_eq!(p1, p2);
 
-    let p1 = DataPayloadOr::<HelloWorldV1, usize>::from_payload(p1);
+    let p1 = DataPayloadOr::<HelloWorldV1Marker, usize>::from_payload(p1);
     #[allow(clippy::redundant_clone)]
     let p2 = p1.clone();
     assert_eq!(p1, p2);
 
-    let p3 = DataPayloadOr::<HelloWorldV1, usize>::from_other(555);
+    let p3 = DataPayloadOr::<HelloWorldV1Marker, usize>::from_other(555);
     #[allow(clippy::redundant_clone)]
     let p4 = p3.clone();
     assert_eq!(p3, p4);
 
-    let p5 = DataPayloadOr::<HelloWorldV1, usize>::from_other(666);
+    let p5 = DataPayloadOr::<HelloWorldV1Marker, usize>::from_other(666);
     assert_ne!(p3, p5);
     assert_ne!(p4, p5);
 
@@ -373,11 +354,12 @@ where
     /// use icu_provider::prelude::*;
     /// use std::borrow::Cow;
     ///
-    /// let local_struct = HelloWorld {
+    /// let local_struct = HelloWorldV1 {
     ///     message: Cow::Owned("example".to_owned()),
     /// };
     ///
-    /// let payload = DataPayload::<HelloWorldV1>::from_owned(local_struct.clone());
+    /// let payload =
+    ///     DataPayload::<HelloWorldV1Marker>::from_owned(local_struct.clone());
     ///
     /// assert_eq!(payload.get(), &local_struct);
     /// ```
@@ -406,10 +388,11 @@ where
     /// Basic usage:
     ///
     /// ```
-    /// use icu_provider::hello_world::HelloWorldV1;
+    /// use icu_provider::hello_world::HelloWorldV1Marker;
     /// use icu_provider::prelude::*;
     ///
-    /// let mut payload = DataPayload::<HelloWorldV1>::from_static_str("Hello");
+    /// let mut payload =
+    ///     DataPayload::<HelloWorldV1Marker>::from_static_str("Hello");
     ///
     /// payload.with_mut(|s| s.message.to_mut().push_str(" World"));
     ///
@@ -419,10 +402,11 @@ where
     /// To transfer data from the context into the data struct, use the `move` keyword:
     ///
     /// ```
-    /// use icu_provider::hello_world::HelloWorldV1;
+    /// use icu_provider::hello_world::HelloWorldV1Marker;
     /// use icu_provider::prelude::*;
     ///
-    /// let mut payload = DataPayload::<HelloWorldV1>::from_static_str("Hello");
+    /// let mut payload =
+    ///     DataPayload::<HelloWorldV1Marker>::from_static_str("Hello");
     ///
     /// let suffix = " World";
     /// payload.with_mut(move |s| s.message.to_mut().push_str(suffix));
@@ -454,10 +438,10 @@ where
     /// # Examples
     ///
     /// ```
-    /// use icu_provider::hello_world::HelloWorldV1;
+    /// use icu_provider::hello_world::HelloWorldV1Marker;
     /// use icu_provider::prelude::*;
     ///
-    /// let payload = DataPayload::<HelloWorldV1>::from_static_str("Demo");
+    /// let payload = DataPayload::<HelloWorldV1Marker>::from_static_str("Demo");
     ///
     /// assert_eq!("Demo", payload.get().message);
     /// ```
@@ -497,7 +481,7 @@ where
     ///
     /// # Examples
     ///
-    /// Map from `HelloWorld` to a `Cow<str>` containing just the message:
+    /// Map from `HelloWorldV1` to a `Cow<str>` containing just the message:
     ///
     /// ```
     /// use icu_provider::hello_world::*;
@@ -512,7 +496,7 @@ where
     ///     type DataStruct = Cow<'static, str>;
     /// }
     ///
-    /// let p1: DataPayload<HelloWorldV1> = DataPayload::from_owned(HelloWorld {
+    /// let p1: DataPayload<HelloWorldV1Marker> = DataPayload::from_owned(HelloWorldV1 {
     ///     message: Cow::Borrowed("Hello World"),
     /// });
     ///
@@ -559,9 +543,10 @@ where
     /// #     type DataStruct = Cow<'static, str>;
     /// # }
     ///
-    /// let p1: DataPayload<HelloWorldV1> = DataPayload::from_owned(HelloWorld {
-    ///     message: Cow::Borrowed("Hello World"),
-    /// });
+    /// let p1: DataPayload<HelloWorldV1Marker> =
+    ///     DataPayload::from_owned(HelloWorldV1 {
+    ///         message: Cow::Borrowed("Hello World"),
+    ///     });
     ///
     /// assert_eq!("Hello World", p1.get().message);
     ///
@@ -610,9 +595,10 @@ where
     /// #     type DataStruct = Cow<'static, str>;
     /// # }
     ///
-    /// let p1: DataPayload<HelloWorldV1> = DataPayload::from_owned(HelloWorld {
-    ///     message: Cow::Borrowed("Hello World"),
-    /// });
+    /// let p1: DataPayload<HelloWorldV1Marker> =
+    ///     DataPayload::from_owned(HelloWorldV1 {
+    ///         message: Cow::Borrowed("Hello World"),
+    ///     });
     ///
     /// assert_eq!("Hello World", p1.get().message);
     ///
@@ -665,9 +651,10 @@ where
     /// #     type DataStruct = Cow<'static, str>;
     /// # }
     ///
-    /// let p1: DataPayload<HelloWorldV1> = DataPayload::from_owned(HelloWorld {
-    ///     message: Cow::Borrowed("Hello World"),
-    /// });
+    /// let p1: DataPayload<HelloWorldV1Marker> =
+    ///     DataPayload::from_owned(HelloWorldV1 {
+    ///         message: Cow::Borrowed("Hello World"),
+    ///     });
     ///
     /// assert_eq!("Hello World", p1.get().message);
     ///
@@ -701,8 +688,7 @@ where
             DataPayloadInner::StaticRef(r) => {
                 let output: <M2::DataStruct as Yokeable<'static>>::Output =
                     f(Yokeable::transform(*r), PhantomData)?;
-                // Safety: <M2::Yokeable as Yokeable<'static>>::Output is the same type as M2::Yokeable,
-                // and `output` is `'static` so there are no lifetimes to manage for `make()`
+                // Safety: <M2::Yokeable as Yokeable<'static>>::Output is the same type as M2::Yokeable
                 Yoke::new_owned(unsafe { M2::DataStruct::make(output) })
                     .convert_cart_into_option_pointer()
             }
@@ -725,13 +711,13 @@ where
     /// use icu_provider::hello_world::*;
     /// use icu_provider::prelude::*;
     ///
-    /// struct CustomHelloWorldV1;
-    /// impl DynamicDataMarker for CustomHelloWorldV1 {
-    ///     type DataStruct = HelloWorld<'static>;
+    /// struct CustomHelloWorldV1Marker;
+    /// impl DynamicDataMarker for CustomHelloWorldV1Marker {
+    ///     type DataStruct = HelloWorldV1<'static>;
     /// }
     ///
-    /// let hello_world: DataPayload<HelloWorldV1> = todo!();
-    /// let custom: DataPayload<CustomHelloWorldV1> = hello_world.cast();
+    /// let hello_world: DataPayload<HelloWorldV1Marker> = todo!();
+    /// let custom: DataPayload<CustomHelloWorldV1Marker> = hello_world.cast();
     /// ```
     #[inline]
     pub fn cast<M2>(self) -> DataPayload<M2>
@@ -774,11 +760,11 @@ where
     /// a result from a different data provider:
     ///
     /// ```
-    /// use core::any::TypeId;
     /// use icu_locale_core::locale;
     /// use icu_provider::hello_world::*;
     /// use icu_provider::prelude::*;
     /// use icu_provider_adapters::empty::EmptyDataProvider;
+    /// use std::any::TypeId;
     /// use std::borrow::Cow;
     ///
     /// struct MyForkingProvider<P0, P1> {
@@ -790,12 +776,12 @@ where
     /// where
     ///     M: DataMarker,
     ///     P0: DataProvider<M>,
-    ///     P1: DataProvider<HelloWorldV1>,
+    ///     P1: DataProvider<HelloWorldV1Marker>,
     /// {
     ///     #[inline]
     ///     fn load(&self, req: DataRequest) -> Result<DataResponse<M>, DataError> {
-    ///         if TypeId::of::<HelloWorldV1>() == TypeId::of::<M>() {
-    ///             let response = DataProvider::<HelloWorldV1>::load(
+    ///         if TypeId::of::<HelloWorldV1Marker>() == TypeId::of::<M>() {
+    ///             let response = DataProvider::<HelloWorldV1Marker>::load(
     ///                 &self.hello_world_provider,
     ///                 req,
     ///             )?;
@@ -869,7 +855,7 @@ where
     ///     fn load(&self, req: DataRequest) -> Result<DataResponse<M>, DataError> {
     ///         let mut res = self.inner.load(req)?;
     ///         let mut cast_result =
-    ///             res.payload.dynamic_cast_mut::<HelloWorldV1>();
+    ///             res.payload.dynamic_cast_mut::<HelloWorldV1Marker>();
     ///         if let Ok(ref mut concrete_payload) = cast_result {
     ///             // Add an emoji to the hello world message
     ///             concrete_payload.with_mut(|data| {
@@ -905,7 +891,6 @@ where
 
 impl DataPayload<BufferMarker> {
     /// Converts an owned byte buffer into a `DataPayload<BufferMarker>`.
-    #[cfg(feature = "alloc")]
     pub fn from_owned_buffer(buffer: Box<[u8]>) -> Self {
         let yoke = Yoke::attach_to_cart(SelectedRc::new(buffer), |b| &**b)
             .wrap_cart_in_option()
@@ -1078,13 +1063,13 @@ where
 /// use icu_provider::hello_world::*;
 /// use icu_provider::prelude::*;
 ///
-/// let resp1: DataResponse<HelloWorldV1> = todo!();
+/// let resp1: DataResponse<HelloWorldV1Marker> = todo!();
 /// let resp2 = resp1.clone();
 /// ```
 impl<M> Clone for DataResponse<M>
 where
     M: DynamicDataMarker,
-    for<'a> <M::DataStruct as Yokeable<'a>>::Output: Clone,
+    for<'a> YokeTraitHack<<M::DataStruct as Yokeable<'a>>::Output>: Clone,
 {
     fn clone(&self) -> Self {
         Self {
@@ -1097,12 +1082,12 @@ where
 #[test]
 fn test_debug() {
     use crate::hello_world::*;
-    use crate::prelude::*;
-    let resp = HelloWorldProvider
-        .load(DataRequest {
-            id: DataIdentifierBorrowed::for_locale(&icu_locale_core::locale!("en").into()),
-            ..Default::default()
-        })
-        .unwrap();
-    assert_eq!("DataResponse { metadata: DataResponseMetadata { locale: None, buffer_format: None, checksum: Some(1234) }, payload: HelloWorld { message: \"Hello World\" } }", format!("{resp:?}"));
+    use alloc::borrow::Cow;
+    let resp = DataResponse::<HelloWorldV1Marker> {
+        metadata: Default::default(),
+        payload: DataPayload::from_owned(HelloWorldV1 {
+            message: Cow::Borrowed("foo"),
+        }),
+    };
+    assert_eq!("DataResponse { metadata: DataResponseMetadata { locale: None, buffer_format: None }, payload: HelloWorldV1 { message: \"foo\" } }", format!("{resp:?}"));
 }

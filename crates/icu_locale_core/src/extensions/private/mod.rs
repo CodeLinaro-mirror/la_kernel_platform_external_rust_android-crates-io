@@ -29,20 +29,15 @@
 
 mod other;
 
-#[cfg(feature = "alloc")]
 use alloc::vec::Vec;
 use core::ops::Deref;
-#[cfg(feature = "alloc")]
 use core::str::FromStr;
 
 #[doc(inline)]
 pub use other::{subtag, Subtag};
 
-#[cfg(feature = "alloc")]
 use super::ExtensionType;
-#[cfg(feature = "alloc")]
 use crate::parser::ParseError;
-#[cfg(feature = "alloc")]
 use crate::parser::SubtagIterator;
 use crate::shortvec::ShortBoxSlice;
 
@@ -90,13 +85,11 @@ impl Private {
     /// A constructor which takes a str slice, parses it and
     /// produces a well-formed [`Private`].
     #[inline]
-    #[cfg(feature = "alloc")]
     pub fn try_from_str(s: &str) -> Result<Self, ParseError> {
         Self::try_from_utf8(s.as_bytes())
     }
 
     /// See [`Self::try_from_str`]
-    #[cfg(feature = "alloc")]
     pub fn try_from_utf8(code_units: &[u8]) -> Result<Self, ParseError> {
         let mut iter = SubtagIterator::new(code_units);
 
@@ -121,7 +114,6 @@ impl Private {
     /// let private = Private::from_vec_unchecked(vec![subtag1, subtag2]);
     /// assert_eq!(&private.to_string(), "x-foo-bar");
     /// ```
-    #[cfg(feature = "alloc")]
     pub fn from_vec_unchecked(input: Vec<Subtag>) -> Self {
         Self(input.into())
     }
@@ -163,7 +155,6 @@ impl Private {
         self.0.clear();
     }
 
-    #[cfg(feature = "alloc")]
     pub(crate) fn try_from_iter(iter: &mut SubtagIterator) -> Result<Self, ParseError> {
         let keys = iter
             .map(Subtag::try_from_utf8)
@@ -190,7 +181,6 @@ impl Private {
     }
 }
 
-#[cfg(feature = "alloc")]
 impl FromStr for Private {
     type Err = ParseError;
 

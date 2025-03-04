@@ -66,4 +66,5 @@ pub enum ParseError {
     DuplicatedExtension,
 }
 
-impl core::error::Error for ParseError {}
+#[cfg(feature = "std")]
+impl std::error::Error for ParseError {}

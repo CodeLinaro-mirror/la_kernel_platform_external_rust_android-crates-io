@@ -1,6 +1,6 @@
 {
   "features": [
-    "alloc"
+    "macros"
   ],
   "ramdisk_available": true,
   "recovery_available": true,

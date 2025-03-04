@@ -59,7 +59,7 @@ use zerotrie::cursor::ZeroTrieSimpleAsciiCursor;
 /// ```
 #[derive(Debug)]
 pub struct PropertyParser<T> {
-    map: DataPayload<ErasedMarker<PropertyValueNameToEnumMap<'static>>>,
+    map: DataPayload<ErasedMarker<PropertyValueNameToEnumMapV1<'static>>>,
     markers: PhantomData<fn() -> T>,
 }
 
@@ -67,7 +67,7 @@ pub struct PropertyParser<T> {
 /// [`PropertyParser::as_borrowed()`]. More efficient to query.
 #[derive(Debug)]
 pub struct PropertyParserBorrowed<'a, T> {
-    map: &'a PropertyValueNameToEnumMap<'a>,
+    map: &'a PropertyValueNameToEnumMapV1<'a>,
     markers: PhantomData<fn() -> T>,
 }
 
@@ -93,7 +93,7 @@ impl<T> PropertyParser<T> {
         PropertyParserBorrowed::new()
     }
 
-    #[doc = icu_provider::gen_buffer_unstable_docs!(UNSTABLE, Self::new)]
+    #[doc = icu_provider::gen_any_buffer_unstable_docs!(UNSTABLE, Self::new)]
     pub fn try_new_unstable(
         provider: &(impl DataProvider<T::DataMarker> + ?Sized),
     ) -> Result<Self, DataError>
@@ -150,7 +150,7 @@ impl<T: TrieValue> PropertyParserBorrowed<'_, T> {
     /// assert_eq!(lookup.get_strict_u16("UppercaseLetter"), None);
     /// ```
     #[inline]
-    pub fn get_strict_u16(self, name: &str) -> Option<u16> {
+    pub fn get_strict_u16(&self, name: &str) -> Option<u16> {
         get_strict_u16(self.map, name)
     }
 
@@ -176,7 +176,7 @@ impl<T: TrieValue> PropertyParserBorrowed<'_, T> {
     /// assert_eq!(lookup.get_strict("UppercaseLetter"), None);
     /// ```
     #[inline]
-    pub fn get_strict(self, name: &str) -> Option<T> {
+    pub fn get_strict(&self, name: &str) -> Option<T> {
         T::try_from_u32(self.get_strict_u16(name)? as u32).ok()
     }
 
@@ -206,7 +206,7 @@ impl<T: TrieValue> PropertyParserBorrowed<'_, T> {
     /// );
     /// ```
     #[inline]
-    pub fn get_loose_u16(self, name: &str) -> Option<u16> {
+    pub fn get_loose_u16(&self, name: &str) -> Option<u16> {
         get_loose_u16(self.map, name)
     }
 
@@ -236,7 +236,7 @@ impl<T: TrieValue> PropertyParserBorrowed<'_, T> {
     /// );
     /// ```
     #[inline]
-    pub fn get_loose(self, name: &str) -> Option<T> {
+    pub fn get_loose(&self, name: &str) -> Option<T> {
         T::try_from_u32(self.get_loose_u16(name)? as u32).ok()
     }
 }
@@ -278,12 +278,12 @@ impl<T: TrieValue> PropertyParserBorrowed<'static, T> {
 }
 
 /// Avoid monomorphizing multiple copies of this function
-fn get_strict_u16(payload: &PropertyValueNameToEnumMap<'_>, name: &str) -> Option<u16> {
+fn get_strict_u16(payload: &PropertyValueNameToEnumMapV1<'_>, name: &str) -> Option<u16> {
     payload.map.get(name).and_then(|i| i.try_into().ok())
 }
 
 /// Avoid monomorphizing multiple copies of this function
-fn get_loose_u16(payload: &PropertyValueNameToEnumMap<'_>, name: &str) -> Option<u16> {
+fn get_loose_u16(payload: &PropertyValueNameToEnumMapV1<'_>, name: &str) -> Option<u16> {
     fn recurse(mut cursor: ZeroTrieSimpleAsciiCursor, mut rest: &[u8]) -> Option<usize> {
         if cursor.is_empty() {
             return None;
@@ -365,7 +365,7 @@ impl<T: NamedEnumeratedProperty> core::fmt::Debug for PropertyNamesLong<T> {
 /// [`PropertyNamesLong::as_borrowed()`]. More efficient to query.
 #[derive(Debug)]
 pub struct PropertyNamesLongBorrowed<'a, T: NamedEnumeratedProperty> {
-    map: &'a T::DataStructLongBorrowed<'a>,
+    map: &'a T::DataStructLong,
 }
 
 impl<T: NamedEnumeratedProperty> Clone for PropertyNamesLongBorrowed<'_, T> {
@@ -387,7 +387,7 @@ impl<T: NamedEnumeratedProperty> PropertyNamesLong<T> {
         PropertyNamesLongBorrowed::new()
     }
 
-    #[doc = icu_provider::gen_buffer_unstable_docs!(UNSTABLE, Self::new)]
+    #[doc = icu_provider::gen_any_buffer_unstable_docs!(UNSTABLE, Self::new)]
     pub fn try_new_unstable(
         provider: &(impl DataProvider<T::DataMarkerLong> + ?Sized),
     ) -> Result<Self, DataError> {
@@ -403,12 +403,15 @@ impl<T: NamedEnumeratedProperty> PropertyNamesLong<T> {
     #[inline]
     pub fn as_borrowed(&self) -> PropertyNamesLongBorrowed<'_, T> {
         PropertyNamesLongBorrowed {
-            map: T::nep_long_identity(self.map.get()),
+            map: unsafe {
+                &*(self.map.get() as *const <T::DataStructLong as Yokeable>::Output
+                    as *const T::DataStructLong)
+            },
         }
     }
 }
 
-impl<'a, T: NamedEnumeratedProperty> PropertyNamesLongBorrowed<'a, T> {
+impl<T: NamedEnumeratedProperty> PropertyNamesLongBorrowed<'_, T> {
     /// Get the property name given a value
     ///
     /// # Example
@@ -428,7 +431,7 @@ impl<'a, T: NamedEnumeratedProperty> PropertyNamesLongBorrowed<'a, T> {
     /// );
     /// ```
     #[inline]
-    pub fn get(self, property: T) -> Option<&'a str> {
+    pub fn get(&self, property: T) -> Option<&str> {
         self.map.get(property.to_u32())
     }
 }
@@ -457,12 +460,9 @@ impl<T: NamedEnumeratedProperty> PropertyNamesLongBorrowed<'static, T> {
     ///
     /// Note: Due to branching and indirection, using [`PropertyNamesLong`] might inhibit some
     /// compile-time optimizations that are possible with [`PropertyNamesLongBorrowed`].
-    ///
-    /// This is currently not `const` unlike other `static_to_owned()` functions since it needs
-    /// const traits to do that safely
-    pub fn static_to_owned(self) -> PropertyNamesLong<T> {
+    pub const fn static_to_owned(self) -> PropertyNamesLong<T> {
         PropertyNamesLong {
-            map: DataPayload::from_static_ref(T::nep_long_identity_static(self.map)),
+            map: DataPayload::from_static_ref(self.map),
         }
     }
 }
@@ -497,7 +497,7 @@ impl<T: NamedEnumeratedProperty> core::fmt::Debug for PropertyNamesShort<T> {
 /// [`PropertyNamesShort::as_borrowed()`]. More efficient to query.
 #[derive(Debug)]
 pub struct PropertyNamesShortBorrowed<'a, T: NamedEnumeratedProperty> {
-    map: &'a T::DataStructShortBorrowed<'a>,
+    map: &'a T::DataStructShort,
 }
 
 impl<T: NamedEnumeratedProperty> Clone for PropertyNamesShortBorrowed<'_, T> {
@@ -520,7 +520,7 @@ impl<T: NamedEnumeratedProperty> PropertyNamesShort<T> {
         PropertyNamesShortBorrowed::new()
     }
 
-    #[doc = icu_provider::gen_buffer_unstable_docs!(UNSTABLE, Self::new)]
+    #[doc = icu_provider::gen_any_buffer_unstable_docs!(UNSTABLE, Self::new)]
     pub fn try_new_unstable(
         provider: &(impl DataProvider<T::DataMarkerShort> + ?Sized),
     ) -> Result<Self, DataError> {
@@ -536,12 +536,15 @@ impl<T: NamedEnumeratedProperty> PropertyNamesShort<T> {
     #[inline]
     pub fn as_borrowed(&self) -> PropertyNamesShortBorrowed<'_, T> {
         PropertyNamesShortBorrowed {
-            map: T::nep_short_identity(self.map.get()),
+            map: unsafe {
+                &*(self.map.get() as *const <T::DataStructShort as Yokeable>::Output
+                    as *const T::DataStructShort)
+            },
         }
     }
 }
 
-impl<'a, T: NamedEnumeratedProperty> PropertyNamesShortBorrowed<'a, T> {
+impl<T: NamedEnumeratedProperty> PropertyNamesShortBorrowed<'_, T> {
     /// Get the property name given a value
     ///
     /// # Example
@@ -555,7 +558,7 @@ impl<'a, T: NamedEnumeratedProperty> PropertyNamesShortBorrowed<'a, T> {
     /// assert_eq!(lookup.get(CanonicalCombiningClass::AboveLeft), Some("AL"));
     /// ```
     #[inline]
-    pub fn get(self, property: T) -> Option<&'a str> {
+    pub fn get(&self, property: T) -> Option<&str> {
         self.map.get(property.to_u32())
     }
 }
@@ -600,7 +603,7 @@ impl PropertyNamesShortBorrowed<'_, Script> {
     /// );
     /// ```
     #[inline]
-    pub fn get_locale_script(self, property: Script) -> Option<icu_locale_core::subtags::Script> {
+    pub fn get_locale_script(&self, property: Script) -> Option<icu_locale_core::subtags::Script> {
         let prop = usize::try_from(property.to_u32()).ok()?;
         self.map.map.get(prop).and_then(|o| o.0)
     }
@@ -630,12 +633,9 @@ impl<T: NamedEnumeratedProperty> PropertyNamesShortBorrowed<'static, T> {
     ///
     /// Note: Due to branching and indirection, using [`PropertyNamesShort`] might inhibit some
     /// compile-time optimizations that are possible with [`PropertyNamesShortBorrowed`].
-    ///
-    /// This is currently not `const` unlike other `static_to_owned()` functions since it needs
-    /// const traits to do that safely
-    pub fn static_to_owned(self) -> PropertyNamesShort<T> {
+    pub const fn static_to_owned(self) -> PropertyNamesShort<T> {
         PropertyNamesShort {
-            map: DataPayload::from_static_ref(T::nep_short_identity_static(self.map)),
+            map: DataPayload::from_static_ref(self.map),
         }
     }
 }
@@ -643,31 +643,30 @@ impl<T: NamedEnumeratedProperty> PropertyNamesShortBorrowed<'static, T> {
 /// A property whose value names can be parsed from strings.
 pub trait ParseableEnumeratedProperty: crate::private::Sealed + TrieValue {
     #[doc(hidden)]
-    type DataMarker: DataMarker<DataStruct = PropertyValueNameToEnumMap<'static>>;
+    type DataMarker: DataMarker<DataStruct = PropertyValueNameToEnumMapV1<'static>>;
     #[doc(hidden)]
     #[cfg(feature = "compiled_data")]
-    const SINGLETON: &'static PropertyValueNameToEnumMap<'static>;
+    const SINGLETON: &'static PropertyValueNameToEnumMapV1<'static>;
 }
 
 // Abstract over Linear/Sparse/Script representation
-// This trait is implicitly sealed by not being exported.
 pub trait PropertyEnumToValueNameLookup {
     fn get(&self, prop: u32) -> Option<&str>;
 }
 
-impl PropertyEnumToValueNameLookup for PropertyEnumToValueNameLinearMap<'_> {
+impl PropertyEnumToValueNameLookup for PropertyEnumToValueNameLinearMapV1<'_> {
     fn get(&self, prop: u32) -> Option<&str> {
         self.map.get(usize::try_from(prop).ok()?)
     }
 }
 
-impl PropertyEnumToValueNameLookup for PropertyEnumToValueNameSparseMap<'_> {
+impl PropertyEnumToValueNameLookup for PropertyEnumToValueNameSparseMapV1<'_> {
     fn get(&self, prop: u32) -> Option<&str> {
         self.map.get(&u16::try_from(prop).ok()?)
     }
 }
 
-impl PropertyEnumToValueNameLookup for PropertyScriptToIcuScriptMap<'_> {
+impl PropertyEnumToValueNameLookup for PropertyScriptToIcuScriptMapV1<'_> {
     fn get(&self, prop: u32) -> Option<&str> {
         self.map
             .get_ule_ref(usize::try_from(prop).ok()?)
@@ -679,70 +678,19 @@ impl PropertyEnumToValueNameLookup for PropertyScriptToIcuScriptMap<'_> {
 /// A property whose value names can be represented as strings.
 pub trait NamedEnumeratedProperty: ParseableEnumeratedProperty {
     #[doc(hidden)]
-    type DataStructLong: 'static
-        + for<'a> Yokeable<'a, Output = Self::DataStructLongBorrowed<'a>>
-        + PropertyEnumToValueNameLookup;
+    type DataStructLong: 'static + for<'a> Yokeable<'a> + PropertyEnumToValueNameLookup;
     #[doc(hidden)]
-    type DataStructShort: 'static
-        + for<'a> Yokeable<'a, Output = Self::DataStructShortBorrowed<'a>>
-        + PropertyEnumToValueNameLookup;
-    #[doc(hidden)]
-    type DataStructLongBorrowed<'a>: PropertyEnumToValueNameLookup;
-    #[doc(hidden)]
-    type DataStructShortBorrowed<'a>: PropertyEnumToValueNameLookup;
+    type DataStructShort: 'static + for<'a> Yokeable<'a> + PropertyEnumToValueNameLookup;
     #[doc(hidden)]
     type DataMarkerLong: DataMarker<DataStruct = Self::DataStructLong>;
     #[doc(hidden)]
     type DataMarkerShort: DataMarker<DataStruct = Self::DataStructShort>;
     #[doc(hidden)]
     #[cfg(feature = "compiled_data")]
-    const SINGLETON_LONG: &'static Self::DataStructLongBorrowed<'static>;
+    const SINGLETON_LONG: &'static Self::DataStructLong;
     #[doc(hidden)]
     #[cfg(feature = "compiled_data")]
-    const SINGLETON_SHORT: &'static Self::DataStructShortBorrowed<'static>;
-
-    // These wouldn't be necessary if Yoke used GATs (#6057)
-    #[doc(hidden)]
-    fn nep_long_identity<'a>(
-        stat: &'a <Self::DataStructLong as Yokeable<'a>>::Output,
-    ) -> &'a Self::DataStructLongBorrowed<'a>;
-    #[doc(hidden)]
-    fn nep_long_identity_static(
-        stat: &'static Self::DataStructLongBorrowed<'static>,
-    ) -> &'static Self::DataStructLong;
-
-    #[doc(hidden)]
-    fn nep_short_identity<'a>(
-        stat: &'a <Self::DataStructShort as Yokeable<'a>>::Output,
-    ) -> &'a Self::DataStructShortBorrowed<'a>;
-    #[doc(hidden)]
-    fn nep_short_identity_static(
-        stat: &'static Self::DataStructShortBorrowed<'static>,
-    ) -> &'static Self::DataStructShort;
-
-    /// Convenience method for `PropertyParser::new().get_loose(s)`
-    ///
-    /// ✨ *Enabled with the `compiled_data` Cargo feature.*
-    #[cfg(feature = "compiled_data")]
-    fn try_from_str(s: &str) -> Option<Self> {
-        PropertyParser::new().get_loose(s)
-    }
-    /// Convenience method for `PropertyNamesLong::new().get(*self).unwrap()`
-    ///
-    /// ✨ *Enabled with the `compiled_data` Cargo feature.*
-    #[cfg(feature = "compiled_data")]
-    fn long_name(&self) -> &'static str {
-        PropertyNamesLong::new().get(*self).unwrap_or("unreachable")
-    }
-    /// Convenience method for `PropertyNamesShort::new().get(*self).unwrap()`
-    ///
-    /// ✨ *Enabled with the `compiled_data` Cargo feature.*
-    #[cfg(feature = "compiled_data")]
-    fn short_name(&self) -> &'static str {
-        PropertyNamesShort::new()
-            .get(*self)
-            .unwrap_or("unreachable")
-    }
+    const SINGLETON_SHORT: &'static Self::DataStructShort;
 }
 
 macro_rules! impl_value_getter {
@@ -758,142 +706,122 @@ macro_rules! impl_value_getter {
         impl ParseableEnumeratedProperty for $ty {
             type DataMarker = $marker_n2e;
             #[cfg(feature = "compiled_data")]
-            const SINGLETON: &'static PropertyValueNameToEnumMap<'static> = crate::provider::Baked::$singleton_n2e;
+            const SINGLETON: &'static PropertyValueNameToEnumMapV1<'static> = crate::provider::Baked::$singleton_n2e;
         }
 
         $(
             impl NamedEnumeratedProperty for $ty {
                 type DataStructLong = $data_struct_l<'static>;
                 type DataStructShort = $data_struct_s<'static>;
-                type DataStructLongBorrowed<'a> = $data_struct_l<'a>;
-                type DataStructShortBorrowed<'a> = $data_struct_s<'a>;
                 type DataMarkerLong = crate::provider::$marker_e2ln;
                 type DataMarkerShort = crate::provider::$marker_e2sn;
                 #[cfg(feature = "compiled_data")]
                 const SINGLETON_LONG: &'static Self::DataStructLong = crate::provider::Baked::$singleton_e2ln;
                 #[cfg(feature = "compiled_data")]
                 const SINGLETON_SHORT: &'static Self::DataStructShort = crate::provider::Baked::$singleton_e2sn;
-                fn nep_long_identity<'a>(yoked: &'a $data_struct_l<'a>) -> &'a Self::DataStructLongBorrowed<'a> {
-                    yoked
-                }
-
-                fn nep_long_identity_static(stat: &'static $data_struct_l<'static>) -> &'static $data_struct_l<'static> {
-                    stat
-                }
-
-
-                fn nep_short_identity<'a>(yoked: &'a $data_struct_s<'a>) -> &'a Self::DataStructShortBorrowed<'a> {
-                    yoked
-                }
-                fn nep_short_identity_static(stat: &'static $data_struct_s<'static>) -> &'static $data_struct_s<'static> {
-                    stat
-                }
-
             }
-
-
         )?
     };
 }
 
 impl_value_getter! {
     impl BidiClass {
-        BidiClassNameToValueV2 / SINGLETON_BIDI_CLASS_NAME_TO_VALUE_V2;
-        PropertyEnumToValueNameLinearMap / BidiClassValueToShortNameV1 / SINGLETON_BIDI_CLASS_VALUE_TO_SHORT_NAME_V1;
-        PropertyEnumToValueNameLinearMap / BidiClassValueToLongNameV1 / SINGLETON_BIDI_CLASS_VALUE_TO_LONG_NAME_V1;
+        BidiClassNameToValueV2Marker / SINGLETON_BIDI_CLASS_NAME_TO_VALUE_V2_MARKER;
+        PropertyEnumToValueNameLinearMapV1 / BidiClassValueToShortNameV1Marker / SINGLETON_BIDI_CLASS_VALUE_TO_SHORT_NAME_V1_MARKER;
+        PropertyEnumToValueNameLinearMapV1 / BidiClassValueToLongNameV1Marker / SINGLETON_BIDI_CLASS_VALUE_TO_LONG_NAME_V1_MARKER;
     }
 }
 
 impl_value_getter! {
     impl GeneralCategory {
-        GeneralCategoryNameToValueV2 / SINGLETON_GENERAL_CATEGORY_NAME_TO_VALUE_V2;
-        PropertyEnumToValueNameLinearMap / GeneralCategoryValueToShortNameV1 / SINGLETON_GENERAL_CATEGORY_VALUE_TO_SHORT_NAME_V1;
-        PropertyEnumToValueNameLinearMap / GeneralCategoryValueToLongNameV1 / SINGLETON_GENERAL_CATEGORY_VALUE_TO_LONG_NAME_V1;
+        GeneralCategoryNameToValueV2Marker / SINGLETON_GENERAL_CATEGORY_NAME_TO_VALUE_V2_MARKER;
+        PropertyEnumToValueNameLinearMapV1 / GeneralCategoryValueToShortNameV1Marker / SINGLETON_GENERAL_CATEGORY_VALUE_TO_SHORT_NAME_V1_MARKER;
+        PropertyEnumToValueNameLinearMapV1 / GeneralCategoryValueToLongNameV1Marker / SINGLETON_GENERAL_CATEGORY_VALUE_TO_LONG_NAME_V1_MARKER;
     }
 }
 
 impl_value_getter! {
     impl GeneralCategoryGroup {
-        GeneralCategoryMaskNameToValueV2 / SINGLETON_GENERAL_CATEGORY_MASK_NAME_TO_VALUE_V2;
+        GeneralCategoryMaskNameToValueV2Marker / SINGLETON_GENERAL_CATEGORY_MASK_NAME_TO_VALUE_V2_MARKER;
     }
 }
 
 impl_value_getter! {
     impl Script {
-        ScriptNameToValueV2 / SINGLETON_SCRIPT_NAME_TO_VALUE_V2;
-        PropertyScriptToIcuScriptMap / ScriptValueToShortNameV1 / SINGLETON_SCRIPT_VALUE_TO_SHORT_NAME_V1;
-        PropertyEnumToValueNameLinearMap / ScriptValueToLongNameV1 / SINGLETON_SCRIPT_VALUE_TO_LONG_NAME_V1;
+        ScriptNameToValueV2Marker / SINGLETON_SCRIPT_NAME_TO_VALUE_V2_MARKER;
+        PropertyScriptToIcuScriptMapV1 / ScriptValueToShortNameV1Marker / SINGLETON_SCRIPT_VALUE_TO_SHORT_NAME_V1_MARKER;
+        PropertyEnumToValueNameLinearMapV1 / ScriptValueToLongNameV1Marker / SINGLETON_SCRIPT_VALUE_TO_LONG_NAME_V1_MARKER;
     }
 }
 
 impl_value_getter! {
    impl HangulSyllableType {
-        HangulSyllableTypeNameToValueV2 / SINGLETON_HANGUL_SYLLABLE_TYPE_NAME_TO_VALUE_V2;
-        PropertyEnumToValueNameLinearMap / HangulSyllableTypeValueToShortNameV1 / SINGLETON_HANGUL_SYLLABLE_TYPE_VALUE_TO_SHORT_NAME_V1;
-        PropertyEnumToValueNameLinearMap / HangulSyllableTypeValueToLongNameV1 / SINGLETON_HANGUL_SYLLABLE_TYPE_VALUE_TO_LONG_NAME_V1;
+        HangulSyllableTypeNameToValueV2Marker / SINGLETON_HANGUL_SYLLABLE_TYPE_NAME_TO_VALUE_V2_MARKER;
+        PropertyEnumToValueNameLinearMapV1 / HangulSyllableTypeValueToShortNameV1Marker / SINGLETON_HANGUL_SYLLABLE_TYPE_VALUE_TO_SHORT_NAME_V1_MARKER;
+        PropertyEnumToValueNameLinearMapV1 / HangulSyllableTypeValueToLongNameV1Marker / SINGLETON_HANGUL_SYLLABLE_TYPE_VALUE_TO_LONG_NAME_V1_MARKER;
     }
 }
 
 impl_value_getter! {
     impl EastAsianWidth {
-        EastAsianWidthNameToValueV2 / SINGLETON_EAST_ASIAN_WIDTH_NAME_TO_VALUE_V2;
-        PropertyEnumToValueNameLinearMap / EastAsianWidthValueToShortNameV1 / SINGLETON_EAST_ASIAN_WIDTH_VALUE_TO_SHORT_NAME_V1;
-        PropertyEnumToValueNameLinearMap / EastAsianWidthValueToLongNameV1 / SINGLETON_EAST_ASIAN_WIDTH_VALUE_TO_LONG_NAME_V1;
+        EastAsianWidthNameToValueV2Marker / SINGLETON_EAST_ASIAN_WIDTH_NAME_TO_VALUE_V2_MARKER;
+        PropertyEnumToValueNameLinearMapV1 / EastAsianWidthValueToShortNameV1Marker / SINGLETON_EAST_ASIAN_WIDTH_VALUE_TO_SHORT_NAME_V1_MARKER;
+        PropertyEnumToValueNameLinearMapV1 / EastAsianWidthValueToLongNameV1Marker / SINGLETON_EAST_ASIAN_WIDTH_VALUE_TO_LONG_NAME_V1_MARKER;
     }
 }
 
 impl_value_getter! {
     impl LineBreak {
-        LineBreakNameToValueV2 / SINGLETON_LINE_BREAK_NAME_TO_VALUE_V2;
-        PropertyEnumToValueNameLinearMap / LineBreakValueToShortNameV1 / SINGLETON_LINE_BREAK_VALUE_TO_SHORT_NAME_V1;
-        PropertyEnumToValueNameLinearMap / LineBreakValueToLongNameV1 / SINGLETON_LINE_BREAK_VALUE_TO_LONG_NAME_V1;
+        LineBreakNameToValueV2Marker / SINGLETON_LINE_BREAK_NAME_TO_VALUE_V2_MARKER;
+        PropertyEnumToValueNameLinearMapV1 / LineBreakValueToShortNameV1Marker / SINGLETON_LINE_BREAK_VALUE_TO_SHORT_NAME_V1_MARKER;
+        PropertyEnumToValueNameLinearMapV1 / LineBreakValueToLongNameV1Marker / SINGLETON_LINE_BREAK_VALUE_TO_LONG_NAME_V1_MARKER;
     }
 }
 
 impl_value_getter! {
     impl GraphemeClusterBreak {
-        GraphemeClusterBreakNameToValueV2 / SINGLETON_GRAPHEME_CLUSTER_BREAK_NAME_TO_VALUE_V2;
-        PropertyEnumToValueNameLinearMap / GraphemeClusterBreakValueToShortNameV1 / SINGLETON_GRAPHEME_CLUSTER_BREAK_VALUE_TO_SHORT_NAME_V1;
-        PropertyEnumToValueNameLinearMap / GraphemeClusterBreakValueToLongNameV1 / SINGLETON_GRAPHEME_CLUSTER_BREAK_VALUE_TO_LONG_NAME_V1;
+        GraphemeClusterBreakNameToValueV2Marker / SINGLETON_GRAPHEME_CLUSTER_BREAK_NAME_TO_VALUE_V2_MARKER;
+        PropertyEnumToValueNameLinearMapV1 / GraphemeClusterBreakValueToShortNameV1Marker / SINGLETON_GRAPHEME_CLUSTER_BREAK_VALUE_TO_SHORT_NAME_V1_MARKER;
+        PropertyEnumToValueNameLinearMapV1 / GraphemeClusterBreakValueToLongNameV1Marker / SINGLETON_GRAPHEME_CLUSTER_BREAK_VALUE_TO_LONG_NAME_V1_MARKER;
     }
 }
 
 impl_value_getter! {
     impl WordBreak {
-        WordBreakNameToValueV2 / SINGLETON_WORD_BREAK_NAME_TO_VALUE_V2;
-        PropertyEnumToValueNameLinearMap / WordBreakValueToShortNameV1 / SINGLETON_WORD_BREAK_VALUE_TO_SHORT_NAME_V1;
-        PropertyEnumToValueNameLinearMap / WordBreakValueToLongNameV1 / SINGLETON_WORD_BREAK_VALUE_TO_LONG_NAME_V1;
+        WordBreakNameToValueV2Marker / SINGLETON_WORD_BREAK_NAME_TO_VALUE_V2_MARKER;
+        PropertyEnumToValueNameLinearMapV1 / WordBreakValueToShortNameV1Marker / SINGLETON_WORD_BREAK_VALUE_TO_SHORT_NAME_V1_MARKER;
+        PropertyEnumToValueNameLinearMapV1 / WordBreakValueToLongNameV1Marker / SINGLETON_WORD_BREAK_VALUE_TO_LONG_NAME_V1_MARKER;
     }
 }
 
 impl_value_getter! {
     impl SentenceBreak {
-        SentenceBreakNameToValueV2 / SINGLETON_SENTENCE_BREAK_NAME_TO_VALUE_V2;
-        PropertyEnumToValueNameLinearMap / SentenceBreakValueToShortNameV1 / SINGLETON_SENTENCE_BREAK_VALUE_TO_SHORT_NAME_V1;
-        PropertyEnumToValueNameLinearMap / SentenceBreakValueToLongNameV1 / SINGLETON_SENTENCE_BREAK_VALUE_TO_LONG_NAME_V1;
+        SentenceBreakNameToValueV2Marker / SINGLETON_SENTENCE_BREAK_NAME_TO_VALUE_V2_MARKER;
+        PropertyEnumToValueNameLinearMapV1 / SentenceBreakValueToShortNameV1Marker / SINGLETON_SENTENCE_BREAK_VALUE_TO_SHORT_NAME_V1_MARKER;
+        PropertyEnumToValueNameLinearMapV1 / SentenceBreakValueToLongNameV1Marker / SINGLETON_SENTENCE_BREAK_VALUE_TO_LONG_NAME_V1_MARKER;
     }
 }
 
 impl_value_getter! {
     impl CanonicalCombiningClass {
-        CanonicalCombiningClassNameToValueV2 / SINGLETON_CANONICAL_COMBINING_CLASS_NAME_TO_VALUE_V2;
-        PropertyEnumToValueNameSparseMap / CanonicalCombiningClassValueToShortNameV1 / SINGLETON_CANONICAL_COMBINING_CLASS_VALUE_TO_SHORT_NAME_V1;
-        PropertyEnumToValueNameSparseMap / CanonicalCombiningClassValueToLongNameV1 / SINGLETON_CANONICAL_COMBINING_CLASS_VALUE_TO_LONG_NAME_V1;
+        CanonicalCombiningClassNameToValueV2Marker / SINGLETON_CANONICAL_COMBINING_CLASS_NAME_TO_VALUE_V2_MARKER;
+        PropertyEnumToValueNameSparseMapV1 / CanonicalCombiningClassValueToShortNameV1Marker / SINGLETON_CANONICAL_COMBINING_CLASS_VALUE_TO_SHORT_NAME_V1_MARKER;
+        PropertyEnumToValueNameSparseMapV1 / CanonicalCombiningClassValueToLongNameV1Marker / SINGLETON_CANONICAL_COMBINING_CLASS_VALUE_TO_LONG_NAME_V1_MARKER;
     }
 }
 
 impl_value_getter! {
     impl IndicSyllabicCategory {
-        IndicSyllabicCategoryNameToValueV2 / SINGLETON_INDIC_SYLLABIC_CATEGORY_NAME_TO_VALUE_V2;
-        PropertyEnumToValueNameLinearMap / IndicSyllabicCategoryValueToShortNameV1 / SINGLETON_INDIC_SYLLABIC_CATEGORY_VALUE_TO_SHORT_NAME_V1;
-        PropertyEnumToValueNameLinearMap / IndicSyllabicCategoryValueToLongNameV1 / SINGLETON_INDIC_SYLLABIC_CATEGORY_VALUE_TO_LONG_NAME_V1;
+        IndicSyllabicCategoryNameToValueV2Marker / SINGLETON_INDIC_SYLLABIC_CATEGORY_NAME_TO_VALUE_V2_MARKER;
+        PropertyEnumToValueNameLinearMapV1 / IndicSyllabicCategoryValueToShortNameV1Marker / SINGLETON_INDIC_SYLLABIC_CATEGORY_VALUE_TO_SHORT_NAME_V1_MARKER;
+        PropertyEnumToValueNameLinearMapV1 / IndicSyllabicCategoryValueToLongNameV1Marker / SINGLETON_INDIC_SYLLABIC_CATEGORY_VALUE_TO_LONG_NAME_V1_MARKER;
     }
 }
 
 impl_value_getter! {
     impl JoiningType {
-        JoiningTypeNameToValueV2 / SINGLETON_JOINING_TYPE_NAME_TO_VALUE_V2;
-        PropertyEnumToValueNameLinearMap / JoiningTypeValueToShortNameV1 / SINGLETON_JOINING_TYPE_VALUE_TO_SHORT_NAME_V1;
-        PropertyEnumToValueNameLinearMap / JoiningTypeValueToLongNameV1 / SINGLETON_JOINING_TYPE_VALUE_TO_LONG_NAME_V1;
+        JoiningTypeNameToValueV2Marker / SINGLETON_JOINING_TYPE_NAME_TO_VALUE_V2_MARKER;
+        PropertyEnumToValueNameLinearMapV1 / JoiningTypeValueToShortNameV1Marker / SINGLETON_JOINING_TYPE_VALUE_TO_SHORT_NAME_V1_MARKER;
+        PropertyEnumToValueNameLinearMapV1 / JoiningTypeValueToLongNameV1Marker / SINGLETON_JOINING_TYPE_VALUE_TO_LONG_NAME_V1_MARKER;
     }
 }

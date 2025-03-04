@@ -8,10 +8,9 @@ import type { pointer, codepoint } from "./diplomat-runtime.d.ts";
 *
 *Produced by `reorder_visual()` on [`Bidi`].
 */
-
-
 export class ReorderedIndexMap {
     
+
     get ffiValue(): pointer;
 
     get asSlice(): Array<number>;

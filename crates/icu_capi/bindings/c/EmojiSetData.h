@@ -21,10 +21,8 @@ bool icu4x_EmojiSetData_contains_str_mv1(const EmojiSetData* self, DiplomatStrin
 
 bool icu4x_EmojiSetData_contains_mv1(const EmojiSetData* self, char32_t cp);
 
-EmojiSetData* icu4x_EmojiSetData_create_basic_mv1(void);
-
-typedef struct icu4x_EmojiSetData_create_basic_with_provider_mv1_result {union {EmojiSetData* ok; DataError err;}; bool is_ok;} icu4x_EmojiSetData_create_basic_with_provider_mv1_result;
-icu4x_EmojiSetData_create_basic_with_provider_mv1_result icu4x_EmojiSetData_create_basic_with_provider_mv1(const DataProvider* provider);
+typedef struct icu4x_EmojiSetData_load_basic_mv1_result {union {EmojiSetData* ok; DataError err;}; bool is_ok;} icu4x_EmojiSetData_load_basic_mv1_result;
+icu4x_EmojiSetData_load_basic_mv1_result icu4x_EmojiSetData_load_basic_mv1(const DataProvider* provider);
 
 
 void icu4x_EmojiSetData_destroy_mv1(EmojiSetData* self);

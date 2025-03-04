@@ -2,16 +2,6 @@
   {
     "input": {
       "type": "Locale",
-      "identifier": "cmn-hans-cn-t-ca-u-ca-x_t-u"
-    },
-    "output": {
-      "error": "InvalidExtension",
-      "text": "unused"
-    }
-  },
-  {
-    "input": {
-      "type": "Locale",
       "identifier": "pl-US-x-waytoolongkey"
     },
     "output": {
@@ -22,7 +12,7 @@
   {
     "input": {
       "type": "Locale",
-      "identifier": "pl-US-x-@A-3"
+      "identifier": "pl-US-x-@A_3"
     },
     "output": {
       "error": "InvalidExtension",

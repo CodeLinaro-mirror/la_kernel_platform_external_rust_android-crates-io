@@ -14,7 +14,6 @@ const CanonicalCombiningClassMap_box_destroy_registry = new FinalizationRegistry
 });
 
 export class CanonicalCombiningClassMap {
-    
     // Internal ptr reference:
     #ptr = null;
 
@@ -22,7 +21,7 @@ export class CanonicalCombiningClassMap {
     // Since JS won't garbage collect until there are no incoming edges.
     #selfEdge = [];
     
-    #internalConstructor(symbol, ptr, selfEdge) {
+    constructor(symbol, ptr, selfEdge) {
         if (symbol !== diplomatRuntime.internalConstructor) {
             console.error("CanonicalCombiningClassMap is an Opaque type. You cannot call its constructor.");
             return;
@@ -35,27 +34,16 @@ export class CanonicalCombiningClassMap {
         if (this.#selfEdge.length === 0) {
             CanonicalCombiningClassMap_box_destroy_registry.register(this, this.#ptr);
         }
-        
-        return this;
     }
+
     get ffiValue() {
         return this.#ptr;
     }
 
-    #defaultConstructor() {
-        const result = wasm.icu4x_CanonicalCombiningClassMap_create_mv1();
-    
-        try {
-            return new CanonicalCombiningClassMap(diplomatRuntime.internalConstructor, result, []);
-        }
-        
-        finally {}
-    }
-
-    static createWithProvider(provider) {
+    static create(provider) {
         const diplomatReceive = new diplomatRuntime.DiplomatReceiveBuf(wasm, 5, 4, true);
         
-        const result = wasm.icu4x_CanonicalCombiningClassMap_create_with_provider_mv1(diplomatReceive.buffer, provider.ffiValue);
+        const result = wasm.icu4x_CanonicalCombiningClassMap_create_mv1(diplomatReceive.buffer, provider.ffiValue);
     
         try {
             if (!diplomatReceive.resultFlag) {
@@ -78,15 +66,5 @@ export class CanonicalCombiningClassMap {
         }
         
         finally {}
-    }
-
-    constructor() {
-        if (arguments[0] === diplomatRuntime.exposeConstructor) {
-            return this.#internalConstructor(...Array.prototype.slice.call(arguments, 1));
-        } else if (arguments[0] === diplomatRuntime.internalConstructor) {
-            return this.#internalConstructor(...arguments);
-        } else {
-            return this.#defaultConstructor(...arguments);
-        }
     }
 }

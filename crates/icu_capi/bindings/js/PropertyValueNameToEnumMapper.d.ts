@@ -12,53 +12,32 @@ import type { pointer, codepoint } from "./diplomat-runtime.d.ts";
 *
 *See the [Rust documentation for `new`](https://docs.rs/icu/latest/icu/properties/struct.PropertyParser.html#method.new) for more information.
 */
-
-
 export class PropertyValueNameToEnumMapper {
     
+
     get ffiValue(): pointer;
 
     getStrict(name: string): number;
 
     getLoose(name: string): number;
 
-    static createGeneralCategory(): PropertyValueNameToEnumMapper;
+    static loadGeneralCategory(provider: DataProvider): PropertyValueNameToEnumMapper;
 
-    static createGeneralCategoryWithProvider(provider: DataProvider): PropertyValueNameToEnumMapper;
+    static loadHangulSyllableType(provider: DataProvider): PropertyValueNameToEnumMapper;
 
-    static createHangulSyllableType(): PropertyValueNameToEnumMapper;
+    static loadEastAsianWidth(provider: DataProvider): PropertyValueNameToEnumMapper;
 
-    static createHangulSyllableTypeWithProvider(provider: DataProvider): PropertyValueNameToEnumMapper;
+    static loadBidiClass(provider: DataProvider): PropertyValueNameToEnumMapper;
 
-    static createEastAsianWidth(): PropertyValueNameToEnumMapper;
+    static loadIndicSyllabicCategory(provider: DataProvider): PropertyValueNameToEnumMapper;
 
-    static createEastAsianWidthWithProvider(provider: DataProvider): PropertyValueNameToEnumMapper;
+    static loadLineBreak(provider: DataProvider): PropertyValueNameToEnumMapper;
 
-    static createBidiClass(): PropertyValueNameToEnumMapper;
+    static loadGraphemeClusterBreak(provider: DataProvider): PropertyValueNameToEnumMapper;
 
-    static createBidiClassWithProvider(provider: DataProvider): PropertyValueNameToEnumMapper;
+    static loadWordBreak(provider: DataProvider): PropertyValueNameToEnumMapper;
 
-    static createIndicSyllabicCategory(): PropertyValueNameToEnumMapper;
+    static loadSentenceBreak(provider: DataProvider): PropertyValueNameToEnumMapper;
 
-    static createIndicSyllabicCategoryWithProvider(provider: DataProvider): PropertyValueNameToEnumMapper;
-
-    static createLineBreak(): PropertyValueNameToEnumMapper;
-
-    static createLineBreakWithProvider(provider: DataProvider): PropertyValueNameToEnumMapper;
-
-    static createGraphemeClusterBreak(): PropertyValueNameToEnumMapper;
-
-    static createGraphemeClusterBreakWithProvider(provider: DataProvider): PropertyValueNameToEnumMapper;
-
-    static createWordBreak(): PropertyValueNameToEnumMapper;
-
-    static createWordBreakWithProvider(provider: DataProvider): PropertyValueNameToEnumMapper;
-
-    static createSentenceBreak(): PropertyValueNameToEnumMapper;
-
-    static createSentenceBreakWithProvider(provider: DataProvider): PropertyValueNameToEnumMapper;
-
-    static createScript(): PropertyValueNameToEnumMapper;
-
-    static createScriptWithProvider(provider: DataProvider): PropertyValueNameToEnumMapper;
+    static loadScript(provider: DataProvider): PropertyValueNameToEnumMapper;
 }

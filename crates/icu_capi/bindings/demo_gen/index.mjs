@@ -5,28 +5,36 @@ import * as TitlecaseMapperDemo from "./TitlecaseMapper.mjs";
 export * as TitlecaseMapperDemo from "./TitlecaseMapper.mjs";
 import * as DateDemo from "./Date.mjs";
 export * as DateDemo from "./Date.mjs";
+import * as DateTimeDemo from "./DateTime.mjs";
+export * as DateTimeDemo from "./DateTime.mjs";
 import * as DateFormatterDemo from "./DateFormatter.mjs";
 export * as DateFormatterDemo from "./DateFormatter.mjs";
+import * as DateTimeFormatterDemo from "./DateTimeFormatter.mjs";
+export * as DateTimeFormatterDemo from "./DateTimeFormatter.mjs";
 import * as GregorianDateFormatterDemo from "./GregorianDateFormatter.mjs";
 export * as GregorianDateFormatterDemo from "./GregorianDateFormatter.mjs";
-import * as NoCalendarFormatterDemo from "./NoCalendarFormatter.mjs";
-export * as NoCalendarFormatterDemo from "./NoCalendarFormatter.mjs";
-import * as DecimalFormatterDemo from "./DecimalFormatter.mjs";
-export * as DecimalFormatterDemo from "./DecimalFormatter.mjs";
-import * as DecimalDemo from "./Decimal.mjs";
-export * as DecimalDemo from "./Decimal.mjs";
+import * as GregorianDateTimeFormatterDemo from "./GregorianDateTimeFormatter.mjs";
+export * as GregorianDateTimeFormatterDemo from "./GregorianDateTimeFormatter.mjs";
+import * as TimeFormatterDemo from "./TimeFormatter.mjs";
+export * as TimeFormatterDemo from "./TimeFormatter.mjs";
+import * as FixedDecimalFormatterDemo from "./FixedDecimalFormatter.mjs";
+export * as FixedDecimalFormatterDemo from "./FixedDecimalFormatter.mjs";
+import * as FixedDecimalDemo from "./FixedDecimal.mjs";
+export * as FixedDecimalDemo from "./FixedDecimal.mjs";
 import * as ListFormatterDemo from "./ListFormatter.mjs";
 export * as ListFormatterDemo from "./ListFormatter.mjs";
 import * as LocaleDemo from "./Locale.mjs";
 export * as LocaleDemo from "./Locale.mjs";
-import * as DateTimeFormatterDemo from "./DateTimeFormatter.mjs";
-export * as DateTimeFormatterDemo from "./DateTimeFormatter.mjs";
-import * as DateTimeFormatterGregorianDemo from "./DateTimeFormatterGregorian.mjs";
-export * as DateTimeFormatterGregorianDemo from "./DateTimeFormatterGregorian.mjs";
 import * as ComposingNormalizerDemo from "./ComposingNormalizer.mjs";
 export * as ComposingNormalizerDemo from "./ComposingNormalizer.mjs";
 import * as DecomposingNormalizerDemo from "./DecomposingNormalizer.mjs";
 export * as DecomposingNormalizerDemo from "./DecomposingNormalizer.mjs";
+import * as TimeZoneInfoDemo from "./TimeZoneInfo.mjs";
+export * as TimeZoneInfoDemo from "./TimeZoneInfo.mjs";
+import * as TimeZoneIdMapperDemo from "./TimeZoneIdMapper.mjs";
+export * as TimeZoneIdMapperDemo from "./TimeZoneIdMapper.mjs";
+import * as TimeZoneIdMapperWithFastCanonicalizationDemo from "./TimeZoneIdMapperWithFastCanonicalization.mjs";
+export * as TimeZoneIdMapperWithFastCanonicalizationDemo from "./TimeZoneIdMapperWithFastCanonicalization.mjs";
 import * as GregorianZonedDateTimeFormatterDemo from "./GregorianZonedDateTimeFormatter.mjs";
 export * as GregorianZonedDateTimeFormatterDemo from "./GregorianZonedDateTimeFormatter.mjs";
 import * as ZonedDateTimeFormatterDemo from "./ZonedDateTimeFormatter.mjs";
@@ -183,25 +191,25 @@ let termini = Object.assign({
         parameters: [
             
             {
-                name: "Date:Year",
+                name: "Self:Year",
                 type: "number",
                 typeUse: "number"
             },
             
             {
-                name: "Date:Month",
+                name: "Self:Month",
                 type: "number",
                 typeUse: "number"
             },
             
             {
-                name: "Date:Day",
+                name: "Self:Day",
                 type: "number",
                 typeUse: "number"
             },
             
             {
-                name: "Date:Calendar:Locale:Name",
+                name: "Self:Calendar:Locale:Name",
                 type: "string",
                 typeUse: "string"
             }
@@ -216,25 +224,25 @@ let termini = Object.assign({
         parameters: [
             
             {
-                name: "Date:Year",
+                name: "Self:Year",
                 type: "number",
                 typeUse: "number"
             },
             
             {
-                name: "Date:Month",
+                name: "Self:Month",
                 type: "number",
                 typeUse: "number"
             },
             
             {
-                name: "Date:Day",
+                name: "Self:Day",
                 type: "number",
                 typeUse: "number"
             },
             
             {
-                name: "Date:Calendar:Locale:Name",
+                name: "Self:Calendar:Locale:Name",
                 type: "string",
                 typeUse: "string"
             }
@@ -242,20 +250,134 @@ let termini = Object.assign({
         ]
     },
 
-    "DateFormatter.format": {
-        func: DateFormatterDemo.format,
+    "DateTime.monthCode": {
+        func: DateTimeDemo.monthCode,
         // For avoiding webpacking minifying issues:
-        funcName: "DateFormatter.format",
+        funcName: "DateTime.monthCode",
         parameters: [
             
             {
-                name: "DateFormatter:Locale:Name",
+                name: "Self:Year",
+                type: "number",
+                typeUse: "number"
+            },
+            
+            {
+                name: "Self:Month",
+                type: "number",
+                typeUse: "number"
+            },
+            
+            {
+                name: "Self:Day",
+                type: "number",
+                typeUse: "number"
+            },
+            
+            {
+                name: "Self:Hour",
+                type: "number",
+                typeUse: "number"
+            },
+            
+            {
+                name: "Self:Minute",
+                type: "number",
+                typeUse: "number"
+            },
+            
+            {
+                name: "Self:Second",
+                type: "number",
+                typeUse: "number"
+            },
+            
+            {
+                name: "Self:Nanosecond",
+                type: "number",
+                typeUse: "number"
+            },
+            
+            {
+                name: "Self:Calendar:Locale:Name",
+                type: "string",
+                typeUse: "string"
+            }
+            
+        ]
+    },
+
+    "DateTime.era": {
+        func: DateTimeDemo.era,
+        // For avoiding webpacking minifying issues:
+        funcName: "DateTime.era",
+        parameters: [
+            
+            {
+                name: "Self:Year",
+                type: "number",
+                typeUse: "number"
+            },
+            
+            {
+                name: "Self:Month",
+                type: "number",
+                typeUse: "number"
+            },
+            
+            {
+                name: "Self:Day",
+                type: "number",
+                typeUse: "number"
+            },
+            
+            {
+                name: "Self:Hour",
+                type: "number",
+                typeUse: "number"
+            },
+            
+            {
+                name: "Self:Minute",
+                type: "number",
+                typeUse: "number"
+            },
+            
+            {
+                name: "Self:Second",
+                type: "number",
+                typeUse: "number"
+            },
+            
+            {
+                name: "Self:Nanosecond",
+                type: "number",
+                typeUse: "number"
+            },
+            
+            {
+                name: "Self:Calendar:Locale:Name",
+                type: "string",
+                typeUse: "string"
+            }
+            
+        ]
+    },
+
+    "DateFormatter.formatDate": {
+        func: DateFormatterDemo.formatDate,
+        // For avoiding webpacking minifying issues:
+        funcName: "DateFormatter.formatDate",
+        parameters: [
+            
+            {
+                name: "Self:Locale:Name",
                 type: "string",
                 typeUse: "string"
             },
             
             {
-                name: "DateFormatter:Length",
+                name: "Self:Length",
                 type: "DateTimeLength",
                 typeUse: "enumerator"
             },
@@ -287,20 +409,20 @@ let termini = Object.assign({
         ]
     },
 
-    "DateFormatter.formatIso": {
-        func: DateFormatterDemo.formatIso,
+    "DateFormatter.formatIsoDate": {
+        func: DateFormatterDemo.formatIsoDate,
         // For avoiding webpacking minifying issues:
-        funcName: "DateFormatter.formatIso",
+        funcName: "DateFormatter.formatIsoDate",
         parameters: [
             
             {
-                name: "DateFormatter:Locale:Name",
+                name: "Self:Locale:Name",
                 type: "string",
                 typeUse: "string"
             },
             
             {
-                name: "DateFormatter:Length",
+                name: "Self:Length",
                 type: "DateTimeLength",
                 typeUse: "enumerator"
             },
@@ -326,20 +448,284 @@ let termini = Object.assign({
         ]
     },
 
-    "GregorianDateFormatter.formatIso": {
-        func: GregorianDateFormatterDemo.formatIso,
+    "DateFormatter.formatDatetime": {
+        func: DateFormatterDemo.formatDatetime,
         // For avoiding webpacking minifying issues:
-        funcName: "GregorianDateFormatter.formatIso",
+        funcName: "DateFormatter.formatDatetime",
         parameters: [
             
             {
-                name: "GregorianDateFormatter:Locale:Name",
+                name: "Self:Locale:Name",
                 type: "string",
                 typeUse: "string"
             },
             
             {
-                name: "GregorianDateFormatter:Length",
+                name: "Self:Length",
+                type: "DateTimeLength",
+                typeUse: "enumerator"
+            },
+            
+            {
+                name: "Value:Year",
+                type: "number",
+                typeUse: "number"
+            },
+            
+            {
+                name: "Value:Month",
+                type: "number",
+                typeUse: "number"
+            },
+            
+            {
+                name: "Value:Day",
+                type: "number",
+                typeUse: "number"
+            },
+            
+            {
+                name: "Value:Hour",
+                type: "number",
+                typeUse: "number"
+            },
+            
+            {
+                name: "Value:Minute",
+                type: "number",
+                typeUse: "number"
+            },
+            
+            {
+                name: "Value:Second",
+                type: "number",
+                typeUse: "number"
+            },
+            
+            {
+                name: "Value:Nanosecond",
+                type: "number",
+                typeUse: "number"
+            },
+            
+            {
+                name: "Value:Calendar:Locale:Name",
+                type: "string",
+                typeUse: "string"
+            }
+            
+        ]
+    },
+
+    "DateFormatter.formatIsoDatetime": {
+        func: DateFormatterDemo.formatIsoDatetime,
+        // For avoiding webpacking minifying issues:
+        funcName: "DateFormatter.formatIsoDatetime",
+        parameters: [
+            
+            {
+                name: "Self:Locale:Name",
+                type: "string",
+                typeUse: "string"
+            },
+            
+            {
+                name: "Self:Length",
+                type: "DateTimeLength",
+                typeUse: "enumerator"
+            },
+            
+            {
+                name: "Value:Year",
+                type: "number",
+                typeUse: "number"
+            },
+            
+            {
+                name: "Value:Month",
+                type: "number",
+                typeUse: "number"
+            },
+            
+            {
+                name: "Value:Day",
+                type: "number",
+                typeUse: "number"
+            },
+            
+            {
+                name: "Value:Hour",
+                type: "number",
+                typeUse: "number"
+            },
+            
+            {
+                name: "Value:Minute",
+                type: "number",
+                typeUse: "number"
+            },
+            
+            {
+                name: "Value:Second",
+                type: "number",
+                typeUse: "number"
+            },
+            
+            {
+                name: "Value:Nanosecond",
+                type: "number",
+                typeUse: "number"
+            }
+            
+        ]
+    },
+
+    "DateTimeFormatter.formatDatetime": {
+        func: DateTimeFormatterDemo.formatDatetime,
+        // For avoiding webpacking minifying issues:
+        funcName: "DateTimeFormatter.formatDatetime",
+        parameters: [
+            
+            {
+                name: "Self:Locale:Name",
+                type: "string",
+                typeUse: "string"
+            },
+            
+            {
+                name: "Self:Length",
+                type: "DateTimeLength",
+                typeUse: "enumerator"
+            },
+            
+            {
+                name: "Value:Year",
+                type: "number",
+                typeUse: "number"
+            },
+            
+            {
+                name: "Value:Month",
+                type: "number",
+                typeUse: "number"
+            },
+            
+            {
+                name: "Value:Day",
+                type: "number",
+                typeUse: "number"
+            },
+            
+            {
+                name: "Value:Hour",
+                type: "number",
+                typeUse: "number"
+            },
+            
+            {
+                name: "Value:Minute",
+                type: "number",
+                typeUse: "number"
+            },
+            
+            {
+                name: "Value:Second",
+                type: "number",
+                typeUse: "number"
+            },
+            
+            {
+                name: "Value:Nanosecond",
+                type: "number",
+                typeUse: "number"
+            },
+            
+            {
+                name: "Value:Calendar:Locale:Name",
+                type: "string",
+                typeUse: "string"
+            }
+            
+        ]
+    },
+
+    "DateTimeFormatter.formatIsoDatetime": {
+        func: DateTimeFormatterDemo.formatIsoDatetime,
+        // For avoiding webpacking minifying issues:
+        funcName: "DateTimeFormatter.formatIsoDatetime",
+        parameters: [
+            
+            {
+                name: "Self:Locale:Name",
+                type: "string",
+                typeUse: "string"
+            },
+            
+            {
+                name: "Self:Length",
+                type: "DateTimeLength",
+                typeUse: "enumerator"
+            },
+            
+            {
+                name: "Value:Year",
+                type: "number",
+                typeUse: "number"
+            },
+            
+            {
+                name: "Value:Month",
+                type: "number",
+                typeUse: "number"
+            },
+            
+            {
+                name: "Value:Day",
+                type: "number",
+                typeUse: "number"
+            },
+            
+            {
+                name: "Value:Hour",
+                type: "number",
+                typeUse: "number"
+            },
+            
+            {
+                name: "Value:Minute",
+                type: "number",
+                typeUse: "number"
+            },
+            
+            {
+                name: "Value:Second",
+                type: "number",
+                typeUse: "number"
+            },
+            
+            {
+                name: "Value:Nanosecond",
+                type: "number",
+                typeUse: "number"
+            }
+            
+        ]
+    },
+
+    "GregorianDateFormatter.formatIsoDate": {
+        func: GregorianDateFormatterDemo.formatIsoDate,
+        // For avoiding webpacking minifying issues:
+        funcName: "GregorianDateFormatter.formatIsoDate",
+        parameters: [
+            
+            {
+                name: "Self:Locale:Name",
+                type: "string",
+                typeUse: "string"
+            },
+            
+            {
+                name: "Self:Length",
                 type: "DateTimeLength",
                 typeUse: "enumerator"
             },
@@ -365,20 +751,146 @@ let termini = Object.assign({
         ]
     },
 
-    "NoCalendarFormatter.format": {
-        func: NoCalendarFormatterDemo.format,
+    "GregorianDateFormatter.formatIsoDatetime": {
+        func: GregorianDateFormatterDemo.formatIsoDatetime,
         // For avoiding webpacking minifying issues:
-        funcName: "NoCalendarFormatter.format",
+        funcName: "GregorianDateFormatter.formatIsoDatetime",
         parameters: [
             
             {
-                name: "NoCalendarFormatter:Locale:Name",
+                name: "Self:Locale:Name",
                 type: "string",
                 typeUse: "string"
             },
             
             {
-                name: "NoCalendarFormatter:Length",
+                name: "Self:Length",
+                type: "DateTimeLength",
+                typeUse: "enumerator"
+            },
+            
+            {
+                name: "Value:Year",
+                type: "number",
+                typeUse: "number"
+            },
+            
+            {
+                name: "Value:Month",
+                type: "number",
+                typeUse: "number"
+            },
+            
+            {
+                name: "Value:Day",
+                type: "number",
+                typeUse: "number"
+            },
+            
+            {
+                name: "Value:Hour",
+                type: "number",
+                typeUse: "number"
+            },
+            
+            {
+                name: "Value:Minute",
+                type: "number",
+                typeUse: "number"
+            },
+            
+            {
+                name: "Value:Second",
+                type: "number",
+                typeUse: "number"
+            },
+            
+            {
+                name: "Value:Nanosecond",
+                type: "number",
+                typeUse: "number"
+            }
+            
+        ]
+    },
+
+    "GregorianDateTimeFormatter.formatIsoDatetime": {
+        func: GregorianDateTimeFormatterDemo.formatIsoDatetime,
+        // For avoiding webpacking minifying issues:
+        funcName: "GregorianDateTimeFormatter.formatIsoDatetime",
+        parameters: [
+            
+            {
+                name: "Self:Locale:Name",
+                type: "string",
+                typeUse: "string"
+            },
+            
+            {
+                name: "Self:Length",
+                type: "DateTimeLength",
+                typeUse: "enumerator"
+            },
+            
+            {
+                name: "Value:Year",
+                type: "number",
+                typeUse: "number"
+            },
+            
+            {
+                name: "Value:Month",
+                type: "number",
+                typeUse: "number"
+            },
+            
+            {
+                name: "Value:Day",
+                type: "number",
+                typeUse: "number"
+            },
+            
+            {
+                name: "Value:Hour",
+                type: "number",
+                typeUse: "number"
+            },
+            
+            {
+                name: "Value:Minute",
+                type: "number",
+                typeUse: "number"
+            },
+            
+            {
+                name: "Value:Second",
+                type: "number",
+                typeUse: "number"
+            },
+            
+            {
+                name: "Value:Nanosecond",
+                type: "number",
+                typeUse: "number"
+            }
+            
+        ]
+    },
+
+    "TimeFormatter.formatTime": {
+        func: TimeFormatterDemo.formatTime,
+        // For avoiding webpacking minifying issues:
+        funcName: "TimeFormatter.formatTime",
+        parameters: [
+            
+            {
+                name: "Self:Locale:Name",
+                type: "string",
+                typeUse: "string"
+            },
+            
+            {
+                name: "Self:Length",
                 type: "DateTimeLength",
                 typeUse: "enumerator"
             },
@@ -402,7 +914,7 @@ let termini = Object.assign({
             },
             
             {
-                name: "Value:Subsecond",
+                name: "Value:Nanosecond",
                 type: "number",
                 typeUse: "number"
             }
@@ -410,21 +922,153 @@ let termini = Object.assign({
         ]
     },
 
-    "DecimalFormatter.format": {
-        func: DecimalFormatterDemo.format,
+    "TimeFormatter.formatDatetime": {
+        func: TimeFormatterDemo.formatDatetime,
         // For avoiding webpacking minifying issues:
-        funcName: "DecimalFormatter.format",
+        funcName: "TimeFormatter.formatDatetime",
         parameters: [
             
             {
-                name: "DecimalFormatter:Locale:Name",
+                name: "Self:Locale:Name",
                 type: "string",
                 typeUse: "string"
             },
             
             {
-                name: "DecimalFormatter:GroupingStrategy",
-                type: "DecimalGroupingStrategy",
+                name: "Self:Length",
+                type: "DateTimeLength",
+                typeUse: "enumerator"
+            },
+            
+            {
+                name: "Value:Year",
+                type: "number",
+                typeUse: "number"
+            },
+            
+            {
+                name: "Value:Month",
+                type: "number",
+                typeUse: "number"
+            },
+            
+            {
+                name: "Value:Day",
+                type: "number",
+                typeUse: "number"
+            },
+            
+            {
+                name: "Value:Hour",
+                type: "number",
+                typeUse: "number"
+            },
+            
+            {
+                name: "Value:Minute",
+                type: "number",
+                typeUse: "number"
+            },
+            
+            {
+                name: "Value:Second",
+                type: "number",
+                typeUse: "number"
+            },
+            
+            {
+                name: "Value:Nanosecond",
+                type: "number",
+                typeUse: "number"
+            },
+            
+            {
+                name: "Value:Calendar:Locale:Name",
+                type: "string",
+                typeUse: "string"
+            }
+            
+        ]
+    },
+
+    "TimeFormatter.formatIsoDatetime": {
+        func: TimeFormatterDemo.formatIsoDatetime,
+        // For avoiding webpacking minifying issues:
+        funcName: "TimeFormatter.formatIsoDatetime",
+        parameters: [
+            
+            {
+                name: "Self:Locale:Name",
+                type: "string",
+                typeUse: "string"
+            },
+            
+            {
+                name: "Self:Length",
+                type: "DateTimeLength",
+                typeUse: "enumerator"
+            },
+            
+            {
+                name: "Value:Year",
+                type: "number",
+                typeUse: "number"
+            },
+            
+            {
+                name: "Value:Month",
+                type: "number",
+                typeUse: "number"
+            },
+            
+            {
+                name: "Value:Day",
+                type: "number",
+                typeUse: "number"
+            },
+            
+            {
+                name: "Value:Hour",
+                type: "number",
+                typeUse: "number"
+            },
+            
+            {
+                name: "Value:Minute",
+                type: "number",
+                typeUse: "number"
+            },
+            
+            {
+                name: "Value:Second",
+                type: "number",
+                typeUse: "number"
+            },
+            
+            {
+                name: "Value:Nanosecond",
+                type: "number",
+                typeUse: "number"
+            }
+            
+        ]
+    },
+
+    "FixedDecimalFormatter.format": {
+        func: FixedDecimalFormatterDemo.format,
+        // For avoiding webpacking minifying issues:
+        funcName: "FixedDecimalFormatter.format",
+        parameters: [
+            
+            {
+                name: "Self:Locale:Name",
+                type: "string",
+                typeUse: "string"
+            },
+            
+            {
+                name: "Self:GroupingStrategy",
+                type: "FixedDecimalGroupingStrategy",
                 typeUse: "enumerator"
             },
             
@@ -443,20 +1087,20 @@ let termini = Object.assign({
         ]
     },
 
-    "Decimal.toString": {
-        func: DecimalDemo.toString,
+    "FixedDecimal.toString": {
+        func: FixedDecimalDemo.toString,
         // For avoiding webpacking minifying issues:
-        funcName: "Decimal.toString",
+        funcName: "FixedDecimal.toString",
         parameters: [
             
             {
-                name: "Decimal:F",
+                name: "Self:F",
                 type: "number",
                 typeUse: "number"
             },
             
             {
-                name: "Decimal:Magnitude",
+                name: "Self:Magnitude",
                 type: "number",
                 typeUse: "number"
             }
@@ -471,13 +1115,13 @@ let termini = Object.assign({
         parameters: [
             
             {
-                name: "ListFormatter:Locale:Name",
+                name: "Self:Locale:Name",
                 type: "string",
                 typeUse: "string"
             },
             
             {
-                name: "ListFormatter:Length",
+                name: "Self:Length",
                 type: "ListLength",
                 typeUse: "enumerator"
             },
@@ -498,7 +1142,7 @@ let termini = Object.assign({
         parameters: [
             
             {
-                name: "Locale:Name",
+                name: "Self:Name",
                 type: "string",
                 typeUse: "string"
             }
@@ -513,7 +1157,7 @@ let termini = Object.assign({
         parameters: [
             
             {
-                name: "Locale:Name",
+                name: "Self:Name",
                 type: "string",
                 typeUse: "string"
             },
@@ -534,7 +1178,7 @@ let termini = Object.assign({
         parameters: [
             
             {
-                name: "Locale:Name",
+                name: "Self:Name",
                 type: "string",
                 typeUse: "string"
             }
@@ -549,7 +1193,7 @@ let termini = Object.assign({
         parameters: [
             
             {
-                name: "Locale:Name",
+                name: "Self:Name",
                 type: "string",
                 typeUse: "string"
             }
@@ -564,7 +1208,7 @@ let termini = Object.assign({
         parameters: [
             
             {
-                name: "Locale:Name",
+                name: "Self:Name",
                 type: "string",
                 typeUse: "string"
             }
@@ -594,258 +1238,9 @@ let termini = Object.assign({
         parameters: [
             
             {
-                name: "Locale:Name",
+                name: "Self:Name",
                 type: "string",
                 typeUse: "string"
-            }
-            
-        ]
-    },
-
-    "DateTimeFormatter.formatIso": {
-        func: DateTimeFormatterDemo.formatIso,
-        // For avoiding webpacking minifying issues:
-        funcName: "DateTimeFormatter.formatIso",
-        parameters: [
-            
-            {
-                name: "DateTimeFormatter:Locale:Name",
-                type: "string",
-                typeUse: "string"
-            },
-            
-            {
-                name: "DateTimeFormatter:Length",
-                type: "DateTimeLength",
-                typeUse: "enumerator"
-            },
-            
-            {
-                name: "DateTimeFormatter:TimePrecision",
-                type: "TimePrecision",
-                typeUse: "enumerator"
-            },
-            
-            {
-                name: "DateTimeFormatter:Alignment",
-                type: "DateTimeAlignment",
-                typeUse: "enumerator"
-            },
-            
-            {
-                name: "DateTimeFormatter:YearStyle",
-                type: "YearStyle",
-                typeUse: "enumerator"
-            },
-            
-            {
-                name: "Date:Year",
-                type: "number",
-                typeUse: "number"
-            },
-            
-            {
-                name: "Date:Month",
-                type: "number",
-                typeUse: "number"
-            },
-            
-            {
-                name: "Date:Day",
-                type: "number",
-                typeUse: "number"
-            },
-            
-            {
-                name: "Time:Hour",
-                type: "number",
-                typeUse: "number"
-            },
-            
-            {
-                name: "Time:Minute",
-                type: "number",
-                typeUse: "number"
-            },
-            
-            {
-                name: "Time:Second",
-                type: "number",
-                typeUse: "number"
-            },
-            
-            {
-                name: "Time:Subsecond",
-                type: "number",
-                typeUse: "number"
-            }
-            
-        ]
-    },
-
-    "DateTimeFormatter.formatSameCalendar": {
-        func: DateTimeFormatterDemo.formatSameCalendar,
-        // For avoiding webpacking minifying issues:
-        funcName: "DateTimeFormatter.formatSameCalendar",
-        parameters: [
-            
-            {
-                name: "DateTimeFormatter:Locale:Name",
-                type: "string",
-                typeUse: "string"
-            },
-            
-            {
-                name: "DateTimeFormatter:Length",
-                type: "DateTimeLength",
-                typeUse: "enumerator"
-            },
-            
-            {
-                name: "DateTimeFormatter:TimePrecision",
-                type: "TimePrecision",
-                typeUse: "enumerator"
-            },
-            
-            {
-                name: "DateTimeFormatter:Alignment",
-                type: "DateTimeAlignment",
-                typeUse: "enumerator"
-            },
-            
-            {
-                name: "DateTimeFormatter:YearStyle",
-                type: "YearStyle",
-                typeUse: "enumerator"
-            },
-            
-            {
-                name: "Date:Year",
-                type: "number",
-                typeUse: "number"
-            },
-            
-            {
-                name: "Date:Month",
-                type: "number",
-                typeUse: "number"
-            },
-            
-            {
-                name: "Date:Day",
-                type: "number",
-                typeUse: "number"
-            },
-            
-            {
-                name: "Date:Calendar:Locale:Name",
-                type: "string",
-                typeUse: "string"
-            },
-            
-            {
-                name: "Time:Hour",
-                type: "number",
-                typeUse: "number"
-            },
-            
-            {
-                name: "Time:Minute",
-                type: "number",
-                typeUse: "number"
-            },
-            
-            {
-                name: "Time:Second",
-                type: "number",
-                typeUse: "number"
-            },
-            
-            {
-                name: "Time:Subsecond",
-                type: "number",
-                typeUse: "number"
-            }
-            
-        ]
-    },
-
-    "DateTimeFormatterGregorian.formatIso": {
-        func: DateTimeFormatterGregorianDemo.formatIso,
-        // For avoiding webpacking minifying issues:
-        funcName: "DateTimeFormatterGregorian.formatIso",
-        parameters: [
-            
-            {
-                name: "DateTimeFormatterGregorian:Locale:Name",
-                type: "string",
-                typeUse: "string"
-            },
-            
-            {
-                name: "DateTimeFormatterGregorian:Length",
-                type: "DateTimeLength",
-                typeUse: "enumerator"
-            },
-            
-            {
-                name: "DateTimeFormatterGregorian:TimePrecision",
-                type: "TimePrecision",
-                typeUse: "enumerator"
-            },
-            
-            {
-                name: "DateTimeFormatterGregorian:Alignment",
-                type: "DateTimeAlignment",
-                typeUse: "enumerator"
-            },
-            
-            {
-                name: "DateTimeFormatterGregorian:YearStyle",
-                type: "YearStyle",
-                typeUse: "enumerator"
-            },
-            
-            {
-                name: "Date:Year",
-                type: "number",
-                typeUse: "number"
-            },
-            
-            {
-                name: "Date:Month",
-                type: "number",
-                typeUse: "number"
-            },
-            
-            {
-                name: "Date:Day",
-                type: "number",
-                typeUse: "number"
-            },
-            
-            {
-                name: "Time:Hour",
-                type: "number",
-                typeUse: "number"
-            },
-            
-            {
-                name: "Time:Minute",
-                type: "number",
-                typeUse: "number"
-            },
-            
-            {
-                name: "Time:Second",
-                type: "number",
-                typeUse: "number"
-            },
-            
-            {
-                name: "Time:Subsecond",
-                type: "number",
-                typeUse: "number"
             }
             
         ]
@@ -881,250 +1276,367 @@ let termini = Object.assign({
         ]
     },
 
-    "GregorianZonedDateTimeFormatter.formatIso": {
-        func: GregorianZonedDateTimeFormatterDemo.formatIso,
+    "TimeZoneInfo.timeZoneId": {
+        func: TimeZoneInfoDemo.timeZoneId,
         // For avoiding webpacking minifying issues:
-        funcName: "GregorianZonedDateTimeFormatter.formatIso",
+        funcName: "TimeZoneInfo.timeZoneId",
         parameters: [
             
             {
-                name: "GregorianZonedDateTimeFormatter:Locale:Name",
+                name: "Self:Bcp47Id",
                 type: "string",
                 typeUse: "string"
             },
             
             {
-                name: "GregorianZonedDateTimeFormatter:Length",
-                type: "DateTimeLength",
-                typeUse: "enumerator"
-            },
-            
-            {
-                name: "Date:Year",
+                name: "Self:OffsetSeconds",
                 type: "number",
                 typeUse: "number"
             },
             
             {
-                name: "Date:Month",
-                type: "number",
-                typeUse: "number"
-            },
-            
-            {
-                name: "Date:Day",
-                type: "number",
-                typeUse: "number"
-            },
-            
-            {
-                name: "Time:Hour",
-                type: "number",
-                typeUse: "number"
-            },
-            
-            {
-                name: "Time:Minute",
-                type: "number",
-                typeUse: "number"
-            },
-            
-            {
-                name: "Time:Second",
-                type: "number",
-                typeUse: "number"
-            },
-            
-            {
-                name: "Time:Subsecond",
-                type: "number",
-                typeUse: "number"
-            },
-            
-            {
-                name: "Zone:TimeZoneId:Id",
-                type: "string",
-                typeUse: "string"
-            },
-            
-            {
-                name: "Zone:Offset:Offset",
-                type: "string",
-                typeUse: "string"
-            },
-            
-            {
-                name: "Zone:ZoneVariant",
-                type: "TimeZoneVariant",
-                typeUse: "enumerator"
+                name: "Self:Dst",
+                type: "boolean",
+                typeUse: "boolean"
             }
             
         ]
     },
 
-    "ZonedDateTimeFormatter.format": {
-        func: ZonedDateTimeFormatterDemo.format,
+    "TimeZoneIdMapper.ianaToBcp47": {
+        func: TimeZoneIdMapperDemo.ianaToBcp47,
         // For avoiding webpacking minifying issues:
-        funcName: "ZonedDateTimeFormatter.format",
+        funcName: "TimeZoneIdMapper.ianaToBcp47",
         parameters: [
             
             {
-                name: "ZonedDateTimeFormatter:Locale:Name",
+                name: "Value",
                 type: "string",
                 typeUse: "string"
-            },
-            
-            {
-                name: "ZonedDateTimeFormatter:Length",
-                type: "DateTimeLength",
-                typeUse: "enumerator"
-            },
-            
-            {
-                name: "Date:Year",
-                type: "number",
-                typeUse: "number"
-            },
-            
-            {
-                name: "Date:Month",
-                type: "number",
-                typeUse: "number"
-            },
-            
-            {
-                name: "Date:Day",
-                type: "number",
-                typeUse: "number"
-            },
-            
-            {
-                name: "Date:Calendar:Locale:Name",
-                type: "string",
-                typeUse: "string"
-            },
-            
-            {
-                name: "Time:Hour",
-                type: "number",
-                typeUse: "number"
-            },
-            
-            {
-                name: "Time:Minute",
-                type: "number",
-                typeUse: "number"
-            },
-            
-            {
-                name: "Time:Second",
-                type: "number",
-                typeUse: "number"
-            },
-            
-            {
-                name: "Time:Subsecond",
-                type: "number",
-                typeUse: "number"
-            },
-            
-            {
-                name: "Zone:TimeZoneId:Id",
-                type: "string",
-                typeUse: "string"
-            },
-            
-            {
-                name: "Zone:Offset:Offset",
-                type: "string",
-                typeUse: "string"
-            },
-            
-            {
-                name: "Zone:ZoneVariant",
-                type: "TimeZoneVariant",
-                typeUse: "enumerator"
             }
             
         ]
     },
 
-    "ZonedDateTimeFormatter.formatIso": {
-        func: ZonedDateTimeFormatterDemo.formatIso,
+    "TimeZoneIdMapper.normalizeIana": {
+        func: TimeZoneIdMapperDemo.normalizeIana,
         // For avoiding webpacking minifying issues:
-        funcName: "ZonedDateTimeFormatter.formatIso",
+        funcName: "TimeZoneIdMapper.normalizeIana",
         parameters: [
             
             {
-                name: "ZonedDateTimeFormatter:Locale:Name",
+                name: "Value",
+                type: "string",
+                typeUse: "string"
+            }
+            
+        ]
+    },
+
+    "TimeZoneIdMapper.canonicalizeIana": {
+        func: TimeZoneIdMapperDemo.canonicalizeIana,
+        // For avoiding webpacking minifying issues:
+        funcName: "TimeZoneIdMapper.canonicalizeIana",
+        parameters: [
+            
+            {
+                name: "Value",
+                type: "string",
+                typeUse: "string"
+            }
+            
+        ]
+    },
+
+    "TimeZoneIdMapper.findCanonicalIanaFromBcp47": {
+        func: TimeZoneIdMapperDemo.findCanonicalIanaFromBcp47,
+        // For avoiding webpacking minifying issues:
+        funcName: "TimeZoneIdMapper.findCanonicalIanaFromBcp47",
+        parameters: [
+            
+            {
+                name: "Value",
+                type: "string",
+                typeUse: "string"
+            }
+            
+        ]
+    },
+
+    "TimeZoneIdMapperWithFastCanonicalization.canonicalizeIana": {
+        func: TimeZoneIdMapperWithFastCanonicalizationDemo.canonicalizeIana,
+        // For avoiding webpacking minifying issues:
+        funcName: "TimeZoneIdMapperWithFastCanonicalization.canonicalizeIana",
+        parameters: [
+            
+            {
+                name: "Value",
+                type: "string",
+                typeUse: "string"
+            }
+            
+        ]
+    },
+
+    "TimeZoneIdMapperWithFastCanonicalization.canonicalIanaFromBcp47": {
+        func: TimeZoneIdMapperWithFastCanonicalizationDemo.canonicalIanaFromBcp47,
+        // For avoiding webpacking minifying issues:
+        funcName: "TimeZoneIdMapperWithFastCanonicalization.canonicalIanaFromBcp47",
+        parameters: [
+            
+            {
+                name: "Value",
+                type: "string",
+                typeUse: "string"
+            }
+            
+        ]
+    },
+
+    "GregorianZonedDateTimeFormatter.formatIsoDatetimeWithCustomTimeZone": {
+        func: GregorianZonedDateTimeFormatterDemo.formatIsoDatetimeWithCustomTimeZone,
+        // For avoiding webpacking minifying issues:
+        funcName: "GregorianZonedDateTimeFormatter.formatIsoDatetimeWithCustomTimeZone",
+        parameters: [
+            
+            {
+                name: "Self:Locale:Name",
                 type: "string",
                 typeUse: "string"
             },
             
             {
-                name: "ZonedDateTimeFormatter:Length",
+                name: "Self:Length",
                 type: "DateTimeLength",
                 typeUse: "enumerator"
             },
             
             {
-                name: "Date:Year",
+                name: "Datetime:Year",
                 type: "number",
                 typeUse: "number"
             },
             
             {
-                name: "Date:Month",
+                name: "Datetime:Month",
                 type: "number",
                 typeUse: "number"
             },
             
             {
-                name: "Date:Day",
+                name: "Datetime:Day",
                 type: "number",
                 typeUse: "number"
             },
             
             {
-                name: "Time:Hour",
+                name: "Datetime:Hour",
                 type: "number",
                 typeUse: "number"
             },
             
             {
-                name: "Time:Minute",
+                name: "Datetime:Minute",
                 type: "number",
                 typeUse: "number"
             },
             
             {
-                name: "Time:Second",
+                name: "Datetime:Second",
                 type: "number",
                 typeUse: "number"
             },
             
             {
-                name: "Time:Subsecond",
+                name: "Datetime:Nanosecond",
                 type: "number",
                 typeUse: "number"
             },
             
             {
-                name: "Zone:TimeZoneId:Id",
+                name: "TimeZone:Bcp47Id",
                 type: "string",
                 typeUse: "string"
             },
             
             {
-                name: "Zone:Offset:Offset",
+                name: "TimeZone:OffsetSeconds",
+                type: "number",
+                typeUse: "number"
+            },
+            
+            {
+                name: "TimeZone:Dst",
+                type: "boolean",
+                typeUse: "boolean"
+            }
+            
+        ]
+    },
+
+    "ZonedDateTimeFormatter.formatDatetimeWithCustomTimeZone": {
+        func: ZonedDateTimeFormatterDemo.formatDatetimeWithCustomTimeZone,
+        // For avoiding webpacking minifying issues:
+        funcName: "ZonedDateTimeFormatter.formatDatetimeWithCustomTimeZone",
+        parameters: [
+            
+            {
+                name: "Self:Locale:Name",
                 type: "string",
                 typeUse: "string"
             },
             
             {
-                name: "Zone:ZoneVariant",
-                type: "TimeZoneVariant",
+                name: "Self:Length",
+                type: "DateTimeLength",
                 typeUse: "enumerator"
+            },
+            
+            {
+                name: "Datetime:Year",
+                type: "number",
+                typeUse: "number"
+            },
+            
+            {
+                name: "Datetime:Month",
+                type: "number",
+                typeUse: "number"
+            },
+            
+            {
+                name: "Datetime:Day",
+                type: "number",
+                typeUse: "number"
+            },
+            
+            {
+                name: "Datetime:Hour",
+                type: "number",
+                typeUse: "number"
+            },
+            
+            {
+                name: "Datetime:Minute",
+                type: "number",
+                typeUse: "number"
+            },
+            
+            {
+                name: "Datetime:Second",
+                type: "number",
+                typeUse: "number"
+            },
+            
+            {
+                name: "Datetime:Nanosecond",
+                type: "number",
+                typeUse: "number"
+            },
+            
+            {
+                name: "Datetime:Calendar:Locale:Name",
+                type: "string",
+                typeUse: "string"
+            },
+            
+            {
+                name: "TimeZone:Bcp47Id",
+                type: "string",
+                typeUse: "string"
+            },
+            
+            {
+                name: "TimeZone:OffsetSeconds",
+                type: "number",
+                typeUse: "number"
+            },
+            
+            {
+                name: "TimeZone:Dst",
+                type: "boolean",
+                typeUse: "boolean"
+            }
+            
+        ]
+    },
+
+    "ZonedDateTimeFormatter.formatIsoDatetimeWithCustomTimeZone": {
+        func: ZonedDateTimeFormatterDemo.formatIsoDatetimeWithCustomTimeZone,
+        // For avoiding webpacking minifying issues:
+        funcName: "ZonedDateTimeFormatter.formatIsoDatetimeWithCustomTimeZone",
+        parameters: [
+            
+            {
+                name: "Self:Locale:Name",
+                type: "string",
+                typeUse: "string"
+            },
+            
+            {
+                name: "Self:Length",
+                type: "DateTimeLength",
+                typeUse: "enumerator"
+            },
+            
+            {
+                name: "Datetime:Year",
+                type: "number",
+                typeUse: "number"
+            },
+            
+            {
+                name: "Datetime:Month",
+                type: "number",
+                typeUse: "number"
+            },
+            
+            {
+                name: "Datetime:Day",
+                type: "number",
+                typeUse: "number"
+            },
+            
+            {
+                name: "Datetime:Hour",
+                type: "number",
+                typeUse: "number"
+            },
+            
+            {
+                name: "Datetime:Minute",
+                type: "number",
+                typeUse: "number"
+            },
+            
+            {
+                name: "Datetime:Second",
+                type: "number",
+                typeUse: "number"
+            },
+            
+            {
+                name: "Datetime:Nanosecond",
+                type: "number",
+                typeUse: "number"
+            },
+            
+            {
+                name: "TimeZone:Bcp47Id",
+                type: "string",
+                typeUse: "string"
+            },
+            
+            {
+                name: "TimeZone:OffsetSeconds",
+                type: "number",
+                typeUse: "number"
+            },
+            
+            {
+                name: "TimeZone:Dst",
+                type: "boolean",
+                typeUse: "boolean"
             }
             
         ]
@@ -1137,7 +1649,7 @@ let termini = Object.assign({
         parameters: [
             
             {
-                name: "AnyCalendarKind",
+                name: "Self",
                 type: "AnyCalendarKind",
                 typeUse: "enumerator"
             }

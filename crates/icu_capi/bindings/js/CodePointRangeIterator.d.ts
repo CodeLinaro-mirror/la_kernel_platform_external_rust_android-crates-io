@@ -6,10 +6,9 @@ import type { pointer, codepoint } from "./diplomat-runtime.d.ts";
 /** An iterator over code point ranges, produced by `CodePointSetData` or
 *one of the `CodePointMapData` types
 */
-
-
 export class CodePointRangeIterator {
     
+
     get ffiValue(): pointer;
 
     next(): CodePointRangeIteratorResult;

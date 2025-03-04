@@ -3,7 +3,7 @@
 // (online at: https://github.com/unicode-org/icu4x/blob/main/LICENSE ).
 
 use crate::log;
-use crate::{marker::DataMarkerId, prelude::*};
+use crate::{marker::DataMarkerPath, prelude::*};
 use core::fmt;
 use displaydoc::Display;
 
@@ -80,7 +80,7 @@ pub struct DataError {
     pub kind: DataErrorKind,
 
     /// The data marker of the request, if available.
-    pub marker: Option<DataMarkerId>,
+    pub marker_path: Option<DataMarkerPath>,
 
     /// Additional context, if available.
     pub str_context: Option<&'static str>,
@@ -95,8 +95,8 @@ impl fmt::Display for DataError {
         if self.kind != DataErrorKind::Custom {
             write!(f, ": {}", self.kind)?;
         }
-        if let Some(marker) = self.marker {
-            write!(f, " (marker: {marker:?})")?;
+        if let Some(marker) = self.marker_path {
+            write!(f, " (marker: {})", marker.as_str())?;
         }
         if let Some(str_context) = self.str_context {
             write!(f, ": {str_context}")?;
@@ -113,7 +113,7 @@ impl DataErrorKind {
     pub const fn into_error(self) -> DataError {
         DataError {
             kind: self,
-            marker: None,
+            marker_path: None,
             str_context: None,
             silent: false,
         }
@@ -150,7 +150,7 @@ impl DataError {
     pub const fn custom(str_context: &'static str) -> Self {
         Self {
             kind: DataErrorKind::Custom,
-            marker: None,
+            marker_path: None,
             str_context: Some(str_context),
             silent: false,
         }
@@ -161,7 +161,7 @@ impl DataError {
     pub const fn with_marker(self, marker: DataMarkerInfo) -> Self {
         Self {
             kind: self.kind,
-            marker: Some(marker.id),
+            marker_path: Some(marker.path),
             str_context: self.str_context,
             silent: self.silent,
         }
@@ -172,7 +172,7 @@ impl DataError {
     pub const fn with_str_context(self, context: &'static str) -> Self {
         Self {
             kind: self.kind,
-            marker: self.marker,
+            marker_path: self.marker_path,
             str_context: Some(context),
             silent: self.silent,
         }
@@ -244,14 +244,15 @@ impl DataError {
     pub(crate) fn for_type<T>() -> DataError {
         DataError {
             kind: DataErrorKind::Downcast(core::any::type_name::<T>()),
-            marker: None,
+            marker_path: None,
             str_context: None,
             silent: false,
         }
     }
 }
 
-impl core::error::Error for DataError {}
+#[cfg(feature = "std")]
+impl std::error::Error for DataError {}
 
 #[cfg(feature = "std")]
 impl From<std::io::Error> for DataError {

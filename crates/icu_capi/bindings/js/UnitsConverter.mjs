@@ -14,7 +14,6 @@ const UnitsConverter_box_destroy_registry = new FinalizationRegistry((ptr) => {
 });
 
 export class UnitsConverter {
-    
     // Internal ptr reference:
     #ptr = null;
 
@@ -22,7 +21,7 @@ export class UnitsConverter {
     // Since JS won't garbage collect until there are no incoming edges.
     #selfEdge = [];
     
-    #internalConstructor(symbol, ptr, selfEdge) {
+    constructor(symbol, ptr, selfEdge) {
         if (symbol !== diplomatRuntime.internalConstructor) {
             console.error("UnitsConverter is an Opaque type. You cannot call its constructor.");
             return;
@@ -35,9 +34,8 @@ export class UnitsConverter {
         if (this.#selfEdge.length === 0) {
             UnitsConverter_box_destroy_registry.register(this, this.#ptr);
         }
-        
-        return this;
     }
+
     get ffiValue() {
         return this.#ptr;
     }
@@ -60,9 +58,5 @@ export class UnitsConverter {
         }
         
         finally {}
-    }
-
-    constructor(symbol, ptr, selfEdge) {
-        return this.#internalConstructor(...arguments)
     }
 }

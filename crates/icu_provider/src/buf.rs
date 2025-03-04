@@ -51,10 +51,10 @@ impl DynamicDataMarker for BufferMarker {
 ///
 /// // Deserializing manually
 /// assert_eq!(
-///     serde_json::from_slice::<HelloWorld>(
+///     serde_json::from_slice::<HelloWorldV1>(
 ///         buffer_provider
 ///             .load_data(
-///                 HelloWorldV1::INFO,
+///                 HelloWorldV1Marker::INFO,
 ///                 DataRequest {
 ///                     id: DataIdentifierBorrowed::for_locale(
 ///                         &langid!("de").into()
@@ -67,13 +67,13 @@ impl DynamicDataMarker for BufferMarker {
 ///             .get()
 ///     )
 ///     .expect("should deserialize"),
-///     HelloWorld {
+///     HelloWorldV1 {
 ///         message: Cow::Borrowed("Hallo Welt"),
 ///     },
 /// );
 ///
 /// // Deserialize automatically
-/// let deserializing_provider: &dyn DataProvider<HelloWorldV1> =
+/// let deserializing_provider: &dyn DataProvider<HelloWorldV1Marker> =
 ///     &buffer_provider.as_deserializing();
 ///
 /// assert_eq!(
@@ -85,7 +85,7 @@ impl DynamicDataMarker for BufferMarker {
 ///         .expect("load should succeed")
 ///         .payload
 ///         .get(),
-///     &HelloWorld {
+///     &HelloWorldV1 {
 ///         message: Cow::Borrowed("Hallo Welt"),
 ///     },
 /// );

@@ -12,7 +12,6 @@ const DecomposingNormalizer_box_destroy_registry = new FinalizationRegistry((ptr
 });
 
 export class DecomposingNormalizer {
-    
     // Internal ptr reference:
     #ptr = null;
 
@@ -20,7 +19,7 @@ export class DecomposingNormalizer {
     // Since JS won't garbage collect until there are no incoming edges.
     #selfEdge = [];
     
-    #internalConstructor(symbol, ptr, selfEdge) {
+    constructor(symbol, ptr, selfEdge) {
         if (symbol !== diplomatRuntime.internalConstructor) {
             console.error("DecomposingNormalizer is an Opaque type. You cannot call its constructor.");
             return;
@@ -33,27 +32,16 @@ export class DecomposingNormalizer {
         if (this.#selfEdge.length === 0) {
             DecomposingNormalizer_box_destroy_registry.register(this, this.#ptr);
         }
-        
-        return this;
     }
+
     get ffiValue() {
         return this.#ptr;
     }
 
-    static createNfd() {
-        const result = wasm.icu4x_DecomposingNormalizer_create_nfd_mv1();
-    
-        try {
-            return new DecomposingNormalizer(diplomatRuntime.internalConstructor, result, []);
-        }
-        
-        finally {}
-    }
-
-    static createNfdWithProvider(provider) {
+    static createNfd(provider) {
         const diplomatReceive = new diplomatRuntime.DiplomatReceiveBuf(wasm, 5, 4, true);
         
-        const result = wasm.icu4x_DecomposingNormalizer_create_nfd_with_provider_mv1(diplomatReceive.buffer, provider.ffiValue);
+        const result = wasm.icu4x_DecomposingNormalizer_create_nfd_mv1(diplomatReceive.buffer, provider.ffiValue);
     
         try {
             if (!diplomatReceive.resultFlag) {
@@ -68,20 +56,10 @@ export class DecomposingNormalizer {
         }
     }
 
-    static createNfkd() {
-        const result = wasm.icu4x_DecomposingNormalizer_create_nfkd_mv1();
-    
-        try {
-            return new DecomposingNormalizer(diplomatRuntime.internalConstructor, result, []);
-        }
-        
-        finally {}
-    }
-
-    static createNfkdWithProvider(provider) {
+    static createNfkd(provider) {
         const diplomatReceive = new diplomatRuntime.DiplomatReceiveBuf(wasm, 5, 4, true);
         
-        const result = wasm.icu4x_DecomposingNormalizer_create_nfkd_with_provider_mv1(diplomatReceive.buffer, provider.ffiValue);
+        const result = wasm.icu4x_DecomposingNormalizer_create_nfkd_mv1(diplomatReceive.buffer, provider.ffiValue);
     
         try {
             if (!diplomatReceive.resultFlag) {
@@ -177,9 +155,5 @@ export class DecomposingNormalizer {
         finally {
             functionCleanupArena.free();
         }
-    }
-
-    constructor(symbol, ptr, selfEdge) {
-        return this.#internalConstructor(...arguments)
     }
 }

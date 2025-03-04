@@ -8,7 +8,6 @@
 pub mod ffi {
     use alloc::boxed::Box;
 
-    #[cfg(feature = "buffer_provider")]
     use crate::{errors::ffi::DataError, provider::ffi::DataProvider};
 
     #[diplomat::opaque]
@@ -17,71 +16,41 @@ pub mod ffi {
     pub struct ComposingNormalizer(pub icu_normalizer::ComposingNormalizer);
 
     impl ComposingNormalizer {
-        /// Construct a new ComposingNormalizer instance for NFC using compiled data.
+        /// Construct a new ComposingNormalizer instance for NFC
         #[diplomat::rust_link(icu::normalizer::ComposingNormalizer::new_nfc, FnInStruct)]
         #[diplomat::rust_link(
             icu::normalizer::ComposingNormalizerBorrowed::new_nfc,
             FnInStruct,
             hidden
         )]
-        #[diplomat::attr(auto, named_constructor = "nfc")]
+        #[diplomat::attr(supports = fallible_constructors, named_constructor = "nfc")]
         #[diplomat::demo(default_constructor)]
-        #[cfg(feature = "compiled_data")]
-        pub fn create_nfc() -> Box<ComposingNormalizer> {
-            Box::new(ComposingNormalizer(
-                icu_normalizer::ComposingNormalizer::new_nfc().static_to_owned(),
-            ))
+        pub fn create_nfc(provider: &DataProvider) -> Result<Box<ComposingNormalizer>, DataError> {
+            Ok(Box::new(ComposingNormalizer(call_constructor!(
+                icu_normalizer::ComposingNormalizer::new_nfc [r => Ok(r.static_to_owned())],
+                icu_normalizer::ComposingNormalizer::try_new_nfc_with_any_provider,
+                icu_normalizer::ComposingNormalizer::try_new_nfc_with_buffer_provider,
+                provider,
+            )?)))
         }
-        /// Construct a new ComposingNormalizer instance for NFC using a particular data source.
-        #[diplomat::rust_link(icu::normalizer::ComposingNormalizer::new_nfc, FnInStruct)]
-        #[diplomat::rust_link(
-            icu::normalizer::ComposingNormalizerBorrowed::new_nfc,
-            FnInStruct,
-            hidden
-        )]
-        #[diplomat::attr(all(supports = fallible_constructors, supports = named_constructors), named_constructor = "nfc_with_provider")]
-        #[cfg(feature = "buffer_provider")]
-        pub fn create_nfc_with_provider(
-            provider: &DataProvider,
-        ) -> Result<Box<ComposingNormalizer>, DataError> {
-            Ok(Box::new(ComposingNormalizer(
-                icu_normalizer::ComposingNormalizer::try_new_nfc_with_buffer_provider(
-                    provider.get()?,
-                )?,
-            )))
-        }
-        /// Construct a new ComposingNormalizer instance for NFKC using compiled data.
+
+        /// Construct a new ComposingNormalizer instance for NFKC
         #[diplomat::rust_link(icu::normalizer::ComposingNormalizer::new_nfkc, FnInStruct)]
         #[diplomat::rust_link(
             icu::normalizer::ComposingNormalizerBorrowed::new_nfkc,
             FnInStruct,
             hidden
         )]
-        #[diplomat::attr(auto, named_constructor = "nfkc")]
-        #[cfg(feature = "compiled_data")]
-        pub fn create_nfkc() -> Box<ComposingNormalizer> {
-            Box::new(ComposingNormalizer(
-                icu_normalizer::ComposingNormalizer::new_nfkc().static_to_owned(),
-            ))
+        #[diplomat::attr(supports = fallible_constructors, named_constructor = "nfkc")]
+        pub fn create_nfkc(provider: &DataProvider) -> Result<Box<ComposingNormalizer>, DataError> {
+            Ok(Box::new(ComposingNormalizer(call_constructor!(
+                icu_normalizer::ComposingNormalizer::new_nfkc [r => Ok(r.static_to_owned())],
+                icu_normalizer::ComposingNormalizer::try_new_nfkc_with_any_provider,
+                icu_normalizer::ComposingNormalizer::try_new_nfkc_with_buffer_provider,
+                provider,
+            )?)))
         }
-        /// Construct a new ComposingNormalizer instance for NFKC using a particular data source.
-        #[diplomat::rust_link(icu::normalizer::ComposingNormalizer::new_nfkc, FnInStruct)]
-        #[diplomat::rust_link(
-            icu::normalizer::ComposingNormalizerBorrowed::new_nfkc,
-            FnInStruct,
-            hidden
-        )]
-        #[diplomat::attr(all(supports = fallible_constructors, supports = named_constructors), named_constructor = "nfkc_with_provider")]
-        #[cfg(feature = "buffer_provider")]
-        pub fn create_nfkc_with_provider(
-            provider: &DataProvider,
-        ) -> Result<Box<ComposingNormalizer>, DataError> {
-            Ok(Box::new(ComposingNormalizer(
-                icu_normalizer::ComposingNormalizer::try_new_nfkc_with_buffer_provider(
-                    provider.get()?,
-                )?,
-            )))
-        }
+
         /// Normalize a string
         ///
         /// Ill-formed input is treated as if errors had been replaced with REPLACEMENT CHARACTERs according
@@ -144,15 +113,7 @@ pub mod ffi {
 
         /// Return the index a slice of potentially-invalid UTF-8 is normalized up to
         #[diplomat::rust_link(
-            icu::normalizer::ComposingNormalizerBorrowed::split_normalized_utf8,
-            FnInStruct
-        )]
-        #[diplomat::rust_link(
             icu::normalizer::ComposingNormalizerBorrowed::is_normalized_utf8_up_to,
-            FnInStruct
-        )]
-        #[diplomat::rust_link(
-            icu::normalizer::ComposingNormalizerBorrowed::split_normalized,
             FnInStruct
         )]
         #[diplomat::rust_link(
@@ -163,14 +124,10 @@ pub mod ffi {
         #[diplomat::attr(not(supports = utf8_strings), disable)]
         #[diplomat::attr(*, rename = "is_normalized_up_to")]
         pub fn is_normalized_utf8_up_to(&self, s: &DiplomatStr) -> usize {
-            self.0.as_borrowed().split_normalized_utf8(s).0.len()
+            self.0.as_borrowed().is_normalized_utf8_up_to(s)
         }
 
-        /// Return the index a slice of potentially-invalid UTF-16 is normalized up to
-        #[diplomat::rust_link(
-            icu::normalizer::ComposingNormalizerBorrowed::split_normalized_utf16,
-            FnInStruct
-        )]
+        /// Return the index a slice of potentially-invalid UTF-8 is normalized up to
         #[diplomat::rust_link(
             icu::normalizer::ComposingNormalizerBorrowed::is_normalized_utf16_up_to,
             FnInStruct
@@ -178,7 +135,7 @@ pub mod ffi {
         #[diplomat::attr(not(supports = utf8_strings), rename = "is_normalized_up_to")]
         #[diplomat::attr(supports = utf8_strings, rename = "is_normalized16_up_to")]
         pub fn is_normalized_utf16_up_to(&self, s: &DiplomatStr16) -> usize {
-            self.0.as_borrowed().split_normalized_utf16(s).0.len()
+            self.0.as_borrowed().is_normalized_utf16_up_to(s)
         }
     }
 
@@ -188,73 +145,43 @@ pub mod ffi {
     pub struct DecomposingNormalizer(pub icu_normalizer::DecomposingNormalizer);
 
     impl DecomposingNormalizer {
-        /// Construct a new DecomposingNormalizer instance for NFD using compiled data.
+        /// Construct a new DecomposingNormalizer instance for NFD
         #[diplomat::rust_link(icu::normalizer::DecomposingNormalizer::new_nfd, FnInStruct)]
         #[diplomat::rust_link(
             icu::normalizer::DecomposingNormalizerBorrowed::new_nfd,
             FnInStruct,
             hidden
         )]
-        #[diplomat::attr(all(supports = fallible_constructors, supports = named_constructors), named_constructor = "nfd")]
+        #[diplomat::attr(supports = fallible_constructors, named_constructor = "nfd")]
         #[diplomat::demo(default_constructor)]
-        #[cfg(feature = "compiled_data")]
-        pub fn create_nfd() -> Box<DecomposingNormalizer> {
-            Box::new(DecomposingNormalizer(
-                icu_normalizer::DecomposingNormalizer::new_nfd().static_to_owned(),
-            ))
-        }
-
-        /// Construct a new DecomposingNormalizer instance for NFD using a particular data source.
-        #[diplomat::rust_link(icu::normalizer::DecomposingNormalizer::new_nfd, FnInStruct)]
-        #[diplomat::rust_link(
-            icu::normalizer::DecomposingNormalizerBorrowed::new_nfd,
-            FnInStruct,
-            hidden
-        )]
-        #[diplomat::attr(all(supports = fallible_constructors, supports = named_constructors), named_constructor = "nfd_with_provider")]
-        #[cfg(feature = "buffer_provider")]
-        pub fn create_nfd_with_provider(
+        pub fn create_nfd(
             provider: &DataProvider,
         ) -> Result<Box<DecomposingNormalizer>, DataError> {
-            Ok(Box::new(DecomposingNormalizer(
-                icu_normalizer::DecomposingNormalizer::try_new_nfd_with_buffer_provider(
-                    provider.get()?,
-                )?,
-            )))
+            Ok(Box::new(DecomposingNormalizer(call_constructor!(
+                icu_normalizer::DecomposingNormalizer::new_nfd [r => Ok(r.static_to_owned())],
+                icu_normalizer::DecomposingNormalizer::try_new_nfd_with_any_provider,
+                icu_normalizer::DecomposingNormalizer::try_new_nfd_with_buffer_provider,
+                provider,
+            )?)))
         }
 
-        /// Construct a new DecomposingNormalizer instance for NFKD using compiled data.
+        /// Construct a new DecomposingNormalizer instance for NFKD
         #[diplomat::rust_link(icu::normalizer::DecomposingNormalizer::new_nfkd, FnInStruct)]
         #[diplomat::rust_link(
             icu::normalizer::DecomposingNormalizerBorrowed::new_nfkd,
             FnInStruct,
             hidden
         )]
-        #[diplomat::attr(auto, named_constructor = "nfkd")]
-        #[cfg(feature = "compiled_data")]
-        pub fn create_nfkd() -> Box<DecomposingNormalizer> {
-            Box::new(DecomposingNormalizer(
-                icu_normalizer::DecomposingNormalizer::new_nfkd().static_to_owned(),
-            ))
-        }
-
-        /// Construct a new DecomposingNormalizer instance for NFKD using a particular data source.
-        #[diplomat::rust_link(icu::normalizer::DecomposingNormalizer::new_nfkd, FnInStruct)]
-        #[diplomat::rust_link(
-            icu::normalizer::DecomposingNormalizerBorrowed::new_nfkd,
-            FnInStruct,
-            hidden
-        )]
-        #[diplomat::attr(all(supports = fallible_constructors, supports = named_constructors), named_constructor = "nfkd_with_provider")]
-        #[cfg(feature = "buffer_provider")]
-        pub fn create_nfkd_with_provider(
+        #[diplomat::attr(supports = fallible_constructors, named_constructor = "nfkd")]
+        pub fn create_nfkd(
             provider: &DataProvider,
         ) -> Result<Box<DecomposingNormalizer>, DataError> {
-            Ok(Box::new(DecomposingNormalizer(
-                icu_normalizer::DecomposingNormalizer::try_new_nfkd_with_buffer_provider(
-                    provider.get()?,
-                )?,
-            )))
+            Ok(Box::new(DecomposingNormalizer(call_constructor!(
+                icu_normalizer::DecomposingNormalizer::new_nfkd [r => Ok(r.static_to_owned())],
+                icu_normalizer::DecomposingNormalizer::try_new_nfkd_with_any_provider,
+                icu_normalizer::DecomposingNormalizer::try_new_nfkd_with_buffer_provider,
+                provider,
+            )?)))
         }
 
         /// Normalize a string
@@ -315,15 +242,7 @@ pub mod ffi {
 
         /// Return the index a slice of potentially-invalid UTF-8 is normalized up to
         #[diplomat::rust_link(
-            icu::normalizer::DecomposingNormalizerBorrowed::split_normalized_utf8,
-            FnInStruct
-        )]
-        #[diplomat::rust_link(
             icu::normalizer::DecomposingNormalizerBorrowed::is_normalized_utf8_up_to,
-            FnInStruct
-        )]
-        #[diplomat::rust_link(
-            icu::normalizer::DecomposingNormalizerBorrowed::split_normalized,
             FnInStruct
         )]
         #[diplomat::rust_link(
@@ -332,20 +251,16 @@ pub mod ffi {
             hidden
         )]
         pub fn is_normalized_up_to(&self, s: &DiplomatStr) -> usize {
-            self.0.as_borrowed().split_normalized_utf8(s).0.len()
+            self.0.as_borrowed().is_normalized_utf8_up_to(s)
         }
 
-        /// Return the index a slice of potentially-invalid UTF-16 is normalized up to
-        #[diplomat::rust_link(
-            icu::normalizer::DecomposingNormalizerBorrowed::split_normalized_utf16,
-            FnInStruct
-        )]
+        /// Return the index a slice of potentially-invalid UTF-8 is normalized up to
         #[diplomat::rust_link(
             icu::normalizer::DecomposingNormalizerBorrowed::is_normalized_utf16_up_to,
             FnInStruct
         )]
         pub fn is_normalized_utf16_up_to(&self, s: &DiplomatStr16) -> usize {
-            self.0.as_borrowed().split_normalized_utf16(s).0.len()
+            self.0.as_borrowed().is_normalized_utf16_up_to(s)
         }
     }
 }

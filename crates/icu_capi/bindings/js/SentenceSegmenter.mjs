@@ -16,7 +16,6 @@ const SentenceSegmenter_box_destroy_registry = new FinalizationRegistry((ptr) =>
 });
 
 export class SentenceSegmenter {
-    
     // Internal ptr reference:
     #ptr = null;
 
@@ -24,7 +23,7 @@ export class SentenceSegmenter {
     // Since JS won't garbage collect until there are no incoming edges.
     #selfEdge = [];
     
-    #internalConstructor(symbol, ptr, selfEdge) {
+    constructor(symbol, ptr, selfEdge) {
         if (symbol !== diplomatRuntime.internalConstructor) {
             console.error("SentenceSegmenter is an Opaque type. You cannot call its constructor.");
             return;
@@ -37,27 +36,16 @@ export class SentenceSegmenter {
         if (this.#selfEdge.length === 0) {
             SentenceSegmenter_box_destroy_registry.register(this, this.#ptr);
         }
-        
-        return this;
     }
+
     get ffiValue() {
         return this.#ptr;
     }
 
-    #defaultConstructor() {
-        const result = wasm.icu4x_SentenceSegmenter_create_mv1();
-    
-        try {
-            return new SentenceSegmenter(diplomatRuntime.internalConstructor, result, []);
-        }
-        
-        finally {}
-    }
-
-    static createWithContentLocale(locale) {
+    static create(provider) {
         const diplomatReceive = new diplomatRuntime.DiplomatReceiveBuf(wasm, 5, 4, true);
         
-        const result = wasm.icu4x_SentenceSegmenter_create_with_content_locale_mv1(diplomatReceive.buffer, locale.ffiValue);
+        const result = wasm.icu4x_SentenceSegmenter_create_mv1(diplomatReceive.buffer, provider.ffiValue);
     
         try {
             if (!diplomatReceive.resultFlag) {
@@ -72,10 +60,10 @@ export class SentenceSegmenter {
         }
     }
 
-    static createWithContentLocaleAndProvider(provider, locale) {
+    static withContentLocale(provider, locale) {
         const diplomatReceive = new diplomatRuntime.DiplomatReceiveBuf(wasm, 5, 4, true);
         
-        const result = wasm.icu4x_SentenceSegmenter_create_with_content_locale_and_provider_mv1(diplomatReceive.buffer, provider.ffiValue, locale.ffiValue);
+        const result = wasm.icu4x_SentenceSegmenter_create_with_content_locale_mv1(diplomatReceive.buffer, provider.ffiValue, locale.ffiValue);
     
         try {
             if (!diplomatReceive.resultFlag) {
@@ -105,16 +93,6 @@ export class SentenceSegmenter {
         
         finally {
             functionGarbageCollectorGrip.releaseToGarbageCollector();
-        }
-    }
-
-    constructor() {
-        if (arguments[0] === diplomatRuntime.exposeConstructor) {
-            return this.#internalConstructor(...Array.prototype.slice.call(arguments, 1));
-        } else if (arguments[0] === diplomatRuntime.internalConstructor) {
-            return this.#internalConstructor(...arguments);
-        } else {
-            return this.#defaultConstructor(...arguments);
         }
     }
 }

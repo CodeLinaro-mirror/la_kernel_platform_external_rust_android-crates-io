@@ -14,7 +14,6 @@ const LocaleDisplayNamesFormatter_box_destroy_registry = new FinalizationRegistr
 });
 
 export class LocaleDisplayNamesFormatter {
-    
     // Internal ptr reference:
     #ptr = null;
 
@@ -22,7 +21,7 @@ export class LocaleDisplayNamesFormatter {
     // Since JS won't garbage collect until there are no incoming edges.
     #selfEdge = [];
     
-    #internalConstructor(symbol, ptr, selfEdge) {
+    constructor(symbol, ptr, selfEdge) {
         if (symbol !== diplomatRuntime.internalConstructor) {
             console.error("LocaleDisplayNamesFormatter is an Opaque type. You cannot call its constructor.");
             return;
@@ -35,41 +34,18 @@ export class LocaleDisplayNamesFormatter {
         if (this.#selfEdge.length === 0) {
             LocaleDisplayNamesFormatter_box_destroy_registry.register(this, this.#ptr);
         }
-        
-        return this;
     }
+
     get ffiValue() {
         return this.#ptr;
     }
 
-    #defaultConstructor(locale, options) {
+    static create(provider, locale, options) {
         let functionCleanupArena = new diplomatRuntime.CleanupArena();
         
         const diplomatReceive = new diplomatRuntime.DiplomatReceiveBuf(wasm, 5, 4, true);
         
-        const result = wasm.icu4x_LocaleDisplayNamesFormatter_create_v1_mv1(diplomatReceive.buffer, locale.ffiValue, ...DisplayNamesOptions._fromSuppliedValue(diplomatRuntime.internalConstructor, options)._intoFFI(functionCleanupArena, {}));
-    
-        try {
-            if (!diplomatReceive.resultFlag) {
-                const cause = new DataError(diplomatRuntime.internalConstructor, diplomatRuntime.enumDiscriminant(wasm, diplomatReceive.buffer));
-                throw new globalThis.Error('DataError: ' + cause.value, { cause });
-            }
-            return new LocaleDisplayNamesFormatter(diplomatRuntime.internalConstructor, diplomatRuntime.ptrRead(wasm, diplomatReceive.buffer), []);
-        }
-        
-        finally {
-            functionCleanupArena.free();
-        
-            diplomatReceive.free();
-        }
-    }
-
-    static createWithProvider(provider, locale, options) {
-        let functionCleanupArena = new diplomatRuntime.CleanupArena();
-        
-        const diplomatReceive = new diplomatRuntime.DiplomatReceiveBuf(wasm, 5, 4, true);
-        
-        const result = wasm.icu4x_LocaleDisplayNamesFormatter_create_v1_with_provider_mv1(diplomatReceive.buffer, provider.ffiValue, locale.ffiValue, ...DisplayNamesOptions._fromSuppliedValue(diplomatRuntime.internalConstructor, options)._intoFFI(functionCleanupArena, {}));
+        const result = wasm.icu4x_LocaleDisplayNamesFormatter_create_v1_mv1(diplomatReceive.buffer, provider.ffiValue, locale.ffiValue, ...options._intoFFI(functionCleanupArena, {}));
     
         try {
             if (!diplomatReceive.resultFlag) {
@@ -96,16 +72,6 @@ export class LocaleDisplayNamesFormatter {
         
         finally {
             write.free();
-        }
-    }
-
-    constructor(locale, options) {
-        if (arguments[0] === diplomatRuntime.exposeConstructor) {
-            return this.#internalConstructor(...Array.prototype.slice.call(arguments, 1));
-        } else if (arguments[0] === diplomatRuntime.internalConstructor) {
-            return this.#internalConstructor(...arguments);
-        } else {
-            return this.#defaultConstructor(...arguments);
         }
     }
 }

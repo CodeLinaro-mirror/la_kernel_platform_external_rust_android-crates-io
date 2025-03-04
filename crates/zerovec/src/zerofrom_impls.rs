@@ -2,13 +2,10 @@
 // called LICENSE at the top level of the ICU4X source tree
 // (online at: https://github.com/unicode-org/icu4x/blob/main/LICENSE ).
 
-#[cfg(feature = "alloc")]
 use crate::map::ZeroMapKV;
 use crate::ule::*;
 use crate::vecs::VarZeroVecFormat;
-use crate::{VarZeroSlice, VarZeroVec, ZeroSlice, ZeroVec};
-#[cfg(feature = "alloc")]
-use crate::{ZeroMap, ZeroMap2d};
+use crate::{VarZeroSlice, VarZeroVec, ZeroMap, ZeroMap2d, ZeroSlice, ZeroVec};
 use zerofrom::ZeroFrom;
 
 impl<'zf, T> ZeroFrom<'zf, ZeroVec<'_, T>> for ZeroVec<'zf, T>
@@ -71,7 +68,6 @@ where
     }
 }
 
-#[cfg(feature = "alloc")]
 impl<'zf, 's, K, V> ZeroFrom<'zf, ZeroMap<'s, K, V>> for ZeroMap<'zf, K, V>
 where
     K: 'static + for<'b> ZeroMapKV<'b> + ?Sized,
@@ -87,7 +83,6 @@ where
     }
 }
 
-#[cfg(feature = "alloc")]
 impl<'zf, 's, K0, K1, V> ZeroFrom<'zf, ZeroMap2d<'s, K0, K1, V>> for ZeroMap2d<'zf, K0, K1, V>
 where
     K0: 'static + for<'b> ZeroMapKV<'b> + ?Sized,

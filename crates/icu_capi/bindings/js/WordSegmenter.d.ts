@@ -10,29 +10,22 @@ import type { pointer, codepoint } from "./diplomat-runtime.d.ts";
 *
 *See the [Rust documentation for `WordSegmenter`](https://docs.rs/icu/latest/icu/segmenter/struct.WordSegmenter.html) for more information.
 */
-
-
 export class WordSegmenter {
     
+
     get ffiValue(): pointer;
 
-    static createAuto(): WordSegmenter;
+    static createAuto(provider: DataProvider): WordSegmenter;
 
-    static createAutoWithContentLocale(locale: Locale): WordSegmenter;
+    static createAutoWithContentLocale(provider: DataProvider, locale: Locale): WordSegmenter;
 
-    static createAutoWithContentLocaleAndProvider(provider: DataProvider, locale: Locale): WordSegmenter;
+    static createLstm(provider: DataProvider): WordSegmenter;
 
-    static createLstm(): WordSegmenter;
+    static createLstmWithContentLocale(provider: DataProvider, locale: Locale): WordSegmenter;
 
-    static createLstmWithContentLocale(locale: Locale): WordSegmenter;
+    static createDictionary(provider: DataProvider): WordSegmenter;
 
-    static createLstmWithContentLocaleAndProvider(provider: DataProvider, locale: Locale): WordSegmenter;
-
-    static createDictionary(): WordSegmenter;
-
-    static createDictionaryWithContentLocale(locale: Locale): WordSegmenter;
-
-    static createDictionaryWithContentLocaleAndProvider(provider: DataProvider, locale: Locale): WordSegmenter;
+    static createDictionaryWithContentLocale(provider: DataProvider, locale: Locale): WordSegmenter;
 
     segment(input: string): WordBreakIteratorUtf16;
 }

@@ -17,7 +17,6 @@ const CanonicalDecomposition_box_destroy_registry = new FinalizationRegistry((pt
 });
 
 export class CanonicalDecomposition {
-    
     // Internal ptr reference:
     #ptr = null;
 
@@ -25,7 +24,7 @@ export class CanonicalDecomposition {
     // Since JS won't garbage collect until there are no incoming edges.
     #selfEdge = [];
     
-    #internalConstructor(symbol, ptr, selfEdge) {
+    constructor(symbol, ptr, selfEdge) {
         if (symbol !== diplomatRuntime.internalConstructor) {
             console.error("CanonicalDecomposition is an Opaque type. You cannot call its constructor.");
             return;
@@ -38,27 +37,16 @@ export class CanonicalDecomposition {
         if (this.#selfEdge.length === 0) {
             CanonicalDecomposition_box_destroy_registry.register(this, this.#ptr);
         }
-        
-        return this;
     }
+
     get ffiValue() {
         return this.#ptr;
     }
 
-    #defaultConstructor() {
-        const result = wasm.icu4x_CanonicalDecomposition_create_mv1();
-    
-        try {
-            return new CanonicalDecomposition(diplomatRuntime.internalConstructor, result, []);
-        }
-        
-        finally {}
-    }
-
-    static createWithProvider(provider) {
+    static create(provider) {
         const diplomatReceive = new diplomatRuntime.DiplomatReceiveBuf(wasm, 5, 4, true);
         
-        const result = wasm.icu4x_CanonicalDecomposition_create_with_provider_mv1(diplomatReceive.buffer, provider.ffiValue);
+        const result = wasm.icu4x_CanonicalDecomposition_create_mv1(diplomatReceive.buffer, provider.ffiValue);
     
         try {
             if (!diplomatReceive.resultFlag) {
@@ -84,16 +72,6 @@ export class CanonicalDecomposition {
         
         finally {
             diplomatReceive.free();
-        }
-    }
-
-    constructor() {
-        if (arguments[0] === diplomatRuntime.exposeConstructor) {
-            return this.#internalConstructor(...Array.prototype.slice.call(arguments, 1));
-        } else if (arguments[0] === diplomatRuntime.internalConstructor) {
-            return this.#internalConstructor(...arguments);
-        } else {
-            return this.#defaultConstructor(...arguments);
         }
     }
 }

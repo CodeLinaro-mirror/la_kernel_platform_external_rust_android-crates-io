@@ -2,13 +2,10 @@
 import wasm from "./diplomat-wasm.mjs";
 import * as diplomatRuntime from "./diplomat-runtime.mjs";
 
-
-/** See the [Rust documentation for `AlternateHandling`](https://docs.rs/icu/latest/icu/collator/options/enum.AlternateHandling.html) for more information.
+// Base enumerator definition
+/** See the [Rust documentation for `AlternateHandling`](https://docs.rs/icu/latest/icu/collator/enum.AlternateHandling.html) for more information.
 */
-
-
 export class CollatorAlternateHandling {
-    
     #value = undefined;
 
     static #values = new Map([
@@ -19,14 +16,14 @@ export class CollatorAlternateHandling {
     static getAllEntries() {
         return CollatorAlternateHandling.#values.entries();
     }
-    
-    #internalConstructor(value) {
+
+    constructor(value) {
         if (arguments.length > 1 && arguments[0] === diplomatRuntime.internalConstructor) {
             // We pass in two internalConstructor arguments to create *new*
             // instances of this type, otherwise the enums are treated as singletons.
             if (arguments[1] === diplomatRuntime.internalConstructor ) {
                 this.#value = arguments[2];
-                return this;
+                return;
             }
             return CollatorAlternateHandling.#objectValues[arguments[1]];
         }
@@ -38,15 +35,11 @@ export class CollatorAlternateHandling {
         let intVal = CollatorAlternateHandling.#values.get(value);
 
         // Nullish check, checks for null or undefined
-        if (intVal != null) {
+        if (intVal == null) {
             return CollatorAlternateHandling.#objectValues[intVal];
         }
 
         throw TypeError(value + " is not a CollatorAlternateHandling and does not correspond to any of its enumerator values.");
-    }
-
-    static fromValue(value) {
-        return new CollatorAlternateHandling(value);
     }
 
     get value() {
@@ -63,8 +56,4 @@ export class CollatorAlternateHandling {
 
     static NonIgnorable = CollatorAlternateHandling.#objectValues[0];
     static Shifted = CollatorAlternateHandling.#objectValues[1];
-
-    constructor(value) {
-        return this.#internalConstructor(...arguments)
-    }
 }

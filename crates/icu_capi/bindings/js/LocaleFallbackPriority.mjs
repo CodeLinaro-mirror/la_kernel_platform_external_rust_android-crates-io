@@ -2,15 +2,12 @@
 import wasm from "./diplomat-wasm.mjs";
 import * as diplomatRuntime from "./diplomat-runtime.mjs";
 
-
+// Base enumerator definition
 /** Priority mode for the ICU4X fallback algorithm.
 *
 *See the [Rust documentation for `LocaleFallbackPriority`](https://docs.rs/icu/latest/icu/locale/fallback/enum.LocaleFallbackPriority.html) for more information.
 */
-
-
 export class LocaleFallbackPriority {
-    
     #value = undefined;
 
     static #values = new Map([
@@ -21,14 +18,14 @@ export class LocaleFallbackPriority {
     static getAllEntries() {
         return LocaleFallbackPriority.#values.entries();
     }
-    
-    #internalConstructor(value) {
+
+    constructor(value) {
         if (arguments.length > 1 && arguments[0] === diplomatRuntime.internalConstructor) {
             // We pass in two internalConstructor arguments to create *new*
             // instances of this type, otherwise the enums are treated as singletons.
             if (arguments[1] === diplomatRuntime.internalConstructor ) {
                 this.#value = arguments[2];
-                return this;
+                return;
             }
             return LocaleFallbackPriority.#objectValues[arguments[1]];
         }
@@ -40,15 +37,11 @@ export class LocaleFallbackPriority {
         let intVal = LocaleFallbackPriority.#values.get(value);
 
         // Nullish check, checks for null or undefined
-        if (intVal != null) {
+        if (intVal == null) {
             return LocaleFallbackPriority.#objectValues[intVal];
         }
 
         throw TypeError(value + " is not a LocaleFallbackPriority and does not correspond to any of its enumerator values.");
-    }
-
-    static fromValue(value) {
-        return new LocaleFallbackPriority(value);
     }
 
     get value() {
@@ -65,8 +58,4 @@ export class LocaleFallbackPriority {
 
     static Language = LocaleFallbackPriority.#objectValues[0];
     static Region = LocaleFallbackPriority.#objectValues[1];
-
-    constructor(value) {
-        return this.#internalConstructor(...arguments)
-    }
 }

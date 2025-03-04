@@ -2,13 +2,10 @@
 import wasm from "./diplomat-wasm.mjs";
 import * as diplomatRuntime from "./diplomat-runtime.mjs";
 
-
+// Base enumerator definition
 /** Additional information: [1](https://docs.rs/icu/latest/icu/locale/enum.ParseError.html)
 */
-
-
 export class LocaleParseError {
-    
     #value = undefined;
 
     static #values = new Map([
@@ -21,14 +18,14 @@ export class LocaleParseError {
     static getAllEntries() {
         return LocaleParseError.#values.entries();
     }
-    
-    #internalConstructor(value) {
+
+    constructor(value) {
         if (arguments.length > 1 && arguments[0] === diplomatRuntime.internalConstructor) {
             // We pass in two internalConstructor arguments to create *new*
             // instances of this type, otherwise the enums are treated as singletons.
             if (arguments[1] === diplomatRuntime.internalConstructor ) {
                 this.#value = arguments[2];
-                return this;
+                return;
             }
             return LocaleParseError.#objectValues[arguments[1]];
         }
@@ -40,15 +37,11 @@ export class LocaleParseError {
         let intVal = LocaleParseError.#values.get(value);
 
         // Nullish check, checks for null or undefined
-        if (intVal != null) {
+        if (intVal == null) {
             return LocaleParseError.#objectValues[intVal];
         }
 
         throw TypeError(value + " is not a LocaleParseError and does not correspond to any of its enumerator values.");
-    }
-
-    static fromValue(value) {
-        return new LocaleParseError(value);
     }
 
     get value() {
@@ -69,8 +62,4 @@ export class LocaleParseError {
     static Language = LocaleParseError.#objectValues[1];
     static Subtag = LocaleParseError.#objectValues[2];
     static Extension = LocaleParseError.#objectValues[3];
-
-    constructor(value) {
-        return this.#internalConstructor(...arguments)
-    }
 }

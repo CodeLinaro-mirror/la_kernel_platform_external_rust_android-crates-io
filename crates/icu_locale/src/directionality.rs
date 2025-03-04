@@ -29,75 +29,58 @@ pub enum Direction {
 /// ```
 /// use icu::locale::{langid, Direction, LocaleDirectionality};
 ///
-/// let ld = LocaleDirectionality::new_common();
+/// let ld = LocaleDirectionality::new();
 ///
 /// assert_eq!(ld.get(&langid!("en")), Some(Direction::LeftToRight));
 /// ```
 #[derive(Debug)]
 pub struct LocaleDirectionality<Expander = LocaleExpander> {
-    script_direction: DataPayload<LocaleScriptDirectionV1>,
+    script_direction: DataPayload<ScriptDirectionV1Marker>,
     expander: Expander,
 }
 
+#[cfg(feature = "compiled_data")]
+impl Default for LocaleDirectionality<LocaleExpander> {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl LocaleDirectionality<LocaleExpander> {
-    /// Creates a [`LocaleDirectionality`] from compiled data, using [`LocaleExpander`]
-    /// data for common locales.
+    /// Creates a [`LocaleDirectionality`] from compiled data.
     ///
-    /// This includes limited likely subtags data, see [`LocaleExpander::new_common()`].
+    /// This includes limited likely subtags data, see [`LocaleExpander::new()`].
     #[cfg(feature = "compiled_data")]
-    pub const fn new_common() -> Self {
-        Self::new_with_expander(LocaleExpander::new_common())
+    pub const fn new() -> Self {
+        Self::new_with_expander(LocaleExpander::new())
+    }
+    // Note: This is a custom impl because the bounds on `try_new_unstable` don't suffice
+    #[doc = icu_provider::gen_any_buffer_unstable_docs!(ANY, Self::new)]
+    pub fn try_new_with_any_provider(
+        provider: &(impl AnyProvider + ?Sized),
+    ) -> Result<Self, DataError> {
+        let expander = LocaleExpander::try_new_with_any_provider(provider)?;
+        Self::try_new_with_expander_unstable(&provider.as_downcasting(), expander)
     }
 
     // Note: This is a custom impl because the bounds on `try_new_unstable` don't suffice
-    #[doc = icu_provider::gen_buffer_unstable_docs!(BUFFER, Self::new_common)]
+    #[doc = icu_provider::gen_any_buffer_unstable_docs!(BUFFER, Self::new)]
     #[cfg(feature = "serde")]
-    pub fn try_new_common_with_buffer_provider(
+    pub fn try_new_with_buffer_provider(
         provider: &(impl BufferProvider + ?Sized),
     ) -> Result<Self, DataError> {
-        let expander = LocaleExpander::try_new_common_with_buffer_provider(provider)?;
+        let expander = LocaleExpander::try_new_with_buffer_provider(provider)?;
         Self::try_new_with_expander_unstable(&provider.as_deserializing(), expander)
     }
-    #[doc = icu_provider::gen_buffer_unstable_docs!(UNSTABLE, Self::new_common)]
-    pub fn try_new_common_unstable<P>(provider: &P) -> Result<LocaleDirectionality, DataError>
+    #[doc = icu_provider::gen_any_buffer_unstable_docs!(UNSTABLE, Self::new)]
+    pub fn try_new_unstable<P>(provider: &P) -> Result<LocaleDirectionality, DataError>
     where
-        P: DataProvider<LocaleScriptDirectionV1>
-            + DataProvider<LocaleLikelySubtagsLanguageV1>
-            + DataProvider<LocaleLikelySubtagsScriptRegionV1>
+        P: DataProvider<ScriptDirectionV1Marker>
+            + DataProvider<LikelySubtagsForLanguageV1Marker>
+            + DataProvider<LikelySubtagsForScriptRegionV1Marker>
             + ?Sized,
     {
-        let expander = LocaleExpander::try_new_common_unstable(provider)?;
-        Self::try_new_with_expander_unstable(provider, expander)
-    }
-
-    /// Creates a [`LocaleDirectionality`] from compiled data, using [`LocaleExpander`]
-    /// data for all locales.
-    ///
-    /// This includes all likely subtags data, see [`LocaleExpander::new_extended()`].
-    #[cfg(feature = "compiled_data")]
-    pub const fn new_extended() -> Self {
-        Self::new_with_expander(LocaleExpander::new_extended())
-    }
-
-    // Note: This is a custom impl because the bounds on `try_new_unstable` don't suffice
-    #[doc = icu_provider::gen_buffer_unstable_docs!(BUFFER, Self::new_extended)]
-    #[cfg(feature = "serde")]
-    pub fn try_new_extended_with_buffer_provider(
-        provider: &(impl BufferProvider + ?Sized),
-    ) -> Result<Self, DataError> {
-        let expander = LocaleExpander::try_new_extended_with_buffer_provider(provider)?;
-        Self::try_new_with_expander_unstable(&provider.as_deserializing(), expander)
-    }
-    #[doc = icu_provider::gen_buffer_unstable_docs!(UNSTABLE, Self::new_extended)]
-    pub fn try_new_extended_unstable<P>(provider: &P) -> Result<LocaleDirectionality, DataError>
-    where
-        P: DataProvider<LocaleScriptDirectionV1>
-            + DataProvider<LocaleLikelySubtagsLanguageV1>
-            + DataProvider<LocaleLikelySubtagsScriptRegionV1>
-            + DataProvider<LocaleLikelySubtagsExtendedV1>
-            + ?Sized,
-    {
-        let expander = LocaleExpander::try_new_extended_unstable(provider)?;
+        let expander = LocaleExpander::try_new_unstable(provider)?;
         Self::try_new_with_expander_unstable(provider, expander)
     }
 }
@@ -114,7 +97,7 @@ impl<Expander: AsRef<LocaleExpander>> LocaleDirectionality<Expander> {
     ///     langid, Direction, LocaleDirectionality, LocaleExpander,
     /// };
     ///
-    /// let ld_default = LocaleDirectionality::new_common();
+    /// let ld_default = LocaleDirectionality::new();
     ///
     /// assert_eq!(ld_default.get(&langid!("jbn")), None);
     ///
@@ -130,19 +113,19 @@ impl<Expander: AsRef<LocaleExpander>> LocaleDirectionality<Expander> {
     pub const fn new_with_expander(expander: Expander) -> Self {
         LocaleDirectionality {
             script_direction: DataPayload::from_static_ref(
-                crate::provider::Baked::SINGLETON_LOCALE_SCRIPT_DIRECTION_V1,
+                crate::provider::Baked::SINGLETON_SCRIPT_DIRECTION_V1_MARKER,
             ),
             expander,
         }
     }
 
-    #[doc = icu_provider::gen_buffer_unstable_docs!(UNSTABLE, Self::new_with_expander)]
+    #[doc = icu_provider::gen_any_buffer_unstable_docs!(UNSTABLE, Self::new_with_expander)]
     pub fn try_new_with_expander_unstable<P>(
         provider: &P,
         expander: Expander,
     ) -> Result<Self, DataError>
     where
-        P: DataProvider<LocaleScriptDirectionV1> + ?Sized,
+        P: DataProvider<ScriptDirectionV1Marker> + ?Sized,
     {
         let script_direction = provider.load(Default::default())?.payload;
 
@@ -171,7 +154,7 @@ impl<Expander: AsRef<LocaleExpander>> LocaleDirectionality<Expander> {
     /// ```
     /// use icu::locale::{langid, Direction, LocaleDirectionality};
     ///
-    /// let ld = LocaleDirectionality::new_common();
+    /// let ld = LocaleDirectionality::new();
     ///
     /// assert_eq!(ld.get(&langid!("en-US")), Some(Direction::LeftToRight));
     ///
@@ -188,7 +171,7 @@ impl<Expander: AsRef<LocaleExpander>> LocaleDirectionality<Expander> {
     /// use icu::locale::subtags::script;
     /// use icu::locale::{Direction, LanguageIdentifier, LocaleDirectionality};
     ///
-    /// let ld = LocaleDirectionality::new_common();
+    /// let ld = LocaleDirectionality::new();
     ///
     /// assert_eq!(
     ///     ld.get(&LanguageIdentifier::from(Some(script!("Latn")))),

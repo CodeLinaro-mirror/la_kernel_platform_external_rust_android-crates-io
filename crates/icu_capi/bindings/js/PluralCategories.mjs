@@ -2,47 +2,44 @@
 import wasm from "./diplomat-wasm.mjs";
 import * as diplomatRuntime from "./diplomat-runtime.mjs";
 
-
-
 export class PluralCategories {
-    
+
     #zero;
-    
     get zero()  {
         return this.#zero;
     }
     
+
     #one;
-    
     get one()  {
         return this.#one;
     }
     
+
     #two;
-    
     get two()  {
         return this.#two;
     }
     
+
     #few;
-    
     get few()  {
         return this.#few;
     }
     
+
     #many;
-    
     get many()  {
         return this.#many;
     }
     
+
     #other;
-    
     get other()  {
         return this.#other;
     }
     
-    #internalConstructor(structObj, internalConstructor) {
+    constructor(structObj, internalConstructor) {
         if (typeof structObj !== "object") {
             throw new Error("PluralCategories's constructor takes an object of PluralCategories's fields.");
         }
@@ -86,7 +83,6 @@ export class PluralCategories {
             throw new Error("Missing required field other.");
         }
 
-        return this;
     }
 
     // Return this struct in FFI function friendly format.
@@ -97,18 +93,6 @@ export class PluralCategories {
         appendArrayMap
     ) {
         return [this.#zero, this.#one, this.#two, this.#few, this.#many, this.#other]
-    }
-
-    static _fromSuppliedValue(internalConstructor, obj) {
-        if (internalConstructor !== diplomatRuntime.internalConstructor) {
-            throw new Error("_fromSuppliedValue cannot be called externally.");
-        }
-
-        if (obj instanceof PluralCategories) {
-            return obj;
-        }
-
-        return PluralCategories.fromFields(obj);
     }
 
     _writeToArrayBuffer(
@@ -134,7 +118,7 @@ export class PluralCategories {
         if (internalConstructor !== diplomatRuntime.internalConstructor) {
             throw new Error("PluralCategories._fromFFI is not meant to be called externally. Please use the default constructor.");
         }
-        let structObj = {};
+        var structObj = {};
         const zeroDeref = (new Uint8Array(wasm.memory.buffer, ptr, 1))[0] === 1;
         structObj.zero = zeroDeref;
         const oneDeref = (new Uint8Array(wasm.memory.buffer, ptr + 1, 1))[0] === 1;
@@ -149,9 +133,5 @@ export class PluralCategories {
         structObj.other = otherDeref;
 
         return new PluralCategories(structObj, internalConstructor);
-    }
-
-    constructor(structObj, internalConstructor) {
-        return this.#internalConstructor(...arguments)
     }
 }

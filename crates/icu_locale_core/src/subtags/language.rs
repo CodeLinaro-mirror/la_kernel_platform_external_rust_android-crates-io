@@ -57,11 +57,7 @@ impl Language {
     ///
     /// assert_eq!(Language::default(), Language::UND);
     /// ```
-    pub const UND: Self = if let Ok(o) = Self::try_from_utf8(b"und") {
-        o
-    } else {
-        panic!("Failed")
-    };
+    pub const UND: Self = unsafe { Self::from_raw_unchecked(*b"und") };
 
     /// Const-friendly version of [`Default::default`].
     pub const fn default() -> Self {

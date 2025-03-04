@@ -8,7 +8,6 @@
 #include <stddef.h>
 #include <stdbool.h>
 #include <memory>
-#include <functional>
 #include <optional>
 #include "../diplomat_runtime.hpp"
 #include "SegmenterWordType.hpp"

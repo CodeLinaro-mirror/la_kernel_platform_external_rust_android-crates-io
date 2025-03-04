@@ -10,13 +10,12 @@ import type { pointer, codepoint } from "./diplomat-runtime.d.ts";
 *
 *See the [Rust documentation for `ScriptWithExtensions`](https://docs.rs/icu/latest/icu/properties/script/struct.ScriptWithExtensions.html) for more information.
 */
-
-
 export class ScriptWithExtensions {
     
+
     get ffiValue(): pointer;
 
-    static createWithProvider(provider: DataProvider): ScriptWithExtensions;
+    static create(provider: DataProvider): ScriptWithExtensions;
 
     getScriptVal(ch: codepoint): number;
 
@@ -25,6 +24,4 @@ export class ScriptWithExtensions {
     get asBorrowed(): ScriptWithExtensionsBorrowed;
 
     iterRangesForScript(script: number): CodePointRangeIterator;
-
-    constructor();
 }

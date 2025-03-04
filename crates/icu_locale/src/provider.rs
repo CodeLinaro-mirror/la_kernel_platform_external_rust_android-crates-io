@@ -35,109 +35,34 @@ const _: () = {
         pub use icu_collections as collections;
     }
     make_provider!(Baked);
-    impl_locale_aliases_v1!(Baked);
-    impl_locale_likely_subtags_extended_v1!(Baked);
-    impl_locale_likely_subtags_language_v1!(Baked);
-    impl_locale_likely_subtags_script_region_v1!(Baked);
-    impl_locale_parents_v1!(Baked);
-    impl_locale_script_direction_v1!(Baked);
+    impl_aliases_v2_marker!(Baked);
+    impl_likely_subtags_extended_v1_marker!(Baked);
+    impl_likely_subtags_for_language_v1_marker!(Baked);
+    impl_likely_subtags_for_script_region_v1_marker!(Baked);
+    impl_parents_v1_marker!(Baked);
+    impl_script_direction_v1_marker!(Baked);
 
-    impl_locale_exemplar_characters_auxiliary_v1!(Baked);
-    impl_locale_exemplar_characters_index_v1!(Baked);
-    impl_locale_exemplar_characters_main_v1!(Baked);
-    impl_locale_exemplar_characters_numbers_v1!(Baked);
-    impl_locale_exemplar_characters_punctuation_v1!(Baked);
+    impl_exemplar_characters_auxiliary_v1_marker!(Baked);
+    impl_exemplar_characters_index_v1_marker!(Baked);
+    impl_exemplar_characters_main_v1_marker!(Baked);
+    impl_exemplar_characters_numbers_v1_marker!(Baked);
+    impl_exemplar_characters_punctuation_v1_marker!(Baked);
 };
-
-icu_provider::data_marker!(
-    /// Marker for locale alias data.
-    LocaleAliasesV1,
-    "locale/aliases/v1",
-    Aliases<'static>,
-    is_singleton = true
-);
-icu_provider::data_marker!(
-    /// Marker for data for likely subtags for languages.
-    LocaleLikelySubtagsLanguageV1,
-    "locale/likely/subtags/language/v1",
-    LikelySubtagsForLanguage<'static>,
-    is_singleton = true
-);
-icu_provider::data_marker!(
-    /// Marker for data for likely subtags for scripts and regions.
-    LocaleLikelySubtagsScriptRegionV1,
-    "locale/likely/subtags/script/region/v1",
-    LikelySubtagsForScriptRegion<'static>,
-    is_singleton = true
-);
-icu_provider::data_marker!(
-    /// Marker for extended data for likely subtags.
-    LocaleLikelySubtagsExtendedV1,
-    "locale/likely/subtags/extended/v1",
-    LikelySubtagsExtended<'static>,
-    is_singleton = true
-);
-icu_provider::data_marker!(
-    /// Marker for locale fallback parents data.
-    LocaleParentsV1,
-    "locale/parents/v1",
-    Parents<'static>,
-    is_singleton = true
-);
-
-icu_provider::data_marker!(
-    /// Marker for script direction data.
-    LocaleScriptDirectionV1,
-    "locale/script/direction/v1",
-    ScriptDirection<'static>,
-    is_singleton = true
-);
-
-icu_provider::data_marker!(
-    /// Marker for auxiliary exemplar characters data.
-    LocaleExemplarCharactersAuxiliaryV1,
-    "locale/exemplar/characters/auxiliary/v1",
-    ExemplarCharactersData<'static>,
-);
-icu_provider::data_marker!(
-    /// Marker for index exemplar characters data.
-    LocaleExemplarCharactersIndexV1,
-    "locale/exemplar/characters/index/v1",
-    ExemplarCharactersData<'static>,
-);
-icu_provider::data_marker!(
-    /// Marker for main exemplar characters data.
-    LocaleExemplarCharactersMainV1,
-    "locale/exemplar/characters/main/v1",
-    ExemplarCharactersData<'static>,
-);
-icu_provider::data_marker!(
-    /// Marker for numbers exemplar characters data.
-    LocaleExemplarCharactersNumbersV1,
-    "locale/exemplar/characters/numbers/v1",
-    ExemplarCharactersData<'static>,
-);
-icu_provider::data_marker!(
-    /// Marker for punctuation exemplar characters data.
-    LocaleExemplarCharactersPunctuationV1,
-    "locale/exemplar/characters/punctuation/v1",
-    ExemplarCharactersData<'static>,
-);
 
 #[cfg(feature = "datagen")]
 /// The latest minimum set of markers required by this component.
 pub const MARKERS: &[DataMarkerInfo] = &[
-    LocaleAliasesV1::INFO,
-    LocaleExemplarCharactersAuxiliaryV1::INFO,
-    LocaleExemplarCharactersIndexV1::INFO,
-    LocaleExemplarCharactersMainV1::INFO,
-    LocaleExemplarCharactersNumbersV1::INFO,
-    LocaleExemplarCharactersPunctuationV1::INFO,
-    LocaleLikelySubtagsExtendedV1::INFO,
-    LocaleLikelySubtagsLanguageV1::INFO,
-    LocaleLikelySubtagsScriptRegionV1::INFO,
-    LocaleParentsV1::INFO,
-    LocaleScriptDirectionV1::INFO,
+    AliasesV2Marker::INFO,
+    ExemplarCharactersAuxiliaryV1Marker::INFO,
+    ExemplarCharactersIndexV1Marker::INFO,
+    ExemplarCharactersMainV1Marker::INFO,
+    ExemplarCharactersNumbersV1Marker::INFO,
+    ExemplarCharactersPunctuationV1Marker::INFO,
+    LikelySubtagsExtendedV1Marker::INFO,
+    LikelySubtagsForLanguageV1Marker::INFO,
+    LikelySubtagsForScriptRegionV1Marker::INFO,
+    ParentsV1Marker::INFO,
+    ScriptDirectionV1Marker::INFO,
 ];
 
 use alloc::borrow::Cow;
@@ -212,7 +137,8 @@ pub struct LanguageStrStrPair<'a>(
     #[cfg_attr(feature = "serde", serde(borrow))] pub Cow<'a, str>,
 );
 
-#[derive(PartialEq, Clone, Default, yoke::Yokeable, zerofrom::ZeroFrom)]
+#[icu_provider::data_struct(marker(AliasesV2Marker, "locale/aliases@2", singleton))]
+#[derive(PartialEq, Clone, Default)]
 #[cfg_attr(feature = "datagen", derive(serde::Serialize, databake::Bake))]
 #[cfg_attr(feature = "datagen", databake(path = icu_locale::provider))]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize))]
@@ -238,10 +164,10 @@ pub struct LanguageStrStrPair<'a>(
 /// to be stable, their Rust representation might not be. Use with caution.
 /// </div>
 // TODO: Use validated types as value types
-// Notice:  improves the alignment of `language_variants` speeding up canonicalization by upon
+// Notice: V2 improves the alignment of `language_variants` speeding up canonicalization by upon
 // to 40%. See https://github.com/unicode-org/icu4x/pull/2935 for details.
 #[derive(Debug)]
-pub struct Aliases<'data> {
+pub struct AliasesV2<'data> {
     /// `[language, variant(-variant)*] -> [langid]`
     /// This is not a map as it's searched linearly according to the canonicalization rules.
     #[cfg_attr(feature = "serde", serde(borrow))]
@@ -284,12 +210,12 @@ pub struct Aliases<'data> {
     pub subdivision: ZeroMap<'data, UnvalidatedSubdivision, SemivalidatedSubdivision>,
 }
 
-icu_provider::data_struct!(
-    Aliases<'_>,
-    #[cfg(feature = "datagen")]
-);
-
-#[derive(Debug, PartialEq, Clone, yoke::Yokeable, zerofrom::ZeroFrom)]
+#[icu_provider::data_struct(marker(
+    LikelySubtagsForLanguageV1Marker,
+    "locale/likelysubtags_l@1",
+    singleton
+))]
+#[derive(Debug, PartialEq, Clone)]
 #[cfg_attr(feature = "datagen", derive(serde::Serialize, databake::Bake))]
 #[cfg_attr(feature = "datagen", databake(path = icu_locale::provider))]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize))]
@@ -308,7 +234,7 @@ icu_provider::data_struct!(
 /// region.
 ///
 /// This struct contains mappings when the input contains a language subtag.
-/// Also see [`LikelySubtagsForScriptRegion`].
+/// Also see [`LikelySubtagsForScriptRegionV1`].
 ///
 /// <div class="stab unstable">
 /// 🚧 This code is considered unstable; it may change at any time, in breaking or non-breaking ways,
@@ -316,7 +242,7 @@ icu_provider::data_struct!(
 /// to be stable, their Rust representation might not be. Use with caution.
 /// </div>
 #[yoke(prove_covariance_manually)]
-pub struct LikelySubtagsForLanguage<'data> {
+pub struct LikelySubtagsForLanguageV1<'data> {
     /// Language and script.
     #[cfg_attr(feature = "serde", serde(borrow))]
     pub language_script: ZeroMap<'data, (UnvalidatedLanguage, UnvalidatedScript), Region>,
@@ -330,12 +256,12 @@ pub struct LikelySubtagsForLanguage<'data> {
     pub und: (Language, Script, Region),
 }
 
-icu_provider::data_struct!(
-    LikelySubtagsForLanguage<'_>,
-    #[cfg(feature = "datagen")]
-);
-
-#[derive(Debug, PartialEq, Clone, yoke::Yokeable, zerofrom::ZeroFrom)]
+#[icu_provider::data_struct(marker(
+    LikelySubtagsForScriptRegionV1Marker,
+    "locale/likelysubtags_sr@1",
+    singleton
+))]
+#[derive(Debug, PartialEq, Clone)]
 #[cfg_attr(feature = "datagen", derive(serde::Serialize, databake::Bake))]
 #[cfg_attr(feature = "datagen", databake(path = icu_locale::provider))]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize))]
@@ -354,7 +280,7 @@ icu_provider::data_struct!(
 /// language.
 ///
 /// This struct contains mappings when the input does not contain a language subtag.
-/// Also see [`LikelySubtagsForLanguage`].
+/// Also see [`LikelySubtagsForLanguageV1`].
 ///
 /// <div class="stab unstable">
 /// 🚧 This code is considered unstable; it may change at any time, in breaking or non-breaking ways,
@@ -362,7 +288,7 @@ icu_provider::data_struct!(
 /// to be stable, their Rust representation might not be. Use with caution.
 /// </div>
 #[yoke(prove_covariance_manually)]
-pub struct LikelySubtagsForScriptRegion<'data> {
+pub struct LikelySubtagsForScriptRegionV1<'data> {
     /// Script and region.
     #[cfg_attr(feature = "serde", serde(borrow))]
     pub script_region: ZeroMap<'data, (UnvalidatedScript, UnvalidatedRegion), Language>,
@@ -374,12 +300,12 @@ pub struct LikelySubtagsForScriptRegion<'data> {
     pub region: ZeroMap<'data, UnvalidatedRegion, (Language, Script)>,
 }
 
-icu_provider::data_struct!(
-    LikelySubtagsForScriptRegion<'_>,
-    #[cfg(feature = "datagen")]
-);
-
-#[derive(Debug, PartialEq, Clone, yoke::Yokeable, zerofrom::ZeroFrom)]
+#[icu_provider::data_struct(marker(
+    LikelySubtagsExtendedV1Marker,
+    "locale/likelysubtags_ext@1",
+    singleton
+))]
+#[derive(Debug, PartialEq, Clone)]
 #[cfg_attr(feature = "datagen", derive(serde::Serialize, databake::Bake))]
 #[cfg_attr(feature = "datagen", databake(path = icu_locale::provider))]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize))]
@@ -392,7 +318,7 @@ icu_provider::data_struct!(
 /// to be stable, their Rust representation might not be. Use with caution.
 /// </div>
 #[yoke(prove_covariance_manually)]
-pub struct LikelySubtagsExtended<'data> {
+pub struct LikelySubtagsExtendedV1<'data> {
     /// Language and script.
     #[cfg_attr(feature = "serde", serde(borrow))]
     pub language_script: ZeroMap<'data, (UnvalidatedLanguage, UnvalidatedScript), Region>,
@@ -413,30 +339,22 @@ pub struct LikelySubtagsExtended<'data> {
     pub region: ZeroMap<'data, UnvalidatedRegion, (Language, Script)>,
 }
 
-icu_provider::data_struct!(
-    LikelySubtagsExtended<'_>,
-    #[cfg(feature = "datagen")]
-);
-
 /// Locale fallback rules derived from CLDR parent locales data.
-#[derive(Default, Clone, PartialEq, Debug, yoke::Yokeable, zerofrom::ZeroFrom)]
+#[icu_provider::data_struct(marker(ParentsV1Marker, "locale/parents@1", singleton))]
+#[derive(Default, Clone, PartialEq, Debug)]
 #[cfg_attr(feature = "datagen", derive(serde::Serialize, databake::Bake))]
 #[cfg_attr(feature = "datagen", databake(path = icu_locale::provider))]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize))]
 #[yoke(prove_covariance_manually)]
-pub struct Parents<'data> {
+pub struct ParentsV1<'data> {
     /// Map from language identifier to language identifier, indicating that the language on the
     /// left should inherit from the language on the right.
     #[cfg_attr(feature = "serde", serde(borrow))]
     pub parents: ZeroMap<'data, PotentialUtf8, (Language, Option<Script>, Option<Region>)>,
 }
 
-icu_provider::data_struct!(
-    Parents<'_>,
-    #[cfg(feature = "datagen")]
-);
-
-#[derive(Debug, PartialEq, Clone, yoke::Yokeable, zerofrom::ZeroFrom)]
+#[icu_provider::data_struct(marker(ScriptDirectionV1Marker, "locale/script_dir@1", singleton))]
+#[derive(Debug, PartialEq, Clone)]
 #[cfg_attr(feature = "datagen", derive(serde::Serialize, databake::Bake))]
 #[cfg_attr(feature = "datagen", databake(path = icu_locale::provider))]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize))]
@@ -448,7 +366,7 @@ icu_provider::data_struct!(
 /// to be stable, their Rust representation might not be. Use with caution.
 /// </div>
 #[yoke(prove_covariance_manually)]
-pub struct ScriptDirection<'data> {
+pub struct ScriptDirectionV1<'data> {
     /// Scripts in right-to-left direction.
     #[cfg_attr(feature = "serde", serde(borrow))]
     pub rtl: ZeroVec<'data, UnvalidatedScript>,
@@ -457,11 +375,6 @@ pub struct ScriptDirection<'data> {
     pub ltr: ZeroVec<'data, UnvalidatedScript>,
 }
 
-icu_provider::data_struct!(
-    ScriptDirection<'_>,
-    #[cfg(feature = "datagen")]
-);
-
 /// A set of characters and strings which share a particular property value.
 ///
 /// <div class="stab unstable">
@@ -469,18 +382,26 @@ icu_provider::data_struct!(
 /// including in SemVer minor releases. While the serde representation of data structs is guaranteed
 /// to be stable, their Rust representation might not be. Use with caution.
 /// </div>
-#[derive(Debug, Eq, PartialEq, Clone, yoke::Yokeable, zerofrom::ZeroFrom)]
+#[icu_provider::data_struct(
+    marker(
+        ExemplarCharactersAuxiliaryV1Marker,
+        "locale/exemplarchars/auxiliary@1"
+    ),
+    marker(ExemplarCharactersIndexV1Marker, "locale/exemplarchars/index@1"),
+    marker(ExemplarCharactersMainV1Marker, "locale/exemplarchars/main@1"),
+    marker(ExemplarCharactersNumbersV1Marker, "locale/exemplarchars/numbers@1"),
+    marker(
+        ExemplarCharactersPunctuationV1Marker,
+        "locale/exemplarchars/punctuation@1"
+    )
+)]
+#[derive(Debug, Eq, PartialEq, Clone)]
 #[cfg_attr(
     feature = "datagen", 
     derive(serde::Serialize, databake::Bake),
     databake(path = icu_locale::provider),
 )]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize))]
-pub struct ExemplarCharactersData<'data>(
+pub struct ExemplarCharactersV1<'data>(
     #[cfg_attr(feature = "serde", serde(borrow))] pub CodePointInversionListAndStringList<'data>,
-);
-
-icu_provider::data_struct!(
-    ExemplarCharactersData<'_>,
-    #[cfg(feature = "datagen")]
 );

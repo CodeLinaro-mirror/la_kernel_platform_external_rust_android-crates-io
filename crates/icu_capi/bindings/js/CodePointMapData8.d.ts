@@ -3,8 +3,6 @@ import type { CodePointRangeIterator } from "./CodePointRangeIterator"
 import type { CodePointSetData } from "./CodePointSetData"
 import type { DataError } from "./DataError"
 import type { DataProvider } from "./DataProvider"
-import type { GeneralCategoryGroup } from "./GeneralCategoryGroup"
-import type { GeneralCategoryGroup_obj } from "./GeneralCategoryGroup"
 import type { pointer, codepoint } from "./diplomat-runtime.d.ts";
 
 
@@ -18,63 +16,42 @@ import type { pointer, codepoint } from "./diplomat-runtime.d.ts";
 *
 *See the [Rust documentation for `CodePointMapDataBorrowed`](https://docs.rs/icu/latest/icu/properties/struct.CodePointMapDataBorrowed.html) for more information.
 */
-
-
 export class CodePointMapData8 {
     
+
     get ffiValue(): pointer;
 
     get(cp: codepoint): number;
+
+    static generalCategoryToMask(gc: number): number;
 
     iterRangesForValue(value: number): CodePointRangeIterator;
 
     iterRangesForValueComplemented(value: number): CodePointRangeIterator;
 
-    iterRangesForGroup(group: GeneralCategoryGroup_obj): CodePointRangeIterator;
+    iterRangesForMask(mask: number): CodePointRangeIterator;
 
     getSetForValue(value: number): CodePointSetData;
 
-    static createGeneralCategory(): CodePointMapData8;
+    static loadGeneralCategory(provider: DataProvider): CodePointMapData8;
 
-    static createGeneralCategoryWithProvider(provider: DataProvider): CodePointMapData8;
+    static loadBidiClass(provider: DataProvider): CodePointMapData8;
 
-    static createBidiClass(): CodePointMapData8;
+    static loadEastAsianWidth(provider: DataProvider): CodePointMapData8;
 
-    static createBidiClassWithProvider(provider: DataProvider): CodePointMapData8;
+    static loadHangulSyllableType(provider: DataProvider): CodePointMapData8;
 
-    static createEastAsianWidth(): CodePointMapData8;
+    static loadIndicSyllabicCategory(provider: DataProvider): CodePointMapData8;
 
-    static createEastAsianWidthWithProvider(provider: DataProvider): CodePointMapData8;
+    static loadLineBreak(provider: DataProvider): CodePointMapData8;
 
-    static createHangulSyllableType(): CodePointMapData8;
+    static tryGraphemeClusterBreak(provider: DataProvider): CodePointMapData8;
 
-    static createHangulSyllableTypeWithProvider(provider: DataProvider): CodePointMapData8;
+    static loadWordBreak(provider: DataProvider): CodePointMapData8;
 
-    static createIndicSyllabicCategory(): CodePointMapData8;
+    static loadSentenceBreak(provider: DataProvider): CodePointMapData8;
 
-    static createIndicSyllabicCategoryWithProvider(provider: DataProvider): CodePointMapData8;
+    static loadJoiningType(provider: DataProvider): CodePointMapData8;
 
-    static createLineBreak(): CodePointMapData8;
-
-    static createLineBreakWithProvider(provider: DataProvider): CodePointMapData8;
-
-    static createGraphemeClusterBreak(): CodePointMapData8;
-
-    static createGraphemeClusterBreakWithProvider(provider: DataProvider): CodePointMapData8;
-
-    static createWordBreak(): CodePointMapData8;
-
-    static createWordBreakWithProvider(provider: DataProvider): CodePointMapData8;
-
-    static createSentenceBreak(): CodePointMapData8;
-
-    static createSentenceBreakWithProvider(provider: DataProvider): CodePointMapData8;
-
-    static createJoiningType(): CodePointMapData8;
-
-    static createJoiningTypeWithProvider(provider: DataProvider): CodePointMapData8;
-
-    static createCanonicalCombiningClass(): CodePointMapData8;
-
-    static createCanonicalCombiningClassWithProvider(provider: DataProvider): CodePointMapData8;
+    static loadCanonicalCombiningClass(provider: DataProvider): CodePointMapData8;
 }

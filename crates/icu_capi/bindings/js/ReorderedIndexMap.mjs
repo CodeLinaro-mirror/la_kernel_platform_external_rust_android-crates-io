@@ -14,7 +14,6 @@ const ReorderedIndexMap_box_destroy_registry = new FinalizationRegistry((ptr) =>
 });
 
 export class ReorderedIndexMap {
-    
     // Internal ptr reference:
     #ptr = null;
 
@@ -22,7 +21,7 @@ export class ReorderedIndexMap {
     // Since JS won't garbage collect until there are no incoming edges.
     #selfEdge = [];
     
-    #internalConstructor(symbol, ptr, selfEdge) {
+    constructor(symbol, ptr, selfEdge) {
         if (symbol !== diplomatRuntime.internalConstructor) {
             console.error("ReorderedIndexMap is an Opaque type. You cannot call its constructor.");
             return;
@@ -35,9 +34,8 @@ export class ReorderedIndexMap {
         if (this.#selfEdge.length === 0) {
             ReorderedIndexMap_box_destroy_registry.register(this, this.#ptr);
         }
-        
-        return this;
     }
+
     get ffiValue() {
         return this.#ptr;
     }
@@ -87,9 +85,5 @@ export class ReorderedIndexMap {
         }
         
         finally {}
-    }
-
-    constructor(symbol, ptr, selfEdge) {
-        return this.#internalConstructor(...arguments)
     }
 }

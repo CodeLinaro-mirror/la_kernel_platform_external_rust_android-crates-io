@@ -14,7 +14,6 @@ const TitlecaseMapper_box_destroy_registry = new FinalizationRegistry((ptr) => {
 });
 
 export class TitlecaseMapper {
-    
     // Internal ptr reference:
     #ptr = null;
 
@@ -22,7 +21,7 @@ export class TitlecaseMapper {
     // Since JS won't garbage collect until there are no incoming edges.
     #selfEdge = [];
     
-    #internalConstructor(symbol, ptr, selfEdge) {
+    constructor(symbol, ptr, selfEdge) {
         if (symbol !== diplomatRuntime.internalConstructor) {
             console.error("TitlecaseMapper is an Opaque type. You cannot call its constructor.");
             return;
@@ -35,35 +34,16 @@ export class TitlecaseMapper {
         if (this.#selfEdge.length === 0) {
             TitlecaseMapper_box_destroy_registry.register(this, this.#ptr);
         }
-        
-        return this;
     }
+
     get ffiValue() {
         return this.#ptr;
     }
 
-    #defaultConstructor() {
+    static create(provider) {
         const diplomatReceive = new diplomatRuntime.DiplomatReceiveBuf(wasm, 5, 4, true);
         
-        const result = wasm.icu4x_TitlecaseMapper_create_mv1(diplomatReceive.buffer);
-    
-        try {
-            if (!diplomatReceive.resultFlag) {
-                const cause = new DataError(diplomatRuntime.internalConstructor, diplomatRuntime.enumDiscriminant(wasm, diplomatReceive.buffer));
-                throw new globalThis.Error('DataError: ' + cause.value, { cause });
-            }
-            return new TitlecaseMapper(diplomatRuntime.internalConstructor, diplomatRuntime.ptrRead(wasm, diplomatReceive.buffer), []);
-        }
-        
-        finally {
-            diplomatReceive.free();
-        }
-    }
-
-    static createWithProvider(provider) {
-        const diplomatReceive = new diplomatRuntime.DiplomatReceiveBuf(wasm, 5, 4, true);
-        
-        const result = wasm.icu4x_TitlecaseMapper_create_with_provider_mv1(diplomatReceive.buffer, provider.ffiValue);
+        const result = wasm.icu4x_TitlecaseMapper_create_mv1(diplomatReceive.buffer, provider.ffiValue);
     
         try {
             if (!diplomatReceive.resultFlag) {
@@ -84,7 +64,7 @@ export class TitlecaseMapper {
         const sSlice = functionCleanupArena.alloc(diplomatRuntime.DiplomatBuf.str8(wasm, s));
         
         const write = new diplomatRuntime.DiplomatWriteBuf(wasm);
-        wasm.icu4x_TitlecaseMapper_titlecase_segment_v1_mv1(this.ffiValue, ...sSlice.splat(), locale.ffiValue, ...TitlecaseOptions._fromSuppliedValue(diplomatRuntime.internalConstructor, options)._intoFFI(functionCleanupArena, {}), write.buffer);
+        wasm.icu4x_TitlecaseMapper_titlecase_segment_v1_mv1(this.ffiValue, ...sSlice.splat(), locale.ffiValue, ...options._intoFFI(functionCleanupArena, {}), write.buffer);
     
         try {
             return write.readString8();
@@ -94,16 +74,6 @@ export class TitlecaseMapper {
             functionCleanupArena.free();
         
             write.free();
-        }
-    }
-
-    constructor() {
-        if (arguments[0] === diplomatRuntime.exposeConstructor) {
-            return this.#internalConstructor(...Array.prototype.slice.call(arguments, 1));
-        } else if (arguments[0] === diplomatRuntime.internalConstructor) {
-            return this.#internalConstructor(...arguments);
-        } else {
-            return this.#defaultConstructor(...arguments);
         }
     }
 }

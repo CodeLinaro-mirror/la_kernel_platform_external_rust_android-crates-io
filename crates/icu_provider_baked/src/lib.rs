@@ -21,10 +21,8 @@ pub trait DataStore<M: DataMarker> {
         &self,
         req: DataIdentifierBorrowed,
         attributes_prefix_match: bool,
-    ) -> Option<DataPayload<M>>;
+    ) -> Option<&'static M::DataStruct>;
 
-    #[cfg(feature = "alloc")]
     type IterReturn: Iterator<Item = DataIdentifierCow<'static>>;
-    #[cfg(feature = "alloc")]
     fn iter(&'static self) -> Self::IterReturn;
 }

@@ -6,19 +6,14 @@ import type { pointer, codepoint } from "./diplomat-runtime.d.ts";
 
 /** See the [Rust documentation for `DecomposingNormalizer`](https://docs.rs/icu/latest/icu/normalizer/struct.DecomposingNormalizer.html) for more information.
 */
-
-
 export class DecomposingNormalizer {
     
+
     get ffiValue(): pointer;
 
-    static createNfd(): DecomposingNormalizer;
+    static createNfd(provider: DataProvider): DecomposingNormalizer;
 
-    static createNfdWithProvider(provider: DataProvider): DecomposingNormalizer;
-
-    static createNfkd(): DecomposingNormalizer;
-
-    static createNfkdWithProvider(provider: DataProvider): DecomposingNormalizer;
+    static createNfkd(provider: DataProvider): DecomposingNormalizer;
 
     normalize(s: string): string;
 

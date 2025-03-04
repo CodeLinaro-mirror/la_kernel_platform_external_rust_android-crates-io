@@ -14,17 +14,14 @@ import type { pointer, codepoint } from "./diplomat-runtime.d.ts";
 *
 *See the [Rust documentation for `EmojiSetDataBorrowed`](https://docs.rs/icu/latest/icu/properties/struct.EmojiSetDataBorrowed.html) for more information.
 */
-
-
 export class EmojiSetData {
     
+
     get ffiValue(): pointer;
 
     containsStr(s: string): boolean;
 
     contains(cp: codepoint): boolean;
 
-    static createBasic(): EmojiSetData;
-
-    static createBasicWithProvider(provider: DataProvider): EmojiSetData;
+    static loadBasic(provider: DataProvider): EmojiSetData;
 }

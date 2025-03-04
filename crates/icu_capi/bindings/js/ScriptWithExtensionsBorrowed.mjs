@@ -14,7 +14,6 @@ const ScriptWithExtensionsBorrowed_box_destroy_registry = new FinalizationRegist
 });
 
 export class ScriptWithExtensionsBorrowed {
-    
     // Internal ptr reference:
     #ptr = null;
 
@@ -23,7 +22,7 @@ export class ScriptWithExtensionsBorrowed {
     #selfEdge = [];
     #aEdge = [];
     
-    #internalConstructor(symbol, ptr, selfEdge, aEdge) {
+    constructor(symbol, ptr, selfEdge, aEdge) {
         if (symbol !== diplomatRuntime.internalConstructor) {
             console.error("ScriptWithExtensionsBorrowed is an Opaque type. You cannot call its constructor.");
             return;
@@ -39,9 +38,8 @@ export class ScriptWithExtensionsBorrowed {
         if (this.#selfEdge.length === 0) {
             ScriptWithExtensionsBorrowed_box_destroy_registry.register(this, this.#ptr);
         }
-        
-        return this;
     }
+
     get ffiValue() {
         return this.#ptr;
     }
@@ -87,9 +85,5 @@ export class ScriptWithExtensionsBorrowed {
         }
         
         finally {}
-    }
-
-    constructor(symbol, ptr, selfEdge, aEdge) {
-        return this.#internalConstructor(...arguments)
     }
 }

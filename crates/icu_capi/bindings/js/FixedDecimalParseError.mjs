@@ -2,13 +2,10 @@
 import wasm from "./diplomat-wasm.mjs";
 import * as diplomatRuntime from "./diplomat-runtime.mjs";
 
-
+// Base enumerator definition
 /** Additional information: [1](https://docs.rs/fixed_decimal/latest/fixed_decimal/enum.ParseError.html)
 */
-
-
 export class FixedDecimalParseError {
-    
     #value = undefined;
 
     static #values = new Map([
@@ -20,14 +17,14 @@ export class FixedDecimalParseError {
     static getAllEntries() {
         return FixedDecimalParseError.#values.entries();
     }
-    
-    #internalConstructor(value) {
+
+    constructor(value) {
         if (arguments.length > 1 && arguments[0] === diplomatRuntime.internalConstructor) {
             // We pass in two internalConstructor arguments to create *new*
             // instances of this type, otherwise the enums are treated as singletons.
             if (arguments[1] === diplomatRuntime.internalConstructor ) {
                 this.#value = arguments[2];
-                return this;
+                return;
             }
             return FixedDecimalParseError.#objectValues[arguments[1]];
         }
@@ -39,15 +36,11 @@ export class FixedDecimalParseError {
         let intVal = FixedDecimalParseError.#values.get(value);
 
         // Nullish check, checks for null or undefined
-        if (intVal != null) {
+        if (intVal == null) {
             return FixedDecimalParseError.#objectValues[intVal];
         }
 
         throw TypeError(value + " is not a FixedDecimalParseError and does not correspond to any of its enumerator values.");
-    }
-
-    static fromValue(value) {
-        return new FixedDecimalParseError(value);
     }
 
     get value() {
@@ -66,8 +59,4 @@ export class FixedDecimalParseError {
     static Unknown = FixedDecimalParseError.#objectValues[0];
     static Limit = FixedDecimalParseError.#objectValues[1];
     static Syntax = FixedDecimalParseError.#objectValues[2];
-
-    constructor(value) {
-        return this.#internalConstructor(...arguments)
-    }
 }

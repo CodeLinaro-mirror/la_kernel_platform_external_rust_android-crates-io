@@ -36,6 +36,9 @@ mod by_error;
 
 pub mod predicates;
 
+#[macro_use]
+mod macros;
+
 pub use by_error::ForkByErrorProvider;
 pub use by_error::MultiForkByErrorProvider;
 
@@ -49,7 +52,7 @@ use predicates::MarkerNotFoundPredicate;
 /// you should add child providers that support disjoint sets of markers.
 ///
 /// [`ForkByMarkerProvider`] does not support forking between [`DataProvider`]s. However, it
-/// supports forking between [`BufferProvider`], and [`DynamicDataProvider`].
+/// supports forking between [`AnyProvider`], [`BufferProvider`], and [`DynamicDataProvider`].
 ///
 /// # Examples
 ///
@@ -79,7 +82,7 @@ use predicates::MarkerNotFoundPredicate;
 ///
 /// let provider = forking_provider.as_deserializing();
 ///
-/// let german_hello_world: DataResponse<HelloWorldV1> = provider
+/// let german_hello_world: DataResponse<HelloWorldV1Marker> = provider
 ///     .load(DataRequest {
 ///         id: DataIdentifierBorrowed::for_locale(&langid!("de").into()),
 ///         ..Default::default()
@@ -111,7 +114,7 @@ use predicates::MarkerNotFoundPredicate;
 ///     .with_filter(|id| id.locale.language == language!("de")),
 /// );
 ///
-/// let provider: &dyn DataProvider<HelloWorldV1> =
+/// let provider: &dyn DataProvider<HelloWorldV1Marker> =
 ///     &forking_provider.as_deserializing();
 ///
 /// // Chinese is the first provider, so this succeeds
@@ -135,6 +138,7 @@ use predicates::MarkerNotFoundPredicate;
 ///
 /// [`DataMarkerInfo`]: icu_provider::DataMarkerInfo
 /// [`DataProvider`]: icu_provider::DataProvider
+/// [`AnyProvider`]: icu_provider::any::AnyProvider
 /// [`BufferProvider`]: icu_provider::buf::BufferProvider
 /// [`DynamicDataProvider`]: icu_provider::DynamicDataProvider
 pub type ForkByMarkerProvider<P0, P1> = ForkByErrorProvider<P0, P1, MarkerNotFoundPredicate>;
@@ -155,7 +159,7 @@ impl<P0, P1> ForkByMarkerProvider<P0, P1> {
 /// you should add child providers that support disjoint sets of markers.
 ///
 /// [`MultiForkByMarkerProvider`] does not support forking between [`DataProvider`]s. However, it
-/// supports forking between [`BufferProvider`], and [`DynamicDataProvider`].
+/// supports forking between [`AnyProvider`], [`BufferProvider`], and [`DynamicDataProvider`].
 ///
 /// # Examples
 ///
@@ -181,7 +185,7 @@ impl<P0, P1> ForkByMarkerProvider<P0, P1> {
 ///     ],
 /// );
 ///
-/// let provider: &dyn DataProvider<HelloWorldV1> =
+/// let provider: &dyn DataProvider<HelloWorldV1Marker> =
 ///     &forking_provider.as_deserializing();
 ///
 /// // Chinese is the first provider, so this succeeds
@@ -205,6 +209,7 @@ impl<P0, P1> ForkByMarkerProvider<P0, P1> {
 ///
 /// [`DataMarkerInfo`]: icu_provider::DataMarkerInfo
 /// [`DataProvider`]: icu_provider::DataProvider
+/// [`AnyProvider`]: icu_provider::any::AnyProvider
 /// [`BufferProvider`]: icu_provider::buf::BufferProvider
 /// [`DynamicDataProvider`]: icu_provider::DynamicDataProvider
 pub type MultiForkByMarkerProvider<P> = MultiForkByErrorProvider<P, MarkerNotFoundPredicate>;

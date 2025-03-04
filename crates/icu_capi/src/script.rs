@@ -8,10 +8,10 @@
 pub mod ffi {
     use alloc::boxed::Box;
 
+    use crate::errors::ffi::DataError;
     use crate::properties_iter::ffi::CodePointRangeIterator;
     use crate::properties_sets::ffi::CodePointSetData;
-    #[cfg(feature = "buffer_provider")]
-    use crate::{errors::ffi::DataError, provider::ffi::DataProvider};
+    use crate::provider::ffi::DataProvider;
 
     #[diplomat::opaque]
     /// An ICU4X ScriptWithExtensions map object, capable of holding a map of codepoints to scriptextensions values
@@ -30,38 +30,20 @@ pub mod ffi {
     pub struct ScriptExtensionsSet<'a>(pub icu_properties::script::ScriptExtensionsSet<'a>);
 
     impl ScriptWithExtensions {
-        /// Create a map for the `Script`/`Script_Extensions` properties, using compiled data.
         #[diplomat::rust_link(icu::properties::script::ScriptWithExtensions::new, FnInStruct)]
         #[diplomat::rust_link(
             icu::properties::script::ScriptWithExtensionsBorrowed::new,
             FnInStruct,
             hidden
         )]
-        #[diplomat::attr(auto, constructor)]
-        #[cfg(feature = "compiled_data")]
-        pub fn create() -> Box<ScriptWithExtensions> {
-            Box::new(ScriptWithExtensions(
-                icu_properties::script::ScriptWithExtensions::new().static_to_owned(),
-            ))
-        }
-
-        /// Create a map for the `Script`/`Script_Extensions` properties, using compiled data.
-        #[diplomat::rust_link(icu::properties::script::ScriptWithExtensions::new, FnInStruct)]
-        #[diplomat::rust_link(
-            icu::properties::script::ScriptWithExtensionsBorrowed::new,
-            FnInStruct,
-            hidden
-        )]
-        #[diplomat::attr(all(supports = fallible_constructors, supports = named_constructors), named_constructor = "with_provider")]
-        #[cfg(feature = "buffer_provider")]
-        pub fn create_with_provider(
-            provider: &DataProvider,
-        ) -> Result<Box<ScriptWithExtensions>, DataError> {
-            Ok(Box::new(ScriptWithExtensions(
-                icu_properties::script::ScriptWithExtensions::try_new_with_buffer_provider(
-                    provider.get()?,
-                )?,
-            )))
+        #[diplomat::attr(supports = fallible_constructors, constructor)]
+        pub fn create(provider: &DataProvider) -> Result<Box<ScriptWithExtensions>, DataError> {
+            Ok(Box::new(ScriptWithExtensions(call_constructor!(
+                icu_properties::script::ScriptWithExtensions::new [r => Ok(r.static_to_owned())],
+                icu_properties::script::ScriptWithExtensions::try_new_with_any_provider,
+                icu_properties::script::ScriptWithExtensions::try_new_with_buffer_provider,
+                provider
+            )?)))
         }
 
         /// Get the Script property value for a code point
@@ -75,7 +57,7 @@ pub mod ffi {
             hidden
         )]
         pub fn get_script_val(&self, ch: DiplomatChar) -> u16 {
-            self.0.as_borrowed().get_script_val32(ch).to_icu4c_value()
+            self.0.as_borrowed().get_script_val32(ch).0
         }
 
         /// Check if the Script_Extensions property of the given code point covers the given script
@@ -91,7 +73,7 @@ pub mod ffi {
         pub fn has_script(&self, ch: DiplomatChar, script: u16) -> bool {
             self.0
                 .as_borrowed()
-                .has_script32(ch, icu_properties::props::Script::from_icu4c_value(script))
+                .has_script32(ch, icu_properties::props::Script(script))
         }
 
         /// Borrow this object for a slightly faster variant with more operations
@@ -114,9 +96,9 @@ pub mod ffi {
             script: u16,
         ) -> Box<CodePointRangeIterator<'a>> {
             Box::new(CodePointRangeIterator(Box::new(
-                self.0.as_borrowed().get_script_extensions_ranges(
-                    icu_properties::props::Script::from_icu4c_value(script),
-                ),
+                self.0
+                    .as_borrowed()
+                    .get_script_extensions_ranges(icu_properties::props::Script(script)),
             )))
         }
     }
@@ -134,7 +116,7 @@ pub mod ffi {
             hidden
         )]
         pub fn get_script_val(&self, ch: DiplomatChar) -> u16 {
-            self.0.get_script_val32(ch).to_icu4c_value()
+            self.0.get_script_val32(ch).0
         }
         /// Get the Script property value for a code point
         #[diplomat::rust_link(
@@ -161,7 +143,7 @@ pub mod ffi {
         )]
         pub fn has_script(&self, ch: DiplomatChar, script: u16) -> bool {
             self.0
-                .has_script32(ch, icu_properties::props::Script::from_icu4c_value(script))
+                .has_script32(ch, icu_properties::props::Script(script))
         }
 
         /// Build the CodePointSetData corresponding to a codepoints matching a particular script
@@ -173,7 +155,7 @@ pub mod ffi {
         pub fn get_script_extensions_set(&self, script: u16) -> Box<CodePointSetData> {
             let list = self
                 .0
-                .get_script_extensions_set(icu_properties::props::Script::from_icu4c_value(script))
+                .get_script_extensions_set(icu_properties::props::Script(script))
                 .into_owned();
             let set = icu_properties::CodePointSetData::from_code_point_inversion_list(list);
             Box::new(CodePointSetData(set))
@@ -183,8 +165,7 @@ pub mod ffi {
         /// Check if the Script_Extensions property of the given code point covers the given script
         #[diplomat::rust_link(icu::properties::script::ScriptExtensionsSet::contains, FnInStruct)]
         pub fn contains(&self, script: u16) -> bool {
-            self.0
-                .contains(&icu_properties::props::Script::from_icu4c_value(script))
+            self.0.contains(&icu_properties::props::Script(script))
         }
 
         /// Get the number of scripts contained in here
@@ -197,7 +178,7 @@ pub mod ffi {
         /// Get script at index
         #[diplomat::rust_link(icu::properties::script::ScriptExtensionsSet::iter, FnInStruct)]
         pub fn script_at(&self, index: usize) -> Option<u16> {
-            self.0.array_get(index).map(|x| x.to_icu4c_value())
+            self.0.array_get(index).map(|x| x.0)
         }
     }
 }

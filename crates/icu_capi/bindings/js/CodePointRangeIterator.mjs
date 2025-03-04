@@ -12,7 +12,6 @@ const CodePointRangeIterator_box_destroy_registry = new FinalizationRegistry((pt
 });
 
 export class CodePointRangeIterator {
-    
     // Internal ptr reference:
     #ptr = null;
 
@@ -21,7 +20,7 @@ export class CodePointRangeIterator {
     #selfEdge = [];
     #aEdge = [];
     
-    #internalConstructor(symbol, ptr, selfEdge, aEdge) {
+    constructor(symbol, ptr, selfEdge, aEdge) {
         if (symbol !== diplomatRuntime.internalConstructor) {
             console.error("CodePointRangeIterator is an Opaque type. You cannot call its constructor.");
             return;
@@ -37,9 +36,8 @@ export class CodePointRangeIterator {
         if (this.#selfEdge.length === 0) {
             CodePointRangeIterator_box_destroy_registry.register(this, this.#ptr);
         }
-        
-        return this;
     }
+
     get ffiValue() {
         return this.#ptr;
     }
@@ -56,9 +54,5 @@ export class CodePointRangeIterator {
         finally {
             diplomatReceive.free();
         }
-    }
-
-    constructor(symbol, ptr, selfEdge, aEdge) {
-        return this.#internalConstructor(...arguments)
     }
 }

@@ -10,7 +10,6 @@ const GraphemeClusterBreakIteratorLatin1_box_destroy_registry = new Finalization
 });
 
 export class GraphemeClusterBreakIteratorLatin1 {
-    
     // Internal ptr reference:
     #ptr = null;
 
@@ -19,7 +18,7 @@ export class GraphemeClusterBreakIteratorLatin1 {
     #selfEdge = [];
     #aEdge = [];
     
-    #internalConstructor(symbol, ptr, selfEdge, aEdge) {
+    constructor(symbol, ptr, selfEdge, aEdge) {
         if (symbol !== diplomatRuntime.internalConstructor) {
             console.error("GraphemeClusterBreakIteratorLatin1 is an Opaque type. You cannot call its constructor.");
             return;
@@ -35,9 +34,8 @@ export class GraphemeClusterBreakIteratorLatin1 {
         if (this.#selfEdge.length === 0) {
             GraphemeClusterBreakIteratorLatin1_box_destroy_registry.register(this, this.#ptr);
         }
-        
-        return this;
     }
+
     get ffiValue() {
         return this.#ptr;
     }
@@ -50,9 +48,5 @@ export class GraphemeClusterBreakIteratorLatin1 {
         }
         
         finally {}
-    }
-
-    constructor(symbol, ptr, selfEdge, aEdge) {
-        return this.#internalConstructor(...arguments)
     }
 }

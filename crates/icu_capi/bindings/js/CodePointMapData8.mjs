@@ -3,7 +3,6 @@ import { CodePointRangeIterator } from "./CodePointRangeIterator.mjs"
 import { CodePointSetData } from "./CodePointSetData.mjs"
 import { DataError } from "./DataError.mjs"
 import { DataProvider } from "./DataProvider.mjs"
-import { GeneralCategoryGroup } from "./GeneralCategoryGroup.mjs"
 import wasm from "./diplomat-wasm.mjs";
 import * as diplomatRuntime from "./diplomat-runtime.mjs";
 
@@ -23,7 +22,6 @@ const CodePointMapData8_box_destroy_registry = new FinalizationRegistry((ptr) =>
 });
 
 export class CodePointMapData8 {
-    
     // Internal ptr reference:
     #ptr = null;
 
@@ -31,7 +29,7 @@ export class CodePointMapData8 {
     // Since JS won't garbage collect until there are no incoming edges.
     #selfEdge = [];
     
-    #internalConstructor(symbol, ptr, selfEdge) {
+    constructor(symbol, ptr, selfEdge) {
         if (symbol !== diplomatRuntime.internalConstructor) {
             console.error("CodePointMapData8 is an Opaque type. You cannot call its constructor.");
             return;
@@ -44,15 +42,24 @@ export class CodePointMapData8 {
         if (this.#selfEdge.length === 0) {
             CodePointMapData8_box_destroy_registry.register(this, this.#ptr);
         }
-        
-        return this;
     }
+
     get ffiValue() {
         return this.#ptr;
     }
 
     get(cp) {
         const result = wasm.icu4x_CodePointMapData8_get_mv1(this.ffiValue, cp);
+    
+        try {
+            return result;
+        }
+        
+        finally {}
+    }
+
+    static generalCategoryToMask(gc) {
+        const result = wasm.icu4x_CodePointMapData8_general_category_to_mask_mv1(gc);
     
         try {
             return result;
@@ -87,21 +94,17 @@ export class CodePointMapData8 {
         finally {}
     }
 
-    iterRangesForGroup(group) {
-        let functionCleanupArena = new diplomatRuntime.CleanupArena();
-        
+    iterRangesForMask(mask) {
         // This lifetime edge depends on lifetimes 'a
         let aEdges = [this];
         
-        const result = wasm.icu4x_CodePointMapData8_iter_ranges_for_group_mv1(this.ffiValue, ...GeneralCategoryGroup._fromSuppliedValue(diplomatRuntime.internalConstructor, group)._intoFFI(functionCleanupArena, {}));
+        const result = wasm.icu4x_CodePointMapData8_iter_ranges_for_mask_mv1(this.ffiValue, mask);
     
         try {
             return new CodePointRangeIterator(diplomatRuntime.internalConstructor, result, [], aEdges);
         }
         
-        finally {
-            functionCleanupArena.free();
-        }
+        finally {}
     }
 
     getSetForValue(value) {
@@ -114,20 +117,10 @@ export class CodePointMapData8 {
         finally {}
     }
 
-    static createGeneralCategory() {
-        const result = wasm.icu4x_CodePointMapData8_create_general_category_mv1();
-    
-        try {
-            return new CodePointMapData8(diplomatRuntime.internalConstructor, result, []);
-        }
-        
-        finally {}
-    }
-
-    static createGeneralCategoryWithProvider(provider) {
+    static loadGeneralCategory(provider) {
         const diplomatReceive = new diplomatRuntime.DiplomatReceiveBuf(wasm, 5, 4, true);
         
-        const result = wasm.icu4x_CodePointMapData8_create_general_category_with_provider_mv1(diplomatReceive.buffer, provider.ffiValue);
+        const result = wasm.icu4x_CodePointMapData8_load_general_category_mv1(diplomatReceive.buffer, provider.ffiValue);
     
         try {
             if (!diplomatReceive.resultFlag) {
@@ -142,20 +135,10 @@ export class CodePointMapData8 {
         }
     }
 
-    static createBidiClass() {
-        const result = wasm.icu4x_CodePointMapData8_create_bidi_class_mv1();
-    
-        try {
-            return new CodePointMapData8(diplomatRuntime.internalConstructor, result, []);
-        }
-        
-        finally {}
-    }
-
-    static createBidiClassWithProvider(provider) {
+    static loadBidiClass(provider) {
         const diplomatReceive = new diplomatRuntime.DiplomatReceiveBuf(wasm, 5, 4, true);
         
-        const result = wasm.icu4x_CodePointMapData8_create_bidi_class_with_provider_mv1(diplomatReceive.buffer, provider.ffiValue);
+        const result = wasm.icu4x_CodePointMapData8_load_bidi_class_mv1(diplomatReceive.buffer, provider.ffiValue);
     
         try {
             if (!diplomatReceive.resultFlag) {
@@ -170,20 +153,10 @@ export class CodePointMapData8 {
         }
     }
 
-    static createEastAsianWidth() {
-        const result = wasm.icu4x_CodePointMapData8_create_east_asian_width_mv1();
-    
-        try {
-            return new CodePointMapData8(diplomatRuntime.internalConstructor, result, []);
-        }
-        
-        finally {}
-    }
-
-    static createEastAsianWidthWithProvider(provider) {
+    static loadEastAsianWidth(provider) {
         const diplomatReceive = new diplomatRuntime.DiplomatReceiveBuf(wasm, 5, 4, true);
         
-        const result = wasm.icu4x_CodePointMapData8_create_east_asian_width_with_provider_mv1(diplomatReceive.buffer, provider.ffiValue);
+        const result = wasm.icu4x_CodePointMapData8_load_east_asian_width_mv1(diplomatReceive.buffer, provider.ffiValue);
     
         try {
             if (!diplomatReceive.resultFlag) {
@@ -198,20 +171,10 @@ export class CodePointMapData8 {
         }
     }
 
-    static createHangulSyllableType() {
-        const result = wasm.icu4x_CodePointMapData8_create_hangul_syllable_type_mv1();
-    
-        try {
-            return new CodePointMapData8(diplomatRuntime.internalConstructor, result, []);
-        }
-        
-        finally {}
-    }
-
-    static createHangulSyllableTypeWithProvider(provider) {
+    static loadHangulSyllableType(provider) {
         const diplomatReceive = new diplomatRuntime.DiplomatReceiveBuf(wasm, 5, 4, true);
         
-        const result = wasm.icu4x_CodePointMapData8_create_hangul_syllable_type_with_provider_mv1(diplomatReceive.buffer, provider.ffiValue);
+        const result = wasm.icu4x_CodePointMapData8_load_hangul_syllable_type_mv1(diplomatReceive.buffer, provider.ffiValue);
     
         try {
             if (!diplomatReceive.resultFlag) {
@@ -226,20 +189,10 @@ export class CodePointMapData8 {
         }
     }
 
-    static createIndicSyllabicCategory() {
-        const result = wasm.icu4x_CodePointMapData8_create_indic_syllabic_category_mv1();
-    
-        try {
-            return new CodePointMapData8(diplomatRuntime.internalConstructor, result, []);
-        }
-        
-        finally {}
-    }
-
-    static createIndicSyllabicCategoryWithProvider(provider) {
+    static loadIndicSyllabicCategory(provider) {
         const diplomatReceive = new diplomatRuntime.DiplomatReceiveBuf(wasm, 5, 4, true);
         
-        const result = wasm.icu4x_CodePointMapData8_create_indic_syllabic_category_with_provider_mv1(diplomatReceive.buffer, provider.ffiValue);
+        const result = wasm.icu4x_CodePointMapData8_load_indic_syllabic_category_mv1(diplomatReceive.buffer, provider.ffiValue);
     
         try {
             if (!diplomatReceive.resultFlag) {
@@ -254,20 +207,10 @@ export class CodePointMapData8 {
         }
     }
 
-    static createLineBreak() {
-        const result = wasm.icu4x_CodePointMapData8_create_line_break_mv1();
-    
-        try {
-            return new CodePointMapData8(diplomatRuntime.internalConstructor, result, []);
-        }
-        
-        finally {}
-    }
-
-    static createLineBreakWithProvider(provider) {
+    static loadLineBreak(provider) {
         const diplomatReceive = new diplomatRuntime.DiplomatReceiveBuf(wasm, 5, 4, true);
         
-        const result = wasm.icu4x_CodePointMapData8_create_line_break_with_provider_mv1(diplomatReceive.buffer, provider.ffiValue);
+        const result = wasm.icu4x_CodePointMapData8_load_line_break_mv1(diplomatReceive.buffer, provider.ffiValue);
     
         try {
             if (!diplomatReceive.resultFlag) {
@@ -282,20 +225,10 @@ export class CodePointMapData8 {
         }
     }
 
-    static createGraphemeClusterBreak() {
-        const result = wasm.icu4x_CodePointMapData8_create_grapheme_cluster_break_mv1();
-    
-        try {
-            return new CodePointMapData8(diplomatRuntime.internalConstructor, result, []);
-        }
-        
-        finally {}
-    }
-
-    static createGraphemeClusterBreakWithProvider(provider) {
+    static tryGraphemeClusterBreak(provider) {
         const diplomatReceive = new diplomatRuntime.DiplomatReceiveBuf(wasm, 5, 4, true);
         
-        const result = wasm.icu4x_CodePointMapData8_create_grapheme_cluster_break_with_provider_mv1(diplomatReceive.buffer, provider.ffiValue);
+        const result = wasm.icu4x_CodePointMapData8_try_grapheme_cluster_break_mv1(diplomatReceive.buffer, provider.ffiValue);
     
         try {
             if (!diplomatReceive.resultFlag) {
@@ -310,20 +243,10 @@ export class CodePointMapData8 {
         }
     }
 
-    static createWordBreak() {
-        const result = wasm.icu4x_CodePointMapData8_create_word_break_mv1();
-    
-        try {
-            return new CodePointMapData8(diplomatRuntime.internalConstructor, result, []);
-        }
-        
-        finally {}
-    }
-
-    static createWordBreakWithProvider(provider) {
+    static loadWordBreak(provider) {
         const diplomatReceive = new diplomatRuntime.DiplomatReceiveBuf(wasm, 5, 4, true);
         
-        const result = wasm.icu4x_CodePointMapData8_create_word_break_with_provider_mv1(diplomatReceive.buffer, provider.ffiValue);
+        const result = wasm.icu4x_CodePointMapData8_load_word_break_mv1(diplomatReceive.buffer, provider.ffiValue);
     
         try {
             if (!diplomatReceive.resultFlag) {
@@ -338,20 +261,10 @@ export class CodePointMapData8 {
         }
     }
 
-    static createSentenceBreak() {
-        const result = wasm.icu4x_CodePointMapData8_create_sentence_break_mv1();
-    
-        try {
-            return new CodePointMapData8(diplomatRuntime.internalConstructor, result, []);
-        }
-        
-        finally {}
-    }
-
-    static createSentenceBreakWithProvider(provider) {
+    static loadSentenceBreak(provider) {
         const diplomatReceive = new diplomatRuntime.DiplomatReceiveBuf(wasm, 5, 4, true);
         
-        const result = wasm.icu4x_CodePointMapData8_create_sentence_break_with_provider_mv1(diplomatReceive.buffer, provider.ffiValue);
+        const result = wasm.icu4x_CodePointMapData8_load_sentence_break_mv1(diplomatReceive.buffer, provider.ffiValue);
     
         try {
             if (!diplomatReceive.resultFlag) {
@@ -366,20 +279,10 @@ export class CodePointMapData8 {
         }
     }
 
-    static createJoiningType() {
-        const result = wasm.icu4x_CodePointMapData8_create_joining_type_mv1();
-    
-        try {
-            return new CodePointMapData8(diplomatRuntime.internalConstructor, result, []);
-        }
-        
-        finally {}
-    }
-
-    static createJoiningTypeWithProvider(provider) {
+    static loadJoiningType(provider) {
         const diplomatReceive = new diplomatRuntime.DiplomatReceiveBuf(wasm, 5, 4, true);
         
-        const result = wasm.icu4x_CodePointMapData8_create_joining_type_with_provider_mv1(diplomatReceive.buffer, provider.ffiValue);
+        const result = wasm.icu4x_CodePointMapData8_load_joining_type_mv1(diplomatReceive.buffer, provider.ffiValue);
     
         try {
             if (!diplomatReceive.resultFlag) {
@@ -394,20 +297,10 @@ export class CodePointMapData8 {
         }
     }
 
-    static createCanonicalCombiningClass() {
-        const result = wasm.icu4x_CodePointMapData8_create_canonical_combining_class_mv1();
-    
-        try {
-            return new CodePointMapData8(diplomatRuntime.internalConstructor, result, []);
-        }
-        
-        finally {}
-    }
-
-    static createCanonicalCombiningClassWithProvider(provider) {
+    static loadCanonicalCombiningClass(provider) {
         const diplomatReceive = new diplomatRuntime.DiplomatReceiveBuf(wasm, 5, 4, true);
         
-        const result = wasm.icu4x_CodePointMapData8_create_canonical_combining_class_with_provider_mv1(diplomatReceive.buffer, provider.ffiValue);
+        const result = wasm.icu4x_CodePointMapData8_load_canonical_combining_class_mv1(diplomatReceive.buffer, provider.ffiValue);
     
         try {
             if (!diplomatReceive.resultFlag) {
@@ -420,9 +313,5 @@ export class CodePointMapData8 {
         finally {
             diplomatReceive.free();
         }
-    }
-
-    constructor(symbol, ptr, selfEdge) {
-        return this.#internalConstructor(...arguments)
     }
 }

@@ -11,7 +11,6 @@ const WordBreakIteratorUtf16_box_destroy_registry = new FinalizationRegistry((pt
 });
 
 export class WordBreakIteratorUtf16 {
-    
     // Internal ptr reference:
     #ptr = null;
 
@@ -20,7 +19,7 @@ export class WordBreakIteratorUtf16 {
     #selfEdge = [];
     #aEdge = [];
     
-    #internalConstructor(symbol, ptr, selfEdge, aEdge) {
+    constructor(symbol, ptr, selfEdge, aEdge) {
         if (symbol !== diplomatRuntime.internalConstructor) {
             console.error("WordBreakIteratorUtf16 is an Opaque type. You cannot call its constructor.");
             return;
@@ -36,9 +35,8 @@ export class WordBreakIteratorUtf16 {
         if (this.#selfEdge.length === 0) {
             WordBreakIteratorUtf16_box_destroy_registry.register(this, this.#ptr);
         }
-        
-        return this;
     }
+
     get ffiValue() {
         return this.#ptr;
     }
@@ -71,9 +69,5 @@ export class WordBreakIteratorUtf16 {
         }
         
         finally {}
-    }
-
-    constructor(symbol, ptr, selfEdge, aEdge) {
-        return this.#internalConstructor(...arguments)
     }
 }

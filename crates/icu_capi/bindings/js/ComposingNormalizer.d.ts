@@ -6,19 +6,14 @@ import type { pointer, codepoint } from "./diplomat-runtime.d.ts";
 
 /** See the [Rust documentation for `ComposingNormalizer`](https://docs.rs/icu/latest/icu/normalizer/struct.ComposingNormalizer.html) for more information.
 */
-
-
 export class ComposingNormalizer {
     
+
     get ffiValue(): pointer;
 
-    static createNfc(): ComposingNormalizer;
+    static createNfc(provider: DataProvider): ComposingNormalizer;
 
-    static createNfcWithProvider(provider: DataProvider): ComposingNormalizer;
-
-    static createNfkc(): ComposingNormalizer;
-
-    static createNfkcWithProvider(provider: DataProvider): ComposingNormalizer;
+    static createNfkc(provider: DataProvider): ComposingNormalizer;
 
     normalize(s: string): string;
 

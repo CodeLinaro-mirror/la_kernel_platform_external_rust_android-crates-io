@@ -11,7 +11,6 @@ const WordBreakIteratorLatin1_box_destroy_registry = new FinalizationRegistry((p
 });
 
 export class WordBreakIteratorLatin1 {
-    
     // Internal ptr reference:
     #ptr = null;
 
@@ -20,7 +19,7 @@ export class WordBreakIteratorLatin1 {
     #selfEdge = [];
     #aEdge = [];
     
-    #internalConstructor(symbol, ptr, selfEdge, aEdge) {
+    constructor(symbol, ptr, selfEdge, aEdge) {
         if (symbol !== diplomatRuntime.internalConstructor) {
             console.error("WordBreakIteratorLatin1 is an Opaque type. You cannot call its constructor.");
             return;
@@ -36,9 +35,8 @@ export class WordBreakIteratorLatin1 {
         if (this.#selfEdge.length === 0) {
             WordBreakIteratorLatin1_box_destroy_registry.register(this, this.#ptr);
         }
-        
-        return this;
     }
+
     get ffiValue() {
         return this.#ptr;
     }
@@ -71,9 +69,5 @@ export class WordBreakIteratorLatin1 {
         }
         
         finally {}
-    }
-
-    constructor(symbol, ptr, selfEdge, aEdge) {
-        return this.#internalConstructor(...arguments)
     }
 }

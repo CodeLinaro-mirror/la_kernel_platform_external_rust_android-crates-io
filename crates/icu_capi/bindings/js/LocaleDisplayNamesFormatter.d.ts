@@ -2,22 +2,18 @@
 import type { DataError } from "./DataError"
 import type { DataProvider } from "./DataProvider"
 import type { DisplayNamesOptions } from "./DisplayNamesOptions"
-import type { DisplayNamesOptions_obj } from "./DisplayNamesOptions"
 import type { Locale } from "./Locale"
 import type { pointer, codepoint } from "./diplomat-runtime.d.ts";
 
 
 /** See the [Rust documentation for `LocaleDisplayNamesFormatter`](https://docs.rs/icu/latest/icu/displaynames/struct.LocaleDisplayNamesFormatter.html) for more information.
 */
-
-
 export class LocaleDisplayNamesFormatter {
     
+
     get ffiValue(): pointer;
 
-    static createWithProvider(provider: DataProvider, locale: Locale, options: DisplayNamesOptions_obj): LocaleDisplayNamesFormatter;
+    static create(provider: DataProvider, locale: Locale, options: DisplayNamesOptions): LocaleDisplayNamesFormatter;
 
     of(locale: Locale): string;
-
-    constructor(locale: Locale, options: DisplayNamesOptions_obj);
 }

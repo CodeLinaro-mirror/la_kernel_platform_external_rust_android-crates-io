@@ -14,17 +14,14 @@ import type { pointer, codepoint } from "./diplomat-runtime.d.ts";
 *
 *See the [Rust documentation for `ConverterFactory`](https://docs.rs/icu/latest/icu/experimental/units/converter_factory/struct.ConverterFactory.html) for more information.
 */
-
-
 export class UnitsConverterFactory {
     
+
     get ffiValue(): pointer;
 
-    static createWithProvider(provider: DataProvider): UnitsConverterFactory;
+    static create(provider: DataProvider): UnitsConverterFactory;
 
     converter(from: MeasureUnit, to: MeasureUnit): UnitsConverter | null;
 
     parser(): MeasureUnitParser;
-
-    constructor();
 }

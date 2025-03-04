@@ -1,5 +1,5 @@
 name: "env_filter"
-description: "Filter log events using environment variables"
+description: "Filter log events using environment variables\n"
 third_party {
   version: "0.1.3"
   license_type: NOTICE

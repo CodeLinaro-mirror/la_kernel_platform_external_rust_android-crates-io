@@ -12,10 +12,9 @@
 [package]
 edition = "2021"
 name = "zerovec-derive"
-version = "0.11.1"
+version = "0.11.0"
 authors = ["Manish Goregaokar <manishsmail@gmail.com>"]
 build = false
-autolib = false
 autobins = false
 autoexamples = false
 autotests = false

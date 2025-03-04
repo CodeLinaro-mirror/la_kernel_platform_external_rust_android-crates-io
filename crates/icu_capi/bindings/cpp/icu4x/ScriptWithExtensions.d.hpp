@@ -6,7 +6,6 @@
 #include <stddef.h>
 #include <stdbool.h>
 #include <memory>
-#include <functional>
 #include <optional>
 #include "../diplomat_runtime.hpp"
 
@@ -33,9 +32,7 @@ namespace icu4x {
 class ScriptWithExtensions {
 public:
 
-  inline static std::unique_ptr<icu4x::ScriptWithExtensions> create();
-
-  inline static diplomat::result<std::unique_ptr<icu4x::ScriptWithExtensions>, icu4x::DataError> create_with_provider(const icu4x::DataProvider& provider);
+  inline static diplomat::result<std::unique_ptr<icu4x::ScriptWithExtensions>, icu4x::DataError> create(const icu4x::DataProvider& provider);
 
   inline uint16_t get_script_val(char32_t ch) const;
 

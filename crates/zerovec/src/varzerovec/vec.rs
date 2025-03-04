@@ -4,6 +4,7 @@
 
 use crate::ule::*;
 
+use alloc::vec::Vec;
 use core::cmp::{Ord, Ordering, PartialOrd};
 use core::fmt;
 use core::ops::Deref;
@@ -141,7 +142,6 @@ use super::*;
 pub struct VarZeroVec<'a, T: ?Sized, F = Index16>(pub(crate) VarZeroVecInner<'a, T, F>);
 
 pub(crate) enum VarZeroVecInner<'a, T: ?Sized, F = Index16> {
-    #[cfg(feature = "alloc")]
     Owned(VarZeroVecOwned<T, F>),
     Borrowed(&'a VarZeroSlice<T, F>),
 }
@@ -149,7 +149,6 @@ pub(crate) enum VarZeroVecInner<'a, T: ?Sized, F = Index16> {
 impl<'a, T: ?Sized, F> Clone for VarZeroVec<'a, T, F> {
     fn clone(&self) -> Self {
         match self.0 {
-            #[cfg(feature = "alloc")]
             VarZeroVecInner::Owned(ref o) => o.clone().into(),
             VarZeroVecInner::Borrowed(b) => b.into(),
         }
@@ -165,7 +164,6 @@ where
     }
 }
 
-#[cfg(feature = "alloc")]
 impl<'a, T: ?Sized, F> From<VarZeroVecOwned<T, F>> for VarZeroVec<'a, T, F> {
     #[inline]
     fn from(other: VarZeroVecOwned<T, F>) -> Self {
@@ -179,7 +177,6 @@ impl<'a, T: ?Sized, F> From<&'a VarZeroSlice<T, F>> for VarZeroVec<'a, T, F> {
     }
 }
 
-#[cfg(feature = "alloc")]
 impl<'a, T: ?Sized + VarULE, F: VarZeroVecFormat> From<VarZeroVec<'a, T, F>>
     for VarZeroVecOwned<T, F>
 {
@@ -280,7 +277,6 @@ impl<'a, T: VarULE + ?Sized, F: VarZeroVecFormat> VarZeroVec<'a, T, F> {
     //
     // This function is crate-public for now since we don't yet want to stabilize
     // the internal implementation details
-    #[cfg(feature = "alloc")]
     pub fn make_mut(&mut self) -> &mut VarZeroVecOwned<T, F> {
         match self.0 {
             VarZeroVecInner::Owned(ref mut vec) => vec,
@@ -307,7 +303,6 @@ impl<'a, T: VarULE + ?Sized, F: VarZeroVecFormat> VarZeroVec<'a, T, F> {
     /// // has 'static lifetime
     /// let owned = vec.into_owned();
     /// ```
-    #[cfg(feature = "alloc")]
     pub fn into_owned(mut self) -> VarZeroVec<'static, T, F> {
         self.make_mut();
         match self.0 {
@@ -319,7 +314,6 @@ impl<'a, T: VarULE + ?Sized, F: VarZeroVecFormat> VarZeroVec<'a, T, F> {
     /// Obtain this `VarZeroVec` as a [`VarZeroSlice`]
     pub fn as_slice(&self) -> &VarZeroSlice<T, F> {
         match self.0 {
-            #[cfg(feature = "alloc")]
             VarZeroVecInner::Owned(ref owned) => owned,
             VarZeroVecInner::Borrowed(b) => b,
         }
@@ -344,10 +338,8 @@ impl<'a, T: VarULE + ?Sized, F: VarZeroVecFormat> VarZeroVec<'a, T, F> {
     ///     VarZeroVec::parse_bytes(&bytes).unwrap();
     /// assert_eq!(borrowed, &*strings);
     /// ```
-    #[cfg(feature = "alloc")]
-    pub fn into_bytes(self) -> alloc::vec::Vec<u8> {
+    pub fn into_bytes(self) -> Vec<u8> {
         match self.0 {
-            #[cfg(feature = "alloc")]
             VarZeroVecInner::Owned(vec) => vec.into_bytes(),
             VarZeroVecInner::Borrowed(vec) => vec.as_bytes().to_vec(),
         }
@@ -358,32 +350,30 @@ impl<'a, T: VarULE + ?Sized, F: VarZeroVecFormat> VarZeroVec<'a, T, F> {
     /// be used to force it into an owned type
     pub fn is_owned(&self) -> bool {
         match self.0 {
-            #[cfg(feature = "alloc")]
             VarZeroVecInner::Owned(..) => true,
             VarZeroVecInner::Borrowed(..) => false,
         }
     }
 
+    #[cfg(feature = "bench")]
     #[doc(hidden)]
     pub fn as_components<'b>(&'b self) -> VarZeroVecComponents<'b, T, F> {
         self.as_slice().as_components()
     }
 }
 
-#[cfg(feature = "alloc")]
-impl<A, T, F> From<&alloc::vec::Vec<A>> for VarZeroVec<'static, T, F>
+impl<A, T, F> From<&Vec<A>> for VarZeroVec<'static, T, F>
 where
     T: VarULE + ?Sized,
     A: EncodeAsVarULE<T>,
     F: VarZeroVecFormat,
 {
     #[inline]
-    fn from(elements: &alloc::vec::Vec<A>) -> Self {
+    fn from(elements: &Vec<A>) -> Self {
         Self::from(elements.as_slice())
     }
 }
 
-#[cfg(feature = "alloc")]
 impl<A, T, F> From<&[A]> for VarZeroVec<'static, T, F>
 where
     T: VarULE + ?Sized,
@@ -401,7 +391,6 @@ where
     }
 }
 
-#[cfg(feature = "alloc")]
 impl<A, T, F, const N: usize> From<&[A; N]> for VarZeroVec<'static, T, F>
 where
     T: VarULE + ?Sized,

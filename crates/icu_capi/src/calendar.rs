@@ -10,10 +10,8 @@ pub mod ffi {
     use alloc::sync::Arc;
     use core::fmt::Write;
 
-    #[cfg(any(feature = "compiled_data", feature = "buffer_provider"))]
     use crate::errors::ffi::DataError;
     use crate::locale_core::ffi::Locale;
-    #[cfg(feature = "buffer_provider")]
     use crate::provider::ffi::DataProvider;
 
     /// The various calendar types currently supported by [`Calendar`]
@@ -102,58 +100,39 @@ pub mod ffi {
     pub struct Calendar(pub Arc<icu_calendar::AnyCalendar>);
 
     impl Calendar {
-        /// Creates a new [`Calendar`] from the specified date and time, using compiled data.
+        /// Creates a new [`Calendar`] from the specified date and time.
         #[diplomat::rust_link(icu::calendar::AnyCalendar::try_new, FnInEnum)]
-        #[diplomat::attr(all(supports = fallible_constructors, supports = named_constructors), named_constructor = "for_locale")]
+        #[diplomat::attr(supports = fallible_constructors, named_constructor = "for_locale")]
         #[diplomat::demo(default_constructor)]
-        #[cfg(feature = "compiled_data")]
-        pub fn create_for_locale(locale: &Locale) -> Result<Box<Calendar>, DataError> {
-            let prefs = (&locale.0).into();
-            Ok(Box::new(Calendar(Arc::new(
-                icu_calendar::AnyCalendar::try_new(prefs)?,
-            ))))
-        }
-
-        /// Creates a new [`Calendar`] from the specified date and time, using compiled data.
-        #[diplomat::rust_link(icu::calendar::AnyCalendar::new_for_kind, FnInEnum)]
-        #[diplomat::attr(all(supports = fallible_constructors, supports = named_constructors), named_constructor = "for_kind")]
-        #[cfg(feature = "compiled_data")]
-        pub fn create_for_kind(kind: AnyCalendarKind) -> Result<Box<Calendar>, DataError> {
-            Ok(Box::new(Calendar(Arc::new(
-                icu_calendar::AnyCalendar::new_for_kind(kind.into()),
-            ))))
-        }
-
-        /// Creates a new [`Calendar`] from the specified date and time, using a particular data source.
-        #[diplomat::rust_link(icu::calendar::AnyCalendar::try_new, FnInEnum)]
-        #[diplomat::attr(all(supports = fallible_constructors, supports = named_constructors), named_constructor = "for_locale_with_provider")]
-        #[diplomat::demo(default_constructor)]
-        #[cfg(feature = "buffer_provider")]
-        pub fn create_for_locale_with_provider(
+        pub fn create_for_locale(
             provider: &DataProvider,
             locale: &Locale,
         ) -> Result<Box<Calendar>, DataError> {
             let prefs = (&locale.0).into();
 
-            Ok(Box::new(Calendar(Arc::new(
-                icu_calendar::AnyCalendar::try_new_with_buffer_provider(provider.get()?, prefs)?,
-            ))))
+            Ok(Box::new(Calendar(Arc::new(call_constructor!(
+                icu_calendar::AnyCalendar::try_new,
+                icu_calendar::AnyCalendar::try_new_with_any_provider,
+                icu_calendar::AnyCalendar::try_new_with_buffer_provider,
+                provider,
+                prefs
+            )?))))
         }
 
-        /// Creates a new [`Calendar`] from the specified date and time, using a particular data source.
+        /// Creates a new [`Calendar`] from the specified date and time.
         #[diplomat::rust_link(icu::calendar::AnyCalendar::new_for_kind, FnInEnum)]
-        #[diplomat::attr(all(supports = fallible_constructors, supports = named_constructors), named_constructor = "for_kind_with_provider")]
-        #[cfg(feature = "buffer_provider")]
-        pub fn create_for_kind_with_provider(
+        #[diplomat::attr(supports = fallible_constructors, named_constructor = "for_kind")]
+        pub fn create_for_kind(
             provider: &DataProvider,
             kind: AnyCalendarKind,
         ) -> Result<Box<Calendar>, DataError> {
-            Ok(Box::new(Calendar(Arc::new(
-                icu_calendar::AnyCalendar::try_new_for_kind_with_buffer_provider(
-                    provider.get()?,
-                    kind.into(),
-                )?,
-            ))))
+            Ok(Box::new(Calendar(Arc::new(call_constructor!(
+                icu_calendar::AnyCalendar::new_for_kind [r => Ok(r)],
+                icu_calendar::AnyCalendar::try_new_for_kind_with_any_provider,
+                icu_calendar::AnyCalendar::try_new_for_kind_with_buffer_provider,
+                provider,
+                kind.into()
+            )?))))
         }
 
         /// Returns the kind of this calendar

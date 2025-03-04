@@ -7,14 +7,13 @@ import * as diplomatRuntime from "./diplomat-runtime.mjs";
 
 /** An ICU4X Time object representing a time in terms of hour, minute, second, nanosecond
 *
-*See the [Rust documentation for `Time`](https://docs.rs/icu/latest/icu/time/struct.Time.html) for more information.
+*See the [Rust documentation for `Time`](https://docs.rs/icu/latest/icu/calendar/struct.Time.html) for more information.
 */
 const Time_box_destroy_registry = new FinalizationRegistry((ptr) => {
     wasm.icu4x_Time_destroy_mv1(ptr);
 });
 
 export class Time {
-    
     // Internal ptr reference:
     #ptr = null;
 
@@ -22,7 +21,7 @@ export class Time {
     // Since JS won't garbage collect until there are no incoming edges.
     #selfEdge = [];
     
-    #internalConstructor(symbol, ptr, selfEdge) {
+    constructor(symbol, ptr, selfEdge) {
         if (symbol !== diplomatRuntime.internalConstructor) {
             console.error("Time is an Opaque type. You cannot call its constructor.");
             return;
@@ -35,17 +34,16 @@ export class Time {
         if (this.#selfEdge.length === 0) {
             Time_box_destroy_registry.register(this, this.#ptr);
         }
-        
-        return this;
     }
+
     get ffiValue() {
         return this.#ptr;
     }
 
-    #defaultConstructor(hour, minute, second, subsecond) {
+    static create(hour, minute, second, nanosecond) {
         const diplomatReceive = new diplomatRuntime.DiplomatReceiveBuf(wasm, 5, 4, true);
         
-        const result = wasm.icu4x_Time_create_mv1(diplomatReceive.buffer, hour, minute, second, subsecond);
+        const result = wasm.icu4x_Time_create_mv1(diplomatReceive.buffer, hour, minute, second, nanosecond);
     
         try {
             if (!diplomatReceive.resultFlag) {
@@ -132,23 +130,13 @@ export class Time {
         finally {}
     }
 
-    get subsecond() {
-        const result = wasm.icu4x_Time_subsecond_mv1(this.ffiValue);
+    get nanosecond() {
+        const result = wasm.icu4x_Time_nanosecond_mv1(this.ffiValue);
     
         try {
             return result;
         }
         
         finally {}
-    }
-
-    constructor(hour, minute, second, subsecond) {
-        if (arguments[0] === diplomatRuntime.exposeConstructor) {
-            return this.#internalConstructor(...Array.prototype.slice.call(arguments, 1));
-        } else if (arguments[0] === diplomatRuntime.internalConstructor) {
-            return this.#internalConstructor(...arguments);
-        } else {
-            return this.#defaultConstructor(...arguments);
-        }
     }
 }

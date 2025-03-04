@@ -2,13 +2,10 @@
 import wasm from "./diplomat-wasm.mjs";
 import * as diplomatRuntime from "./diplomat-runtime.mjs";
 
-
+// Base enumerator definition
 /** See the [Rust documentation for `BidiClass`](https://docs.rs/icu/latest/icu/properties/props/struct.BidiClass.html) for more information.
 */
-
-
 export class BidiClass {
-    
     #value = undefined;
 
     static #values = new Map([
@@ -40,14 +37,14 @@ export class BidiClass {
     static getAllEntries() {
         return BidiClass.#values.entries();
     }
-    
-    #internalConstructor(value) {
+
+    constructor(value) {
         if (arguments.length > 1 && arguments[0] === diplomatRuntime.internalConstructor) {
             // We pass in two internalConstructor arguments to create *new*
             // instances of this type, otherwise the enums are treated as singletons.
             if (arguments[1] === diplomatRuntime.internalConstructor ) {
                 this.#value = arguments[2];
-                return this;
+                return;
             }
             return BidiClass.#objectValues[arguments[1]];
         }
@@ -59,15 +56,11 @@ export class BidiClass {
         let intVal = BidiClass.#values.get(value);
 
         // Nullish check, checks for null or undefined
-        if (intVal != null) {
+        if (intVal == null) {
             return BidiClass.#objectValues[intVal];
         }
 
         throw TypeError(value + " is not a BidiClass and does not correspond to any of its enumerator values.");
-    }
-
-    static fromValue(value) {
-        return new BidiClass(value);
     }
 
     get value() {
@@ -127,52 +120,8 @@ export class BidiClass {
     static RightToLeftIsolate = BidiClass.#objectValues[21];
     static PopDirectionalIsolate = BidiClass.#objectValues[22];
 
-    static forChar(ch) {
-        const result = wasm.icu4x_BidiClass_for_char_mv1(ch);
-    
-        try {
-            return new BidiClass(diplomatRuntime.internalConstructor, result);
-        }
-        
-        finally {}
-    }
-
-    longName() {
-        const diplomatReceive = new diplomatRuntime.DiplomatReceiveBuf(wasm, 9, 4, true);
-        
-        const result = wasm.icu4x_BidiClass_long_name_mv1(diplomatReceive.buffer, this.ffiValue);
-    
-        try {
-            if (!diplomatReceive.resultFlag) {
-                return null;
-            }
-            return new diplomatRuntime.DiplomatSliceStr(wasm, diplomatReceive.buffer,  "string8", []).getValue();
-        }
-        
-        finally {
-            diplomatReceive.free();
-        }
-    }
-
-    shortName() {
-        const diplomatReceive = new diplomatRuntime.DiplomatReceiveBuf(wasm, 9, 4, true);
-        
-        const result = wasm.icu4x_BidiClass_short_name_mv1(diplomatReceive.buffer, this.ffiValue);
-    
-        try {
-            if (!diplomatReceive.resultFlag) {
-                return null;
-            }
-            return new diplomatRuntime.DiplomatSliceStr(wasm, diplomatReceive.buffer,  "string8", []).getValue();
-        }
-        
-        finally {
-            diplomatReceive.free();
-        }
-    }
-
-    toIntegerValue() {
-        const result = wasm.icu4x_BidiClass_to_integer_value_mv1(this.ffiValue);
+    toInteger() {
+        const result = wasm.icu4x_BidiClass_to_integer_mv1(this.ffiValue);
     
         try {
             return result;
@@ -181,10 +130,10 @@ export class BidiClass {
         finally {}
     }
 
-    static fromIntegerValue(other) {
+    static fromInteger(other) {
         const diplomatReceive = new diplomatRuntime.DiplomatReceiveBuf(wasm, 5, 4, true);
         
-        const result = wasm.icu4x_BidiClass_from_integer_value_mv1(diplomatReceive.buffer, other);
+        const result = wasm.icu4x_BidiClass_from_integer_mv1(diplomatReceive.buffer, other);
     
         try {
             if (!diplomatReceive.resultFlag) {
@@ -196,9 +145,5 @@ export class BidiClass {
         finally {
             diplomatReceive.free();
         }
-    }
-
-    constructor(value) {
-        return this.#internalConstructor(...arguments)
     }
 }

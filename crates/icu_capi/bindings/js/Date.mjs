@@ -3,9 +3,9 @@ import { Calendar } from "./Calendar.mjs"
 import { CalendarError } from "./CalendarError.mjs"
 import { CalendarParseError } from "./CalendarParseError.mjs"
 import { IsoDate } from "./IsoDate.mjs"
+import { IsoWeekday } from "./IsoWeekday.mjs"
 import { WeekCalculator } from "./WeekCalculator.mjs"
 import { WeekOf } from "./WeekOf.mjs"
-import { Weekday } from "./Weekday.mjs"
 import wasm from "./diplomat-wasm.mjs";
 import * as diplomatRuntime from "./diplomat-runtime.mjs";
 
@@ -19,7 +19,6 @@ const Date_box_destroy_registry = new FinalizationRegistry((ptr) => {
 });
 
 export class Date {
-    
     // Internal ptr reference:
     #ptr = null;
 
@@ -27,7 +26,7 @@ export class Date {
     // Since JS won't garbage collect until there are no incoming edges.
     #selfEdge = [];
     
-    #internalConstructor(symbol, ptr, selfEdge) {
+    constructor(symbol, ptr, selfEdge) {
         if (symbol !== diplomatRuntime.internalConstructor) {
             console.error("Date is an Opaque type. You cannot call its constructor.");
             return;
@@ -40,9 +39,8 @@ export class Date {
         if (this.#selfEdge.length === 0) {
             Date_box_destroy_registry.register(this, this.#ptr);
         }
-        
-        return this;
     }
+
     get ffiValue() {
         return this.#ptr;
     }
@@ -91,14 +89,14 @@ export class Date {
         }
     }
 
-    static fromString(v, calendar) {
+    static fromString(v) {
         let functionCleanupArena = new diplomatRuntime.CleanupArena();
         
         const vSlice = functionCleanupArena.alloc(diplomatRuntime.DiplomatBuf.str8(wasm, v));
         
         const diplomatReceive = new diplomatRuntime.DiplomatReceiveBuf(wasm, 5, 4, true);
         
-        const result = wasm.icu4x_Date_from_string_mv1(diplomatReceive.buffer, ...vSlice.splat(), calendar.ffiValue);
+        const result = wasm.icu4x_Date_from_string_mv1(diplomatReceive.buffer, ...vSlice.splat());
     
         try {
             if (!diplomatReceive.resultFlag) {
@@ -159,7 +157,7 @@ export class Date {
         const result = wasm.icu4x_Date_day_of_week_mv1(this.ffiValue);
     
         try {
-            return new Weekday(diplomatRuntime.internalConstructor, result);
+            return new IsoWeekday(diplomatRuntime.internalConstructor, result);
         }
         
         finally {}
@@ -303,9 +301,5 @@ export class Date {
         }
         
         finally {}
-    }
-
-    constructor(symbol, ptr, selfEdge) {
-        return this.#internalConstructor(...arguments)
     }
 }

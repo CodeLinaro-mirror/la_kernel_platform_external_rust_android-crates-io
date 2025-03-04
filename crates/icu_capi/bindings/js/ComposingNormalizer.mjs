@@ -12,7 +12,6 @@ const ComposingNormalizer_box_destroy_registry = new FinalizationRegistry((ptr) 
 });
 
 export class ComposingNormalizer {
-    
     // Internal ptr reference:
     #ptr = null;
 
@@ -20,7 +19,7 @@ export class ComposingNormalizer {
     // Since JS won't garbage collect until there are no incoming edges.
     #selfEdge = [];
     
-    #internalConstructor(symbol, ptr, selfEdge) {
+    constructor(symbol, ptr, selfEdge) {
         if (symbol !== diplomatRuntime.internalConstructor) {
             console.error("ComposingNormalizer is an Opaque type. You cannot call its constructor.");
             return;
@@ -33,27 +32,16 @@ export class ComposingNormalizer {
         if (this.#selfEdge.length === 0) {
             ComposingNormalizer_box_destroy_registry.register(this, this.#ptr);
         }
-        
-        return this;
     }
+
     get ffiValue() {
         return this.#ptr;
     }
 
-    static createNfc() {
-        const result = wasm.icu4x_ComposingNormalizer_create_nfc_mv1();
-    
-        try {
-            return new ComposingNormalizer(diplomatRuntime.internalConstructor, result, []);
-        }
-        
-        finally {}
-    }
-
-    static createNfcWithProvider(provider) {
+    static createNfc(provider) {
         const diplomatReceive = new diplomatRuntime.DiplomatReceiveBuf(wasm, 5, 4, true);
         
-        const result = wasm.icu4x_ComposingNormalizer_create_nfc_with_provider_mv1(diplomatReceive.buffer, provider.ffiValue);
+        const result = wasm.icu4x_ComposingNormalizer_create_nfc_mv1(diplomatReceive.buffer, provider.ffiValue);
     
         try {
             if (!diplomatReceive.resultFlag) {
@@ -68,20 +56,10 @@ export class ComposingNormalizer {
         }
     }
 
-    static createNfkc() {
-        const result = wasm.icu4x_ComposingNormalizer_create_nfkc_mv1();
-    
-        try {
-            return new ComposingNormalizer(diplomatRuntime.internalConstructor, result, []);
-        }
-        
-        finally {}
-    }
-
-    static createNfkcWithProvider(provider) {
+    static createNfkc(provider) {
         const diplomatReceive = new diplomatRuntime.DiplomatReceiveBuf(wasm, 5, 4, true);
         
-        const result = wasm.icu4x_ComposingNormalizer_create_nfkc_with_provider_mv1(diplomatReceive.buffer, provider.ffiValue);
+        const result = wasm.icu4x_ComposingNormalizer_create_nfkc_mv1(diplomatReceive.buffer, provider.ffiValue);
     
         try {
             if (!diplomatReceive.resultFlag) {
@@ -145,9 +123,5 @@ export class ComposingNormalizer {
         finally {
             functionCleanupArena.free();
         }
-    }
-
-    constructor(symbol, ptr, selfEdge) {
-        return this.#internalConstructor(...arguments)
     }
 }

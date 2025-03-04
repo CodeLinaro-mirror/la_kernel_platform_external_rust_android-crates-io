@@ -2,17 +2,13 @@
 import type { Locale } from "./Locale"
 import type { pointer, codepoint } from "./diplomat-runtime.d.ts";
 
-
+// Base enumerator definition
 /** The various calendar types currently supported by [`Calendar`]
 *
 *See the [Rust documentation for `AnyCalendarKind`](https://docs.rs/icu/latest/icu/calendar/enum.AnyCalendarKind.html) for more information.
 */
-
-
 export class AnyCalendarKind {
-    
-
-    static fromValue(value : AnyCalendarKind | string) : AnyCalendarKind; 
+    constructor(value : AnyCalendarKind | string);
 
     get value() : string;
 
@@ -42,6 +38,4 @@ export class AnyCalendarKind {
     static getForBcp47(s: string): AnyCalendarKind | null;
 
     get bcp47(): string;
-
-    constructor(value: AnyCalendarKind | string );
 }

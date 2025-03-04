@@ -10,19 +10,14 @@ import type { pointer, codepoint } from "./diplomat-runtime.d.ts";
 *
 *See the [Rust documentation for `LocaleCanonicalizer`](https://docs.rs/icu/latest/icu/locale/struct.LocaleCanonicalizer.html) for more information.
 */
-
-
 export class LocaleCanonicalizer {
     
+
     get ffiValue(): pointer;
 
-    static createCommonWithProvider(provider: DataProvider): LocaleCanonicalizer;
+    static create(provider: DataProvider): LocaleCanonicalizer;
 
-    static createExtended(): LocaleCanonicalizer;
-
-    static createExtendedWithProvider(provider: DataProvider): LocaleCanonicalizer;
+    static createExtended(provider: DataProvider): LocaleCanonicalizer;
 
     canonicalize(locale: Locale): TransformResult;
-
-    constructor();
 }

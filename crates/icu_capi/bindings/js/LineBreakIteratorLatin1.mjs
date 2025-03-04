@@ -12,7 +12,6 @@ const LineBreakIteratorLatin1_box_destroy_registry = new FinalizationRegistry((p
 });
 
 export class LineBreakIteratorLatin1 {
-    
     // Internal ptr reference:
     #ptr = null;
 
@@ -21,7 +20,7 @@ export class LineBreakIteratorLatin1 {
     #selfEdge = [];
     #aEdge = [];
     
-    #internalConstructor(symbol, ptr, selfEdge, aEdge) {
+    constructor(symbol, ptr, selfEdge, aEdge) {
         if (symbol !== diplomatRuntime.internalConstructor) {
             console.error("LineBreakIteratorLatin1 is an Opaque type. You cannot call its constructor.");
             return;
@@ -37,9 +36,8 @@ export class LineBreakIteratorLatin1 {
         if (this.#selfEdge.length === 0) {
             LineBreakIteratorLatin1_box_destroy_registry.register(this, this.#ptr);
         }
-        
-        return this;
     }
+
     get ffiValue() {
         return this.#ptr;
     }
@@ -52,9 +50,5 @@ export class LineBreakIteratorLatin1 {
         }
         
         finally {}
-    }
-
-    constructor(symbol, ptr, selfEdge, aEdge) {
-        return this.#internalConstructor(...arguments)
     }
 }

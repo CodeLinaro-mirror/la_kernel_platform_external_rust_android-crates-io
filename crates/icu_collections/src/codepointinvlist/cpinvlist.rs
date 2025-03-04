@@ -6,7 +6,6 @@
 use alloc::format;
 #[cfg(feature = "serde")]
 use alloc::string::String;
-#[cfg(feature = "alloc")]
 use alloc::vec::Vec;
 use core::{char, ops::RangeBounds, ops::RangeInclusive};
 use potential_utf::PotentialCodePoint;
@@ -34,7 +33,6 @@ const ALL_VEC: ZeroVec<PotentialCodePoint> = zerovec!(PotentialCodePoint; Potent
 #[zerovec::skip_derive(Ord)]
 #[zerovec::derive(Debug)]
 #[derive(Debug, Eq, PartialEq, Clone, Yokeable, ZeroFrom)]
-#[cfg_attr(not(feature = "alloc"), zerovec::skip_derive(ZeroMapKV, ToOwned))]
 pub struct CodePointInversionList<'data> {
     // If we wanted to use an array to keep the memory on the stack, there is an unsafe nightly feature
     // https://doc.rust-lang.org/nightly/core/array/trait.FixedSizeArray.html
@@ -140,13 +138,8 @@ impl core::fmt::Display for UnicodeCodePoint {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         match self.0 {
             s @ 0xD800..=0xDFFF => write!(f, "U+{s:X}"),
-            // char should be in range by construction but this code is not so performance-sensitive
-            // so we just use the replacement character
-            c => write!(
-                f,
-                "{}",
-                char::from_u32(c).unwrap_or(char::REPLACEMENT_CHARACTER)
-            ),
+            // SAFETY: c <= char::MAX by construction, and not a surrogate
+            c => write!(f, "{}", unsafe { char::from_u32_unchecked(c) }),
         }
     }
 }
@@ -233,14 +226,10 @@ impl<'data> CodePointInversionList<'data> {
                 .sum::<u32>();
             Ok(Self { inv_list, size })
         } else {
-            Err(InvalidSetError(
-                #[cfg(feature = "alloc")]
-                inv_list.to_vec(),
-            ))
+            Err(InvalidSetError(inv_list.to_vec()))
         }
     }
 
-    /// Safety: no actual safety invariants, however has correctness invariants
     #[doc(hidden)] // databake internal
     pub const unsafe fn from_parts_unchecked(
         inv_list: ZeroVec<'data, PotentialCodePoint>,
@@ -279,7 +268,6 @@ impl<'data> CodePointInversionList<'data> {
     ///
     /// assert!(!lists.iter().any(|set| set.contains32(0x40000)));
     /// ```
-    #[cfg(feature = "alloc")]
     pub fn try_from_u32_inversion_list_slice(inv_list: &[u32]) -> Result<Self, InvalidSetError> {
         let inv_list_zv: ZeroVec<PotentialCodePoint> = inv_list
             .iter()
@@ -290,7 +278,6 @@ impl<'data> CodePointInversionList<'data> {
     }
 
     /// Attempts to convert this list into a fully-owned one. No-op if already fully owned
-    #[cfg(feature = "alloc")]
     pub fn into_owned(self) -> CodePointInversionList<'static> {
         CodePointInversionList {
             inv_list: self.inv_list.into_owned(),
@@ -299,7 +286,6 @@ impl<'data> CodePointInversionList<'data> {
     }
 
     /// Returns an owned inversion list representing the current [`CodePointInversionList`]
-    #[cfg(feature = "alloc")]
     pub fn get_inversion_list_vec(&self) -> Vec<u32> {
         self.as_inversion_list().iter().map(u32::from).collect()
     }
@@ -361,7 +347,6 @@ impl<'data> CodePointInversionList<'data> {
     /// Returns the inversion list as a slice
     ///
     /// Public only to the crate, not exposed to public
-    #[cfg(feature = "alloc")]
     pub(crate) fn as_inversion_list(&self) -> &ZeroVec<PotentialCodePoint> {
         &self.inv_list
     }
@@ -981,7 +966,10 @@ mod tests {
             CodePointInversionList::try_from_u32_inversion_list_slice(&inv_list).unwrap();
         let round_trip_inv_list = s.get_inversion_list_vec();
         assert_eq!(
-            round_trip_inv_list.into_iter().collect::<ZeroVec<u32>>(),
+            round_trip_inv_list
+                .into_iter()
+                .map(u32::from)
+                .collect::<ZeroVec<u32>>(),
             inv_list
         );
     }

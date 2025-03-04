@@ -8,9 +8,7 @@
 pub mod ffi {
     use alloc::boxed::Box;
 
-    use crate::locale_core::ffi::Locale;
-    #[cfg(feature = "buffer_provider")]
-    use crate::{errors::ffi::DataError, provider::ffi::DataProvider};
+    use crate::{errors::ffi::DataError, locale_core::ffi::Locale, provider::ffi::DataProvider};
 
     /// An object that runs the ICU4X locale fallback algorithm.
     #[diplomat::opaque]
@@ -54,24 +52,9 @@ pub mod ffi {
     /// An iterator over the locale under fallback.
     #[diplomat::opaque]
     #[diplomat::rust_link(icu::locale::fallback::LocaleFallbackIterator, Struct)]
-    pub struct LocaleFallbackIterator<'a>(pub icu_locale::fallback::LocaleFallbackIterator<'a>);
+    pub struct LocaleFallbackIterator<'a>(pub icu_locale::fallback::LocaleFallbackIterator<'a, 'a>);
 
     impl LocaleFallbacker {
-        /// Creates a new `LocaleFallbacker` from compiled data.
-        #[diplomat::rust_link(icu::locale::fallback::LocaleFallbacker::new, FnInStruct)]
-        #[diplomat::rust_link(
-            icu::locale::fallback::LocaleFallbackerBorrowed::new,
-            FnInStruct,
-            hidden
-        )]
-        #[diplomat::attr(auto, constructor)]
-        #[cfg(feature = "compiled_data")]
-        pub fn create() -> Box<LocaleFallbacker> {
-            Box::new(LocaleFallbacker(
-                icu_locale::LocaleFallbacker::new().static_to_owned(),
-            ))
-        }
-
         /// Creates a new `LocaleFallbacker` from a data provider.
         #[diplomat::rust_link(icu::locale::fallback::LocaleFallbacker::new, FnInStruct)]
         #[diplomat::rust_link(
@@ -79,14 +62,14 @@ pub mod ffi {
             FnInStruct,
             hidden
         )]
-        #[diplomat::attr(all(supports = fallible_constructors, supports = named_constructors), named_constructor = "with_provider")]
-        #[cfg(feature = "buffer_provider")]
-        pub fn create_with_provider(
-            provider: &DataProvider,
-        ) -> Result<Box<LocaleFallbacker>, DataError> {
-            Ok(Box::new(LocaleFallbacker(
-                icu_locale::LocaleFallbacker::try_new_with_buffer_provider(provider.get()?)?,
-            )))
+        #[diplomat::attr(supports = fallible_constructors, constructor)]
+        pub fn create(provider: &DataProvider) -> Result<Box<LocaleFallbacker>, DataError> {
+            Ok(Box::new(LocaleFallbacker(call_constructor!(
+                icu_locale::LocaleFallbacker::new [r => Ok(r.static_to_owned())],
+                icu_locale::LocaleFallbacker::try_new_with_any_provider,
+                icu_locale::LocaleFallbacker::try_new_with_buffer_provider,
+                provider,
+            )?)))
         }
 
         /// Creates a new `LocaleFallbacker` without data for limited functionality.
@@ -94,7 +77,7 @@ pub mod ffi {
             icu::locale::fallback::LocaleFallbacker::new_without_data,
             FnInStruct
         )]
-        #[diplomat::attr(auto, named_constructor)]
+        #[diplomat::attr(supports = fallible_constructors, named_constructor)]
         pub fn without_data() -> Box<LocaleFallbacker> {
             Box::new(LocaleFallbacker(
                 icu_locale::LocaleFallbacker::new_without_data(),
@@ -165,7 +148,7 @@ pub mod ffi {
             if current.is_default() {
                 None
             } else {
-                let current = *current;
+                let current = current.clone();
                 self.0.step();
                 Some(Box::new(Locale(current.into_locale())))
             }

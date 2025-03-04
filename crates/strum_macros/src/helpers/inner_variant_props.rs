@@ -6,7 +6,7 @@ pub trait HasInnerVariantProperties {
     fn get_variant_inner_properties(&self) -> syn::Result<StrumInnerVariantProperties>;
 }
 
-#[derive(Clone, Default)]
+#[derive(Clone, Eq, PartialEq, Debug, Default)]
 pub struct StrumInnerVariantProperties {
     pub default_with: Option<LitStr>,
 }

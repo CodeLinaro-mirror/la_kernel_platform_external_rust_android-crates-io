@@ -12,7 +12,7 @@ mod payload;
 pub use payload::{ExportBox, ExportMarker};
 
 use crate::prelude::*;
-use alloc::collections::BTreeSet;
+use std::collections::HashSet;
 
 /// An object capable of exporting data payloads in some form.
 pub trait DataExporter: Sync {
@@ -50,14 +50,14 @@ pub trait DataExporter: Sync {
     /// markers have been fully dumped). This conceptually takes ownership, so
     /// clients *may not* interact with this object after close has been called.
     fn close(&mut self) -> Result<ExporterCloseMetadata, DataError> {
-        Ok(ExporterCloseMetadata::default())
+        Ok(ExporterCloseMetadata)
     }
 }
 
-#[derive(Debug, Default)]
-#[allow(clippy::exhaustive_structs)] // newtype
+#[non_exhaustive]
+#[derive(Debug, Clone, Default)]
 /// Contains information about a successful export.
-pub struct ExporterCloseMetadata(pub Option<Box<dyn core::any::Any>>);
+pub struct ExporterCloseMetadata;
 
 /// Metadata for [`DataExporter::flush`]
 #[non_exhaustive]
@@ -66,8 +66,6 @@ pub struct FlushMetadata {
     /// Whether the data was generated in such a way that a [`DryDataProvider`] implementation
     /// makes sense.
     pub supports_dry_provider: bool,
-    /// The checksum to return with this data marker.
-    pub checksum: Option<u64>,
 }
 
 impl DataExporter for Box<dyn DataExporter> {
@@ -105,11 +103,11 @@ pub trait ExportableProvider:
     crate::data_provider::IterableDynamicDataProvider<ExportMarker> + Sync
 {
     /// Returns the set of supported markers
-    fn supported_markers(&self) -> BTreeSet<DataMarkerInfo>;
+    fn supported_markers(&self) -> HashSet<DataMarkerInfo>;
 }
 
 impl ExportableProvider for Box<dyn ExportableProvider> {
-    fn supported_markers(&self) -> BTreeSet<DataMarkerInfo> {
+    fn supported_markers(&self) -> HashSet<DataMarkerInfo> {
         (**self).supported_markers()
     }
 }
@@ -128,8 +126,8 @@ impl ExportableProvider for Box<dyn ExportableProvider> {
 macro_rules! __make_exportable_provider {
     ($provider:ty, [ $($(#[$cfg:meta])? $struct_m:ty),+, ]) => {
         impl $crate::export::ExportableProvider for $provider {
-            fn supported_markers(&self) -> alloc::collections::BTreeSet<$crate::DataMarkerInfo> {
-                alloc::collections::BTreeSet::from_iter([
+            fn supported_markers(&self) -> std::collections::HashSet<$crate::DataMarkerInfo> {
+                std::collections::HashSet::from_iter([
                     $(
                         $(#[$cfg])?
                         <$struct_m>::INFO,
@@ -166,7 +164,7 @@ impl MultiExporter {
 }
 
 impl core::fmt::Debug for MultiExporter {
-    fn fmt(&self, f: &mut alloc::fmt::Formatter<'_>) -> alloc::fmt::Result {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("MultiExporter")
             .field("0", &format!("vec[len = {}]", self.0.len()))
             .finish()
@@ -201,11 +199,9 @@ impl DataExporter for MultiExporter {
     }
 
     fn close(&mut self) -> Result<ExporterCloseMetadata, DataError> {
-        Ok(ExporterCloseMetadata(Some(Box::new(
-            self.0.iter_mut().try_fold(vec![], |mut m, e| {
-                m.push(e.close()?.0);
-                Ok::<_, DataError>(m)
-            })?,
-        ))))
+        self.0.iter_mut().try_fold(ExporterCloseMetadata, |m, e| {
+            e.close()?;
+            Ok(m)
+        })
     }
 }

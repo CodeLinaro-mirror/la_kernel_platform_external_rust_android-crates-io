@@ -438,16 +438,16 @@ pub trait PreferenceKey: Sized {
 ///
 /// define_preferences!(
 ///     [Copy]
-///     NoCalendarFormatterPreferences,
+///     TimeFormatterPreferences,
 ///     {
 ///         hour_cycle: HourCycle
 ///     }
 /// );
 ///
-/// struct NoCalendarFormatter {}
+/// struct TimeFormatter {}
 ///
-/// impl NoCalendarFormatter {
-///     pub fn try_new(prefs: NoCalendarFormatterPreferences) -> Result<Self, ()> {
+/// impl TimeFormatter {
+///     pub fn try_new(prefs: TimeFormatterPreferences) -> Result<Self, ()> {
 ///         // load data and set struct fields based on the prefs input
 ///         Ok(Self {})
 ///     }
@@ -455,7 +455,7 @@ pub trait PreferenceKey: Sized {
 ///
 /// let loc = locale!("en-US");
 ///
-/// let tf = NoCalendarFormatter::try_new(loc.into());
+/// let tf = TimeFormatter::try_new(loc.into());
 /// ```
 ///
 /// [`Locale`]: crate::Locale
@@ -479,7 +479,7 @@ macro_rules! __define_preferences {
         #[non_exhaustive]
         pub struct $name {
             /// Locale Preferences for the Preferences structure.
-            pub locale_preferences: $crate::preferences::LocalePreferences,
+            pub locale_prefs: $crate::preferences::LocalePreferences,
 
             $(
                 $(#[$key_doc])*
@@ -511,7 +511,7 @@ macro_rules! __define_preferences {
                 }
 
                 Self {
-                    locale_preferences: loc.into(),
+                    locale_prefs: loc.into(),
 
                     $(
                         $key,
@@ -529,7 +529,7 @@ macro_rules! __define_preferences {
         impl From<&$crate::LanguageIdentifier> for $name {
             fn from(lid: &$crate::LanguageIdentifier) -> Self {
                 Self {
-                    locale_preferences: lid.into(),
+                    locale_prefs: lid.into(),
 
                     $(
                         $key: None,
@@ -538,26 +538,26 @@ macro_rules! __define_preferences {
             }
         }
 
-        // impl From<$name> for $crate::Locale {
-        //     fn from(other: $name) -> Self {
-        //         use $crate::preferences::PreferenceKey;
-        //         let mut result = Self::from(other.locale_preferences);
-        //         $(
-        //             if let Some(value) = other.$key {
-        //                 if let Some(ue) = <$pref>::unicode_extension_key() {
-        //                     let val = value.unicode_extension_value().unwrap();
-        //                     result.extensions.unicode.keywords.set(ue, val);
-        //                 }
-        //             }
-        //         )*
-        //         result
-        //     }
-        // }
+        impl From<$name> for $crate::Locale {
+            fn from(other: $name) -> Self {
+                use $crate::preferences::PreferenceKey;
+                let mut result = Self::from(other.locale_prefs);
+                $(
+                    if let Some(value) = other.$key {
+                        if let Some(ue) = <$pref>::unicode_extension_key() {
+                            let val = value.unicode_extension_value().unwrap();
+                            result.extensions.unicode.keywords.set(ue, val);
+                        }
+                    }
+                )*
+                result
+            }
+        }
 
         impl $name {
             /// Extends the preferences with the values from another set of preferences.
             pub fn extend(&mut self, other: $name) {
-                self.locale_preferences.extend(other.locale_preferences);
+                self.locale_prefs.extend(other.locale_prefs);
                 $(
                     if let Some(value) = other.$key {
                         self.$key = Some(value);
@@ -578,7 +578,7 @@ macro_rules! __prefs_convert {
         impl From<&$name1> for $name2 {
             fn from(other: &$name1) -> Self {
                 let mut result = Self::default();
-                result.locale_preferences = other.locale_preferences;
+                result.locale_prefs = other.locale_prefs;
                 result
             }
         }
@@ -595,7 +595,7 @@ macro_rules! __prefs_convert {
         impl From<&$name1> for $name2 {
             fn from(other: &$name1) -> Self {
                 let mut result = Self::default();
-                result.locale_preferences = other.locale_preferences;
+                result.locale_prefs = other.locale_prefs;
                 $(
                     result.$key = other.$key;
                 )*

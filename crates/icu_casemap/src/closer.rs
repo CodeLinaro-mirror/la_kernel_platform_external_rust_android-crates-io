@@ -2,18 +2,15 @@
 // called LICENSE at the top level of the ICU4X source tree
 // (online at: https://github.com/unicode-org/icu4x/blob/main/LICENSE ).
 
-use crate::provider::{CaseMapUnfold, CaseMapUnfoldV1, CaseMapV1};
+use crate::provider::{CaseMapUnfoldV1Marker, CaseMapV1Marker};
 use crate::set::ClosureSink;
-use crate::{CaseMapper, CaseMapperBorrowed};
+use crate::CaseMapper;
 
 use icu_provider::prelude::*;
 
 /// A wrapper around [`CaseMapper`] that can produce case mapping closures
 /// over a character or string. This wrapper can be constructed directly, or
 /// by wrapping a reference to an existing [`CaseMapper`].
-///
-/// Most methods for this type live on [`CaseMapCloserBorrowed`], which you can obtain via
-/// [`CaseMapCloser::new()`] or [`CaseMapCloser::as_borrowed()`].
 ///
 /// # Examples
 ///
@@ -40,31 +37,19 @@ use icu_provider::prelude::*;
 #[derive(Clone, Debug)]
 pub struct CaseMapCloser<CM> {
     cm: CM,
-    unfold: DataPayload<CaseMapUnfoldV1>,
+    unfold: DataPayload<CaseMapUnfoldV1Marker>,
 }
 
-impl CaseMapCloser<CaseMapper> {
-    icu_provider::gen_buffer_data_constructors!(() -> error: DataError,
-    functions: [
-        new: skip,
-        try_new_with_buffer_provider,
-        try_new_unstable,
-        Self,
-    ]);
-
-    #[doc = icu_provider::gen_buffer_unstable_docs!(UNSTABLE, Self::new)]
-    pub fn try_new_unstable<P>(provider: &P) -> Result<Self, DataError>
-    where
-        P: DataProvider<CaseMapV1> + DataProvider<CaseMapUnfoldV1> + ?Sized,
-    {
-        let cm = CaseMapper::try_new_unstable(provider)?;
-        let unfold = provider.load(Default::default())?.payload;
-        Ok(Self { cm, unfold })
+#[cfg(feature = "compiled_data")]
+impl Default for CaseMapCloser<CaseMapper> {
+    /// ✨ *Enabled with the `compiled_data` Cargo feature.*
+    fn default() -> Self {
+        Self::new()
     }
 }
 
 impl CaseMapCloser<CaseMapper> {
-    /// A constructor which creates a [`CaseMapCloserBorrowed`] using compiled data.
+    /// A constructor which creates a [`CaseMapCloser`] using compiled data.
     ///
     /// # Examples
     ///
@@ -93,17 +78,41 @@ impl CaseMapCloser<CaseMapper> {
     ///
     /// [📚 Help choosing a constructor](icu_provider::constructors)
     #[cfg(feature = "compiled_data")]
-    #[allow(clippy::new_ret_no_self)] // Intentional
-    pub const fn new() -> CaseMapCloserBorrowed<'static> {
-        CaseMapCloserBorrowed::new()
+    pub const fn new() -> Self {
+        Self {
+            cm: CaseMapper::new(),
+            unfold: DataPayload::from_static_ref(
+                crate::provider::Baked::SINGLETON_CASE_MAP_UNFOLD_V1_MARKER,
+            ),
+        }
+    }
+
+    icu_provider::gen_any_buffer_data_constructors!(() -> error: DataError,
+    functions: [
+        new: skip,
+        try_new_with_any_provider,
+        try_new_with_buffer_provider,
+        try_new_unstable,
+        Self,
+    ]);
+
+    #[doc = icu_provider::gen_any_buffer_unstable_docs!(UNSTABLE, Self::new)]
+    pub fn try_new_unstable<P>(provider: &P) -> Result<Self, DataError>
+    where
+        P: DataProvider<CaseMapV1Marker> + DataProvider<CaseMapUnfoldV1Marker> + ?Sized,
+    {
+        let cm = CaseMapper::try_new_unstable(provider)?;
+        let unfold = provider.load(Default::default())?.payload;
+        Ok(Self { cm, unfold })
     }
 }
 
 // We use Borrow, not AsRef, since we want the blanket impl on T
 impl<CM: AsRef<CaseMapper>> CaseMapCloser<CM> {
-    icu_provider::gen_buffer_data_constructors!((casemapper: CM) -> error: DataError,
+    icu_provider::gen_any_buffer_data_constructors!((casemapper: CM) -> error: DataError,
     functions: [
         new_with_mapper: skip,
+        try_new_with_mapper_with_any_provider,
         try_new_with_mapper_with_buffer_provider,
         try_new_with_mapper_unstable,
         Self,
@@ -120,16 +129,16 @@ impl<CM: AsRef<CaseMapper>> CaseMapCloser<CM> {
         Self {
             cm: casemapper,
             unfold: DataPayload::from_static_ref(
-                crate::provider::Baked::SINGLETON_CASE_MAP_UNFOLD_V1,
+                crate::provider::Baked::SINGLETON_CASE_MAP_UNFOLD_V1_MARKER,
             ),
         }
     }
 
     /// Construct this object to wrap an existing CaseMapper (or a reference to one), loading additional data as needed.
-    #[doc = icu_provider::gen_buffer_unstable_docs!(UNSTABLE, Self::new_with_mapper)]
+    #[doc = icu_provider::gen_any_buffer_unstable_docs!(UNSTABLE, Self::new_with_mapper)]
     pub fn try_new_with_mapper_unstable<P>(provider: &P, casemapper: CM) -> Result<Self, DataError>
     where
-        P: DataProvider<CaseMapV1> + DataProvider<CaseMapUnfoldV1> + ?Sized,
+        P: DataProvider<CaseMapV1Marker> + DataProvider<CaseMapUnfoldV1Marker> + ?Sized,
     {
         let unfold = provider.load(Default::default())?.payload;
         Ok(Self {
@@ -138,80 +147,6 @@ impl<CM: AsRef<CaseMapper>> CaseMapCloser<CM> {
         })
     }
 
-    /// Constructs a borrowed version of this type for more efficient querying.
-    pub fn as_borrowed(&self) -> CaseMapCloserBorrowed<'_> {
-        CaseMapCloserBorrowed {
-            cm: self.cm.as_ref().as_borrowed(),
-            unfold: self.unfold.get(),
-        }
-    }
-}
-
-/// A borrowed [`CaseMapCloser`].
-///
-/// See methods or [`CaseMapCloser`] for examples.
-#[derive(Clone, Debug, Copy)]
-pub struct CaseMapCloserBorrowed<'a> {
-    cm: CaseMapperBorrowed<'a>,
-    unfold: &'a CaseMapUnfold<'a>,
-}
-
-impl CaseMapCloserBorrowed<'static> {
-    /// A constructor which creates a [`CaseMapCloserBorrowed`] using compiled data.
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// use icu::casemap::CaseMapCloser;
-    /// use icu::collections::codepointinvlist::CodePointInversionListBuilder;
-    ///
-    /// let cm = CaseMapCloser::new();
-    /// let mut builder = CodePointInversionListBuilder::new();
-    /// let found = cm.add_string_case_closure_to("ffi", &mut builder);
-    /// assert!(found);
-    /// let set = builder.build();
-    ///
-    /// assert!(set.contains('ﬃ'));
-    ///
-    /// let mut builder = CodePointInversionListBuilder::new();
-    /// let found = cm.add_string_case_closure_to("ss", &mut builder);
-    /// assert!(found);
-    /// let set = builder.build();
-    ///
-    /// assert!(set.contains('ß'));
-    /// assert!(set.contains('ẞ'));
-    /// ```
-    ///
-    /// ✨ *Enabled with the `compiled_data` Cargo feature.*
-    ///
-    /// [📚 Help choosing a constructor](icu_provider::constructors)
-    #[cfg(feature = "compiled_data")]
-    pub const fn new() -> CaseMapCloserBorrowed<'static> {
-        CaseMapCloserBorrowed {
-            cm: CaseMapper::new(),
-            unfold: crate::provider::Baked::SINGLETON_CASE_MAP_UNFOLD_V1,
-        }
-    }
-    /// Cheaply converts a [`CaseMapCloserBorrowed<'static>`] into a [`CaseMapCloser`].
-    ///
-    /// Note: Due to branching and indirection, using [`CaseMapCloser`] might inhibit some
-    /// compile-time optimizations that are possible with [`CaseMapCloserBorrowed`].
-    pub const fn static_to_owned(self) -> CaseMapCloser<CaseMapper> {
-        CaseMapCloser {
-            cm: self.cm.static_to_owned(),
-            unfold: DataPayload::from_static_ref(self.unfold),
-        }
-    }
-}
-
-#[cfg(feature = "compiled_data")]
-impl Default for CaseMapCloserBorrowed<'static> {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
-impl CaseMapCloserBorrowed<'_> {
     /// Adds all simple case mappings and the full case folding for `c` to `set`.
     /// Also adds special case closure mappings.
     ///
@@ -225,7 +160,7 @@ impl CaseMapCloserBorrowed<'_> {
     /// - for sharp s include ss
     /// - for k include the Kelvin sign
     ///
-    /// This function is identical to [`CaseMapperBorrowed::add_case_closure_to()`]; if you don't
+    /// This function is identical to [`CaseMapper::add_case_closure_to()`]; if you don't
     /// need [`Self::add_string_case_closure_to()`] consider using a [`CaseMapper`] to avoid
     /// loading additional data.
     ///
@@ -245,8 +180,8 @@ impl CaseMapCloserBorrowed<'_> {
     /// assert!(set.contains('ſ'));
     /// assert!(!set.contains('s')); // does not contain itself
     /// ```
-    pub fn add_case_closure_to<S: ClosureSink>(self, c: char, set: &mut S) {
-        self.cm.add_case_closure_to(c, set);
+    pub fn add_case_closure_to<S: ClosureSink>(&self, c: char, set: &mut S) {
+        self.cm.as_ref().add_case_closure_to(c, set);
     }
 
     /// Finds all characters and strings which may casemap to `s` as their full case folding string
@@ -281,7 +216,11 @@ impl CaseMapCloserBorrowed<'_> {
     /// assert!(set.contains('ß'));
     /// assert!(set.contains('ẞ'));
     /// ```
-    pub fn add_string_case_closure_to<S: ClosureSink>(self, s: &str, set: &mut S) -> bool {
-        self.cm.data.add_string_case_closure_to(s, set, self.unfold)
+    pub fn add_string_case_closure_to<S: ClosureSink>(&self, s: &str, set: &mut S) -> bool {
+        self.cm
+            .as_ref()
+            .data
+            .get()
+            .add_string_case_closure_to(s, set, self.unfold.get())
     }
 }

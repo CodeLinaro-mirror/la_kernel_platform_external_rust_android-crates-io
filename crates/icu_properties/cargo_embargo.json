@@ -1,6 +1,5 @@
 {
   "features": [
-    "alloc",
     "unicode_bidi",
     "compiled_data"
   ],

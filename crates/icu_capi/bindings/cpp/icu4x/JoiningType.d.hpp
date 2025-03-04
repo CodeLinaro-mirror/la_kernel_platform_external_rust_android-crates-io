@@ -6,7 +6,6 @@
 #include <stddef.h>
 #include <stdbool.h>
 #include <memory>
-#include <functional>
 #include <optional>
 #include "../diplomat_runtime.hpp"
 
@@ -49,15 +48,9 @@ public:
   // Prevent usage as boolean value
   explicit operator bool() const = delete;
 
-  inline static icu4x::JoiningType for_char(char32_t ch);
+  inline uint8_t to_integer();
 
-  inline std::optional<std::string_view> long_name();
-
-  inline std::optional<std::string_view> short_name();
-
-  inline uint8_t to_integer_value();
-
-  inline static std::optional<icu4x::JoiningType> from_integer_value(uint8_t other);
+  inline static std::optional<icu4x::JoiningType> from_integer(uint8_t other);
 
   inline icu4x::capi::JoiningType AsFFI() const;
   inline static icu4x::JoiningType FromFFI(icu4x::capi::JoiningType c_enum);

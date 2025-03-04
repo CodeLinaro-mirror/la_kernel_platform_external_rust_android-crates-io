@@ -123,8 +123,7 @@ macro_rules! __enum_keyword {
 
             fn try_from(s: &$crate::extensions::unicode::Value) -> Result<Self, Self::Error> {
                 let subtag = s.get_subtag(0)
-                                // No subtag is equivalent to the "true" value.
-                                .unwrap_or(&$crate::subtags::subtag!("true"));
+                                .ok_or(Self::Error::InvalidKeywordValue)?;
                 Ok(match subtag.as_str() {
                     $(
                         $key => {

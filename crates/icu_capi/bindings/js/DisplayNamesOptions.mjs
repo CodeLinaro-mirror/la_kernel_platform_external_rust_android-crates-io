@@ -8,45 +8,32 @@ import * as diplomatRuntime from "./diplomat-runtime.mjs";
 
 /** See the [Rust documentation for `DisplayNamesOptions`](https://docs.rs/icu/latest/icu/displaynames/options/struct.DisplayNamesOptions.html) for more information.
 */
-
-
 export class DisplayNamesOptions {
-    
+
     #style;
-    
     get style()  {
         return this.#style;
-    } 
+    }
     set style(value) {
         this.#style = value;
     }
-    
+
     #fallback;
-    
     get fallback()  {
         return this.#fallback;
-    } 
+    }
     set fallback(value) {
         this.#fallback = value;
     }
-    
+
     #languageDisplay;
-    
     get languageDisplay()  {
         return this.#languageDisplay;
-    } 
+    }
     set languageDisplay(value) {
         this.#languageDisplay = value;
     }
-    
-    /** Create `DisplayNamesOptions` from an object that contains all of `DisplayNamesOptions`s fields.
-    * Optional fields do not need to be included in the provided object.
-    */
-    static fromFields(structObj) {
-        return new DisplayNamesOptions(structObj);
-    }
-
-    #internalConstructor(structObj) {
+    constructor(structObj) {
         if (typeof structObj !== "object") {
             throw new Error("DisplayNamesOptions's constructor takes an object of DisplayNamesOptions's fields.");
         }
@@ -69,7 +56,6 @@ export class DisplayNamesOptions {
             this.#languageDisplay = null;
         }
 
-        return this;
     }
 
     // Return this struct in FFI function friendly format.
@@ -80,18 +66,6 @@ export class DisplayNamesOptions {
         appendArrayMap
     ) {
         return [...diplomatRuntime.optionToArgsForCalling(this.#style, 4, 4, false, (arrayBuffer, offset, jsValue) => [diplomatRuntime.writeToArrayBuffer(arrayBuffer, offset + 0, jsValue.ffiValue, Int32Array)]), ...diplomatRuntime.optionToArgsForCalling(this.#fallback, 4, 4, false, (arrayBuffer, offset, jsValue) => [diplomatRuntime.writeToArrayBuffer(arrayBuffer, offset + 0, jsValue.ffiValue, Int32Array)]), ...diplomatRuntime.optionToArgsForCalling(this.#languageDisplay, 4, 4, false, (arrayBuffer, offset, jsValue) => [diplomatRuntime.writeToArrayBuffer(arrayBuffer, offset + 0, jsValue.ffiValue, Int32Array)])]
-    }
-
-    static _fromSuppliedValue(internalConstructor, obj) {
-        if (internalConstructor !== diplomatRuntime.internalConstructor) {
-            throw new Error("_fromSuppliedValue cannot be called externally.");
-        }
-
-        if (obj instanceof DisplayNamesOptions) {
-            return obj;
-        }
-
-        return DisplayNamesOptions.fromFields(obj);
     }
 
     _writeToArrayBuffer(
@@ -114,7 +88,7 @@ export class DisplayNamesOptions {
         if (internalConstructor !== diplomatRuntime.internalConstructor) {
             throw new Error("DisplayNamesOptions._fromFFI is not meant to be called externally. Please use the default constructor.");
         }
-        let structObj = {};
+        var structObj = {};
         const styleDeref = ptr;
         structObj.style = diplomatRuntime.readOption(wasm, styleDeref, 4, (wasm, offset) => { const deref = diplomatRuntime.enumDiscriminant(wasm, offset); return new DisplayNamesStyle(diplomatRuntime.internalConstructor, deref) });
         const fallbackDeref = ptr + 8;
@@ -122,10 +96,6 @@ export class DisplayNamesOptions {
         const languageDisplayDeref = ptr + 16;
         structObj.languageDisplay = diplomatRuntime.readOption(wasm, languageDisplayDeref, 4, (wasm, offset) => { const deref = diplomatRuntime.enumDiscriminant(wasm, offset); return new LanguageDisplay(diplomatRuntime.internalConstructor, deref) });
 
-        return new DisplayNamesOptions(structObj);
-    }
-
-    constructor(structObj) {
-        return this.#internalConstructor(...arguments)
+        return new DisplayNamesOptions(structObj, internalConstructor);
     }
 }

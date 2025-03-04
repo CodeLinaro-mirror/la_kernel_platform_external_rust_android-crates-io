@@ -10,23 +10,18 @@ import type { pointer, codepoint } from "./diplomat-runtime.d.ts";
 *
 *See the [Rust documentation for `LocaleExpander`](https://docs.rs/icu/latest/icu/locale/struct.LocaleExpander.html) for more information.
 */
-
-
 export class LocaleExpander {
     
+
     get ffiValue(): pointer;
 
-    static createCommonWithProvider(provider: DataProvider): LocaleExpander;
+    static create(provider: DataProvider): LocaleExpander;
 
-    static createExtended(): LocaleExpander;
-
-    static createExtendedWithProvider(provider: DataProvider): LocaleExpander;
+    static createExtended(provider: DataProvider): LocaleExpander;
 
     maximize(locale: Locale): TransformResult;
 
     minimize(locale: Locale): TransformResult;
 
     minimizeFavorScript(locale: Locale): TransformResult;
-
-    constructor();
 }

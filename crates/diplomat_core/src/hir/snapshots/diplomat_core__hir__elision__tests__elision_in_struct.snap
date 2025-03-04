@@ -1,6 +1,5 @@
 ---
 source: core/src/hir/elision.rs
-assertion_line: 536
 expression: method
 ---
 Method {
@@ -45,7 +44,6 @@ Method {
                     pattern: None,
                 },
                 special_method: None,
-                custom_errors: false,
                 demo_attrs: DemoInfo {
                     generate: false,
                     default_constructor: false,
@@ -99,7 +97,6 @@ Method {
                     pattern: None,
                 },
                 special_method: None,
-                custom_errors: false,
                 demo_attrs: DemoInfo {
                     generate: false,
                     default_constructor: false,
@@ -126,7 +123,6 @@ Method {
             pattern: None,
         },
         special_method: None,
-        custom_errors: false,
         demo_attrs: DemoInfo {
             generate: false,
             default_constructor: false,

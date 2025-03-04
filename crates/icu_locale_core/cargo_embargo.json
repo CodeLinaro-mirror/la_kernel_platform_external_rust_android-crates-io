@@ -1,6 +1,5 @@
 {
   "features": [
-    "alloc",
     "zerovec"
   ],
   "ramdisk_available": true,

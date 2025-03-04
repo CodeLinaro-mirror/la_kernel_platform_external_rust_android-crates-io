@@ -55,15 +55,14 @@
 
 extern crate alloc;
 
-#[cfg(feature = "alloc")]
 #[macro_use]
 mod builder;
-#[cfg(feature = "alloc")]
 mod conversions;
 mod cpinvlist;
 mod utils;
 
-#[cfg(feature = "alloc")]
+use alloc::vec::Vec;
+
 pub use builder::CodePointInversionListBuilder;
 pub use cpinvlist::CodePointInversionList;
 pub use cpinvlist::CodePointInversionListULE;
@@ -71,10 +70,8 @@ use displaydoc::Display;
 
 #[derive(Display, Debug)]
 /// A CodePointInversionList was constructed with an invalid inversion list
-#[cfg_attr(feature = "alloc", displaydoc("Invalid set: {0:?}"))]
-pub struct InvalidSetError(
-    #[cfg(feature = "alloc")] pub alloc::vec::Vec<potential_utf::PotentialCodePoint>,
-);
+#[displaydoc("Invalid set: {0:?}")]
+pub struct InvalidSetError(pub Vec<potential_utf::PotentialCodePoint>);
 
 /// A CodePointInversionList was constructed from an invalid range
 #[derive(Display, Debug)]

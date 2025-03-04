@@ -3,9 +3,9 @@ import type { Calendar } from "./Calendar"
 import type { CalendarError } from "./CalendarError"
 import type { CalendarParseError } from "./CalendarParseError"
 import type { IsoDate } from "./IsoDate"
+import type { IsoWeekday } from "./IsoWeekday"
 import type { WeekCalculator } from "./WeekCalculator"
 import type { WeekOf } from "./WeekOf"
-import type { Weekday } from "./Weekday"
 import type { pointer, codepoint } from "./diplomat-runtime.d.ts";
 
 
@@ -13,17 +13,16 @@ import type { pointer, codepoint } from "./diplomat-runtime.d.ts";
 *
 *See the [Rust documentation for `Date`](https://docs.rs/icu/latest/icu/calendar/struct.Date.html) for more information.
 */
-
-
 export class Date {
     
+
     get ffiValue(): pointer;
 
     static fromIsoInCalendar(year: number, month: number, day: number, calendar: Calendar): Date;
 
     static fromCodesInCalendar(eraCode: string, year: number, monthCode: string, day: number, calendar: Calendar): Date;
 
-    static fromString(v: string, calendar: Calendar): Date;
+    static fromString(v: string): Date;
 
     toCalendar(calendar: Calendar): Date;
 
@@ -33,9 +32,9 @@ export class Date {
 
     get dayOfMonth(): number;
 
-    get dayOfWeek(): Weekday;
+    get dayOfWeek(): IsoWeekday;
 
-    weekOfMonth(firstWeekday: Weekday): number;
+    weekOfMonth(firstWeekday: IsoWeekday): number;
 
     weekOfYear(calculator: WeekCalculator): WeekOf;
 

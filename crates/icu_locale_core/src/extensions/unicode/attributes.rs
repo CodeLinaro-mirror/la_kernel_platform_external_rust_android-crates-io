@@ -4,15 +4,11 @@
 
 use super::Attribute;
 
-#[cfg(feature = "alloc")]
 use crate::parser::SubtagIterator;
 use crate::shortvec::ShortBoxSlice;
-#[cfg(feature = "alloc")]
 use crate::ParseError;
-#[cfg(feature = "alloc")]
 use alloc::vec::Vec;
 use core::ops::Deref;
-#[cfg(feature = "alloc")]
 use core::str::FromStr;
 
 /// A set of [`Attribute`] elements as defined in [`Unicode Extension Attributes`].
@@ -58,13 +54,11 @@ impl Attributes {
     /// A constructor which takes a str slice, parses it and
     /// produces a well-formed [`Attributes`].
     #[inline]
-    #[cfg(feature = "alloc")]
     pub fn try_from_str(s: &str) -> Result<Self, ParseError> {
         Self::try_from_utf8(s.as_bytes())
     }
 
     /// See [`Self::try_from_str`]
-    #[cfg(feature = "alloc")]
     pub fn try_from_utf8(code_units: &[u8]) -> Result<Self, ParseError> {
         let mut iter = SubtagIterator::new(code_units);
         Self::try_from_iter(&mut iter)
@@ -90,7 +84,6 @@ impl Attributes {
     /// Notice: For performance- and memory-constrained environments, it is recommended
     /// for the caller to use [`binary_search`](slice::binary_search) instead of [`sort`](slice::sort)
     /// and [`dedup`](Vec::dedup()).
-    #[cfg(feature = "alloc")]
     pub fn from_vec_unchecked(input: Vec<Attribute>) -> Self {
         Self(input.into())
     }
@@ -120,7 +113,6 @@ impl Attributes {
         core::mem::take(self)
     }
 
-    #[cfg(feature = "alloc")]
     pub(crate) fn try_from_iter(iter: &mut SubtagIterator) -> Result<Self, ParseError> {
         let mut attributes = ShortBoxSlice::new();
 
@@ -145,7 +137,6 @@ impl Attributes {
     }
 }
 
-#[cfg(feature = "alloc")]
 impl FromStr for Attributes {
     type Err = ParseError;
 

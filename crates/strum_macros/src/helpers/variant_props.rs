@@ -1,5 +1,5 @@
 use std::default::Default;
-use syn::{Ident, Lit, LitStr, Variant};
+use syn::{Ident, LitStr, Variant};
 
 use super::case_style::{CaseStyle, CaseStyleHelpers};
 use super::metadata::{kw, VariantExt, VariantMeta};
@@ -9,9 +9,8 @@ pub trait HasStrumVariantProperties {
     fn get_variant_properties(&self) -> syn::Result<StrumVariantProperties>;
 }
 
-#[derive(Clone, Default)]
+#[derive(Clone, Eq, PartialEq, Debug, Default)]
 pub struct StrumVariantProperties {
-    pub transparent: Option<kw::transparent>,
     pub disabled: Option<kw::disabled>,
     pub default: Option<kw::default>,
     pub default_with: Option<LitStr>,
@@ -19,7 +18,7 @@ pub struct StrumVariantProperties {
     pub message: Option<LitStr>,
     pub detailed_message: Option<LitStr>,
     pub documentation: Vec<LitStr>,
-    pub props: Vec<(LitStr, Lit)>,
+    pub string_props: Vec<(LitStr, LitStr)>,
     serialize: Vec<LitStr>,
     pub to_string: Option<LitStr>,
     ident: Option<Ident>,
@@ -74,7 +73,6 @@ impl HasStrumVariantProperties for Variant {
 
         let mut message_kw = None;
         let mut detailed_message_kw = None;
-        let mut transparent_kw = None;
         let mut disabled_kw = None;
         let mut default_kw = None;
         let mut default_with_kw = None;
@@ -112,14 +110,6 @@ impl HasStrumVariantProperties for Variant {
                     to_string_kw = Some(kw);
                     output.to_string = Some(value);
                 }
-                VariantMeta::Transparent(kw) => {
-                    if let Some(fst_kw) = transparent_kw {
-                        return Err(occurrence_error(fst_kw, kw, "transparent"));
-                    }
-
-                    transparent_kw = Some(kw);
-                    output.transparent = Some(kw);
-                }
                 VariantMeta::Disabled(kw) => {
                     if let Some(fst_kw) = disabled_kw {
                         return Err(occurrence_error(fst_kw, kw, "disabled"));
@@ -153,7 +143,7 @@ impl HasStrumVariantProperties for Variant {
                     output.ascii_case_insensitive = Some(value);
                 }
                 VariantMeta::Props { props, .. } => {
-                    output.props.extend(props);
+                    output.string_props.extend(props);
                 }
             }
         }
