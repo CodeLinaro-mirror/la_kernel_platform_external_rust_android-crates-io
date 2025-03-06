@@ -1,5 +1,5 @@
 name: "enum-as-inner"
-description: "A proc-macro for deriving inner field accessor functions on enums.\n"
+description: "A proc-macro for deriving inner field accessor functions on enums."
 third_party {
   version: "0.6.1"
   license_type: NOTICE
