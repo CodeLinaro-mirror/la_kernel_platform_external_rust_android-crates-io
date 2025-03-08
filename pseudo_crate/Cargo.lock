@@ -327,7 +327,7 @@ dependencies = [
  "mockall_derive",
  "moveit",
  "named-lock",
- "nix 0.28.0",
+ "nix 0.29.0",
  "no-panic",
  "nom",
  "num-bigint",
@@ -508,6 +508,7 @@ dependencies = [
  "vhost-user-backend",
  "virtio-bindings",
  "virtio-drivers",
+ "virtio-drivers-and-devices",
  "virtio-queue",
  "virtio-vsock",
  "vm-memory",
@@ -6951,6 +6952,20 @@ dependencies = [
  "log",
  "thiserror 2.0.11",
  "zerocopy 0.8.21",
+]
+
+[[package]]
+name = "virtio-drivers-and-devices"
+version = "0.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "087f2286ad55b6c36ec93267bcd1cbb740d7f9784879a001f76eea329d488273"
+dependencies = [
+ "bitflags 2.8.0",
+ "embedded-io",
+ "enumn",
+ "log",
+ "thiserror 2.0.11",
+ "zerocopy 0.8.20",
 ]
 
 [[package]]
