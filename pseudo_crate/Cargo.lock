@@ -376,7 +376,7 @@ dependencies = [
  "predicates",
  "predicates-core",
  "predicates-tree",
- "prettyplease 0.2.30",
+ "prettyplease 0.2.31",
  "proc-macro2 1.0.94",
  "protobuf 3.2.0",
  "protobuf-codegen",
@@ -954,7 +954,7 @@ dependencies = [
  "lazy_static",
  "lazycell",
  "log",
- "prettyplease 0.2.30",
+ "prettyplease 0.2.31",
  "proc-macro2 1.0.94",
  "quote 1.0.39",
  "regex",
@@ -4702,7 +4702,7 @@ dependencies = [
  "heck 0.4.1",
  "pest",
  "pest_derive",
- "prettyplease 0.2.30",
+ "prettyplease 0.2.31",
  "proc-macro2 1.0.94",
  "quote 1.0.39",
  "serde",
@@ -5013,9 +5013,9 @@ dependencies = [
 
 [[package]]
 name = "prettyplease"
-version = "0.2.30"
+version = "0.2.31"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f1ccf34da56fc294e7d4ccf69a85992b7dfb826b7cf57bac6a70bba3494cc08a"
+checksum = "5316f57387668042f561aae71480de936257848f9c43ce528e311d89a07cadeb"
 dependencies = [
  "proc-macro2 1.0.94",
  "syn 2.0.98",
@@ -6960,12 +6960,12 @@ version = "0.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "087f2286ad55b6c36ec93267bcd1cbb740d7f9784879a001f76eea329d488273"
 dependencies = [
- "bitflags 2.8.0",
+ "bitflags 2.9.0",
  "embedded-io",
  "enumn",
  "log",
  "thiserror 2.0.11",
- "zerocopy 0.8.20",
+ "zerocopy 0.8.21",
 ]
 
 [[package]]
