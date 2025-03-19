@@ -141,6 +141,7 @@ dependencies = [
  "cast",
  "cesu8",
  "cexpr",
+ "cfg-expr",
  "cfg-if",
  "chrono",
  "ciborium",
@@ -1149,6 +1150,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "6fac387a98bb7c37292057cffc56d62ecb629900026402633ae9160df93a8766"
 dependencies = [
  "nom",
+]
+
+[[package]]
+name = "cfg-expr"
+version = "0.18.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "1a2b34126159980f92da2a08bdec0694fd80fb5eb9e48aff25d20a0d8dfa710d"
+dependencies = [
+ "smallvec",
 ]
 
 [[package]]

@@ -42,6 +42,7 @@ camino
 cast
 cesu8
 cexpr
+cfg-expr
 cfg-if
 chrono
 ciborium
