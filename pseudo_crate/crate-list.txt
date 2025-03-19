@@ -336,6 +336,7 @@ slab
 slotmap
 smallvec
 smccc
+smol_str
 socket2
 spdx
 spidev
