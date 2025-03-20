@@ -427,6 +427,7 @@ dependencies = [
  "shlex",
  "signal-hook",
  "signal-hook-registry",
+ "simd-adler32",
  "siphasher",
  "slab",
  "slotmap",
