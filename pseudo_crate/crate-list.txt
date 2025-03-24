@@ -95,6 +95,7 @@ drm-ffi
 drm-fourcc
 either
 enum-as-inner
+enum-primitive-derive
 enumn
 env_filter
 env_logger
