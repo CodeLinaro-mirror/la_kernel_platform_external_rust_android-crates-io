@@ -344,6 +344,7 @@ dependencies = [
  "open-enum",
  "open-enum-derive",
  "openssl-macros",
+ "os_pipe",
  "os_str_bytes",
  "p9",
  "p9_wire_format_derive",
@@ -4546,6 +4547,16 @@ checksum = "ccd746e37177e1711c20dd619a1620f34f5c8b569c53590a72dedd5344d8924a"
 dependencies = [
  "dlv-list",
  "hashbrown 0.12.3",
+]
+
+[[package]]
+name = "os_pipe"
+version = "1.2.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "5ffd2b0a5634335b135d5728d84c5e0fd726954b87111f7506a61c502280d982"
+dependencies = [
+ "libc 0.2.161",
+ "windows-sys 0.59.0",
 ]
 
 [[package]]

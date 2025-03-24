@@ -248,6 +248,7 @@ oorandom
 open-enum
 open-enum-derive
 openssl-macros
+os_pipe
 os_str_bytes
 p9
 p9_wire_format_derive
