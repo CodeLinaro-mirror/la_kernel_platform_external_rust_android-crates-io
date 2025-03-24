@@ -194,6 +194,7 @@ dependencies = [
  "drm-fourcc",
  "either",
  "enum-as-inner",
+ "enum-primitive-derive",
  "enumn",
  "env_filter",
  "env_logger 0.10.2",
@@ -1989,6 +1990,17 @@ checksum = "a1e6a265c649f3f5979b601d26f1d05ada116434c87741c9493cb56218f76cbc"
 dependencies = [
  "heck 0.5.0",
  "proc-macro2 1.0.94",
+ "quote 1.0.40",
+ "syn 2.0.100",
+]
+
+[[package]]
+name = "enum-primitive-derive"
+version = "0.3.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "ba7795da175654fe16979af73f81f26a8ea27638d8d9823d317016888a63dc4c"
+dependencies = [
+ "num-traits",
  "quote 1.0.40",
  "syn 2.0.100",
 ]
