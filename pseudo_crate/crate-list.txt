@@ -188,6 +188,7 @@ json-strip-comments
 kernlog
 khronos
 khronos-egl
+kobject-uevent
 lazy_static
 lazycell
 libbpf-rs
