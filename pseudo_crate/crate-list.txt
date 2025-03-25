@@ -313,6 +313,7 @@ rusqlite
 rustc-demangle
 rustc-demangle-capi
 rustc-hash
+rustc-stable-hash
 rustix
 rustversion
 ryu
