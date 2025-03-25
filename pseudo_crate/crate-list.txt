@@ -95,6 +95,7 @@ drm-ffi
 drm-fourcc
 either
 enum-as-inner
+enum-primitive-derive
 enumn
 env_filter
 env_logger
@@ -248,6 +249,7 @@ oorandom
 open-enum
 open-enum-derive
 openssl-macros
+os_pipe
 os_str_bytes
 p9
 p9_wire_format_derive
@@ -311,6 +313,7 @@ rustc-hash
 rustix
 rustversion
 ryu
+safe-mmio
 same-file
 scopeguard
 sec1
