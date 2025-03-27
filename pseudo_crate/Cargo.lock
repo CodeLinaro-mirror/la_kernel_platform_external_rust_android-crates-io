@@ -99,6 +99,7 @@ version = "0.1.0"
 dependencies = [
  "aarch64-paging",
  "acpi",
+ "adler2",
  "ahash 0.8.11",
  "aho-corasick",
  "android_bp",
@@ -207,6 +208,7 @@ dependencies = [
  "fallible-iterator",
  "fallible-streaming-iterator",
  "fastrand",
+ "fdeflate",
  "fixedbitset 0.5.7",
  "flagset",
  "flate2",
