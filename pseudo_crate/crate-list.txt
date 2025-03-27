@@ -46,6 +46,7 @@ cexpr
 cfg-expr
 cfg-if
 chrono
+chunked_transfer
 ciborium
 ciborium-io
 ciborium-ll
