@@ -27,6 +27,7 @@ rust_library_rlib {
     ],
     product_available: true,
     vendor_available: true,
+    min_sdk_version: "29",
 }
 
 rust_binary {
@@ -38,8 +39,13 @@ rust_binary {
     crate_root: "src/bin/run-emitter-test-suite.rs",
     edition: "2021",
     rustlibs: ["libunsafe_libyaml"],
+    apex_available: [
+        "//apex_available:platform",
+        "//apex_available:anyapex",
+    ],
     product_available: true,
     vendor_available: true,
+    min_sdk_version: "29",
 }
 
 rust_binary {
@@ -51,6 +57,11 @@ rust_binary {
     crate_root: "src/bin/run-parser-test-suite.rs",
     edition: "2021",
     rustlibs: ["libunsafe_libyaml"],
+    apex_available: [
+        "//apex_available:platform",
+        "//apex_available:anyapex",
+    ],
     product_available: true,
     vendor_available: true,
+    min_sdk_version: "29",
 }

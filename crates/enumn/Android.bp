@@ -25,8 +25,13 @@ rust_proc_macro {
         "libquote",
         "libsyn",
     ],
+    apex_available: [
+        "//apex_available:platform",
+        "com.android.virt",
+    ],
     product_available: true,
     vendor_available: true,
+    min_sdk_version: "29",
 }
 
 dirgroup {

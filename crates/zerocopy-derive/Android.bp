@@ -17,7 +17,7 @@ rust_proc_macro {
     name: "libzerocopy_derive",
     crate_name: "zerocopy_derive",
     cargo_env_compat: true,
-    cargo_pkg_version: "0.8.19",
+    cargo_pkg_version: "0.8.23",
     crate_root: "src/lib.rs",
     edition: "2021",
     rustlibs: [
@@ -31,6 +31,7 @@ rust_proc_macro {
     ],
     product_available: true,
     vendor_available: true,
+    min_sdk_version: "29",
 }
 
 dirgroup {

@@ -667,9 +667,7 @@ unsafe impl<T: TryFromBytes + ?Sized> TryFromBytes for UnsafeCell<T> {
     }
 
     #[inline]
-    fn is_bit_valid<A: invariant::Aliasing + invariant::AtLeast<invariant::Shared>>(
-        candidate: Maybe<'_, Self, A>,
-    ) -> bool {
+    fn is_bit_valid<A: invariant::Reference>(candidate: Maybe<'_, Self, A>) -> bool {
         // The only way to implement this function is using an exclusive-aliased
         // pointer. `UnsafeCell`s cannot be read via shared-aliased pointers
         // (other than by using `unsafe` code, which we can't use since we can't
@@ -685,7 +683,7 @@ unsafe impl<T: TryFromBytes + ?Sized> TryFromBytes for UnsafeCell<T> {
         // that if we make a mistake, it will cause downstream code to fail to
         // compile, which will immediately surface the mistake and give us a
         // chance to fix it quickly.
-        let c = candidate.into_exclusive_or_post_monomorphization_error();
+        let c = candidate.into_exclusive_or_pme();
 
         // SAFETY: Since `UnsafeCell<T>` and `T` have the same layout and bit
         // validity, `UnsafeCell<T>` is bit-valid exactly when its wrapped `T`
@@ -964,6 +962,7 @@ mod simd {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::pointer::invariant;
 
     #[test]
     fn test_impls() {
@@ -1146,10 +1145,7 @@ mod tests {
 
             pub(super) trait TestIsBitValidShared<T: ?Sized> {
                 #[allow(clippy::needless_lifetimes)]
-                fn test_is_bit_valid_shared<
-                    'ptr,
-                    A: invariant::Aliasing + invariant::AtLeast<invariant::Shared>,
-                >(
+                fn test_is_bit_valid_shared<'ptr, A: invariant::Reference>(
                     &self,
                     candidate: Maybe<'ptr, T, A>,
                 ) -> Option<bool>;
@@ -1157,10 +1153,7 @@ mod tests {
 
             impl<T: TryFromBytes + Immutable + ?Sized> TestIsBitValidShared<T> for AutorefWrapper<T> {
                 #[allow(clippy::needless_lifetimes)]
-                fn test_is_bit_valid_shared<
-                    'ptr,
-                    A: invariant::Aliasing + invariant::AtLeast<invariant::Shared>,
-                >(
+                fn test_is_bit_valid_shared<'ptr, A: invariant::Reference>(
                     &self,
                     candidate: Maybe<'ptr, T, A>,
                 ) -> Option<bool> {
@@ -1268,7 +1261,7 @@ mod tests {
                 #[allow(unused, non_local_definitions)]
                 impl AutorefWrapper<$ty> {
                     #[allow(clippy::needless_lifetimes)]
-                    fn test_is_bit_valid_shared<'ptr, A: invariant::Aliasing + invariant::AtLeast<invariant::Shared>>(
+                    fn test_is_bit_valid_shared<'ptr, A: invariant::Reference>(
                         &mut self,
                         candidate: Maybe<'ptr, $ty, A>,
                     ) -> Option<bool> {
