@@ -114,6 +114,7 @@ fallible-iterator
 fallible-streaming-iterator
 fastrand
 fdeflate
+filetime
 fixedbitset
 flagset
 flate2
@@ -179,6 +180,7 @@ icu_provider_baked
 icu_provider_macros
 ident_case
 idna
+image
 indexmap
 inotify
 inotify-sys
@@ -243,6 +245,7 @@ mockall
 mockall_derive
 moveit
 named-lock
+netlink-packet-core
 netlink-packet-utils
 nix
 no-panic
@@ -372,6 +375,7 @@ syn-mid
 sync_wrapper
 synstructure
 taffy
+tar
 tempfile
 termcolor
 termtree
