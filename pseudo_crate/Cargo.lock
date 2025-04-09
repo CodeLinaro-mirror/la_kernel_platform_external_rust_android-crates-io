@@ -218,6 +218,7 @@ dependencies = [
  "flate2",
  "fnv",
  "foldhash",
+ "font-types",
  "foreign-types 0.3.2",
  "foreign-types-shared 0.1.1",
  "form_urlencoded",
@@ -2338,6 +2339,12 @@ dependencies = [
  "winapi",
  "yeslogic-fontconfig-sys",
 ]
+
+[[package]]
+name = "font-types"
+version = "0.8.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "1fa6a5e5a77b5f3f7f9e32879f484aa5b3632ddfbe568a16266c904a6f32cdaf"
 
 [[package]]
 name = "foreign-types"
