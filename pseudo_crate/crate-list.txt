@@ -315,6 +315,7 @@ rand_core
 rand_xorshift
 rayon
 rayon-core
+read-fonts
 regex
 regex-automata
 regex-syntax
