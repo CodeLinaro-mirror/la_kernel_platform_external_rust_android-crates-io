@@ -39,9 +39,11 @@ bytemuck_derive
 byteorder
 bytes
 camino
+cargo-platform
 cast
 cesu8
 cexpr
+cfg-expr
 cfg-if
 chrono
 ciborium
@@ -148,6 +150,7 @@ hashbrown
 hashlink
 heck
 hex
+home
 hound
 http
 http-body
@@ -176,6 +179,7 @@ inotify-sys
 instant
 intrusive-collections
 ipnet
+ipp
 is-terminal
 itertools
 itoa
@@ -185,6 +189,7 @@ json-strip-comments
 kernlog
 khronos
 khronos-egl
+kobject-uevent
 lazy_static
 lazycell
 libbpf-rs
@@ -310,6 +315,7 @@ rusqlite
 rustc-demangle
 rustc-demangle-capi
 rustc-hash
+rustc-stable-hash
 rustix
 rustversion
 ryu
@@ -340,6 +346,7 @@ slab
 slotmap
 smallvec
 smccc
+smol_str
 socket2
 spdx
 spidev
