@@ -41,12 +41,14 @@ byteorder
 bytes
 camino
 cargo-platform
+cargo_metadata
 cast
 cesu8
 cexpr
 cfg-expr
 cfg-if
 chrono
+chunked_transfer
 ciborium
 ciborium-io
 ciborium-ll
@@ -64,6 +66,7 @@ configparser
 const-oid
 coset
 cov-mark
+crates-index
 crc
 crc-catalog
 crc32fast
