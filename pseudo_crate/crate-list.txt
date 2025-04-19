@@ -190,6 +190,7 @@ instant
 intrusive-collections
 ipnet
 ipp
+ippusb
 is-terminal
 itertools
 itoa
@@ -248,7 +249,10 @@ mockall_derive
 moveit
 named-lock
 netlink-packet-core
+netlink-packet-route
 netlink-packet-utils
+netlink-proto
+netlink-sys
 nix
 no-panic
 nom
@@ -325,6 +329,7 @@ regex-automata
 regex-syntax
 remain
 ring
+rtnetlink
 rusb
 rusqlite
 rustc-demangle
