@@ -38,6 +38,7 @@ buddy_system_allocator
 bytemuck
 bytemuck_derive
 byteorder
+byteorder-lite
 bytes
 camino
 cargo-platform
@@ -84,6 +85,7 @@ darling
 darling_core
 darling_macro
 dashmap
+dasp_sample
 data-encoding
 debug_tree
 der
@@ -113,6 +115,7 @@ fallible-iterator
 fallible-streaming-iterator
 fastrand
 fdeflate
+filetime
 fixedbitset
 flagset
 flate2
@@ -178,6 +181,7 @@ icu_provider_baked
 icu_provider_macros
 ident_case
 idna
+image
 indexmap
 inotify
 inotify-sys
@@ -231,6 +235,7 @@ miette
 miette-derive
 mime
 minimal-lexical
+miniz_oxide
 mio
 mls-rs
 mls-rs-codec
@@ -241,6 +246,8 @@ mockall
 mockall_derive
 moveit
 named-lock
+netlink-packet-core
+netlink-packet-utils
 nix
 no-panic
 nom
@@ -285,6 +292,7 @@ pkcs8
 plotters
 plotters-backend
 plotters-svg
+png
 poll_token_derive
 portable-atomic
 potential_utf
@@ -368,6 +376,7 @@ syn-mid
 sync_wrapper
 synstructure
 taffy
+tar
 tempfile
 termcolor
 termtree
