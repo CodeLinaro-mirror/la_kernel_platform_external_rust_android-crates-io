@@ -249,7 +249,6 @@ moveit
 named-lock
 netlink-packet-core
 netlink-packet-utils
-netlink-proto
 netlink-sys
 nix
 no-panic
