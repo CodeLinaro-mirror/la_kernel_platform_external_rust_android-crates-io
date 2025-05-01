@@ -353,6 +353,7 @@ dependencies = [
  "named-lock",
  "netlink-packet-core",
  "netlink-packet-utils",
+ "netlink-sys",
  "nix 0.29.0",
  "no-panic",
  "nom",
@@ -4366,7 +4367,7 @@ version = "0.0.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "62bb907fe88d54d8d9ce32a3cceab4218ed2f6b7d35617cafe9adf84e43919cb"
 dependencies = [
- "libc 0.1.12",
+ "libc 0.2.168",
 ]
 
 [[package]]
@@ -4725,6 +4726,17 @@ dependencies = [
  "byteorder",
  "paste",
  "thiserror 1.0.49",
+]
+
+[[package]]
+name = "netlink-sys"
+version = "0.8.7"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "16c903aa70590cb93691bf97a767c8d1d6122d2cc9070433deb3bbf36ce8bd23"
+dependencies = [
+ "bytes",
+ "libc 0.2.168",
+ "log",
 ]
 
 [[package]]
