@@ -329,6 +329,7 @@ regex-automata
 regex-syntax
 remain
 ring
+rtnetlink
 rusb
 rusqlite
 rustc-demangle
