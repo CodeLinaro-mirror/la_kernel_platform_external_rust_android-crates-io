@@ -192,6 +192,7 @@ dependencies = [
  "dashmap",
  "dasp_sample",
  "data-encoding",
+ "dc_bundle",
  "debug_tree",
  "der",
  "der_derive",
@@ -1876,6 +1877,20 @@ name = "data-encoding"
 version = "2.8.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "575f75dfd25738df5b91b8e43e14d44bda14637a58fae779fd2b064f8bf3e010"
+
+[[package]]
+name = "dc_bundle"
+version = "0.34.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "cbe10818dde1e93d98eec4a88e1265f1bea9c3f87c57a5acdc4d76754972a9d2"
+dependencies = [
+ "log",
+ "protobuf 3.2.0",
+ "protobuf-codegen",
+ "serde",
+ "serde_bytes",
+ "thiserror 2.0.11",
+]
 
 [[package]]
 name = "debug_tree"
@@ -4366,7 +4381,7 @@ version = "0.0.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "62bb907fe88d54d8d9ce32a3cceab4218ed2f6b7d35617cafe9adf84e43919cb"
 dependencies = [
- "libc 0.1.12",
+ "libc 0.2.168",
 ]
 
 [[package]]
