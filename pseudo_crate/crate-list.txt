@@ -43,6 +43,7 @@ bytes
 camino
 cargo-platform
 cargo_metadata
+cargo_toml
 cast
 cesu8
 cexpr
@@ -102,6 +103,7 @@ drm
 drm-ffi
 drm-fourcc
 either
+elf
 enum-as-inner
 enum-primitive-derive
 enumn
@@ -249,7 +251,10 @@ mockall_derive
 moveit
 named-lock
 netlink-packet-core
+netlink-packet-route
 netlink-packet-utils
+netlink-proto
+netlink-sys
 nix
 no-panic
 nom
@@ -326,6 +331,7 @@ regex-automata
 regex-syntax
 remain
 ring
+rtnetlink
 rusb
 rusqlite
 rustc-demangle
