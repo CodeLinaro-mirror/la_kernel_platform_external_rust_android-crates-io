@@ -57,6 +57,5 @@
       "generate_rulesmk": true
     }
   ],
-  "recovery_available": true,
   "min_sdk_version": "29"
 }
