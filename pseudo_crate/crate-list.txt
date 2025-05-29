@@ -88,6 +88,8 @@ darling_macro
 dashmap
 dasp_sample
 data-encoding
+dc_bundle
+dc_layout
 debug_tree
 der
 der_derive
@@ -248,6 +250,7 @@ mls-rs-core
 mls-rs-crypto-traits
 mockall
 mockall_derive
+mockall_double
 moveit
 named-lock
 netlink-packet-core
