@@ -1,11 +1,16 @@
 bitflags
 clap
 clap_lex
+getrandom
 hashbrown
 http
 jni
 protobuf
 protobuf-codegen
+rand
+rand_chacha
+rand_core
+rand_xorshift
 vm-memory
 zerocopy
 zerocopy-derive
