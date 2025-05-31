@@ -1,5 +1,6 @@
 {
   "features": [
+    "os_rng",
     "std"
   ],
   "run_cargo": false,

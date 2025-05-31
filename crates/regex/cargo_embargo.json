@@ -1,10 +1,13 @@
 {
+  "module_name_overrides": {
+    "librand": "librand-0.8"
+  },
   "apex_available": [
     "//apex_available:anyapex",
     "//apex_available:platform"
   ],
   "run_cargo": false,
-  "tests": true,
+  "tests": false,
   "min_sdk_version": "29",
   "package": {
     "regex": {

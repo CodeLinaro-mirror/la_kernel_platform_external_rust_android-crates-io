@@ -98,6 +98,7 @@ diplomat
 diplomat-runtime
 diplomat_core
 displaydoc
+doc-comment
 document-features
 downcast
 downcast-rs
@@ -348,6 +349,7 @@ safe-mmio
 same-file
 scopeguard
 sec1
+selinux-sys
 semver
 serde
 serde-xml-rs
