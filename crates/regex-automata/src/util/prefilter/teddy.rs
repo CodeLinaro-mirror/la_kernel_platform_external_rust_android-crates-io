@@ -28,7 +28,7 @@ pub(crate) struct Teddy {
     anchored_ac: aho_corasick::dfa::DFA,
     /// The length of the smallest literal we look for.
     ///
-    /// We use this as a hueristic to figure out whether this will be "fast" or
+    /// We use this as a heuristic to figure out whether this will be "fast" or
     /// not. Generally, the longer the better, because longer needles are more
     /// discriminating and thus reduce false positive rate.
     #[cfg(feature = "perf-literal-multisubstring")]
@@ -50,12 +50,17 @@ impl Teddy {
             // theory we could at least support leftmost-longest, as the
             // aho-corasick crate does, but regex-automata doesn't know about
             // leftmost-longest currently.
+            //
+            // And like the aho-corasick prefilter, if we're using `All`
+            // semantics, then we can still use leftmost semantics for a
+            // prefilter. (This might be a suspicious choice for the literal
+            // engine, which uses a prefilter as a regex engine directly, but
+            // that only happens when using leftmost-first semantics.)
             let (packed_match_kind, ac_match_kind) = match kind {
-                MatchKind::LeftmostFirst => (
+                MatchKind::LeftmostFirst | MatchKind::All => (
                     aho_corasick::packed::MatchKind::LeftmostFirst,
                     aho_corasick::MatchKind::LeftmostFirst,
                 ),
-                _ => return None,
             };
             let minimum_len =
                 needles.iter().map(|n| n.as_ref().len()).min().unwrap_or(0);

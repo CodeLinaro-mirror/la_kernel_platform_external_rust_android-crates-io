@@ -41,6 +41,7 @@ byteorder
 byteorder-lite
 bytes
 camino
+caps
 cargo-platform
 cargo_metadata
 cargo_toml
@@ -54,6 +55,7 @@ chunked_transfer
 ciborium
 ciborium-io
 ciborium-ll
+cidr
 clang-sys
 clap
 clap_builder
@@ -217,6 +219,7 @@ libm
 libsqlite3-sys
 libtest-mimic
 libusb1-sys
+libz-rs-sys
 libz-sys
 linked-hash-map
 linkme
@@ -349,6 +352,7 @@ safe-mmio
 same-file
 scopeguard
 sec1
+selinux
 selinux-sys
 semver
 serde
@@ -487,3 +491,4 @@ zerotrie
 zerovec
 zerovec-derive
 zip
+zlib-rs
