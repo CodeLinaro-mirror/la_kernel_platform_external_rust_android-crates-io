@@ -41,6 +41,7 @@ byteorder
 byteorder-lite
 bytes
 camino
+caps
 cargo-platform
 cargo_metadata
 cargo_toml
@@ -54,6 +55,7 @@ chunked_transfer
 ciborium
 ciborium-io
 ciborium-ll
+cidr
 clang-sys
 clap
 clap_builder
