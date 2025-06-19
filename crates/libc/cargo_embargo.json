@@ -4,7 +4,6 @@
     "extra_traits",
     "std"
   ],
-  "recovery_available": true,
   "min_sdk_version": "29",
   "tests": true,
   "package": {
