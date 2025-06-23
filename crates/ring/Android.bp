@@ -43,6 +43,12 @@ rust_library {
     cargo_env_compat: true,
     cargo_pkg_version: "0.17.2",
     crate_root: "src/lib.rs",
+    srcs: [
+        "src/data/alg-rsa-encryption.der",
+        "src/ec/curve25519/ed25519/ed25519_pkcs8_v2_template.der",
+        "src/ec/suite_b/ecdsa/ecPublicKey_p256_pkcs8_v1_template.der",
+        "src/ec/suite_b/ecdsa/ecPublicKey_p384_pkcs8_v1_template.der",
+    ],
     edition: "2021",
     features: [
         "alloc",
@@ -76,6 +82,12 @@ rust_test {
     cargo_env_compat: true,
     cargo_pkg_version: "0.17.2",
     crate_root: "src/lib.rs",
+    srcs: [
+        "src/data/alg-rsa-encryption.der",
+        "src/ec/curve25519/ed25519/ed25519_pkcs8_v2_template.der",
+        "src/ec/suite_b/ecdsa/ecPublicKey_p256_pkcs8_v1_template.der",
+        "src/ec/suite_b/ecdsa/ecPublicKey_p384_pkcs8_v1_template.der",
+    ],
     test_suites: ["general-tests"],
     auto_gen_config: true,
     test_options: {
@@ -108,6 +120,12 @@ rust_test {
     cargo_env_compat: true,
     cargo_pkg_version: "0.17.2",
     crate_root: "tests/aead_tests.rs",
+    srcs: [
+        "src/data/alg-rsa-encryption.der",
+        "src/ec/curve25519/ed25519/ed25519_pkcs8_v2_template.der",
+        "src/ec/suite_b/ecdsa/ecPublicKey_p256_pkcs8_v1_template.der",
+        "src/ec/suite_b/ecdsa/ecPublicKey_p384_pkcs8_v1_template.der",
+    ],
     test_suites: ["general-tests"],
     auto_gen_config: true,
     test_options: {
@@ -137,6 +155,12 @@ rust_test {
     cargo_env_compat: true,
     cargo_pkg_version: "0.17.2",
     crate_root: "tests/agreement_tests.rs",
+    srcs: [
+        "src/data/alg-rsa-encryption.der",
+        "src/ec/curve25519/ed25519/ed25519_pkcs8_v2_template.der",
+        "src/ec/suite_b/ecdsa/ecPublicKey_p256_pkcs8_v1_template.der",
+        "src/ec/suite_b/ecdsa/ecPublicKey_p384_pkcs8_v1_template.der",
+    ],
     test_suites: ["general-tests"],
     auto_gen_config: true,
     test_options: {
@@ -166,6 +190,12 @@ rust_test {
     cargo_env_compat: true,
     cargo_pkg_version: "0.17.2",
     crate_root: "tests/constant_time_tests.rs",
+    srcs: [
+        "src/data/alg-rsa-encryption.der",
+        "src/ec/curve25519/ed25519/ed25519_pkcs8_v2_template.der",
+        "src/ec/suite_b/ecdsa/ecPublicKey_p256_pkcs8_v1_template.der",
+        "src/ec/suite_b/ecdsa/ecPublicKey_p384_pkcs8_v1_template.der",
+    ],
     test_suites: ["general-tests"],
     auto_gen_config: true,
     test_options: {
@@ -195,6 +225,12 @@ rust_test {
     cargo_env_compat: true,
     cargo_pkg_version: "0.17.2",
     crate_root: "tests/digest_tests.rs",
+    srcs: [
+        "src/data/alg-rsa-encryption.der",
+        "src/ec/curve25519/ed25519/ed25519_pkcs8_v2_template.der",
+        "src/ec/suite_b/ecdsa/ecPublicKey_p256_pkcs8_v1_template.der",
+        "src/ec/suite_b/ecdsa/ecPublicKey_p384_pkcs8_v1_template.der",
+    ],
     test_suites: ["general-tests"],
     auto_gen_config: true,
     test_options: {
@@ -224,6 +260,12 @@ rust_test {
     cargo_env_compat: true,
     cargo_pkg_version: "0.17.2",
     crate_root: "tests/ecdsa_tests.rs",
+    srcs: [
+        "src/data/alg-rsa-encryption.der",
+        "src/ec/curve25519/ed25519/ed25519_pkcs8_v2_template.der",
+        "src/ec/suite_b/ecdsa/ecPublicKey_p256_pkcs8_v1_template.der",
+        "src/ec/suite_b/ecdsa/ecPublicKey_p384_pkcs8_v1_template.der",
+    ],
     test_suites: ["general-tests"],
     auto_gen_config: true,
     test_options: {
@@ -253,6 +295,12 @@ rust_test {
     cargo_env_compat: true,
     cargo_pkg_version: "0.17.2",
     crate_root: "tests/ed25519_tests.rs",
+    srcs: [
+        "src/data/alg-rsa-encryption.der",
+        "src/ec/curve25519/ed25519/ed25519_pkcs8_v2_template.der",
+        "src/ec/suite_b/ecdsa/ecPublicKey_p256_pkcs8_v1_template.der",
+        "src/ec/suite_b/ecdsa/ecPublicKey_p384_pkcs8_v1_template.der",
+    ],
     test_suites: ["general-tests"],
     auto_gen_config: true,
     test_options: {
@@ -282,6 +330,12 @@ rust_test {
     cargo_env_compat: true,
     cargo_pkg_version: "0.17.2",
     crate_root: "tests/error_tests.rs",
+    srcs: [
+        "src/data/alg-rsa-encryption.der",
+        "src/ec/curve25519/ed25519/ed25519_pkcs8_v2_template.der",
+        "src/ec/suite_b/ecdsa/ecPublicKey_p256_pkcs8_v1_template.der",
+        "src/ec/suite_b/ecdsa/ecPublicKey_p384_pkcs8_v1_template.der",
+    ],
     test_suites: ["general-tests"],
     auto_gen_config: true,
     test_options: {
@@ -311,6 +365,12 @@ rust_test {
     cargo_env_compat: true,
     cargo_pkg_version: "0.17.2",
     crate_root: "tests/hkdf_tests.rs",
+    srcs: [
+        "src/data/alg-rsa-encryption.der",
+        "src/ec/curve25519/ed25519/ed25519_pkcs8_v2_template.der",
+        "src/ec/suite_b/ecdsa/ecPublicKey_p256_pkcs8_v1_template.der",
+        "src/ec/suite_b/ecdsa/ecPublicKey_p384_pkcs8_v1_template.der",
+    ],
     test_suites: ["general-tests"],
     auto_gen_config: true,
     test_options: {
@@ -340,6 +400,12 @@ rust_test {
     cargo_env_compat: true,
     cargo_pkg_version: "0.17.2",
     crate_root: "tests/hmac_tests.rs",
+    srcs: [
+        "src/data/alg-rsa-encryption.der",
+        "src/ec/curve25519/ed25519/ed25519_pkcs8_v2_template.der",
+        "src/ec/suite_b/ecdsa/ecPublicKey_p256_pkcs8_v1_template.der",
+        "src/ec/suite_b/ecdsa/ecPublicKey_p384_pkcs8_v1_template.der",
+    ],
     test_suites: ["general-tests"],
     auto_gen_config: true,
     test_options: {
@@ -369,6 +435,12 @@ rust_test {
     cargo_env_compat: true,
     cargo_pkg_version: "0.17.2",
     crate_root: "tests/pbkdf2_tests.rs",
+    srcs: [
+        "src/data/alg-rsa-encryption.der",
+        "src/ec/curve25519/ed25519/ed25519_pkcs8_v2_template.der",
+        "src/ec/suite_b/ecdsa/ecPublicKey_p256_pkcs8_v1_template.der",
+        "src/ec/suite_b/ecdsa/ecPublicKey_p384_pkcs8_v1_template.der",
+    ],
     test_suites: ["general-tests"],
     auto_gen_config: true,
     test_options: {
@@ -398,6 +470,12 @@ rust_test {
     cargo_env_compat: true,
     cargo_pkg_version: "0.17.2",
     crate_root: "tests/quic_tests.rs",
+    srcs: [
+        "src/data/alg-rsa-encryption.der",
+        "src/ec/curve25519/ed25519/ed25519_pkcs8_v2_template.der",
+        "src/ec/suite_b/ecdsa/ecPublicKey_p256_pkcs8_v1_template.der",
+        "src/ec/suite_b/ecdsa/ecPublicKey_p384_pkcs8_v1_template.der",
+    ],
     test_suites: ["general-tests"],
     auto_gen_config: true,
     test_options: {
@@ -427,6 +505,12 @@ rust_test {
     cargo_env_compat: true,
     cargo_pkg_version: "0.17.2",
     crate_root: "tests/rand_tests.rs",
+    srcs: [
+        "src/data/alg-rsa-encryption.der",
+        "src/ec/curve25519/ed25519/ed25519_pkcs8_v2_template.der",
+        "src/ec/suite_b/ecdsa/ecPublicKey_p256_pkcs8_v1_template.der",
+        "src/ec/suite_b/ecdsa/ecPublicKey_p384_pkcs8_v1_template.der",
+    ],
     test_suites: ["general-tests"],
     auto_gen_config: true,
     test_options: {
@@ -456,6 +540,12 @@ rust_test {
     cargo_env_compat: true,
     cargo_pkg_version: "0.17.2",
     crate_root: "tests/rsa_tests.rs",
+    srcs: [
+        "src/data/alg-rsa-encryption.der",
+        "src/ec/curve25519/ed25519/ed25519_pkcs8_v2_template.der",
+        "src/ec/suite_b/ecdsa/ecPublicKey_p256_pkcs8_v1_template.der",
+        "src/ec/suite_b/ecdsa/ecPublicKey_p384_pkcs8_v1_template.der",
+    ],
     test_suites: ["general-tests"],
     auto_gen_config: true,
     test_options: {
@@ -485,6 +575,12 @@ rust_test {
     cargo_env_compat: true,
     cargo_pkg_version: "0.17.2",
     crate_root: "tests/signature_tests.rs",
+    srcs: [
+        "src/data/alg-rsa-encryption.der",
+        "src/ec/curve25519/ed25519/ed25519_pkcs8_v2_template.der",
+        "src/ec/suite_b/ecdsa/ecPublicKey_p256_pkcs8_v1_template.der",
+        "src/ec/suite_b/ecdsa/ecPublicKey_p384_pkcs8_v1_template.der",
+    ],
     test_suites: ["general-tests"],
     auto_gen_config: true,
     test_options: {
@@ -514,6 +610,12 @@ rust_library_rlib {
     cargo_env_compat: true,
     cargo_pkg_version: "0.17.2",
     crate_root: "src/lib.rs",
+    srcs: [
+        "src/data/alg-rsa-encryption.der",
+        "src/ec/curve25519/ed25519/ed25519_pkcs8_v2_template.der",
+        "src/ec/suite_b/ecdsa/ecPublicKey_p256_pkcs8_v1_template.der",
+        "src/ec/suite_b/ecdsa/ecPublicKey_p384_pkcs8_v1_template.der",
+    ],
     edition: "2021",
     rustlibs: [
         "libgetrandom-0.2",
