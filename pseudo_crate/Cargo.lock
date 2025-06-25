@@ -361,7 +361,7 @@ dependencies = [
  "moveit",
  "named-lock",
  "netlink-packet-core",
- "netlink-packet-route",
+ "netlink-packet-route 0.24.0",
  "netlink-packet-utils",
  "netlink-proto",
  "netlink-sys",
@@ -4905,6 +4905,21 @@ dependencies = [
 ]
 
 [[package]]
+name = "netlink-packet-route"
+version = "0.24.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "56d83370a96813d7c977f8b63054f1162df6e5784f1c598d689236564fb5a6f2"
+dependencies = [
+ "anyhow",
+ "bitflags 2.9.1",
+ "byteorder",
+ "libc 0.2.168",
+ "log",
+ "netlink-packet-core",
+ "netlink-packet-utils",
+]
+
+[[package]]
 name = "netlink-packet-utils"
 version = "0.5.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -6280,7 +6295,7 @@ dependencies = [
  "futures",
  "log",
  "netlink-packet-core",
- "netlink-packet-route",
+ "netlink-packet-route 0.22.0",
  "netlink-packet-utils",
  "netlink-proto",
  "netlink-sys",
