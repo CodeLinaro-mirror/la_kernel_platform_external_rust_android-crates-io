@@ -72,7 +72,7 @@ pub fn hvc32(function: u32, args: [u32; 7]) -> [u32; 8] {
             inout("w5") args[4] => ret[5],
             inout("w6") args[5] => ret[6],
             inout("w7") args[6] => ret[7],
-            options(nomem, nostack)
+            options(nostack)
         );
 
         ret
@@ -96,7 +96,7 @@ pub fn smc32(function: u32, args: [u32; 7]) -> [u32; 8] {
             inout("w5") args[4] => ret[5],
             inout("w6") args[5] => ret[6],
             inout("w7") args[6] => ret[7],
-            options(nomem, nostack)
+            options(nostack)
         );
 
         ret
@@ -130,7 +130,7 @@ pub fn hvc64(function: u32, args: [u64; 17]) -> [u64; 18] {
             inout("x15") args[14] => ret[15],
             inout("x16") args[15] => ret[16],
             inout("x17") args[16] => ret[17],
-            options(nomem, nostack)
+            options(nostack)
         );
 
         ret
@@ -164,7 +164,7 @@ pub fn smc64(function: u32, args: [u64; 17]) -> [u64; 18] {
             inout("x15") args[14] => ret[15],
             inout("x16") args[15] => ret[16],
             inout("x17") args[16] => ret[17],
-            options(nomem, nostack)
+            options(nostack)
         );
 
         ret
