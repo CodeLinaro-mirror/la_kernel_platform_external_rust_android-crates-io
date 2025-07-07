@@ -4033,9 +4033,9 @@ dependencies = [
 
 [[package]]
 name = "ippusb"
-version = "0.3.1"
+version = "0.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ca4772104708aeee9e77fbe3aede0c9e25a8da03ccd05a471d813cfae8ff0742"
+checksum = "dd99d32a86ae1fa987a5b688e03badb5bc62aa03e35b2950b27b705b3de9eee1"
 dependencies = [
  "chunked_transfer",
  "httparse",
@@ -4521,7 +4521,7 @@ version = "0.0.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "62bb907fe88d54d8d9ce32a3cceab4218ed2f6b7d35617cafe9adf84e43919cb"
 dependencies = [
- "libc 0.1.12",
+ "libc 0.2.171",
 ]
 
 [[package]]
