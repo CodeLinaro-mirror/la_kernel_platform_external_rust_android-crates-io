@@ -327,6 +327,7 @@ ptr_meta_derive
 quiche
 quickcheck
 quote
+radium
 rand
 rand_chacha
 rand_core
