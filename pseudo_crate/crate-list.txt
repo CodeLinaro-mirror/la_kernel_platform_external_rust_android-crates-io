@@ -397,6 +397,7 @@ syn-mid
 sync_wrapper
 synstructure
 taffy
+tap
 tar
 tempfile
 termcolor
