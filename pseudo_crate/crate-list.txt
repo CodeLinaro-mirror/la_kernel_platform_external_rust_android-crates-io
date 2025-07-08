@@ -33,6 +33,7 @@ bindgen-cli
 bit_field
 bitflags
 bitreader
+bitvec
 bstr
 buddy_system_allocator
 bytemuck
