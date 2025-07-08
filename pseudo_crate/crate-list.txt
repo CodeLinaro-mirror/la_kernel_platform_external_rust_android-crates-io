@@ -134,6 +134,7 @@ foreign-types-shared
 form_urlencoded
 fragile
 fs-err
+funty
 futures
 futures-channel
 futures-core
