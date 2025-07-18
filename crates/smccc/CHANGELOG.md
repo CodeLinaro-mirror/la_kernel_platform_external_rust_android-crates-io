@@ -2,7 +2,12 @@
 
 ## 0.1.1
 
+## Unreleased
+
 ### Bugfixes
+
+- Removed `nomem` options from SMC and HVC call `asm!` blocks. The implementation of an HVC or SMC
+  call may access the program's memory, so this isn't necessarily correct.
 
 - Fixed docs.rs to build for aarch64.
 
