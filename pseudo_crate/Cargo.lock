@@ -201,6 +201,7 @@ dependencies = [
  "debug_tree",
  "der",
  "der_derive",
+ "derive-where",
  "derive_arbitrary",
  "diplomat",
  "diplomat-runtime 0.12.0",
@@ -224,6 +225,7 @@ dependencies = [
  "equivalent",
  "errno",
  "etherparse",
+ "evdev",
  "fallible-iterator",
  "fallible-streaming-iterator",
  "fastrand",
@@ -2052,6 +2054,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "derive-where"
+version = "1.5.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "510c292c8cf384b1a340b816a9a6cf2599eb8f566a44949024af88418000c50b"
+dependencies = [
+ "proc-macro2 1.0.95",
+ "quote 1.0.40",
+ "syn 2.0.104",
+]
+
+[[package]]
 name = "derive_arbitrary"
 version = "1.4.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2422,6 +2435,18 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "3ff83a5facf1a7cbfef93cfb48d6d4fb6a1f42d8ac2341a96b3255acb4d4f860"
 dependencies = [
  "arrayvec",
+]
+
+[[package]]
+name = "evdev"
+version = "0.13.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a3c10865aeab1a7399b3c2d6046e8dcc7f5227b656f235ed63ef5ee45a47b8f8"
+dependencies = [
+ "bitvec",
+ "cfg-if",
+ "libc 0.2.171",
+ "nix 0.29.0",
 ]
 
 [[package]]
