@@ -33,6 +33,7 @@ bindgen-cli
 bit_field
 bitflags
 bitreader
+bitvec
 bstr
 buddy_system_allocator
 bytemuck
@@ -134,6 +135,7 @@ foreign-types-shared
 form_urlencoded
 fragile
 fs-err
+funty
 futures
 futures-channel
 futures-core
@@ -326,6 +328,7 @@ ptr_meta_derive
 quiche
 quickcheck
 quote
+radium
 rand
 rand_chacha
 rand_core
@@ -395,6 +398,7 @@ syn-mid
 sync_wrapper
 synstructure
 taffy
+tap
 tar
 tempfile
 termcolor
@@ -476,6 +480,7 @@ webpki
 which
 winnow
 writeable
+wyz
 x509-cert
 xml-rs
 yaml-rust
