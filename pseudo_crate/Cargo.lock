@@ -181,7 +181,7 @@ dependencies = [
  "crc-catalog",
  "crc32fast",
  "criterion",
- "criterion-plot",
+ "criterion-plot 0.6.0",
  "critical-section",
  "crossbeam-channel",
  "crossbeam-deque",
@@ -440,7 +440,7 @@ dependencies = [
  "rand_xorshift",
  "rayon",
  "rayon-core",
- "read-fonts",
+ "read-fonts 0.31.1",
  "regex",
  "regex-automata 0.3.9",
  "regex-syntax",
@@ -1216,9 +1216,9 @@ dependencies = [
 
 [[package]]
 name = "bytemuck_derive"
-version = "1.9.3"
+version = "1.10.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7ecc273b49b3205b83d648f0690daa588925572cc5063745bfe547fe7ec8e1a1"
+checksum = "441473f2b4b0459a68628c744bc61d23e730fb00128b841d30fa4bb3972257e4"
 dependencies = [
  "proc-macro2 1.0.95",
  "quote 1.0.40",
@@ -1813,7 +1813,7 @@ dependencies = [
  "cast",
  "ciborium",
  "clap 3.2.25",
- "criterion-plot",
+ "criterion-plot 0.5.0",
  "itertools 0.10.5",
  "lazy_static",
  "num-traits",
@@ -1836,6 +1836,16 @@ checksum = "6b50826342786a51a89e2da3a28f1c32b06e387201bc2d19791f622c673706b1"
 dependencies = [
  "cast",
  "itertools 0.10.5",
+]
+
+[[package]]
+name = "criterion-plot"
+version = "0.6.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "9b1bcc0dc7dfae599d84ad0b1a55f80cde8af3725da8313b528da95ef783e338"
+dependencies = [
+ "cast",
+ "itertools 0.13.0",
 ]
 
 [[package]]
@@ -2972,9 +2982,9 @@ dependencies = [
 
 [[package]]
 name = "glam"
-version = "0.30.4"
+version = "0.30.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "50a99dbe56b72736564cfa4b85bf9a33079f16ae8b74983ab06af3b1a3696b11"
+checksum = "f2d1aab06663bdce00d6ca5e5ed586ec8d18033a771906c993a1e3755b368d85"
 
 [[package]]
 name = "glob"
@@ -4130,6 +4140,15 @@ name = "itertools"
 version = "0.12.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "ba291022dbbd398a455acf126c1e341954079855bc60dfdda641363bd6922569"
+dependencies = [
+ "either",
+]
+
+[[package]]
+name = "itertools"
+version = "0.13.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "413ee7dfc52ee1a4949ceeb7dbc8a33f2d6c088194d9f922fb8318faf1f01186"
 dependencies = [
  "either",
 ]
@@ -6184,6 +6203,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "read-fonts"
+version = "0.31.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a76192a41e824262f0e86922b0ab6dc770c4600f3b2a9373fe33439727a918d5"
+dependencies = [
+ "bytemuck",
+ "font-types",
+]
+
+[[package]]
 name = "redox_syscall"
 version = "0.5.8"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -6489,9 +6518,9 @@ checksum = "28d3b2b1366ec20994f1fd18c3c594f05c5dd4bc44d8bb0c1c632c8d6829481f"
 
 [[package]]
 name = "safe-mmio"
-version = "0.2.1"
+version = "0.2.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4a2880901c2c082170ccf8a4d156f2b3707faf09cc1fac31d08cba224b2a9cb5"
+checksum = "db02a82ad13df46afeba34a4e54065fa912308b9101b060e4422898eac0e06f6"
 dependencies = [
  "zerocopy 0.8.26",
 ]
@@ -6704,9 +6733,9 @@ dependencies = [
 
 [[package]]
 name = "serde_json"
-version = "1.0.141"
+version = "1.0.142"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "30b9eff21ebe718216c6ec64e1d9ac57087aad11efc64e32002bce4a0d4c03d3"
+checksum = "030fedb782600dcbd6f02d479bf0d817ac3bb40d644745b769d6a96bc3afc5a7"
 dependencies = [
  "itoa",
  "memchr",
@@ -6908,7 +6937,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e6d632b5a73f566303dbeabd344dc3e716fd4ddc9a70d6fc8ea8e6f06617da97"
 dependencies = [
  "bytemuck",
- "read-fonts",
+ "read-fonts 0.30.1",
 ]
 
 [[package]]
