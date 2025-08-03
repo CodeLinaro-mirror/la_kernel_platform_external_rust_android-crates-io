@@ -216,6 +216,7 @@ lazy_static
 lazycell
 libbpf-rs
 libbpf-sys
+libbz2-rs-sys
 libc
 libfuzzer-sys
 libloading
@@ -409,6 +410,7 @@ textdistance
 textwrap
 thiserror
 thiserror-impl
+thread-priority
 thread_local
 threadpool
 tikv-jemalloc-sys

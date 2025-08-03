@@ -2,29 +2,32 @@
 // Do not modify this file because the changes will be overridden on upgrade.
 
 package {
-    default_applicable_licenses: ["external_rust_crates_glam_license"],
+    default_applicable_licenses: ["external_rust_crates_thread-priority_license"],
     default_team: "trendy_team_android_rust",
 }
 
 license {
-    name: "external_rust_crates_glam_license",
+    name: "external_rust_crates_thread-priority_license",
     visibility: [":__subpackages__"],
-    license_kinds: ["SPDX-license-identifier-Apache-2.0"],
+    license_kinds: ["SPDX-license-identifier-MIT"],
     license_text: ["LICENSE"],
 }
 
 rust_library {
-    name: "libglam",
+    name: "libthread_priority",
     host_supported: true,
-    crate_name: "glam",
+    crate_name: "thread_priority",
     cargo_env_compat: true,
-    cargo_pkg_version: "0.30.4",
+    cargo_pkg_version: "2.1.0",
     crate_root: "src/lib.rs",
-    edition: "2021",
-    features: [
-        "default",
-        "std",
+    edition: "2024",
+    rustlibs: [
+        "libbitflags",
+        "libcfg_if",
+        "liblibc",
+        "liblog_rust",
     ],
+    proc_macros: ["librustversion"],
     apex_available: [
         "//apex_available:platform",
         "//apex_available:anyapex",
