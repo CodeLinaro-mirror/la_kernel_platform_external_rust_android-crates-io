@@ -169,6 +169,7 @@ grpcio-compiler
 grpcio-sys
 h2
 half
+handlebars
 hashbrown
 hashlink
 heck
