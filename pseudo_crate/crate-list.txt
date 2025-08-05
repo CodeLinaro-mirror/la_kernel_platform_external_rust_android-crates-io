@@ -99,6 +99,7 @@ der_derive
 derive-where
 derive_arbitrary
 derive_builder_core
+derive_builder_macro
 diplomat
 diplomat-runtime
 diplomat_core

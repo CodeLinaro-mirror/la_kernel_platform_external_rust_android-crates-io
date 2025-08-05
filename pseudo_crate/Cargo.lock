@@ -204,6 +204,7 @@ dependencies = [
  "derive-where",
  "derive_arbitrary",
  "derive_builder_core",
+ "derive_builder_macro",
  "diplomat",
  "diplomat-runtime 0.12.0",
  "diplomat_core",
@@ -2097,6 +2098,16 @@ dependencies = [
  "darling",
  "proc-macro2 1.0.95",
  "quote 1.0.40",
+ "syn 2.0.104",
+]
+
+[[package]]
+name = "derive_builder_macro"
+version = "0.20.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "ab63b0e2bf4d5928aff72e83a7dace85d7bba5fe12dcc3c5a572d78caffd3f3c"
+dependencies = [
+ "derive_builder_core",
  "syn 2.0.104",
 ]
 
