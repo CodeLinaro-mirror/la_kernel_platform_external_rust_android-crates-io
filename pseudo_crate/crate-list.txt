@@ -98,6 +98,7 @@ der
 der_derive
 derive-where
 derive_arbitrary
+derive_builder_core
 diplomat
 diplomat-runtime
 diplomat_core
