@@ -381,6 +381,7 @@ dependencies = [
  "num-derive",
  "num-integer",
  "num-modular",
+ "num-order",
  "num-traits",
  "num_cpus",
  "num_enum",
@@ -5195,6 +5196,15 @@ name = "num-modular"
 version = "0.6.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "17bb261bf36fa7d83f4c294f834e91256769097b3cb505d44831e0a179ac647f"
+
+[[package]]
+name = "num-order"
+version = "1.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "537b596b97c40fcf8056d153049eb22f481c17ebce72a513ec9286e4986d1bb6"
+dependencies = [
+ "num-modular",
+]
 
 [[package]]
 name = "num-rational"

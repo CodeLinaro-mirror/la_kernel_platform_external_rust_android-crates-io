@@ -278,6 +278,7 @@ num-complex
 num-derive
 num-integer
 num-modular
+num-order
 num-traits
 num_cpus
 num_enum
