@@ -13,6 +13,29 @@ license {
     license_text: ["LICENSE"],
 }
 
+rust_test {
+    name: "libbz2-rs-sys_test_src_lib",
+    host_supported: true,
+    crate_name: "libbz2_rs_sys",
+    cargo_env_compat: true,
+    cargo_pkg_version: "0.2.1",
+    crate_root: "src/lib.rs",
+    test_suites: ["general-tests"],
+    auto_gen_config: true,
+    test_options: {
+        unit_test: true,
+    },
+    edition: "2021",
+    features: [
+        "default",
+        "export-symbols",
+        "rust-allocator",
+        "std",
+        "stdio",
+    ],
+    rustlibs: ["liblibc"],
+}
+
 rust_library {
     name: "liblibbz2_rs_sys",
     host_supported: true,
@@ -23,16 +46,73 @@ rust_library {
     edition: "2021",
     features: [
         "default",
+        "export-symbols",
         "rust-allocator",
         "std",
         "stdio",
     ],
     rustlibs: ["liblibc"],
+    export_include_dirs: ["include"],
     apex_available: [
         "//apex_available:platform",
         "//apex_available:anyapex",
     ],
     product_available: true,
+    recovery_available: true,
+    vendor_available: true,
+    min_sdk_version: "29",
+}
+
+rust_ffi_shared {
+    name: "liblibbz2_rs_sys_shared",
+    host_supported: true,
+    crate_name: "libbz2_rs_sys",
+    cargo_env_compat: true,
+    cargo_pkg_version: "0.2.1",
+    crate_root: "src/lib.rs",
+    edition: "2021",
+    features: [
+        "default",
+        "export-symbols",
+        "rust-allocator",
+        "std",
+        "stdio",
+    ],
+    rustlibs: ["liblibc"],
+    export_include_dirs: ["include"],
+    apex_available: [
+        "//apex_available:platform",
+        "//apex_available:anyapex",
+    ],
+    product_available: true,
+    recovery_available: true,
+    vendor_available: true,
+    min_sdk_version: "29",
+}
+
+rust_ffi_static {
+    name: "liblibbz2_rs_sys_static",
+    host_supported: true,
+    crate_name: "libbz2_rs_sys",
+    cargo_env_compat: true,
+    cargo_pkg_version: "0.2.1",
+    crate_root: "src/lib.rs",
+    edition: "2021",
+    features: [
+        "default",
+        "export-symbols",
+        "rust-allocator",
+        "std",
+        "stdio",
+    ],
+    rustlibs: ["liblibc"],
+    export_include_dirs: ["include"],
+    apex_available: [
+        "//apex_available:platform",
+        "//apex_available:anyapex",
+    ],
+    product_available: true,
+    recovery_available: true,
     vendor_available: true,
     min_sdk_version: "29",
 }
