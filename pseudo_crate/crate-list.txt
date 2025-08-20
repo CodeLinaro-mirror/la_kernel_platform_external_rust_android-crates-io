@@ -26,6 +26,7 @@ async-task
 async-trait
 atomic
 atty
+autocfg
 axum
 axum-core
 base64
