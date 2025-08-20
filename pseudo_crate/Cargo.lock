@@ -121,6 +121,7 @@ dependencies = [
  "argh_derive",
  "argh_shared",
  "arm-ffa",
+ "arm-pl011-uart",
  "arm-psci",
  "arrayvec",
  "ash",
@@ -820,6 +821,20 @@ dependencies = [
  "uuid",
  "zerocopy",
  "zerocopy-derive",
+]
+
+[[package]]
+name = "arm-pl011-uart"
+version = "0.3.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "8797e113733a36b5fa906c81aefc126d255b88dd1c10a737749aa22ec7736b6a"
+dependencies = [
+ "bitflags 2.9.2",
+ "embedded-hal-nb",
+ "embedded-io",
+ "safe-mmio",
+ "thiserror 2.0.12",
+ "zerocopy",
 ]
 
 [[package]]
@@ -2428,6 +2443,22 @@ name = "elf"
 version = "0.8.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "55dd888a213fc57e957abf2aa305ee3e8a28dbe05687a251f33b637cd46b0070"
+
+[[package]]
+name = "embedded-hal"
+version = "1.0.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "361a90feb7004eca4019fb28352a9465666b24f840f5c3cddf0ff13920590b89"
+
+[[package]]
+name = "embedded-hal-nb"
+version = "1.0.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "fba4268c14288c828995299e59b12babdbe170f6c6d73731af1b4648142e8605"
+dependencies = [
+ "embedded-hal",
+ "nb",
+]
 
 [[package]]
 name = "embedded-io"
@@ -5062,6 +5093,12 @@ dependencies = [
  "security-framework-sys",
  "tempfile",
 ]
+
+[[package]]
+name = "nb"
+version = "1.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "8d5439c4ad607c3c23abf66de8c8bf57ba8adcd1f129e699851a6e43935d339d"
 
 [[package]]
 name = "netlink-packet-core"
