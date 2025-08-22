@@ -494,7 +494,7 @@ dependencies = [
  "smallvec",
  "smccc",
  "smol_str",
- "socket2",
+ "socket2 0.6.0",
  "spdx",
  "spidev",
  "spin 0.10.0",
@@ -3421,7 +3421,7 @@ dependencies = [
  "httpdate",
  "itoa",
  "pin-project-lite",
- "socket2",
+ "socket2 0.5.10",
  "tokio",
  "tower-service",
  "tracing",
@@ -3488,7 +3488,7 @@ dependencies = [
  "http-body 1.0.1",
  "hyper 1.6.0",
  "pin-project-lite",
- "socket2",
+ "socket2 0.5.10",
  "tokio",
  "tower-service",
  "tracing",
@@ -4688,7 +4688,7 @@ version = "0.0.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "62bb907fe88d54d8d9ce32a3cceab4218ed2f6b7d35617cafe9adf84e43919cb"
 dependencies = [
- "libc 0.1.12",
+ "libc 0.2.172",
 ]
 
 [[package]]
@@ -7081,6 +7081,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "socket2"
+version = "0.6.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "233504af464074f9d066d7b5416c5f9b894a5862a6506e306f7b816cdd6f1807"
+dependencies = [
+ "libc 0.2.172",
+ "windows-sys 0.59.0",
+]
+
+[[package]]
 name = "spdx"
 version = "0.12.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -7621,7 +7631,7 @@ dependencies = [
  "mio",
  "pin-project-lite",
  "signal-hook-registry",
- "socket2",
+ "socket2 0.5.10",
  "tokio-macros",
  "windows-sys 0.52.0",
 ]
