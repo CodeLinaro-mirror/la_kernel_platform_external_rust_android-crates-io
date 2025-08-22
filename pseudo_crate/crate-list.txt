@@ -16,6 +16,7 @@ argh
 argh_derive
 argh_shared
 arm-ffa
+arm-psci
 arrayvec
 ash
 async-stream
