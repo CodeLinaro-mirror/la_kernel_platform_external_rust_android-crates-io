@@ -120,6 +120,7 @@ dependencies = [
  "argh",
  "argh_derive",
  "argh_shared",
+ "arm-ffa",
  "arrayvec",
  "ash",
  "async-stream",
@@ -808,6 +809,19 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "a464143cc82dedcdc3928737445362466b7674b5db4e2eb8e869846d6d84f4f6"
 
 [[package]]
+name = "arm-ffa"
+version = "0.3.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "1e696c550a2fbc7ad340a0dfcadab65a70d04e6126cf0fc0b727b3b61ca9512f"
+dependencies = [
+ "num_enum",
+ "thiserror 2.0.12",
+ "uuid",
+ "zerocopy",
+ "zerocopy-derive",
+]
+
+[[package]]
 name = "arrayvec"
 version = "0.7.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1079,7 +1093,7 @@ dependencies = [
  "regex",
  "rustc-hash 1.1.0",
  "shlex",
- "syn 2.0.104",
+ "syn 2.0.106",
 ]
 
 [[package]]
@@ -7217,7 +7231,6 @@ dependencies = [
  "heck 0.5.0",
  "proc-macro2 1.0.96",
  "quote 1.0.40",
- "rustversion",
  "syn 2.0.106",
 ]
 

@@ -15,6 +15,7 @@ arc-swap
 argh
 argh_derive
 argh_shared
+arm-ffa
 arrayvec
 ash
 async-stream
