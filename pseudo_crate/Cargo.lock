@@ -419,6 +419,7 @@ dependencies = [
  "parking_lot_core",
  "paste",
  "pathdiff",
+ "pci_types",
  "pdl-compiler",
  "pdl-runtime",
  "percent-encoding",
@@ -5670,6 +5671,16 @@ dependencies = [
  "hmac",
  "password-hash",
  "sha2",
+]
+
+[[package]]
+name = "pci_types"
+version = "0.10.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "c4325c6aa3cca3373503b1527e75756f9fbfe5fd76be4b4c8a143ee47430b8e0"
+dependencies = [
+ "bit_field",
+ "bitflags 2.9.4",
 ]
 
 [[package]]
