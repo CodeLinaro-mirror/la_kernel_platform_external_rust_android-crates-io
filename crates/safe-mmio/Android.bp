@@ -21,7 +21,7 @@ rust_library_rlib {
     cargo_pkg_version: "0.2.5",
     crate_root: "src/lib.rs",
     edition: "2021",
-    rustlibs: ["libzerocopy_nostd"],
+    rustlibs: ["libzerocopy"],
     apex_available: [
         "//apex_available:platform",
         "//apex_available:anyapex",
@@ -47,5 +47,5 @@ rust_test {
     test_suites: ["general-tests"],
     auto_gen_config: true,
     edition: "2021",
-    rustlibs: ["libzerocopy_nostd"],
+    rustlibs: ["libzerocopy"],
 }
