@@ -1,4 +1,5 @@
 aarch64-paging
+aarch64-rt
 acpi
 adler2
 ahash
@@ -16,6 +17,7 @@ argh
 argh_derive
 argh_shared
 arm-ffa
+arm-gic
 arm-pl011-uart
 arm-psci
 arrayvec

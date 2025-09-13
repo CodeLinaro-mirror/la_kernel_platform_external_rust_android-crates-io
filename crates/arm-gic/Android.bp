@@ -2,25 +2,31 @@
 // Do not modify this file because the changes will be overridden on upgrade.
 
 package {
-    default_applicable_licenses: ["external_rust_crates_bit_field_license"],
+    default_applicable_licenses: ["external_rust_crates_arm-gic_license"],
     default_team: "trendy_team_android_rust",
 }
 
 license {
-    name: "external_rust_crates_bit_field_license",
+    name: "external_rust_crates_arm-gic_license",
     visibility: [":__subpackages__"],
     license_kinds: ["SPDX-license-identifier-Apache-2.0"],
     license_text: ["LICENSE"],
 }
 
-rust_library_rlib {
-    name: "libbit_field_nostd",
+rust_library {
+    name: "libarm_gic",
     defaults: ["rust_baremetal_defaults"],
-    crate_name: "bit_field",
+    crate_name: "arm_gic",
     cargo_env_compat: true,
-    cargo_pkg_version: "0.10.3",
+    cargo_pkg_version: "0.6.1",
     crate_root: "src/lib.rs",
-    edition: "2015",
+    edition: "2024",
+    rustlibs: [
+        "libbitflags",
+        "libsafe_mmio",
+        "libthiserror_nostd",
+        "libzerocopy_nostd",
+    ],
     apex_available: [
         "//apex_available:platform",
         "//apex_available:anyapex",
@@ -34,10 +40,4 @@ rust_library_rlib {
     product_available: true,
     vendor_available: true,
     min_sdk_version: "29",
-}
-
-dirgroup {
-    name: "trusty_dirgroup_external_rust_crates_bit_field",
-    visibility: ["//trusty/vendor/google/aosp/scripts"],
-    dirs: ["."],
 }
