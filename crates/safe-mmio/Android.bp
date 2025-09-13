@@ -15,7 +15,7 @@ license {
 
 rust_library_rlib {
     name: "libsafe_mmio",
-    defaults: ["rust_baremetal_defaults"],
+    defaults: ["rust_baremetal_nostd_defaults"],
     crate_name: "safe_mmio",
     cargo_env_compat: true,
     cargo_pkg_version: "0.2.5",
@@ -26,20 +26,16 @@ rust_library_rlib {
         "//apex_available:platform",
         "//apex_available:anyapex",
     ],
-    prefer_rlib: true,
-    no_stdlibs: true,
-    stdlibs: [
-        "libcompiler_builtins.rust_sysroot",
-        "libcore.rust_sysroot",
-    ],
     product_available: true,
     vendor_available: true,
     min_sdk_version: "29",
+    no_std: {
+        enabled: true,
+    },
 }
 
 rust_test {
     name: "safe-mmio_test_src_lib",
-    defaults: ["rust_baremetal_defaults"],
     crate_name: "safe_mmio",
     cargo_env_compat: true,
     cargo_pkg_version: "0.2.5",
