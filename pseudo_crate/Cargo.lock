@@ -353,7 +353,7 @@ dependencies = [
  "linked-hash-map",
  "linkme",
  "linkme-impl",
- "litemap 0.7.5",
+ "litemap",
  "litrs 0.5.1",
  "lock_api",
  "log",
@@ -3761,7 +3761,7 @@ dependencies = [
  "icu_plurals",
  "icu_provider",
  "icu_time",
- "litemap 0.8.0",
+ "litemap",
  "potential_utf",
  "smallvec",
  "tinystr",
@@ -3819,7 +3819,7 @@ dependencies = [
  "icu_plurals",
  "icu_properties",
  "icu_provider",
- "litemap 0.8.0",
+ "litemap",
  "num-bigint",
  "num-rational",
  "num-traits",
@@ -3882,7 +3882,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "0cde2700ccaed3872079a65fb1a78f6c0a36c91570f28755dda67bc8f7d9f00a"
 dependencies = [
  "displaydoc",
- "litemap 0.8.0",
+ "litemap",
  "tinystr",
  "writeable",
  "zerovec",
@@ -4656,12 +4656,6 @@ name = "linux-raw-sys"
 version = "0.9.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "cd945864f07fe9f5371a27ad7b52a172b4b499999f1d97574c9fa68373937e12"
-
-[[package]]
-name = "litemap"
-version = "0.7.5"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "23fb14cb19457329c82206317a5663005a4d404783dc74f4252769b0d5f42856"
 
 [[package]]
 name = "litemap"
