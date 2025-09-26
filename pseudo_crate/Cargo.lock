@@ -316,7 +316,6 @@ dependencies = [
  "icu_properties_data",
  "icu_provider",
  "icu_provider_adapters",
- "icu_provider_baked",
  "ident_case",
  "idna",
  "image 0.25.6",
@@ -4002,18 +4001,6 @@ dependencies = [
  "icu_locale",
  "icu_provider",
  "tinystr",
- "zerovec",
-]
-
-[[package]]
-name = "icu_provider_baked"
-version = "2.0.0-beta2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "2794f00ee1999495f4f1a1e35aee8f54fe7cfcbcf909ec05b60522377200aecb"
-dependencies = [
- "icu_provider",
- "writeable",
- "zerotrie",
  "zerovec",
 ]
 
