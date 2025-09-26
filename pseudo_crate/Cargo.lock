@@ -3981,9 +3981,9 @@ dependencies = [
 
 [[package]]
 name = "icu_properties"
-version = "2.0.0-beta2"
+version = "2.0.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d38e872f460f80a6bc564b3545399898df1fcad0503f9da4486a5109ad0e3fe4"
+checksum = "016c619c1eeb94efb86809b015c58f479963de65bdb6253345c1a1276f22e32b"
 dependencies = [
  "displaydoc",
  "icu_collections",
