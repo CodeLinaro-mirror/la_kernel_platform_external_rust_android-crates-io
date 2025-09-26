@@ -354,7 +354,7 @@ dependencies = [
  "linked-hash-map",
  "linkme",
  "linkme-impl",
- "litemap",
+ "litemap 0.7.5",
  "litrs 0.5.1",
  "lock_api",
  "log",
@@ -3767,7 +3767,7 @@ dependencies = [
  "icu_plurals",
  "icu_provider",
  "icu_time",
- "litemap",
+ "litemap 0.7.5",
  "potential_utf",
  "smallvec",
  "tinystr",
@@ -3831,7 +3831,7 @@ dependencies = [
  "icu_plurals",
  "icu_properties",
  "icu_provider",
- "litemap",
+ "litemap 0.7.5",
  "num-bigint",
  "num-rational",
  "num-traits",
@@ -3896,12 +3896,12 @@ dependencies = [
 
 [[package]]
 name = "icu_locale_core"
-version = "2.0.0-beta2"
+version = "2.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b80161b66511e4eb415ef110c67ea8cab4400b749f9e30c8691fff1354934b6b"
+checksum = "0cde2700ccaed3872079a65fb1a78f6c0a36c91570f28755dda67bc8f7d9f00a"
 dependencies = [
  "displaydoc",
- "litemap",
+ "litemap 0.8.0",
  "tinystr",
  "writeable",
  "zerovec",
@@ -4710,6 +4710,12 @@ name = "litemap"
 version = "0.7.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "23fb14cb19457329c82206317a5663005a4d404783dc74f4252769b0d5f42856"
+
+[[package]]
+name = "litemap"
+version = "0.8.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "241eaef5fd12c88705a01fc1066c48c4b36e0dd4377dcdc7ec3942cea7a69956"
 
 [[package]]
 name = "litrs"
