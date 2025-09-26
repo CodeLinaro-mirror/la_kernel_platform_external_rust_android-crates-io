@@ -4007,9 +4007,9 @@ dependencies = [
 
 [[package]]
 name = "icu_provider"
-version = "2.0.0-beta2"
+version = "2.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e0d462aad52985bb71e3140fcc44e54d816cf7f2c3f25cd9b090cc77a9798504"
+checksum = "03c80da27b5f4187909049ee2d72f276f0d9f99a42c306bd0131ecfe04d8e5af"
 dependencies = [
  "displaydoc",
  "icu_locale_core",
@@ -4019,6 +4019,7 @@ dependencies = [
  "writeable",
  "yoke",
  "zerofrom",
+ "zerotrie",
  "zerovec",
 ]
 

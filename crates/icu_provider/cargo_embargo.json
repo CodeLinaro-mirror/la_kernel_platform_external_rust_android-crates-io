@@ -1,7 +1,8 @@
 {
   "run_cargo": false,
   "features": [
-    "alloc"
+    "alloc",
+    "baked"
   ],
   "ramdisk_available": true,
   "recovery_available": true,
