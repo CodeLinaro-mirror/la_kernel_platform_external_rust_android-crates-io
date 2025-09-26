@@ -3880,9 +3880,9 @@ dependencies = [
 
 [[package]]
 name = "icu_locale"
-version = "2.0.0-beta2"
+version = "2.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "afa4c80f106c1cf0f1b66e0ae9806f603f1c2c41d004229af1b0c6cebe84c74a"
+checksum = "6ae5921528335e91da1b6c695dbf1ec37df5ac13faa3f91e5640be93aa2fbefd"
 dependencies = [
  "displaydoc",
  "icu_collections",
