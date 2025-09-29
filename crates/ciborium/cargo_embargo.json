@@ -5,7 +5,6 @@
     {
       "features": [],
       "module_name_overrides": {
-        "libciborium": "libciborium_nostd",
         "libciborium_io": "libciborium_io_nostd",
         "libciborium_ll": "libciborium_ll_nostd"
       },
