@@ -351,6 +351,7 @@ rand
 rand_chacha
 rand_core
 rand_xorshift
+raw-cpuid
 rayon
 rayon-core
 read-fonts
