@@ -41,7 +41,7 @@ rust_library {
     no_std: {
         features: [],
         rustlibs: [
-            "libciborium_io_nostd",
+            "libciborium_io",
             "libciborium_ll_nostd",
             "libserde",
         ],
