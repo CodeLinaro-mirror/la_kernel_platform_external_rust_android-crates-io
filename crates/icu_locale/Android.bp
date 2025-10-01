@@ -15,6 +15,7 @@ license {
 
 rust_library {
     name: "libicu_locale",
+    defaults: ["rust_baremetal_nostd_defaults"],
     host_supported: true,
     crate_name: "icu_locale",
     cargo_env_compat: true,
@@ -43,4 +44,7 @@ rust_library {
     vendor_ramdisk_available: true,
     ramdisk_available: true,
     min_sdk_version: "29",
+    no_std: {
+        enabled: true,
+    },
 }
