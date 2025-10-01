@@ -490,6 +490,7 @@ virtio-queue
 virtio-vsock
 vm-memory
 vmm-sys-util
+volatile
 vsock
 vsprintf
 vulkano
