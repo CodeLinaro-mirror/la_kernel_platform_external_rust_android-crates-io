@@ -620,6 +620,7 @@ dependencies = [
  "writeable",
  "wyz",
  "x509-cert",
+ "x86_64",
  "xml-rs",
  "yaml-rust",
  "yoke",
@@ -9486,6 +9487,18 @@ dependencies = [
  "der",
  "spki",
  "tls_codec",
+]
+
+[[package]]
+name = "x86_64"
+version = "0.15.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "0f042214de98141e9c8706e8192b73f56494087cc55ebec28ce10f26c5c364ae"
+dependencies = [
+ "bit_field",
+ "bitflags 2.9.4",
+ "rustversion",
+ "volatile",
 ]
 
 [[package]]
