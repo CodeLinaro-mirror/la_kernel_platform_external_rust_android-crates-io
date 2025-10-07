@@ -87,7 +87,7 @@ pub(crate) enum Orientation {
 ///
 /// See <https://gitlab.freedesktop.org/freetype/freetype/-/blob/57617782464411201ce7bbc93b086c1b4d7d84a5/src/autofit/afhints.h#L239>
 #[derive(Copy, Clone, PartialEq, Eq, Default, Debug)]
-pub(super) struct Point {
+pub(crate) struct Point {
     /// Describes the type and hinting state of the point.
     pub flags: PointFlags,
     /// X coordinate in font units.
@@ -148,7 +148,7 @@ const MAX_INLINE_POINTS: usize = 96;
 const MAX_INLINE_CONTOURS: usize = 8;
 
 #[derive(Default)]
-pub(super) struct Outline {
+pub(crate) struct Outline {
     pub units_per_em: i32,
     pub orientation: Option<Orientation>,
     pub points: SmallVec<Point, MAX_INLINE_POINTS>,
@@ -204,9 +204,13 @@ impl Outline {
             let Some(points) = self.points.get(contour.range()) else {
                 continue;
             };
-            if let Some(last_point) = points.last().map(Point::as_contour_point) {
+            if let (Some(first_point), Some(last_point)) = (
+                points.first().map(Point::as_contour_point),
+                points.last().map(Point::as_contour_point),
+            ) {
                 path::contour_to_path(
                     points.iter().map(Point::as_contour_point),
+                    first_point,
                     last_point,
                     style,
                     pen,
@@ -465,7 +469,7 @@ fn is_corner_flat(in_x: i32, in_y: i32, out_x: i32, out_y: i32) -> bool {
 }
 
 #[derive(Copy, Clone, Default, Debug)]
-pub(super) struct Contour {
+pub(crate) struct Contour {
     first_ix: u16,
     last_ix: u16,
 }

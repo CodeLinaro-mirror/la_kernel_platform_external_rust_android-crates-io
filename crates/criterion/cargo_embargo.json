@@ -1,7 +1,14 @@
 {
-  "module_name_overrides": {
-    "libclap": "libclap_3.2.23"
-  },
   "run_cargo": false,
-   "min_sdk_version": "29"
+  "min_sdk_version": "29",
+  "package": {
+    "criterion" : {
+      "extra_srcs": [
+        "src/html/benchmark_report.html.tt",
+        "src/html/index.html.tt",
+        "src/html/report_link.html.tt",
+        "src/html/summary_report.html.tt"
+      ]
+    }
+  }
 }

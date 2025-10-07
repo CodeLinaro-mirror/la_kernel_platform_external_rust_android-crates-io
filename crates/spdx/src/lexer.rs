@@ -1,14 +1,11 @@
 use crate::{
-    error::{ParseError, Reason},
     ExceptionId, LicenseId,
+    error::{ParseError, Reason},
 };
 
 /// Parsing configuration for SPDX expression
 #[derive(Default, Copy, Clone)]
 pub struct ParseMode {
-    /// The `AND`, `OR`, and `WITH` operators are required to be uppercase in
-    /// the SPDX spec, but enabling this option allows them to be lowercased
-    pub allow_lower_case_operators: bool,
     /// Allows the use of `/` as a synonym for the `OR` operator.
     ///
     /// This also allows for not having whitespace between the `/` and the terms
@@ -29,36 +26,40 @@ pub struct ParseMode {
     /// This option just allows GPL licenses to be treated similarly to all of
     /// the other SPDX licenses.
     pub allow_postfix_plus_on_gpl: bool,
+    /// How deprecated license identifiers are treated
+    pub allow_deprecated: bool,
 }
 
 impl ParseMode {
     /// Strict, specification compliant SPDX parsing.
     ///
     /// 1. Only license identifiers in the SPDX license list, or
-    ///     Document/LicenseRef, are allowed. The license identifiers are also
-    ///     case-sensitive.
-    /// 1. `WITH`, `AND`, and `OR` are the only valid operators
+    ///    Document/LicenseRef, are allowed. The license identifiers are also
+    ///    case-sensitive.
+    /// 1. `WITH`, `AND`, and `OR`, case-insensitive, are the only valid operators
+    /// 1. Deprecated licenses are not allowed
     pub const STRICT: Self = Self {
-        allow_lower_case_operators: false,
         allow_slash_as_or_operator: false,
         allow_imprecise_license_names: false,
         allow_postfix_plus_on_gpl: false,
+        allow_deprecated: false,
     };
 
     /// Allow non-conforming syntax for crates-io compatibility
     ///
     /// 1. Additional, invalid, identifiers are accepted and mapped to a correct
-    ///     SPDX license identifier.
-    ///     See [`IMPRECISE_NAMES`](crate::identifiers::IMPRECISE_NAMES) for the
-    ///     list of additionally accepted identifiers and the license they
-    ///     correspond to.
+    ///    SPDX license identifier.
+    ///    See [`IMPRECISE_NAMES`](crate::identifiers::IMPRECISE_NAMES) for the
+    ///    list of additionally accepted identifiers and the license they
+    ///    correspond to.
     /// 1. `/` can by used as a synonym for `OR`, and doesn't need to be
-    ///     separated by whitespace from the terms it combines
+    ///    separated by whitespace from the terms it combines
+    /// 1. Deprecated license identifiers are allowed
     pub const LAX: Self = Self {
-        allow_lower_case_operators: true,
         allow_slash_as_or_operator: true,
         allow_imprecise_license_names: true,
         allow_postfix_plus_on_gpl: true,
+        allow_deprecated: true,
     };
 }
 
@@ -243,17 +244,11 @@ impl<'a> Iterator for Lexer<'a> {
                     reason: Reason::InvalidCharacters,
                 })),
                 Some(m) => {
-                    if m == "WITH" {
-                        ok_token(Token::With)
-                    } else if m == "AND" {
+                    if m == "AND" || m == "and" {
                         ok_token(Token::And)
-                    } else if m == "OR" {
+                    } else if m == "OR" || m == "or" {
                         ok_token(Token::Or)
-                    } else if self.mode.allow_lower_case_operators && m == "and" {
-                        ok_token(Token::And)
-                    } else if self.mode.allow_lower_case_operators && m == "or" {
-                        ok_token(Token::Or)
-                    } else if self.mode.allow_lower_case_operators && m == "with" {
+                    } else if m == "WITH" || m == "with" {
                         ok_token(Token::With)
                     } else if let Some(lic_id) = crate::license_id(m) {
                         ok_token(Token::Spdx(lic_id))

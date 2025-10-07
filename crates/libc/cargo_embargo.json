@@ -10,7 +10,7 @@
   "package": {
     "libc": {
       "rulesmk_patch": "patches/rules.mk.diff",
-      "add_module_block": "cargo_embargo_target_windows_enabled.bp.fragment"
+      "target_windows": true
     }
   },
   "variants": [
@@ -26,6 +26,22 @@
       "generate_androidbp": false,
       "generate_rulesmk": true,
       "run_cargo": false
+    },
+    {
+      "features": [
+        "extra_traits"
+      ],
+      "tests": false,
+      "module_name_overrides": {
+        "liblibc": "liblibc_nostd"
+      },
+      "package": {
+        "libc": {
+          "host_supported": false,
+          "no_std": true,
+          "force_rlib": true
+        }
+      }
     }
   ]
 }

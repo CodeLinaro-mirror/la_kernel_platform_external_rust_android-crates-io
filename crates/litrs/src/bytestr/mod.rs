@@ -1,9 +1,9 @@
 use std::{fmt, ops::Range};
 
 use crate::{
-    Buffer, ParseError,
     err::{perr, ParseErrorKind::*},
     escape::{scan_raw_string, unescape_string},
+    Buffer, ParseError,
 };
 
 
@@ -23,7 +23,7 @@ pub struct ByteStringLit<B: Buffer> {
 
     /// The number of hash signs in case of a raw string literal, or `None` if
     /// it's not a raw string literal.
-    num_hashes: Option<u32>,
+    num_hashes: Option<u8>,
 
     /// Start index of the suffix or `raw.len()` if there is no suffix.
     start_suffix: usize,
@@ -47,17 +47,21 @@ impl<B: Buffer> ByteStringLit<B> {
     /// Returns the string value this literal represents (where all escapes have
     /// been turned into their respective values).
     pub fn value(&self) -> &[u8] {
-        self.value.as_deref().unwrap_or(&self.raw.as_bytes()[self.inner_range()])
+        self.value
+            .as_deref()
+            .unwrap_or(&self.raw.as_bytes()[self.inner_range()])
     }
 
     /// Like `value` but returns a potentially owned version of the value.
     ///
-    /// The return value is either `Cow<'static, [u8]>` if `B = String`, or
+    /// The return value is either `Vec<u8>` if `B = String`, or
     /// `Cow<'a, [u8]>` if `B = &'a str`.
     pub fn into_value(self) -> B::ByteCow {
         let inner_range = self.inner_range();
         let Self { raw, value, .. } = self;
-        value.map(B::ByteCow::from).unwrap_or_else(|| raw.cut(inner_range).into_byte_cow())
+        value
+            .map(B::ByteCow::from)
+            .unwrap_or_else(|| raw.cut(inner_range).into_byte_cow())
     }
 
     /// The optional suffix. Returns `""` if the suffix is empty/does not exist.
@@ -112,13 +116,13 @@ impl<B: Buffer> fmt::Display for ByteStringLit<B> {
 
 /// Precondition: input has to start with either `b"` or `br`.
 #[inline(never)]
-fn parse_impl(input: &str) -> Result<(Option<Vec<u8>>, Option<u32>, usize), ParseError> {
+fn parse_impl(input: &str) -> Result<(Option<Vec<u8>>, Option<u8>, usize), ParseError> {
     if input.starts_with("br") {
-        scan_raw_string::<u8>(&input, 2)
-            .map(|(v, num, start_suffix)| (v.map(String::into_bytes), Some(num), start_suffix))
+        scan_raw_string(input, 2, false, true)
+            .map(|(num, start_suffix)| (None, Some(num), start_suffix))
     } else {
-        unescape_string::<u8>(&input, 2)
-            .map(|(v, start_suffix)| (v.map(String::into_bytes), None, start_suffix))
+        unescape_string::<Vec<u8>>(input, 2, false, true, true)
+            .map(|(v, start_suffix)| (v, None, start_suffix))
     }
 }
 

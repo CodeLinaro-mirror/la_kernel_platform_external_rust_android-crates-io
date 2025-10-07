@@ -2,6 +2,7 @@
   "cfg_blocklist": [
     "std_atomic64"
   ],
+  "sdk_version": "29",
   "min_sdk_version": "29",
   "run_cargo": false,
   "ramdisk_available": true,
@@ -10,7 +11,7 @@
   "package": {
     "serde": {
       "rulesmk_patch": "patches/rules.mk.diff",
-      "add_module_block": "cargo_embargo_target_windows_enabled.bp.fragment"
+      "target_windows": true
     }
   },
   "variants": [

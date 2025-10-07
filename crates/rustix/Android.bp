@@ -18,7 +18,7 @@ rust_library {
     host_supported: true,
     crate_name: "rustix",
     cargo_env_compat: true,
-    cargo_pkg_version: "0.38.31",
+    cargo_pkg_version: "1.0.7",
     crate_root: "src/lib.rs",
     edition: "2021",
     features: [
@@ -28,12 +28,16 @@ rust_library {
         "libc",
         "libc_errno",
         "mm",
+        "net",
+        "param",
+        "pipe",
         "std",
         "use-libc",
         "use-libc-auxv",
     ],
     cfgs: [
         "libc",
+        "rustix_no_linux_raw",
         "static_assertions",
     ],
     rustlibs: [

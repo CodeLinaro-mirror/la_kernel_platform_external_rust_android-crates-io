@@ -2,7 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-use std::collections::VecDeque;
+use std::cmp::{Ord, Ordering};
+use std::collections::BinaryHeap;
 use std::io::{self, Read, Write};
 
 #[cfg(target_os = "android")]
@@ -13,9 +14,10 @@ use std::thread;
 use std::time::{Duration, Instant};
 use std::vec::Vec;
 
-use log::{debug, error, info};
+use log::{debug, error, info, trace};
 use rusb::{Context, UsbContext};
 use std::sync::{Condvar, Mutex};
+use std::thread::JoinHandle;
 
 use crate::device_info::{is_ippusb_interface, IppusbDescriptor, IppusbDeviceInfo};
 use crate::error::Error;
@@ -112,15 +114,46 @@ impl ClaimedInterface {
     }
 }
 
+impl Ord for ClaimedInterface {
+    /// Order claimed interfaces based purely on interface descriptors, but sorted in reverse
+    /// order.  This allows a BinaryHeap<ClaimedInterface> to always pick the lowest-numbered
+    /// interface.  The handle field is ignored because two IPP-USB interfaces on the same device
+    /// can't have the same interface number and alternate.  If ClaimedInterface values from
+    /// different devices are compared, the result is logically consistent, but not meaningful.
+    fn cmp(&self, other: &Self) -> Ordering {
+        match self.descriptor.cmp(&other.descriptor) {
+            Ordering::Less => Ordering::Greater,
+            Ordering::Greater => Ordering::Less,
+            Ordering::Equal => Ordering::Equal,
+        }
+    }
+}
+
+impl PartialOrd for ClaimedInterface {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+impl PartialEq for ClaimedInterface {
+    fn eq(&self, other: &Self) -> bool {
+        self.descriptor == other.descriptor && self.handle.device() == other.handle.device()
+    }
+}
+
+impl Eq for ClaimedInterface {}
+
 /// InterfaceManagerState contains the internal state of InterfaceManager.  It is intended to
 /// be shared across InterfaceManager instances and protected by a mutex.
 struct InterfaceManagerState {
-    interfaces: VecDeque<ClaimedInterface>,
+    interfaces: BinaryHeap<ClaimedInterface>,
     handle: Arc<rusb::DeviceHandle<Context>>,
     usb_config: u8,
     active: usize,
     pending_cleanup: bool,
     next_cleanup: Instant,
+    terminate_cleanup: bool,
+    cleanup_thread: Option<JoinHandle<()>>,
 }
 
 impl InterfaceManagerState {
@@ -137,7 +170,9 @@ impl InterfaceManagerState {
             set_device_config(self.handle.as_ref(), self.usb_config)?;
         }
 
-        for interface in &mut self.interfaces {
+        let mut heap = BinaryHeap::with_capacity(self.interfaces.len());
+        let mut res = Ok(());
+        for mut interface in self.interfaces.drain() {
             if let Err(e) = interface.claim() {
                 // We don't bother to free any successfully claimed interfaces because
                 // it's not an error to try to claim them again when the next connection
@@ -146,17 +181,46 @@ impl InterfaceManagerState {
                     "Failed to reclaim interface {}: {}",
                     interface.descriptor.interface_number, e
                 );
-                return Err(e);
+                res = res.and(Err(e));
             }
+            // Every interface goes back into the heap regardless of success.
+            heap.push(interface);
         }
-        Ok(())
+        self.interfaces = heap;
+        res
     }
 
+    /// Call release on all interfaces.  Return Ok if all calls succeeded, or the first Err if any
+    /// call failed.
     fn release_all(&mut self) -> Result<()> {
-        for interface in &mut self.interfaces {
-            interface.release()?;
+        let mut res = Ok(());
+        let mut heap = BinaryHeap::with_capacity(self.interfaces.len());
+        for mut interface in self.interfaces.drain() {
+            res = res.and(interface.release());
+            heap.push(interface);
         }
-        Ok(())
+        self.interfaces = heap;
+        res
+    }
+}
+
+/// CleanupGuard represents the cleanup thread started by InterfaceManager.  When it is dropped,
+/// the cleanup thread will be stopped.
+struct CleanupGuard {
+    manager: InterfaceManager,
+}
+
+impl CleanupGuard {
+    pub fn new(manager: InterfaceManager) -> Self {
+        Self { manager }
+    }
+}
+
+impl Drop for CleanupGuard {
+    fn drop(&mut self) {
+        if let Err(e) = self.manager.stop_cleanup_thread() {
+            error!("Failed to stop cleanup thread: {}", e);
+        }
     }
 }
 
@@ -182,34 +246,38 @@ impl InterfaceManager {
     fn new(
         handle: Arc<rusb::DeviceHandle<Context>>,
         usb_config: u8,
-        interfaces: Vec<ClaimedInterface>,
+        mut interfaces: Vec<ClaimedInterface>,
     ) -> Self {
-        let mut deque: VecDeque<ClaimedInterface> = interfaces.into();
-        for interface in &mut deque {
+        let mut heap: BinaryHeap<ClaimedInterface> = BinaryHeap::with_capacity(interfaces.len());
+        for mut interface in interfaces.drain(..) {
             interface.release().unwrap_or_else(|e| {
                 error!(
                     "Failed to release interface {}: {}",
                     interface.descriptor.interface_number, e
                 );
             });
+            // Every interface goes into the heap regardless of success.
+            heap.push(interface);
         }
         Self {
             interface_available: Arc::new(Condvar::new()),
             state: Arc::new(Mutex::new(InterfaceManagerState {
-                interfaces: deque,
+                interfaces: heap,
                 handle,
                 usb_config,
                 active: 0,
                 pending_cleanup: false,
                 next_cleanup: Instant::now(),
+                terminate_cleanup: false,
+                cleanup_thread: None,
             })),
         }
     }
 
     /// Start a separate thread to release interfaces.  Interfaces are released once
     /// USB_CLEANUP_TIMEOUT elapses with no activity after all interfaces are internally
-    /// returned.
-    fn start_cleanup_thread(&mut self) -> Result<std::thread::JoinHandle<()>> {
+    /// returned.  This thread will be stopped when the returned CleanupGuard is dropped.
+    fn start_cleanup_thread(&mut self) -> Result<CleanupGuard> {
         let manager = self.clone();
 
         let handle = thread::Builder::new()
@@ -230,8 +298,13 @@ impl InterfaceManager {
                     // returned.
                     state = manager
                         .interface_available
-                        .wait_while(state, |t| t.active > 0 || !t.pending_cleanup)
+                        .wait_while(state, |t| {
+                            !t.terminate_cleanup && (t.active > 0 || !t.pending_cleanup)
+                        })
                         .unwrap();
+                    if state.terminate_cleanup {
+                        break;
+                    }
 
                     // Phase 2: Wait for the cleanup time to arrive.
                     // 1. If an interface is claimed and returned during the timeout, we will
@@ -246,9 +319,14 @@ impl InterfaceManager {
                         let wait = state.next_cleanup - Instant::now();
                         let result = manager
                             .interface_available
-                            .wait_timeout_while(state, wait, |t| t.active == 0)
+                            .wait_timeout_while(state, wait, |t| {
+                                !t.terminate_cleanup && t.active == 0
+                            })
                             .unwrap();
                         state = result.0; // Throw away the timed out part of the result.
+                        if state.terminate_cleanup {
+                            break 'outer;
+                        }
                         if state.active > 0 {
                             continue 'outer;
                         }
@@ -273,7 +351,9 @@ impl InterfaceManager {
 
                         // If the device was unplugged, don't bother to print an error.  We're
                         // about to exit anyway.
-                        Err(Error::ReleaseInterface(_, rusb::Error::NoDevice)) => {}
+                        Err(Error::ReleaseInterface(_, rusb::Error::NoDevice)) => {
+                            break;
+                        }
 
                         // If this failed for some other reason, we're in some bad state.  There
                         // are no active interfaces, so restarting won't interrupt an active
@@ -283,10 +363,46 @@ impl InterfaceManager {
                     };
                     state.pending_cleanup = false;
                 }
+
+                trace!("Cleanup thread terminating");
             })
             .map_err(Error::CleanupThread)?;
 
-        Ok(handle)
+        trace!("Cleanup thread {:?} started", handle.thread().id());
+        let mut state = self.state.lock().unwrap();
+        state.cleanup_thread = Some(handle);
+        Ok(CleanupGuard::new(self.clone()))
+    }
+
+    /// Stop the cleanup thread if it was previously started by `start_cleanup_thread`.  After
+    /// stopping the thread, attempt to release all interfaces.
+    fn stop_cleanup_thread(&mut self) -> Result<()> {
+        let mut state = self.state.lock().unwrap();
+        state.terminate_cleanup = true;
+        let cleanup_thread = state.cleanup_thread.take();
+        self.interface_available.notify_all();
+        drop(state); // Release the lock so the cleanup thread can make progress.
+        if let Some(handle) = cleanup_thread {
+            let tid = handle.thread().id();
+            handle.join().map_err(|_| {
+                Error::CleanupThread(io::Error::new(
+                    io::ErrorKind::Other,
+                    "Failed to join cleanup thread",
+                ))
+            })?;
+            trace!("Cleanup thread {:?} exited", tid);
+        }
+        // The thread is guaranteed to be done, so release all the interfaces.  This may produce
+        // errors if the device has been unplugged or gets shut down when interfaces have already
+        // been released; no need to log these cases.
+        match self.state.lock().unwrap().release_all() {
+            Ok(_) => {}
+            Err(Error::ReleaseInterface(_, rusb::Error::NoDevice)) => {}
+            Err(Error::ReleaseInterface(_, rusb::Error::NotFound)) => {}
+            Err(e) => error!("Failed to release interfaces: {}", e),
+        }
+
+        Ok(())
     }
 
     /// Get an interface from the pool of tracked interfaces.
@@ -304,7 +420,7 @@ impl InterfaceManager {
         state.active += 1;
 
         loop {
-            if let Some(interface) = state.interfaces.pop_front() {
+            if let Some(interface) = state.interfaces.pop() {
                 debug!(
                     "* Using interface {}",
                     interface.descriptor.interface_number
@@ -323,7 +439,7 @@ impl InterfaceManager {
             interface.descriptor.interface_number
         );
         let mut state = self.state.lock().unwrap();
-        state.interfaces.push_back(interface);
+        state.interfaces.push(interface);
         state.next_cleanup = Instant::now() + USB_CLEANUP_TIMEOUT;
         state.pending_cleanup = true;
         state.active -= 1;
@@ -344,6 +460,7 @@ pub struct Device {
     verbose_log: bool,
     handle: Arc<rusb::DeviceHandle<Context>>,
     manager: InterfaceManager,
+    _cleanup: Arc<CleanupGuard>,
 }
 
 impl Device {
@@ -362,7 +479,24 @@ impl Device {
 
         let info = IppusbDeviceInfo::new(&handle.device())?;
 
-        set_device_config(handle.as_ref(), info.config)?;
+        if let Err(e) = set_device_config(handle.as_ref(), info.config) {
+            if let Error::SetActiveConfig(rusb::Error::Busy) = e {
+                let cur_config = handle
+                    .device()
+                    .active_config_descriptor()
+                    .map_err(Error::ReadConfigDescriptor)?;
+                if info.config == cur_config.number() {
+                    info!(
+                        "Configuration {} is already active.  Ignoring resource busy failure.",
+                        info.config
+                    );
+                } else {
+                    return Err(e);
+                }
+            } else {
+                return Err(e);
+            }
+        }
 
         // Open the IPP-USB interfaces.
         let mut connections = Vec::new();
@@ -380,12 +514,13 @@ impl Device {
         }
 
         let mut manager = InterfaceManager::new(handle.clone(), info.config, connections);
-        manager.start_cleanup_thread()?;
+        let cleanup_thread = manager.start_cleanup_thread()?;
 
         Ok(Device {
             verbose_log,
             handle,
             manager,
+            _cleanup: cleanup_thread.into(),
         })
     }
 

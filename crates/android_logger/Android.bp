@@ -17,7 +17,7 @@ rust_test {
     name: "android_logger_test_src_lib",
     crate_name: "android_logger",
     cargo_env_compat: true,
-    cargo_pkg_version: "0.15.0",
+    cargo_pkg_version: "0.15.1",
     crate_root: "src/lib.rs",
     test_suites: ["general-tests"],
     auto_gen_config: true,
@@ -27,17 +27,31 @@ rust_test {
         "regex",
     ],
     rustlibs: [
-        "libandroid_log_sys",
         "libenv_filter",
         "liblog_rust",
     ],
+    target: {
+        host: {
+            rustlibs: [
+                "libenv_filter",
+                "liblog_rust",
+            ],
+        },
+        android: {
+            rustlibs: [
+                "liblog_rust",
+                "libandroid_log_sys",
+            ],
+        },
+    },
+
 }
 
 rust_test {
     name: "android_logger_test_tests_config_log_level",
     crate_name: "config_log_level",
     cargo_env_compat: true,
-    cargo_pkg_version: "0.15.0",
+    cargo_pkg_version: "0.15.1",
     crate_root: "tests/config_log_level.rs",
     test_suites: ["general-tests"],
     auto_gen_config: true,
@@ -47,18 +61,32 @@ rust_test {
         "regex",
     ],
     rustlibs: [
-        "libandroid_log_sys",
         "libandroid_logger",
         "libenv_filter",
         "liblog_rust",
     ],
+    target: {
+        host: {
+            rustlibs: [
+                "libenv_filter",
+                "liblog_rust",
+            ],
+        },
+        android: {
+            rustlibs: [
+                "liblog_rust",
+                "libandroid_log_sys",
+            ],
+        },
+    },
+
 }
 
 rust_test {
     name: "android_logger_test_tests_default_init",
     crate_name: "default_init",
     cargo_env_compat: true,
-    cargo_pkg_version: "0.15.0",
+    cargo_pkg_version: "0.15.1",
     crate_root: "tests/default_init.rs",
     test_suites: ["general-tests"],
     auto_gen_config: true,
@@ -68,18 +96,32 @@ rust_test {
         "regex",
     ],
     rustlibs: [
-        "libandroid_log_sys",
         "libandroid_logger",
         "libenv_filter",
         "liblog_rust",
     ],
+    target: {
+        host: {
+            rustlibs: [
+                "libenv_filter",
+                "liblog_rust",
+            ],
+        },
+        android: {
+            rustlibs: [
+                "liblog_rust",
+                "libandroid_log_sys",
+            ],
+        },
+    },
+
 }
 
 rust_test {
     name: "android_logger_test_tests_multiple_init",
     crate_name: "multiple_init",
     cargo_env_compat: true,
-    cargo_pkg_version: "0.15.0",
+    cargo_pkg_version: "0.15.1",
     crate_root: "tests/multiple_init.rs",
     test_suites: ["general-tests"],
     auto_gen_config: true,
@@ -89,18 +131,32 @@ rust_test {
         "regex",
     ],
     rustlibs: [
-        "libandroid_log_sys",
         "libandroid_logger",
         "libenv_filter",
         "liblog_rust",
     ],
+    target: {
+        host: {
+            rustlibs: [
+                "libenv_filter",
+                "liblog_rust",
+            ],
+        },
+        android: {
+            rustlibs: [
+                "liblog_rust",
+                "libandroid_log_sys",
+            ],
+        },
+    },
+
 }
 
 rust_library {
     name: "libandroid_logger",
     crate_name: "android_logger",
     cargo_env_compat: true,
-    cargo_pkg_version: "0.15.0",
+    cargo_pkg_version: "0.15.1",
     crate_root: "src/lib.rs",
     edition: "2021",
     features: [
@@ -108,7 +164,6 @@ rust_library {
         "regex",
     ],
     rustlibs: [
-        "libandroid_log_sys",
         "libenv_filter",
         "liblog_rust",
     ],
@@ -119,4 +174,27 @@ rust_library {
     product_available: true,
     vendor_available: true,
     min_sdk_version: "29",
+    target: {
+        host: {
+            rustlibs: [
+                "libenv_filter",
+                "liblog_rust",
+            ],
+        },
+        android: {
+            rustlibs: [
+                "liblog_rust",
+                "libandroid_log_sys",
+            ],
+        },
+    },
+
+}
+
+filegroup {
+    name: "android_logger_srcs",
+    srcs: [
+        "src/*.rs",
+        "src/**/*.rs",
+    ],
 }

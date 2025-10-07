@@ -194,7 +194,9 @@ impl<'a> Outlines<'a> {
         hint: bool,
         pen: &mut impl OutlinePen,
     ) -> Result<(), Error> {
-        let charstring_data = self.top_dict.charstrings.get(glyph_id.to_u32() as usize)?;
+        let cff_data = self.offset_data.as_bytes();
+        let charstrings = self.top_dict.charstrings.clone();
+        let charstring_data = charstrings.get(glyph_id.to_u32() as usize)?;
         let subrs = subfont.subrs(self)?;
         let blend_state = subfont.blend_state(self, coords)?;
         let mut pen_sink = PenSink::new(pen);
@@ -204,10 +206,12 @@ impl<'a> Outlines<'a> {
             let mut hinting_adapter =
                 HintingSink::new(&subfont.hint_state, &mut simplifying_adapter);
             charstring::evaluate(
-                charstring_data,
+                cff_data,
+                charstrings,
                 self.global_subrs.clone(),
                 subrs,
                 blend_state,
+                charstring_data,
                 &mut hinting_adapter,
             )?;
             hinting_adapter.finish();
@@ -215,10 +219,12 @@ impl<'a> Outlines<'a> {
             let mut scaling_adapter =
                 ScalingSink26Dot6::new(&mut simplifying_adapter, subfont.scale);
             charstring::evaluate(
-                charstring_data,
+                cff_data,
+                charstrings,
                 self.global_subrs.clone(),
                 subrs,
                 blend_state,
+                charstring_data,
                 &mut scaling_adapter,
             )?;
         }
@@ -317,7 +323,7 @@ impl PrivateDict {
                 BlueValues(values) => dict.hint_params.blues = values,
                 FamilyBlues(values) => dict.hint_params.family_blues = values,
                 OtherBlues(values) => dict.hint_params.other_blues = values,
-                FamilyOtherBlues(values) => dict.hint_params.family_blues = values,
+                FamilyOtherBlues(values) => dict.hint_params.family_other_blues = values,
                 BlueScale(value) => dict.hint_params.blue_scale = value,
                 BlueShift(value) => dict.hint_params.blue_shift = value,
                 BlueFuzz(value) => dict.hint_params.blue_fuzz = value,
@@ -511,6 +517,22 @@ impl<S: CommandSink> CommandSink for ScalingSink26Dot6<'_, S> {
     }
 }
 
+#[derive(Copy, Clone)]
+enum PendingElement {
+    Move([Fixed; 2]),
+    Line([Fixed; 2]),
+    Curve([Fixed; 6]),
+}
+
+impl PendingElement {
+    fn target_point(&self) -> [Fixed; 2] {
+        match self {
+            Self::Move(xy) | Self::Line(xy) => *xy,
+            Self::Curve([.., x, y]) => [*x, *y],
+        }
+    }
+}
+
 /// Command sink adapter that suppresses degenerate move and line commands.
 ///
 /// FreeType avoids emitting empty contours and zero length lines to prevent
@@ -520,9 +542,9 @@ impl<S: CommandSink> CommandSink for ScalingSink26Dot6<'_, S> {
 ///
 /// See <https://gitlab.freedesktop.org/freetype/freetype/-/blob/80a507a6b8e3d2906ad2c8ba69329bd2fb2a85ef/src/psaux/pshints.c#L1786>
 struct NopFilteringSink<'a, S> {
+    is_open: bool,
     start: Option<(Fixed, Fixed)>,
-    last: Option<(Fixed, Fixed)>,
-    pending_move: Option<(Fixed, Fixed)>,
+    pending_element: Option<PendingElement>,
     inner: &'a mut S,
 }
 
@@ -532,33 +554,38 @@ where
 {
     fn new(inner: &'a mut S) -> Self {
         Self {
+            is_open: false,
             start: None,
-            last: None,
-            pending_move: None,
+            pending_element: None,
             inner,
         }
     }
 
-    fn flush_pending_move(&mut self) {
-        if let Some((x, y)) = self.pending_move.take() {
-            if let Some((last_x, last_y)) = self.start {
-                if self.last != self.start {
-                    self.inner.line_to(last_x, last_y);
+    fn flush_pending(&mut self, for_close: bool) {
+        if let Some(pending) = self.pending_element.take() {
+            match pending {
+                PendingElement::Move([x, y]) => {
+                    if !for_close {
+                        self.is_open = true;
+                        self.inner.move_to(x, y);
+                        self.start = Some((x, y));
+                    }
+                    return;
+                }
+                PendingElement::Line([x, y]) => {
+                    if !for_close || self.start != Some((x, y)) {
+                        self.inner.line_to(x, y);
+                    }
+                }
+                PendingElement::Curve([cx0, cy0, cx1, cy1, x, y]) => {
+                    self.inner.curve_to(cx0, cy0, cx1, cy1, x, y);
                 }
             }
-            self.start = Some((x, y));
-            self.last = None;
-            self.inner.move_to(x, y);
         }
     }
 
     pub fn finish(&mut self) {
-        if let Some((x, y)) = self.start {
-            if self.last != self.start {
-                self.inner.line_to(x, y);
-            }
-            self.inner.close();
-        }
+        self.close();
     }
 }
 
@@ -583,32 +610,32 @@ where
     }
 
     fn move_to(&mut self, x: Fixed, y: Fixed) {
-        self.pending_move = Some((x, y));
+        self.pending_element = Some(PendingElement::Move([x, y]));
     }
 
     fn line_to(&mut self, x: Fixed, y: Fixed) {
-        if self.pending_move == Some((x, y)) {
+        // Omit the line if we're already at the given position
+        if self
+            .pending_element
+            .map(|element| element.target_point() == [x, y])
+            .unwrap_or_default()
+        {
             return;
         }
-        self.flush_pending_move();
-        if self.last == Some((x, y)) || (self.last.is_none() && self.start == Some((x, y))) {
-            return;
-        }
-        self.inner.line_to(x, y);
-        self.last = Some((x, y));
+        self.flush_pending(false);
+        self.pending_element = Some(PendingElement::Line([x, y]));
     }
 
     fn curve_to(&mut self, cx1: Fixed, cy1: Fixed, cx2: Fixed, cy2: Fixed, x: Fixed, y: Fixed) {
-        self.flush_pending_move();
-        self.last = Some((x, y));
-        self.inner.curve_to(cx1, cy1, cx2, cy2, x, y);
+        self.flush_pending(false);
+        self.pending_element = Some(PendingElement::Curve([cx1, cy1, cx2, cy2, x, y]));
     }
 
     fn close(&mut self) {
-        if self.pending_move.is_none() {
+        self.flush_pending(true);
+        if self.is_open {
             self.inner.close();
-            self.start = None;
-            self.last = None;
+            self.is_open = false;
         }
     }
 }
@@ -621,6 +648,7 @@ mod tests {
         prelude::{LocationRef, Size},
         MetadataProvider,
     };
+    use dict::Blues;
     use font_test_data::bebuffer::BeBuffer;
     use raw::tables::cff2::Cff2;
     use read_fonts::FontRef;
@@ -849,5 +877,43 @@ mod tests {
                 );
             }
         }
+    }
+
+    // We were overwriting family_other_blues with family_blues.
+    #[test]
+    fn capture_family_other_blues() {
+        let private_dict_data = &font_test_data::cff2::EXAMPLE[0x4f..=0xc0];
+        let store =
+            ItemVariationStore::read(FontData::new(&font_test_data::cff2::EXAMPLE[18..])).unwrap();
+        let coords = &[F2Dot14::from_f32(0.0)];
+        let blend_state = BlendState::new(store, coords, 0).unwrap();
+        let private_dict = PrivateDict::new(
+            FontData::new(private_dict_data),
+            0..private_dict_data.len(),
+            Some(blend_state),
+        )
+        .unwrap();
+        assert_eq!(
+            private_dict.hint_params.family_other_blues,
+            Blues::new([-249.0, -239.0].map(Fixed::from_f64).into_iter())
+        )
+    }
+
+    #[test]
+    fn implied_seac() {
+        let font = FontRef::new(font_test_data::CHARSTRING_PATH_OPS).unwrap();
+        let glyphs = font.outline_glyphs();
+        let gid = GlyphId::new(3);
+        assert_eq!(font.glyph_names().get(gid).unwrap(), "Scaron");
+        let glyph = glyphs.get(gid).unwrap();
+        let mut pen = SvgPen::new();
+        glyph
+            .draw((Size::unscaled(), LocationRef::default()), &mut pen)
+            .unwrap();
+        // This triggers the seac behavior in the endchar operator which
+        // loads an accent character followed by a base character. Ensure
+        // that we have a path to represent each by checking for two closepath
+        // commands.
+        assert_eq!(pen.to_string().chars().filter(|ch| *ch == 'Z').count(), 2);
     }
 }

@@ -1,7 +1,9 @@
+//! Types used in SPDX expressions, notably [`Expression`]
+
 mod minimize;
 mod parser;
 
-use crate::{error::ParseError, LicenseReq};
+use crate::{LicenseReq, error::ParseError};
 pub use minimize::MinimizeError;
 use smallvec::SmallVec;
 use std::fmt;
@@ -153,11 +155,8 @@ impl Expression {
         result_stack.pop().unwrap()
     }
 
-    /// Just as with evaluate, the license expression is evaluated to see if
-    /// enough license requirements in the expression are met for the evaluation
-    /// to succeed, except this method also keeps track of each failed requirement
-    /// and returns them, allowing for more detailed error reporting about precisely
-    /// what terms in the expression caused the overall failure
+    /// A version of [`Self::evaluate`] that returns the requirements that are not
+    /// met if the evaluation returns `false`.
     pub fn evaluate_with_failures<AF: FnMut(&LicenseReq) -> bool>(
         &self,
         mut allow_func: AF,

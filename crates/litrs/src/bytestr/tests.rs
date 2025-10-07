@@ -1,4 +1,7 @@
-use crate::{Literal, ByteStringLit, test_util::{assert_parse_ok_eq, assert_roundtrip}};
+use crate::{
+    test_util::{assert_parse_ok_eq, assert_roundtrip},
+    ByteStringLit, Literal,
+};
 
 // ===== Utility functions =======================================================================
 
@@ -16,9 +19,17 @@ macro_rules! check {
         };
 
         assert_parse_ok_eq(
-            input, ByteStringLit::parse(input), expected.clone(), "ByteStringLit::parse");
+            input,
+            ByteStringLit::parse(input),
+            expected.clone(),
+            "ByteStringLit::parse",
+        );
         assert_parse_ok_eq(
-            input, Literal::parse(input), Literal::ByteString(expected.clone()), "Literal::parse");
+            input,
+            Literal::parse(input),
+            Literal::ByteString(expected.clone()),
+            "Literal::parse",
+        );
         let lit = ByteStringLit::parse(input).unwrap();
         assert_eq!(lit.value(), $lit);
         assert_eq!(lit.suffix(), $suffix);
@@ -52,16 +63,21 @@ fn special_whitespace() {
                 start_suffix: input.len(),
             };
             assert_parse_ok_eq(
-                &input, ByteStringLit::parse(&*input), expected.clone(), "ByteStringLit::parse");
+                &input,
+                ByteStringLit::parse(&*input),
+                expected.clone(),
+                "ByteStringLit::parse",
+            );
             assert_parse_ok_eq(
-                &input, Literal::parse(&*input), Literal::ByteString(expected), "Literal::parse");
+                &input,
+                Literal::parse(&*input),
+                Literal::ByteString(expected),
+                "Literal::parse",
+            );
             assert_eq!(ByteStringLit::parse(&*input).unwrap().value(), s.as_bytes());
             assert_eq!(ByteStringLit::parse(&*input).unwrap().into_value(), s.as_bytes());
         }
     }
-
-    let res = ByteStringLit::parse("br\"\r\"").expect("failed to parse");
-    assert_eq!(res.value(), b"\r");
 }
 
 #[test]
@@ -86,6 +102,20 @@ fn simple_escapes() {
 }
 
 #[test]
+fn non_ascii_escapes() {
+    check!(b"\x80", true, None);
+    check!(b"\x8a", true, None);
+    check!(b"\x8C", true, None);
+    check!(b"\x99", true, None);
+    check!(b"\xa0", true, None);
+    check!(b"\xAd", true, None);
+    check!(b"\xfe", true, None);
+    check!(b"\xFe", true, None);
+    check!(b"\xfF", true, None);
+    check!(b"\xFF", true, None);
+}
+
+#[test]
 fn string_continue() {
     check!(b"foo\
         bar", true, None);
@@ -97,33 +127,12 @@ bar", true, None);
         banana", true, None);
 
     // Weird whitespace characters
-    let lit = ByteStringLit::parse("b\"foo\\\n\r\t\n \n\tbar\"").expect("failed to parse");
+    let lit = ByteStringLit::parse("b\"foo\\\n\t\n \n\tbar\"").expect("failed to parse");
     assert_eq!(lit.value(), b"foobar");
 
     // Raw strings do not handle "string continues"
     check!(br"foo\
         bar", false, Some(0));
-}
-
-#[test]
-fn crlf_newlines() {
-    let lit = ByteStringLit::parse("b\"foo\r\nbar\"").expect("failed to parse");
-    assert_eq!(lit.value(), b"foo\nbar");
-
-    let lit = ByteStringLit::parse("b\"\r\nbar\"").expect("failed to parse");
-    assert_eq!(lit.value(), b"\nbar");
-
-    let lit = ByteStringLit::parse("b\"foo\r\n\"").expect("failed to parse");
-    assert_eq!(lit.value(), b"foo\n");
-
-    let lit = ByteStringLit::parse("br\"foo\r\nbar\"").expect("failed to parse");
-    assert_eq!(lit.value(), b"foo\nbar");
-
-    let lit = ByteStringLit::parse("br#\"\r\nbar\"#").expect("failed to parse");
-    assert_eq!(lit.value(), b"\nbar");
-
-    let lit = ByteStringLit::parse("br##\"foo\r\n\"##").expect("failed to parse");
-    assert_eq!(lit.value(), b"foo\n");
 }
 
 #[test]
@@ -172,8 +181,12 @@ fn parse_err() {
     assert_err!(ByteStringLit, r#"b"fox"peter""#, InvalidSuffix, 6);
     assert_err!(ByteStringLit, r###"br#"foo "# bar"#"###, UnexpectedChar, 10);
 
-    assert_err!(ByteStringLit, "b\"\r\"", IsolatedCr, 2);
-    assert_err!(ByteStringLit, "b\"fo\rx\"", IsolatedCr, 4);
+    assert_err!(ByteStringLit, "b\"\r\"", CarriageReturn, 2);
+    assert_err!(ByteStringLit, "b\"fo\rx\"", CarriageReturn, 4);
+    assert_err!(ByteStringLit, "br\"\r\"", CarriageReturn, 3);
+    assert_err!(ByteStringLit, "br\"fo\rx\"", CarriageReturn, 5);
+    assert_err!(ByteStringLit, "b\"a\\\r\"", UnknownEscape, 3..5);
+    assert_err!(ByteStringLit, "br\"a\\\r\"", CarriageReturn, 5);
 
     assert_err!(ByteStringLit, r##"br####""##, UnterminatedRawString, None);
     assert_err!(ByteStringLit, r#####"br##"foo"#bar"#####, UnterminatedRawString, None);
