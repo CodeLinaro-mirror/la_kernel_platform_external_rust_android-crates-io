@@ -15,12 +15,18 @@ license {
 
 rust_library {
     name: "libbitflags",
+    defaults: ["rust_baremetal_nostd_defaults"],
     host_supported: true,
     crate_name: "bitflags",
     cargo_env_compat: true,
     cargo_pkg_version: "2.9.4",
     crate_root: "src/lib.rs",
     edition: "2021",
+    target: {
+        windows: {
+            enabled: true,
+        },
+    },
     apex_available: [
         "//apex_available:platform",
         "//apex_available:anyapex",
@@ -28,6 +34,9 @@ rust_library {
     product_available: true,
     vendor_available: true,
     min_sdk_version: "29",
+    no_std: {
+        enabled: true,
+    },
 }
 
 dirgroup {
