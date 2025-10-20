@@ -3,7 +3,7 @@
   "min_sdk_version": "29",
   "package": {
     "thiserror": {
-      "add_module_block": "cargo_embargo_target_windows_enabled.bp.fragment"
+      "target_windows": true
     }
   },
   "run_cargo": false,
@@ -12,9 +12,6 @@
     {
       "features": [],
       "generate_rulesmk": true,
-      "module_name_overrides": {
-        "libthiserror": "libthiserror_nostd"
-      },
       "package": {
         "thiserror": {
           "force_rlib": true,

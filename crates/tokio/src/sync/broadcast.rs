@@ -500,8 +500,10 @@ const MAX_RECEIVERS: usize = usize::MAX >> 2;
 ///
 /// # Panics
 ///
-/// This will panic if `capacity` is equal to `0` or larger
-/// than `usize::MAX / 2`.
+/// This will panic if `capacity` is equal to `0`.
+///
+/// This pre-allocates space for `capacity` messages. Allocation failure may result in a panic or
+/// [an allocation failure](std::alloc::handle_alloc_error).
 #[track_caller]
 pub fn channel<T: Clone>(capacity: usize) -> (Sender<T>, Receiver<T>) {
     // SAFETY: In the line below we are creating one extra receiver, so there will be 1 in total.
@@ -564,7 +566,7 @@ impl<T> Sender<T> {
             tail: Mutex::new(Tail {
                 pos: 0,
                 rx_cnt: receiver_count,
-                closed: false,
+                closed: receiver_count == 0,
                 waiters: LinkedList::new(),
             }),
             num_tx: AtomicUsize::new(1),
@@ -1271,10 +1273,7 @@ impl<T> Receiver<T> {
                                 match (*ptr).waker {
                                     Some(ref w) if w.will_wake(waker) => {}
                                     _ => {
-                                        old_waker = std::mem::replace(
-                                            &mut (*ptr).waker,
-                                            Some(waker.clone()),
-                                        );
+                                        old_waker = (*ptr).waker.replace(waker.clone());
                                     }
                                 }
 

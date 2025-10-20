@@ -1,31 +1,22 @@
 {
   "imports": [
     {
-      "path": "external/rust/android-crates-io/crates/quiche"
-    },
-    {
       "path": "external/rust/android-crates-io/crates/unicode-normalization"
     },
     {
-      "path": "external/rust/android-crates-io/crates/url"
+      "path": "external/rust/beto-rust/nearby"
     },
     {
-      "path": "packages/modules/DnsResolver"
-    }
-  ],
-  "presubmit": [
+      "path": "packages/modules/Virtualization/guest/pvmfw"
+    },
     {
-      "name": "tinyvec_test_tests_arrayvec"
-    }
-  ],
-  "presubmit-rust": [
+      "path": "packages/modules/Virtualization/guest/pvmfw/avb"
+    },
     {
-      "name": "tinyvec_test_tests_arrayvec"
-    }
-  ],
-  "postsubmit": [
+      "path": "packages/modules/Virtualization/guest/service_vm"
+    },
     {
-      "name": "tinyvec_test_tests_tinyvec"
+      "path": "packages/modules/Virtualization/libs/libvmbase"
     }
   ]
 }

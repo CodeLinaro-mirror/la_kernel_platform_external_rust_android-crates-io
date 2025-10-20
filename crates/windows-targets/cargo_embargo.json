@@ -1,0 +1,12 @@
+{
+  "run_cargo": false,
+  "min_sdk_version": "29",
+  "package": {
+    "windows-targets": {
+      "device_supported": false,
+      "enabled": false,
+      "target_windows": true
+    }
+  }
+
+}

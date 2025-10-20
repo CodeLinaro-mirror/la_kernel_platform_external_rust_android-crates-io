@@ -18,7 +18,7 @@ rust_test {
     host_supported: true,
     crate_name: "array_tests",
     cargo_env_compat: true,
-    cargo_pkg_version: "1.23.1",
+    cargo_pkg_version: "1.23.2",
     crate_root: "tests/array_tests.rs",
     test_suites: ["general-tests"],
     auto_gen_config: true,
@@ -40,7 +40,6 @@ rust_test {
             enabled: true,
         },
     },
-
 }
 
 rust_test {
@@ -48,7 +47,7 @@ rust_test {
     host_supported: true,
     crate_name: "cast_slice_tests",
     cargo_env_compat: true,
-    cargo_pkg_version: "1.23.1",
+    cargo_pkg_version: "1.23.2",
     crate_root: "tests/cast_slice_tests.rs",
     test_suites: ["general-tests"],
     auto_gen_config: true,
@@ -70,7 +69,6 @@ rust_test {
             enabled: true,
         },
     },
-
 }
 
 rust_test {
@@ -78,7 +76,7 @@ rust_test {
     host_supported: true,
     crate_name: "checked_tests",
     cargo_env_compat: true,
-    cargo_pkg_version: "1.23.1",
+    cargo_pkg_version: "1.23.2",
     crate_root: "tests/checked_tests.rs",
     test_suites: ["general-tests"],
     auto_gen_config: true,
@@ -100,7 +98,6 @@ rust_test {
             enabled: true,
         },
     },
-
 }
 
 rust_test {
@@ -108,7 +105,7 @@ rust_test {
     host_supported: true,
     crate_name: "doc_tests",
     cargo_env_compat: true,
-    cargo_pkg_version: "1.23.1",
+    cargo_pkg_version: "1.23.2",
     crate_root: "tests/doc_tests.rs",
     test_suites: ["general-tests"],
     auto_gen_config: true,
@@ -130,7 +127,6 @@ rust_test {
             enabled: true,
         },
     },
-
 }
 
 rust_test {
@@ -138,7 +134,7 @@ rust_test {
     host_supported: true,
     crate_name: "offset_of_tests",
     cargo_env_compat: true,
-    cargo_pkg_version: "1.23.1",
+    cargo_pkg_version: "1.23.2",
     crate_root: "tests/offset_of_tests.rs",
     test_suites: ["general-tests"],
     auto_gen_config: true,
@@ -160,7 +156,6 @@ rust_test {
             enabled: true,
         },
     },
-
 }
 
 rust_test {
@@ -168,7 +163,7 @@ rust_test {
     host_supported: true,
     crate_name: "std_tests",
     cargo_env_compat: true,
-    cargo_pkg_version: "1.23.1",
+    cargo_pkg_version: "1.23.2",
     crate_root: "tests/std_tests.rs",
     test_suites: ["general-tests"],
     auto_gen_config: true,
@@ -190,7 +185,6 @@ rust_test {
             enabled: true,
         },
     },
-
 }
 
 rust_test {
@@ -198,7 +192,7 @@ rust_test {
     host_supported: true,
     crate_name: "transparent",
     cargo_env_compat: true,
-    cargo_pkg_version: "1.23.1",
+    cargo_pkg_version: "1.23.2",
     crate_root: "tests/transparent.rs",
     test_suites: ["general-tests"],
     auto_gen_config: true,
@@ -220,7 +214,6 @@ rust_test {
             enabled: true,
         },
     },
-
 }
 
 rust_library {
@@ -228,7 +221,7 @@ rust_library {
     host_supported: true,
     crate_name: "bytemuck",
     cargo_env_compat: true,
-    cargo_pkg_version: "1.23.1",
+    cargo_pkg_version: "1.23.2",
     crate_root: "src/lib.rs",
     edition: "2018",
     features: [
@@ -239,6 +232,11 @@ rust_library {
         "min_const_generics",
     ],
     proc_macros: ["libbytemuck_derive"],
+    target: {
+        windows: {
+            enabled: true,
+        },
+    },
     apex_available: [
         "//apex_available:platform",
         "//apex_available:anyapex",
@@ -246,12 +244,6 @@ rust_library {
     product_available: true,
     vendor_available: true,
     min_sdk_version: "34",
-    target: {
-        windows: {
-            enabled: true,
-        },
-    },
-
 }
 
 rust_library_rlib {
@@ -259,7 +251,7 @@ rust_library_rlib {
     defaults: ["rust_baremetal_defaults"],
     crate_name: "bytemuck",
     cargo_env_compat: true,
-    cargo_pkg_version: "1.23.1",
+    cargo_pkg_version: "1.23.2",
     crate_root: "src/lib.rs",
     edition: "2018",
     features: [
@@ -268,6 +260,11 @@ rust_library_rlib {
         "extern_crate_alloc",
     ],
     proc_macros: ["libbytemuck_derive"],
+    target: {
+        windows: {
+            enabled: true,
+        },
+    },
     apex_available: [
         "//apex_available:platform",
         "//apex_available:anyapex",
@@ -282,10 +279,4 @@ rust_library_rlib {
     product_available: true,
     vendor_available: true,
     min_sdk_version: "29",
-    target: {
-        windows: {
-            enabled: true,
-        },
-    },
-
 }

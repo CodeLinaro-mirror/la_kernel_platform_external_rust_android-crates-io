@@ -124,7 +124,7 @@ impl Method {
     /// contain elided lifetimes that we depend on for this method. The validity
     /// checks ensure that the return type doesn't elide any lifetimes, ensuring
     /// that this method will produce correct results.
-    pub fn borrowed_params(&self) -> BorrowedParams {
+    pub fn borrowed_params(&self) -> BorrowedParams<'_> {
         // To determine which params the return type is bound to, we just have to
         // find the params that contain a lifetime that's also in the return type.
         if let Some(ref return_type) = self.return_type {
@@ -173,7 +173,7 @@ impl Method {
                             ControlFlow::Continue(())
                         })
                         .is_break()
-                        .then(|| (param, lt_kind))
+                        .then_some((param, lt_kind))
                 })
                 .collect();
 

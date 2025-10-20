@@ -18,7 +18,7 @@ rust_library {
     host_supported: true,
     crate_name: "clap_builder",
     cargo_env_compat: true,
-    cargo_pkg_version: "4.5.0",
+    cargo_pkg_version: "4.5.48",
     crate_root: "src/lib.rs",
     edition: "2021",
     features: [
@@ -34,6 +34,11 @@ rust_library {
         "libclap_lex",
         "libstrsim",
     ],
+    target: {
+        windows: {
+            enabled: true,
+        },
+    },
     apex_available: [
         "//apex_available:platform",
         "//apex_available:anyapex",
@@ -41,9 +46,4 @@ rust_library {
     product_available: true,
     vendor_available: true,
     min_sdk_version: "29",
-    target: {
-        windows: {
-            enabled: true,
-        },
-    },
 }

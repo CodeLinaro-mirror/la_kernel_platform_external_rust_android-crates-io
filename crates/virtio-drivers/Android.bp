@@ -18,15 +18,16 @@ rust_library_rlib {
     defaults: ["rust_baremetal_defaults"],
     crate_name: "virtio_drivers",
     cargo_env_compat: true,
-    cargo_pkg_version: "0.9.0",
+    cargo_pkg_version: "0.11.0",
     crate_root: "src/lib.rs",
     edition: "2021",
     features: ["alloc"],
     rustlibs: [
         "libbitflags",
-        "liblog_rust_nostd",
-        "libthiserror_nostd",
-        "libzerocopy_nostd",
+        "liblog_rust",
+        "libsafe_mmio",
+        "libthiserror",
+        "libzerocopy",
     ],
     proc_macros: ["libenumn"],
     apex_available: [
@@ -44,10 +45,9 @@ rust_library_rlib {
 
 rust_test {
     name: "virtio-drivers_test_src_lib",
-    defaults: ["rust_baremetal_defaults"],
     crate_name: "virtio_drivers",
     cargo_env_compat: true,
-    cargo_pkg_version: "0.9.0",
+    cargo_pkg_version: "0.11.0",
     crate_root: "src/lib.rs",
     test_suites: ["general-tests"],
     auto_gen_config: true,
@@ -55,9 +55,10 @@ rust_test {
     features: ["alloc"],
     rustlibs: [
         "libbitflags",
-        "liblog_rust_nostd",
-        "libthiserror_nostd",
-        "libzerocopy_nostd",
+        "liblog_rust",
+        "libsafe_mmio",
+        "libthiserror",
+        "libzerocopy",
     ],
     proc_macros: ["libenumn"],
 }

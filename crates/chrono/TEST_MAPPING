@@ -1,27 +1,25 @@
 {
   "imports": [
     {
-      "path": "packages/modules/Virtualization/authfs"
+      "path": "external/flashrom/util/flashrom_tester"
     },
     {
-      "path": "packages/modules/Virtualization/virtualizationmanager"
+      "path": "system/core/init/libprefetch/prefetch"
     },
     {
-      "path": "packages/modules/Virtualization/zipfuse"
-    }
-  ],
-  "postsubmit": [
-    {
-      "name": "chrono_test_src_lib"
+      "path": "system/cros-codecs"
     },
     {
-      "name": "chrono_test_tests_dateutils"
+      "path": "system/extras/profcollectd/libprofcollectd"
     },
     {
-      "name": "chrono_test_tests_wasm"
+      "path": "system/security/keystore2/watchdog"
     },
     {
-      "name": "chrono_test_tests_win_bindings"
+      "path": "tools/netsim"
+    },
+    {
+      "path": "tools/security/remote_provisioning/hwtrust"
     }
   ]
 }

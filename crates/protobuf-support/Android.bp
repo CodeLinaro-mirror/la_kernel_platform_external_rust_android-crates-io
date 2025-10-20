@@ -18,10 +18,15 @@ rust_library {
     host_supported: true,
     crate_name: "protobuf_support",
     cargo_env_compat: true,
-    cargo_pkg_version: "3.2.0",
+    cargo_pkg_version: "3.6.0",
     crate_root: "src/lib.rs",
     edition: "2021",
     rustlibs: ["libthiserror"],
+    target: {
+        windows: {
+            enabled: true,
+        },
+    },
     apex_available: [
         "//apex_available:platform",
         "//apex_available:anyapex",
@@ -29,11 +34,6 @@ rust_library {
     product_available: true,
     vendor_available: true,
     min_sdk_version: "29",
-    target: {
-        windows: {
-            enabled: true,
-        },
-    },
 }
 
 dirgroup {

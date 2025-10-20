@@ -1,4 +1,15 @@
 {
+  "imports": [
+    {
+      "path": "external/rust/android-crates-io/crates/darling"
+    },
+    {
+      "path": "external/rust/android-crates-io/crates/derive_builder_core"
+    },
+    {
+      "path": "external/rust/android-crates-io/crates/mls-rs-codec-derive"
+    }
+  ],
   "postsubmit": [
     {
       "name": "darling_test_tests_accrue_errors"
@@ -11,6 +22,9 @@
     },
     {
       "name": "darling_test_tests_custom_bound"
+    },
+    {
+      "name": "darling_test_tests_data_with"
     },
     {
       "name": "darling_test_tests_defaults"
@@ -61,10 +75,16 @@
       "name": "darling_test_tests_generics"
     },
     {
+      "name": "darling_test_tests_generics_with"
+    },
+    {
       "name": "darling_test_tests_happy_path"
     },
     {
       "name": "darling_test_tests_hash_map"
+    },
+    {
+      "name": "darling_test_tests_meta_with"
     },
     {
       "name": "darling_test_tests_multiple"
@@ -73,7 +93,13 @@
       "name": "darling_test_tests_newtype"
     },
     {
+      "name": "darling_test_tests_override_callable"
+    },
+    {
       "name": "darling_test_tests_skip"
+    },
+    {
+      "name": "darling_test_tests_spanned_value"
     },
     {
       "name": "darling_test_tests_split_declaration"
