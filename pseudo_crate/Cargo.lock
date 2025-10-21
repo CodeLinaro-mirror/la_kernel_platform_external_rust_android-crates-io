@@ -473,7 +473,7 @@ dependencies = [
  "regex",
  "regex-automata",
  "regex-syntax",
- "relative-path",
+ "relative-path 2.0.1",
  "remain",
  "ring 0.17.2",
  "rtnetlink",
@@ -3060,7 +3060,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "1926a45e14479803957ec6afd3c908c4c3e5932f47498f9f05b86eb163da5ebf"
 dependencies = [
  "genco-macros",
- "relative-path",
+ "relative-path 1.2.0",
  "smallvec",
 ]
 
@@ -6494,6 +6494,15 @@ name = "relative-path"
 version = "1.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "629a4b40d41677dde754d00bb392d777c80b8716d9271b6e2aa5f6a2b3d4261e"
+
+[[package]]
+name = "relative-path"
+version = "2.0.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "bca40a312222d8ba74837cb474edef44b37f561da5f773981007a10bbaa992b0"
+dependencies = [
+ "serde",
+]
 
 [[package]]
 name = "remain"
