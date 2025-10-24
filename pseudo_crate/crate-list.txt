@@ -206,6 +206,7 @@ icu_provider_baked
 icu_provider_macros
 ident_case
 idna
+if-addrs
 image
 indexmap
 inotify
@@ -308,6 +309,7 @@ parking_lot
 parking_lot_core
 paste
 pathdiff
+pci_types
 pdl-compiler
 pdl-runtime
 percent-encoding
