@@ -82,6 +82,7 @@ genrule_defaults {
         "//packages/modules/Nfc:__subpackages__",
         "//packages/modules/Uwb:__subpackages__",
         "//tools/netsim:__subpackages__",
+        "//tools/rootcanal:__subpackages__",
         "//vendor:__subpackages__",
     ],
 }
@@ -98,6 +99,7 @@ genrule_defaults {
         "//packages/modules/Nfc:__subpackages__",
         "//packages/modules/Uwb:__subpackages__",
         "//tools/netsim:__subpackages__",
+        "//tools/rootcanal:__subpackages__",
     ],
 }
 
@@ -365,11 +367,6 @@ python_test_host {
     ],
     test_options: {
         unit_test: true,
-    },
-    version: {
-        py3: {
-            embedded_launcher: true,
-        },
     },
 }
 

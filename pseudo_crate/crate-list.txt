@@ -1,4 +1,5 @@
 aarch64-paging
+aarch64-rt
 acpi
 adler2
 ahash
@@ -15,6 +16,10 @@ arc-swap
 argh
 argh_derive
 argh_shared
+arm-ffa
+arm-gic
+arm-pl011-uart
+arm-psci
 arrayvec
 ash
 async-stream
@@ -23,6 +28,7 @@ async-task
 async-trait
 atomic
 atty
+autocfg
 axum
 axum-core
 base64
@@ -489,6 +495,17 @@ want
 weak-table
 webpki
 which
+windows-link
+windows-sys
+windows-targets
+windows_aarch64_gnullvm
+windows_aarch64_msvc
+windows_i686_gnu
+windows_i686_gnullvm
+windows_i686_msvc
+windows_x86_64_gnu
+windows_x86_64_gnullvm
+windows_x86_64_msvc
 winnow
 writeable
 wyz
