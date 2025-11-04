@@ -29,6 +29,7 @@ async-trait
 atomic
 atty
 autocfg
+automotive_diag
 axum
 axum-core
 base64
@@ -523,6 +524,7 @@ xml-rs
 yaml-rust
 yoke
 yoke-derive
+yuv
 zerocopy
 zerocopy-derive
 zerofrom
