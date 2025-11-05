@@ -387,6 +387,7 @@ serde_bytes
 serde_cbor
 serde_derive
 serde_json
+serde_repr
 serde_spanned
 serde_test
 serde_yaml
