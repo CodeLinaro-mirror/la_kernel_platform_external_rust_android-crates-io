@@ -249,6 +249,7 @@ litrs
 lock_api
 log
 lru-cache
+lsp-types
 lz4_flex
 macaddr
 managed
