@@ -229,9 +229,8 @@ pub use padded::{PaddedBlockDecryptingKey, PaddedBlockEncryptingKey};
 pub use streaming::{BufferUpdate, StreamingDecryptingKey, StreamingEncryptingKey};
 
 use crate::aws_lc::{
-    EVP_aes_128_cbc, EVP_aes_128_cfb128, EVP_aes_128_ctr, EVP_aes_128_ecb, EVP_aes_192_cbc,
-    EVP_aes_192_cfb128, EVP_aes_192_ctr, EVP_aes_192_ecb, EVP_aes_256_cbc, EVP_aes_256_cfb128,
-    EVP_aes_256_ctr, EVP_aes_256_ecb, EVP_CIPHER,
+    EVP_aes_128_cbc, EVP_aes_128_ctr, EVP_aes_128_ecb, EVP_aes_192_cbc, EVP_aes_192_ctr,
+    EVP_aes_192_ecb, EVP_aes_256_cbc, EVP_aes_256_ctr, EVP_aes_256_ecb, EVP_CIPHER,
 };
 use crate::buffer::Buffer;
 use crate::error::Unspecified;
@@ -276,9 +275,6 @@ pub enum OperatingMode {
     /// Counter (CTR) mode.
     CTR,
 
-    /// CFB 128-bit mode.
-    CFB128,
-
     /// Electronic Code Book (ECB) mode.
     ECB,
 }
@@ -289,15 +285,12 @@ impl OperatingMode {
             ConstPointer::new_static(match (self, algorithm.id) {
                 (OperatingMode::CBC, AlgorithmId::Aes128) => EVP_aes_128_cbc(),
                 (OperatingMode::CTR, AlgorithmId::Aes128) => EVP_aes_128_ctr(),
-                (OperatingMode::CFB128, AlgorithmId::Aes128) => EVP_aes_128_cfb128(),
                 (OperatingMode::ECB, AlgorithmId::Aes128) => EVP_aes_128_ecb(),
                 (OperatingMode::CBC, AlgorithmId::Aes192) => EVP_aes_192_cbc(),
                 (OperatingMode::CTR, AlgorithmId::Aes192) => EVP_aes_192_ctr(),
-                (OperatingMode::CFB128, AlgorithmId::Aes192) => EVP_aes_192_cfb128(),
                 (OperatingMode::ECB, AlgorithmId::Aes192) => EVP_aes_192_ecb(),
                 (OperatingMode::CBC, AlgorithmId::Aes256) => EVP_aes_256_cbc(),
                 (OperatingMode::CTR, AlgorithmId::Aes256) => EVP_aes_256_ctr(),
-                (OperatingMode::CFB128, AlgorithmId::Aes256) => EVP_aes_256_cfb128(),
                 (OperatingMode::ECB, AlgorithmId::Aes256) => EVP_aes_256_ecb(),
             })
             .unwrap()
@@ -412,7 +405,7 @@ impl Algorithm {
         match self.id {
             // TODO: Hopefully support CFB1, and CFB8
             AlgorithmId::Aes128 | AlgorithmId::Aes192 | AlgorithmId::Aes256 => match mode {
-                OperatingMode::CBC | OperatingMode::CTR | OperatingMode::CFB128 => {
+                OperatingMode::CBC | OperatingMode::CTR => {
                     Ok(EncryptionContext::Iv128(FixedLength::new()?))
                 }
                 OperatingMode::ECB => Ok(EncryptionContext::None),
@@ -424,7 +417,7 @@ impl Algorithm {
         match self.id {
             // TODO: Hopefully support CFB1, and CFB8
             AlgorithmId::Aes128 | AlgorithmId::Aes192 | AlgorithmId::Aes256 => match mode {
-                OperatingMode::CBC | OperatingMode::CTR | OperatingMode::CFB128 => {
+                OperatingMode::CBC | OperatingMode::CTR => {
                     matches!(input, EncryptionContext::Iv128(_))
                 }
                 OperatingMode::ECB => {
@@ -438,7 +431,7 @@ impl Algorithm {
         // TODO: Hopefully support CFB1, and CFB8
         match self.id {
             AlgorithmId::Aes128 | AlgorithmId::Aes192 | AlgorithmId::Aes256 => match mode {
-                OperatingMode::CBC | OperatingMode::CTR | OperatingMode::CFB128 => {
+                OperatingMode::CBC | OperatingMode::CTR => {
                     matches!(input, DecryptionContext::Iv128(_))
                 }
                 OperatingMode::ECB => {
@@ -533,19 +526,6 @@ impl EncryptingKey {
     /// * [`Unspecified`]: Returned if there is an error constructing the `EncryptingKey`.
     pub fn ctr(key: UnboundCipherKey) -> Result<Self, Unspecified> {
         Self::new(key, OperatingMode::CTR)
-    }
-
-    /// Constructs an `EncryptingKey` operating in cipher feedback 128-bit mode (CFB128) using the provided key.
-    ///
-    // # FIPS
-    // Use this function with an `UnboundCipherKey` constructed with one of the following algorithms:
-    // * `AES_128`
-    // * `AES_256`
-    //
-    /// # Errors
-    /// * [`Unspecified`]: Returned if there is an error constructing the `EncryptingKey`.
-    pub fn cfb128(key: UnboundCipherKey) -> Result<Self, Unspecified> {
-        Self::new(key, OperatingMode::CFB128)
     }
 
     /// Constructs an `EncryptingKey` operating in electronic code book mode (ECB) using the provided key.
@@ -659,19 +639,6 @@ impl DecryptingKey {
         Self::new(key, OperatingMode::CTR)
     }
 
-    /// Constructs a cipher decrypting key operating in cipher feedback 128-bit mode (CFB128) using the provided key and context.
-    ///
-    // # FIPS
-    // Use this function with an `UnboundCipherKey` constructed with one of the following algorithms:
-    // * `AES_128`
-    // * `AES_256`
-    //
-    /// # Errors
-    /// * [`Unspecified`]: Returned if there is an error during decryption.
-    pub fn cfb128(key: UnboundCipherKey) -> Result<Self, Unspecified> {
-        Self::new(key, OperatingMode::CFB128)
-    }
-
     /// Constructs an `DecryptingKey` operating in electronic code book (ECB) mode using the provided key.
     ///
     /// # ☠️ ️️️DANGER ☠️
@@ -768,12 +735,6 @@ fn encrypt(
                 aes::encrypt_ctr_mode(key, context, in_out)
             }
         },
-        // TODO: Hopefully support CFB1, and CFB8
-        OperatingMode::CFB128 => match algorithm.id() {
-            AlgorithmId::Aes128 | AlgorithmId::Aes192 | AlgorithmId::Aes256 => {
-                aes::encrypt_cfb_mode(key, mode, context, in_out)
-            }
-        },
         OperatingMode::ECB => match algorithm.id() {
             AlgorithmId::Aes128 | AlgorithmId::Aes192 | AlgorithmId::Aes256 => {
                 aes::encrypt_ecb_mode(key, context, in_out)
@@ -809,12 +770,6 @@ fn decrypt<'in_out>(
         OperatingMode::CTR => match algorithm.id() {
             AlgorithmId::Aes128 | AlgorithmId::Aes192 | AlgorithmId::Aes256 => {
                 aes::decrypt_ctr_mode(key, context, in_out)
-            }
-        },
-        // TODO: Hopefully support CFB1, and CFB8
-        OperatingMode::CFB128 => match algorithm.id() {
-            AlgorithmId::Aes128 | AlgorithmId::Aes192 | AlgorithmId::Aes256 => {
-                aes::decrypt_cfb_mode(key, mode, context, in_out)
             }
         },
         OperatingMode::ECB => match algorithm.id() {
@@ -915,23 +870,6 @@ mod tests {
         let key = from_hex("000102030405060708090a0b0c0d0e0f").unwrap();
         for i in 0..=50 {
             helper_test_cipher_n_bytes(key.as_slice(), &AES_128, OperatingMode::CTR, i);
-        }
-    }
-
-    #[test]
-    fn test_aes_128_cfb128() {
-        let key = from_hex("000102030405060708090a0b0c0d0e0f").unwrap();
-        for i in 0..=50 {
-            helper_test_cipher_n_bytes(key.as_slice(), &AES_128, OperatingMode::CFB128, i);
-        }
-    }
-
-    #[test]
-    fn test_aes_256_cfb128() {
-        let key =
-            from_hex("000102030405060708090a0b0c0d0e0f000102030405060708090a0b0c0d0e0f").unwrap();
-        for i in 0..=50 {
-            helper_test_cipher_n_bytes(key.as_slice(), &AES_256, OperatingMode::CFB128, i);
         }
     }
 
@@ -1057,26 +995,6 @@ mod tests {
         "f028ecb053f801102d11fccc9d303a27",
         "eca7285d19f3c20e295378460e8729",
         "b5098e5e788de6ac2f2098eb2fc6f8"
-    );
-
-    cipher_kat!(
-        test_sp800_38a_cfb128_aes128,
-        &AES_128,
-        OperatingMode::CFB128,
-        "2b7e151628aed2a6abf7158809cf4f3c",
-        "000102030405060708090a0b0c0d0e0f",
-        "6bc1bee22e409f96e93d7e117393172aae2d8a571e03ac9c9eb76fac45af8e5130c81c46a35ce411e5fbc1191a0a52eff69f2445df4f9b17ad2b417be66c3710",
-        "3b3fd92eb72dad20333449f8e83cfb4ac8a64537a0b3a93fcde3cdad9f1ce58b26751f67a3cbb140b1808cf187a4f4dfc04b05357c5d1c0eeac4c66f9ff7f2e6"
-    );
-
-    cipher_kat!(
-        test_sp800_38a_cfb128_aes256,
-        &AES_256,
-        OperatingMode::CFB128,
-        "603deb1015ca71be2b73aef0857d77811f352c073b6108d72d9810a30914dff4",
-        "000102030405060708090a0b0c0d0e0f",
-        "6bc1bee22e409f96e93d7e117393172aae2d8a571e03ac9c9eb76fac45af8e5130c81c46a35ce411e5fbc1191a0a52eff69f2445df4f9b17ad2b417be66c3710",
-        "dc7e84bfda79164b7ecd8486985d386039ffed143b28b1c832113c6331e5407bdf10132415e54b92a13ed0a8267ae2f975a385741ab9cef82031623d55b1e471"
     );
 
     cipher_kat!(

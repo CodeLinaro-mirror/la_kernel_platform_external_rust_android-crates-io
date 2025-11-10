@@ -57,11 +57,6 @@ use alloc::borrow::Cow;
 use core::cmp::Ordering;
 use zeroize::Zeroize;
 
-const ML_KEM_512_SHARED_SECRET_LENGTH: usize = 32;
-const ML_KEM_512_PUBLIC_KEY_LENGTH: usize = 800;
-const ML_KEM_512_SECRET_KEY_LENGTH: usize = 1632;
-const ML_KEM_512_CIPHERTEXT_LENGTH: usize = 768;
-
 const ML_KEM_768_SHARED_SECRET_LENGTH: usize = 32;
 const ML_KEM_768_PUBLIC_KEY_LENGTH: usize = 1184;
 const ML_KEM_768_SECRET_KEY_LENGTH: usize = 2400;
@@ -71,15 +66,6 @@ const ML_KEM_1024_SHARED_SECRET_LENGTH: usize = 32;
 const ML_KEM_1024_PUBLIC_KEY_LENGTH: usize = 1568;
 const ML_KEM_1024_SECRET_KEY_LENGTH: usize = 3168;
 const ML_KEM_1024_CIPHERTEXT_LENGTH: usize = 1568;
-
-/// NIST FIPS 203 ML-KEM-512 algorithm.
-pub const ML_KEM_512: Algorithm<AlgorithmId> = Algorithm {
-    id: AlgorithmId::MlKem512,
-    decapsulate_key_size: ML_KEM_512_SECRET_KEY_LENGTH,
-    encapsulate_key_size: ML_KEM_512_PUBLIC_KEY_LENGTH,
-    ciphertext_size: ML_KEM_512_CIPHERTEXT_LENGTH,
-    shared_secret_size: ML_KEM_512_SHARED_SECRET_LENGTH,
-};
 
 /// NIST FIPS 203 ML-KEM-768 algorithm.
 pub const ML_KEM_768: Algorithm<AlgorithmId> = Algorithm {
@@ -99,7 +85,7 @@ pub const ML_KEM_1024: Algorithm<AlgorithmId> = Algorithm {
     shared_secret_size: ML_KEM_1024_SHARED_SECRET_LENGTH,
 };
 
-use crate::aws_lc::{NID_MLKEM1024, NID_MLKEM512, NID_MLKEM768};
+use crate::aws_lc::{NID_ML_KEM_1024, NID_ML_KEM_768};
 
 /// An identifier for a KEM algorithm.
 pub trait AlgorithmIdentifier:
@@ -176,9 +162,6 @@ where
 #[non_exhaustive]
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub enum AlgorithmId {
-    /// NIST FIPS 203 ML-KEM-512 algorithm.
-    MlKem512,
-
     /// NIST FIPS 203 ML-KEM-768 algorithm.
     MlKem768,
 
@@ -189,9 +172,8 @@ pub enum AlgorithmId {
 impl AlgorithmIdentifier for AlgorithmId {
     fn nid(self) -> i32 {
         match self {
-            AlgorithmId::MlKem512 => NID_MLKEM512,
-            AlgorithmId::MlKem768 => NID_MLKEM768,
-            AlgorithmId::MlKem1024 => NID_MLKEM1024,
+            AlgorithmId::MlKem768 => NID_ML_KEM_768,
+            AlgorithmId::MlKem1024 => NID_ML_KEM_1024,
         }
     }
 }

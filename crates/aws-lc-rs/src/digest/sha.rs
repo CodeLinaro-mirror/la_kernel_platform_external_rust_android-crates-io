@@ -152,51 +152,6 @@ pub static SHA512_256: Algorithm = Algorithm {
     id: AlgorithmID::SHA512_256,
 };
 
-/// SHA3-256 as specified in [FIPS 202].
-///
-/// [FIPS 202]: https://nvlpubs.nist.gov/nistpubs/FIPS/NIST.FIPS.202.pdf
-#[allow(deprecated)]
-pub static SHA3_256: Algorithm = Algorithm {
-    output_len: SHA3_256_OUTPUT_LEN,
-    chaining_len: SHA3_256_OUTPUT_LEN,
-    block_len: SHA3_256_BLOCK_LEN,
-    max_input_len: DIGEST_MAX_INPUT_LEN,
-
-    one_shot_hash: sha3_256_digest,
-
-    id: AlgorithmID::SHA3_256,
-};
-
-/// SHA3-384 as specified in [FIPS 202].
-///
-/// [FIPS 202]: https://nvlpubs.nist.gov/nistpubs/FIPS/NIST.FIPS.202.pdf
-#[allow(deprecated)]
-pub static SHA3_384: Algorithm = Algorithm {
-    output_len: SHA3_384_OUTPUT_LEN,
-    chaining_len: SHA3_384_OUTPUT_LEN,
-    block_len: SHA3_384_BLOCK_LEN,
-    max_input_len: DIGEST_MAX_INPUT_LEN,
-
-    one_shot_hash: sha3_384_digest,
-
-    id: AlgorithmID::SHA3_384,
-};
-
-/// SHA3-512 as specified in [FIPS 202].
-///
-/// [FIPS 202]: https://nvlpubs.nist.gov/nistpubs/FIPS/NIST.FIPS.202.pdf
-#[allow(deprecated)]
-pub static SHA3_512: Algorithm = Algorithm {
-    output_len: SHA3_512_OUTPUT_LEN,
-    chaining_len: SHA3_512_OUTPUT_LEN,
-    block_len: SHA3_512_BLOCK_LEN,
-    max_input_len: DIGEST_MAX_INPUT_LEN,
-
-    one_shot_hash: sha3_512_digest,
-
-    id: AlgorithmID::SHA3_512,
-};
-
 fn sha1_digest(msg: &[u8], output: &mut [u8]) {
     unsafe {
         aws_lc::SHA1(msg.as_ptr(), msg.len(), output.as_mut_ptr());
@@ -231,25 +186,4 @@ fn sha512_256_digest(msg: &[u8], output: &mut [u8]) {
     unsafe {
         aws_lc::SHA512_256(msg.as_ptr(), msg.len(), output.as_mut_ptr());
     }
-}
-
-fn sha3_256_digest(msg: &[u8], output: &mut [u8]) {
-    let mut ctx = Context::new(&SHA3_256);
-    ctx.update(msg);
-    let digest = ctx.finish();
-    output[0..SHA3_256_OUTPUT_LEN].copy_from_slice(digest.as_ref());
-}
-
-fn sha3_384_digest(msg: &[u8], output: &mut [u8]) {
-    let mut ctx = Context::new(&SHA3_384);
-    ctx.update(msg);
-    let digest = ctx.finish();
-    output[0..SHA3_384_OUTPUT_LEN].copy_from_slice(digest.as_ref());
-}
-
-fn sha3_512_digest(msg: &[u8], output: &mut [u8]) {
-    let mut ctx = Context::new(&SHA3_512);
-    ctx.update(msg);
-    let digest = ctx.finish();
-    output[0..SHA3_512_OUTPUT_LEN].copy_from_slice(digest.as_ref());
 }

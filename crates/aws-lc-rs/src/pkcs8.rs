@@ -36,5 +36,4 @@ impl Drop for Document {
 #[derive(Copy, Clone)]
 pub(crate) enum Version {
     V1,
-    V2,
 }

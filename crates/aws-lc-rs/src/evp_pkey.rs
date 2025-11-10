@@ -8,7 +8,7 @@ use crate::aws_lc::{
     EVP_PKEY_get_raw_private_key, EVP_PKEY_get_raw_public_key, EVP_PKEY_id, EVP_PKEY_keygen,
     EVP_PKEY_keygen_init, EVP_PKEY_new_raw_private_key, EVP_PKEY_new_raw_public_key, EVP_PKEY_sign,
     EVP_PKEY_sign_init, EVP_PKEY_size, EVP_PKEY_up_ref, EVP_PKEY_verify, EVP_PKEY_verify_init,
-    EVP_marshal_private_key, EVP_marshal_private_key_v2, EVP_marshal_public_key,
+    EVP_marshal_private_key, EVP_marshal_public_key,
     EVP_parse_private_key, EVP_parse_public_key, EC_KEY, EVP_PKEY, EVP_PKEY_CTX, EVP_PKEY_ED25519,
     RSA,
 };
@@ -127,11 +127,6 @@ impl ConstPointer<'_, EVP_PKEY> {
         match version {
             Version::V1 => {
                 if 1 != unsafe { EVP_marshal_private_key(cbb.as_mut_ptr(), **self) } {
-                    return Err(Unspecified);
-                }
-            }
-            Version::V2 => {
-                if 1 != unsafe { EVP_marshal_private_key_v2(cbb.as_mut_ptr(), **self) } {
                     return Err(Unspecified);
                 }
             }

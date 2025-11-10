@@ -156,10 +156,7 @@
 #![cfg_attr(docsrs, feature(doc_cfg, doc_auto_cfg))]
 
 extern crate alloc;
-#[cfg(feature = "fips")]
-extern crate aws_lc_fips_sys as aws_lc;
-#[cfg(not(feature = "fips"))]
-extern crate aws_lc_sys as aws_lc;
+extern crate bssl_sys as aws_lc;
 
 pub mod aead;
 pub mod agreement;
@@ -191,14 +188,10 @@ mod evp_pkey;
 mod fips;
 mod hex;
 pub mod iv;
-pub mod kdf;
-#[allow(clippy::module_name_repetitions)]
-pub mod kem;
 #[cfg(all(feature = "unstable", not(feature = "fips")))]
 mod pqdsa;
 mod ptr;
 pub mod rsa;
-pub mod tls_prf;
 pub mod unstable;
 
 pub(crate) use debug::derive_debug_via_id;
@@ -266,11 +259,7 @@ pub fn try_fips_cpu_jitter_entropy() -> Result<(), &'static str> {
     } else {
         Err("FIPS CPU Jitter Entropy not enabled!")
     }
-    #[cfg(not(feature = "fips"))]
-    match unsafe { aws_lc::FIPS_is_entropy_cpu_jitter() } {
-        1 => Ok(()),
-        _ => Err("FIPS CPU Jitter Entropy not enabled!"),
-    }
+    Err("FIPS CPU Jitter Entropy not enabled!")
 }
 
 #[allow(dead_code)]

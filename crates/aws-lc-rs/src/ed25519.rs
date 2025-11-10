@@ -15,7 +15,7 @@ use crate::aws_lc::{EVP_PKEY, EVP_PKEY_ED25519};
 use crate::buffer::Buffer;
 use crate::digest::Digest;
 use crate::encoding::{
-    AsBigEndian, AsDer, Curve25519SeedBin, Pkcs8V1Der, Pkcs8V2Der, PublicKeyX509Der,
+    AsBigEndian, AsDer, Curve25519SeedBin, Pkcs8V1Der, PublicKeyX509Der,
 };
 use crate::error::{KeyRejected, Unspecified};
 use crate::evp_pkey::No_EVP_PKEY_CTX_consumer;
@@ -264,7 +264,7 @@ impl Ed25519KeyPair {
         Ok(Document::new(
             evp_pkey
                 .as_const()
-                .marshal_rfc5208_private_key(Version::V2)?,
+                .marshal_rfc5208_private_key(Version::V1)?,
         ))
     }
 
@@ -277,7 +277,7 @@ impl Ed25519KeyPair {
         Ok(Document::new(
             self.evp_pkey
                 .as_const()
-                .marshal_rfc5208_private_key(Version::V2)?,
+                .marshal_rfc5208_private_key(Version::V1)?,
         ))
     }
 
@@ -492,24 +492,10 @@ impl AsDer<Pkcs8V1Der<'static>> for Ed25519KeyPair {
     }
 }
 
-impl AsDer<Pkcs8V2Der<'static>> for Ed25519KeyPair {
-    /// Serializes this `Ed25519KeyPair` into a PKCS#8 v1 document.
-    ///
-    /// # Errors
-    /// `error::Unspecified` on internal error.
-    fn as_der(&self) -> Result<Pkcs8V2Der<'static>, crate::error::Unspecified> {
-        Ok(Pkcs8V2Der::new(
-            self.evp_pkey
-                .as_const()
-                .marshal_rfc5208_private_key(Version::V2)?,
-        ))
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use crate::ed25519::Ed25519KeyPair;
-    use crate::encoding::{AsBigEndian, AsDer, Pkcs8V1Der, Pkcs8V2Der, PublicKeyX509Der};
+    use crate::encoding::{AsBigEndian, AsDer, Pkcs8V1Der, PublicKeyX509Der};
     use crate::rand::SystemRandom;
     use crate::signature::{KeyPair, UnparsedPublicKey, ED25519};
     use crate::{hex, test};
@@ -531,10 +517,6 @@ mod tests {
         let rng = SystemRandom::new();
         let document = Ed25519KeyPair::generate_pkcs8(&rng).unwrap();
         let kp1: Ed25519KeyPair = Ed25519KeyPair::from_pkcs8(document.as_ref()).unwrap();
-        assert_eq!(
-            document.as_ref(),
-            AsDer::<Pkcs8V2Der>::as_der(&kp1).unwrap().as_ref()
-        );
         let kp2: Ed25519KeyPair =
             Ed25519KeyPair::from_pkcs8_maybe_unchecked(document.as_ref()).unwrap();
         assert_eq!(
