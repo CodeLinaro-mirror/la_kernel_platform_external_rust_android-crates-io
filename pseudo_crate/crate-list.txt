@@ -27,6 +27,7 @@ async-stream-impl
 async-task
 async-trait
 atomic
+atomic-waker
 atty
 autocfg
 automotive_diag
