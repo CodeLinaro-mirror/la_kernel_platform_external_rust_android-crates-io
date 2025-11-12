@@ -394,6 +394,7 @@ serde
 serde-xml-rs
 serde_bytes
 serde_cbor
+serde_core
 serde_derive
 serde_json
 serde_nanos
