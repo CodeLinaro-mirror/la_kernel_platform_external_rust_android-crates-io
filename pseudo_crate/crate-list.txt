@@ -130,6 +130,7 @@ env_logger
 epoll
 equivalent
 errno
+etcetera
 etherparse
 evdev
 fallible-iterator
