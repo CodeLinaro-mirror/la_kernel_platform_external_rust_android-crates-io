@@ -4,6 +4,7 @@ clap_lex
 getrandom
 hashbrown
 http
+indexmap
 jni
 protobuf
 protobuf-codegen

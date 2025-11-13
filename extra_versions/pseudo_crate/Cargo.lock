@@ -21,6 +21,7 @@ dependencies = [
  "getrandom",
  "hashbrown",
  "http",
+ "indexmap",
  "jni",
  "protobuf",
  "protobuf-codegen",
@@ -32,6 +33,12 @@ dependencies = [
  "zerocopy 0.7.35",
  "zerocopy-derive 0.7.35",
 ]
+
+[[package]]
+name = "autocfg"
+version = "1.5.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "c08606f8c3cbf4ce6ec8e28fb0014a2c086708fe954eaa885384a6165172e7e8"
 
 [[package]]
 name = "bitflags"
@@ -108,6 +115,16 @@ dependencies = [
  "bytes",
  "fnv",
  "itoa",
+]
+
+[[package]]
+name = "indexmap"
+version = "1.9.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "bd070e393353796e801d209ad339e89596eb4c8d430d18ede6a1cced8fafbd99"
+dependencies = [
+ "autocfg",
+ "hashbrown",
 ]
 
 [[package]]
