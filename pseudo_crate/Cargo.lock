@@ -317,6 +317,7 @@ dependencies = [
  "humantime",
  "hyper 1.8.0",
  "hyper-timeout 0.5.2",
+ "hyper-util",
  "icu_capi",
  "icu_casemap",
  "icu_casemap_data",
