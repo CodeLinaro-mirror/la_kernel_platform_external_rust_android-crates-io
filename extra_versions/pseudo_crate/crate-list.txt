@@ -4,6 +4,8 @@ clap_lex
 getrandom
 hashbrown
 http
+http-body
+hyper
 indexmap
 jni
 protobuf
