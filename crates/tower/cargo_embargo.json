@@ -9,6 +9,7 @@
     "indexmap",
     "limit",
     "load",
+    "load-shed",
     "make",
     "ready-cache",
     "slab",

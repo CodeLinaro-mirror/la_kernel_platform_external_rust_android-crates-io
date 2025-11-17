@@ -31,6 +31,7 @@ rust_library {
         "indexmap",
         "limit",
         "load",
+        "load-shed",
         "make",
         "pin-project-lite",
         "ready-cache",
