@@ -171,6 +171,7 @@ gl
 gl_common
 glam
 glob
+globset
 googletest
 googletest_macro
 gpio-cdev
