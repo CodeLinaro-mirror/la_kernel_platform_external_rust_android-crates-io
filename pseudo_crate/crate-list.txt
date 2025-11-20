@@ -432,6 +432,7 @@ strck
 strsim
 strum
 strum_macros
+subtle
 syn
 syn-mid
 sync_wrapper
