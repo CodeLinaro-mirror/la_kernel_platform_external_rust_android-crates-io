@@ -114,6 +114,7 @@ diplomat_core
 displaydoc
 doc-comment
 document-features
+doip-definitions
 downcast
 downcast-rs
 drm
@@ -249,6 +250,8 @@ litrs
 lock_api
 log
 lru-cache
+lsp-server
+lsp-types
 lz4_flex
 macaddr
 managed
@@ -387,6 +390,8 @@ serde_bytes
 serde_cbor
 serde_derive
 serde_json
+serde_nanos
+serde_repr
 serde_spanned
 serde_test
 serde_yaml
@@ -460,6 +465,7 @@ tracing-attributes
 tracing-core
 tracing-subscriber
 try-lock
+tryhard
 tungstenite
 twox-hash
 ucd-trie
