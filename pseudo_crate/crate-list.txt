@@ -32,6 +32,7 @@ atomic-waker
 atty
 autocfg
 automotive_diag
+aws-lc-rs
 axum
 axum-core
 base64
