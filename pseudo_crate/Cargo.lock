@@ -498,6 +498,7 @@ dependencies = [
  "rustc-stable-hash",
  "rustix 1.0.7",
  "rustls-pki-types",
+ "rustls-webpki",
  "rustversion",
  "ryu",
  "safe-mmio",
@@ -6956,6 +6957,17 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "94182ad936a0c91c324cd46c6511b9510ed16af436d7b5bab34beab0afd55f7a"
 dependencies = [
  "zeroize",
+]
+
+[[package]]
+name = "rustls-webpki"
+version = "0.103.8"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "2ffdfa2f5286e2247234e03f680868ac2815974dc39e00ea15adc445d0aafe52"
+dependencies = [
+ "ring 0.17.2",
+ "rustls-pki-types",
+ "untrusted 0.9.0",
 ]
 
 [[package]]

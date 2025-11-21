@@ -1,8 +1,4 @@
 {
   "run_cargo": false,
-  "features": [
-    "std",
-    "default"
-  ],
   "min_sdk_version": "29"
 }

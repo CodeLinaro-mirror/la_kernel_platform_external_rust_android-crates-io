@@ -385,6 +385,7 @@ rustc-hash
 rustc-stable-hash
 rustix
 rustls-pki-types
+rustls-webpki
 rustversion
 ryu
 safe-mmio
