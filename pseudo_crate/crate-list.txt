@@ -385,6 +385,7 @@ rustc-demangle-capi
 rustc-hash
 rustc-stable-hash
 rustix
+rustls
 rustls-pki-types
 rustls-webpki
 rustversion
