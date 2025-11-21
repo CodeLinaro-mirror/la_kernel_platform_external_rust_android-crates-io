@@ -384,6 +384,7 @@ rustc-demangle-capi
 rustc-hash
 rustc-stable-hash
 rustix
+rustls-pki-types
 rustversion
 ryu
 safe-mmio
