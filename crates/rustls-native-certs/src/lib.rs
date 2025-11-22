@@ -28,10 +28,15 @@ use std::{env, fmt, fs, io};
 use pki_types::pem::{self, PemObject};
 use pki_types::CertificateDer;
 
-#[cfg(all(unix, not(target_os = "macos")))]
+#[cfg(all(unix, not(any(target_os = "macos", target_os = "android"))))]
 mod unix;
-#[cfg(all(unix, not(target_os = "macos")))]
+#[cfg(all(unix, not(any(target_os = "macos", target_os = "android"))))]
 use unix as platform;
+
+#[cfg(target_os = "android")]
+mod android;
+#[cfg(target_os = "android")]
+use android as platform;
 
 #[cfg(windows)]
 mod windows;
