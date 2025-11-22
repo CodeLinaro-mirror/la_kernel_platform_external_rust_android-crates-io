@@ -409,6 +409,7 @@ serde_nanos
 serde_repr
 serde_spanned
 serde_test
+serde_urlencoded
 serde_yaml
 serialport
 sharded-slab

@@ -522,6 +522,7 @@ dependencies = [
  "serde_repr",
  "serde_spanned 0.6.9",
  "serde_test",
+ "serde_urlencoded",
  "serde_yaml",
  "serialport",
  "sharded-slab",
