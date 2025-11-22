@@ -201,6 +201,7 @@ httparse
 httpdate
 humantime
 hyper
+hyper-rustls
 hyper-timeout
 hyper-util
 icu_capi
