@@ -467,6 +467,7 @@ tokio
 tokio-io-timeout
 tokio-macros
 tokio-openssl
+tokio-rustls
 tokio-stream
 tokio-test
 tokio-util
