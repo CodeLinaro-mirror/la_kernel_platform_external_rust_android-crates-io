@@ -13,9 +13,9 @@ dependencies = [
 
 [[package]]
 name = "aarch64-rt"
-version = "0.3.0"
+version = "0.3.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "65170faa657d98b3ea67ad2c6d05222ade0224537e8b9927c005f2b0ec8e3c33"
+checksum = "a21dc662bf8045ff4a57989d927607b71654b902f0a1976ec3e7fbb30a1477aa"
 dependencies = [
  "smccc",
 ]
@@ -1351,9 +1351,9 @@ checksum = "8f1fe948ff07f4bd06c30984e69f5b4899c516a3ef74f34df92a2df2ab535495"
 
 [[package]]
 name = "bytes"
-version = "1.10.1"
+version = "1.11.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d71b6127be86fdcfddb610f7182ac57211d4b18a3e9c82eb2d17662f2227ad6a"
+checksum = "b35204fbdc0b3f4446b89fc1ac2cf84a8a68971995d0bf2e925ec7cd960f9cb3"
 
 [[package]]
 name = "bzip2"
@@ -2931,9 +2931,9 @@ dependencies = [
 
 [[package]]
 name = "fs-err"
-version = "3.1.3"
+version = "3.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6ad492b2cf1d89d568a43508ab24f98501fe03f2f31c01e1d0fe7366a71745d2"
+checksum = "62d91fd049c123429b018c47887d3f75a265540dd3c30ba9cb7bae9197edb03a"
 dependencies = [
  "autocfg",
 ]
