@@ -378,6 +378,7 @@ regex-automata
 regex-syntax
 relative-path
 remain
+reqwest
 ring
 rtnetlink
 rusb
