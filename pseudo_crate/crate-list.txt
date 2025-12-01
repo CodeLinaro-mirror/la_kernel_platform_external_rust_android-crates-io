@@ -16,6 +16,7 @@ arc-swap
 argh
 argh_derive
 argh_shared
+argmax
 arm-ffa
 arm-gic
 arm-pl011-uart
@@ -92,6 +93,7 @@ crossbeam-queue
 crossbeam-utils
 csv
 csv-core
+ctrlc
 darling
 darling_core
 darling_macro
@@ -131,8 +133,10 @@ env_logger
 epoll
 equivalent
 errno
+etcetera
 etherparse
 evdev
+faccess
 fallible-iterator
 fallible-streaming-iterator
 fastrand
@@ -171,6 +175,7 @@ gl
 gl_common
 glam
 glob
+globset
 googletest
 googletest_macro
 gpio-cdev
@@ -191,6 +196,7 @@ http
 http-body
 httparse
 httpdate
+humantime
 hyper
 hyper-timeout
 icu_capi
