@@ -478,6 +478,7 @@ toml_datetime
 toml_edit
 tonic
 tower
+tower-http
 tower-layer
 tower-service
 tracing
