@@ -229,6 +229,7 @@ intrusive-collections
 ipnet
 ipp
 ippusb
+iri-string
 is-terminal
 itertools
 itoa
