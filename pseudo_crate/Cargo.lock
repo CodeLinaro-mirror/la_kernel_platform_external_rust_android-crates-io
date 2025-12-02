@@ -609,6 +609,7 @@ dependencies = [
  "userfaultfd",
  "userfaultfd-sys",
  "utf-8",
+ "utf8_iter",
  "uuid",
  "vhost",
  "vhost-user-backend",
