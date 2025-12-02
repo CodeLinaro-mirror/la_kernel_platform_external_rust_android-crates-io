@@ -368,6 +368,7 @@ version = "0.23.4"
 features = [
     "std",
     "tls12",
+    "aws-lc-rs",
 ]
 optional = true
 default-features = false

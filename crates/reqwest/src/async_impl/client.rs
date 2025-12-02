@@ -719,11 +719,7 @@ impl ClientBuilder {
                     let provider = rustls::crypto::CryptoProvider::get_default()
                         .map(|arc| arc.clone())
                         .unwrap_or_else(|| {
-                            #[cfg(not(feature = "__rustls-ring"))]
-                            panic!("No provider set");
-
-                            #[cfg(feature = "__rustls-ring")]
-                            Arc::new(rustls::crypto::ring::default_provider())
+                            Arc::new(rustls::crypto::aws_lc_rs::default_provider())
                         });
 
                     // Build TLS config
