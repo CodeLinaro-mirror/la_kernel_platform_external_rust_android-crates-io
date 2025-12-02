@@ -202,7 +202,7 @@ dependencies = [
  "crc-catalog",
  "crc32fast",
  "criterion",
- "criterion-plot",
+ "criterion-plot 0.8.0",
  "critical-section",
  "crossbeam-channel",
  "crossbeam-deque",
@@ -615,9 +615,9 @@ dependencies = [
  "virtio-bindings",
  "virtio-drivers",
  "virtio-drivers-and-devices",
- "virtio-queue",
+ "virtio-queue 0.14.0",
  "virtio-vsock",
- "vm-memory",
+ "vm-memory 0.16.2",
  "vmm-sys-util 0.15.0",
  "volatile",
  "vsock",
@@ -1639,9 +1639,9 @@ dependencies = [
 
 [[package]]
 name = "clap_complete"
-version = "4.5.60"
+version = "4.5.61"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8e602857739c5a4291dfa33b5a298aeac9006185229a700e5810a3ef7272d971"
+checksum = "39615915e2ece2550c0149addac32fb5bd312c657f43845bb9088cb9c8a7c992"
 dependencies = [
  "clap 4.5.53",
 ]
@@ -1919,7 +1919,7 @@ dependencies = [
  "cast",
  "ciborium",
  "clap 4.5.53",
- "criterion-plot",
+ "criterion-plot 0.6.0",
  "itertools 0.13.0",
  "num-traits",
  "oorandom",
@@ -1937,6 +1937,16 @@ name = "criterion-plot"
 version = "0.6.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "9b1bcc0dc7dfae599d84ad0b1a55f80cde8af3725da8313b528da95ef783e338"
+dependencies = [
+ "cast",
+ "itertools 0.13.0",
+]
+
+[[package]]
+name = "criterion-plot"
+version = "0.8.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "5de36c2bee19fba779808f92bf5d9b0fa5a40095c277aba10c458a12b35d21d6"
 dependencies = [
  "cast",
  "itertools 0.13.0",
@@ -4114,15 +4124,15 @@ checksum = "298459143998310acd25ffe6810ed544932242d3f07083eee1084d83a71bd632"
 
 [[package]]
 name = "icu_provider"
-version = "2.0.0"
+version = "2.1.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "03c80da27b5f4187909049ee2d72f276f0d9f99a42c306bd0131ecfe04d8e5af"
+checksum = "85962cf0ce02e1e0a629cc34e7ca3e373ce20dda4c4d7294bbd0bf1fdb59e614"
 dependencies = [
  "displaydoc",
  "icu_locale_core",
  "log",
+ "serde",
  "stable_deref_trait",
- "tinystr",
  "writeable",
  "yoke",
  "zerofrom",
@@ -5031,7 +5041,7 @@ dependencies = [
  "proc-macro-error2",
  "proc-macro2 1.0.103",
  "quote 1.0.42",
- "syn 2.0.110",
+ "syn 2.0.111",
 ]
 
 [[package]]
@@ -5483,11 +5493,11 @@ checksum = "61807f77802ff30975e01f4f071c8ba10c022052f98b3294119f3e615d13e5be"
 
 [[package]]
 name = "nu-ansi-term"
-version = "0.50.1"
+version = "0.50.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d4a28e057d01f97e61255210fcff094d74ed0466038633e95017f5beb68e4399"
+checksum = "7957b9740744892f114936ab4a57b3f487491bbeafaf8083688b16841a4240e5"
 dependencies = [
- "windows-sys 0.52.0",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]
@@ -5961,9 +5971,9 @@ dependencies = [
 
 [[package]]
 name = "pest_generator"
-version = "2.8.3"
+version = "2.8.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "49b401d98f5757ebe97a26085998d6c0eecec4995cad6ab7fc30ffdf4b052843"
+checksum = "dee9efd8cdb50d719a80088b76f81aec7c41ed6d522ee750178f83883d271625"
 dependencies = [
  "pest",
  "pest_meta",
@@ -6278,7 +6288,7 @@ dependencies = [
  "proc-macro-error-attr2",
  "proc-macro2 1.0.103",
  "quote 1.0.42",
- "syn 2.0.110",
+ "syn 2.0.111",
 ]
 
 [[package]]
@@ -8335,9 +8345,9 @@ dependencies = [
 
 [[package]]
 name = "tracing-attributes"
-version = "0.1.30"
+version = "0.1.31"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "81383ab64e72a7a8b8e13130c49e3dab29def6d0c7d76a03087b3cf71c5c6903"
+checksum = "7490cfa5ec963746568740651ac6781f701c9c5ea257c58e057f3ba8cf69e8da"
 dependencies = [
  "proc-macro2 1.0.103",
  "quote 1.0.42",
@@ -8367,9 +8377,9 @@ dependencies = [
 
 [[package]]
 name = "tracing-subscriber"
-version = "0.3.20"
+version = "0.3.22"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "2054a14f5307d601f88daf0553e1cbf472acc4f2c51afab632431cdcd72124d5"
+checksum = "2f30143827ddab0d256fd843b7a66d164e9f271cfa0dde49142c5ca0ca291f1e"
 dependencies = [
  "nu-ansi-term",
  "sharded-slab",
@@ -8736,7 +8746,7 @@ dependencies = [
  "bitflags 2.10.0",
  "libc 0.2.177",
  "uuid",
- "vm-memory",
+ "vm-memory 0.16.2",
  "vmm-sys-util 0.12.1",
 ]
 
@@ -8750,8 +8760,8 @@ dependencies = [
  "log",
  "vhost",
  "virtio-bindings",
- "virtio-queue",
- "vm-memory",
+ "virtio-queue 0.14.0",
+ "vm-memory 0.16.2",
  "vmm-sys-util 0.12.1",
 ]
 
@@ -8798,19 +8808,32 @@ checksum = "872e2f3fbd70a7e6f01689720cce3d5c2c5efe52b484dd07b674246ada0e9a8d"
 dependencies = [
  "log",
  "virtio-bindings",
- "vm-memory",
+ "vm-memory 0.16.2",
  "vmm-sys-util 0.12.1",
 ]
 
 [[package]]
-name = "virtio-vsock"
-version = "0.8.0"
+name = "virtio-queue"
+version = "0.17.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4118ce26599dc8a238c6ee795d90250c88d8ebfece9e65c1f01dec6e4e2aeb67"
+checksum = "e358084f32ed165fddb41d98ff1b7ff3c08b9611d8d6114a1b422e2e85688baf"
+dependencies = [
+ "libc 0.2.177",
+ "log",
+ "virtio-bindings",
+ "vm-memory 0.17.1",
+ "vmm-sys-util 0.15.0",
+]
+
+[[package]]
+name = "virtio-vsock"
+version = "0.11.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "8e7822f0d005c2451d4cdbb42cc9581cabb42a0fb64347efe5492fa548e8931a"
 dependencies = [
  "virtio-bindings",
- "virtio-queue",
- "vm-memory",
+ "virtio-queue 0.17.0",
+ "vm-memory 0.17.1",
 ]
 
 [[package]]
@@ -8831,6 +8854,17 @@ dependencies = [
  "arc-swap",
  "libc 0.2.177",
  "thiserror 1.0.49",
+ "winapi",
+]
+
+[[package]]
+name = "vm-memory"
+version = "0.17.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f39348a049689cabd3377cdd9182bf526ec76a6f823b79903896452e9d7a7380"
+dependencies = [
+ "libc 0.2.177",
+ "thiserror 2.0.16",
  "winapi",
 ]
 
