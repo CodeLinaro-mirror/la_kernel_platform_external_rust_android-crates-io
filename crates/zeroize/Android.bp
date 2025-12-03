@@ -15,10 +15,11 @@ license {
 
 rust_library {
     name: "libzeroize",
+    defaults: ["rust_baremetal_nostd_defaults"],
     host_supported: true,
     crate_name: "zeroize",
     cargo_env_compat: true,
-    cargo_pkg_version: "1.8.1",
+    cargo_pkg_version: "1.8.2",
     crate_root: "src/lib.rs",
     edition: "2021",
     features: [
@@ -33,6 +34,9 @@ rust_library {
     product_available: true,
     vendor_available: true,
     min_sdk_version: "Tiramisu",
+    no_std: {
+        enabled: true,
+    },
 }
 
 rust_test {
@@ -40,7 +44,7 @@ rust_test {
     host_supported: true,
     crate_name: "zeroize",
     cargo_env_compat: true,
-    cargo_pkg_version: "1.8.1",
+    cargo_pkg_version: "1.8.2",
     crate_root: "tests/zeroize.rs",
     test_suites: ["general-tests"],
     auto_gen_config: true,
@@ -61,7 +65,7 @@ rust_test {
     host_supported: true,
     crate_name: "zeroize_derive",
     cargo_env_compat: true,
-    cargo_pkg_version: "1.8.1",
+    cargo_pkg_version: "1.8.2",
     crate_root: "tests/zeroize_derive.rs",
     test_suites: ["general-tests"],
     auto_gen_config: true,
@@ -75,35 +79,6 @@ rust_test {
     ],
     rustlibs: ["libzeroize"],
     proc_macros: ["libzeroize_derive"],
-}
-
-rust_library_rlib {
-    name: "libzeroize_nostd",
-    defaults: ["rust_baremetal_defaults"],
-    crate_name: "zeroize",
-    cargo_env_compat: true,
-    cargo_pkg_version: "1.8.1",
-    crate_root: "src/lib.rs",
-    edition: "2021",
-    features: [
-        "alloc",
-        "zeroize_derive",
-    ],
-    proc_macros: ["libzeroize_derive"],
-    apex_available: [
-        "//apex_available:platform",
-        "//apex_available:anyapex",
-    ],
-    prefer_rlib: true,
-    no_stdlibs: true,
-    stdlibs: [
-        "liballoc.rust_sysroot",
-        "libcompiler_builtins.rust_sysroot",
-        "libcore.rust_sysroot",
-    ],
-    product_available: true,
-    vendor_available: true,
-    min_sdk_version: "Tiramisu",
 }
 
 dirgroup {

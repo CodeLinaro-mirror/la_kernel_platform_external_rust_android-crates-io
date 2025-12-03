@@ -206,6 +206,7 @@ icu_provider_baked
 icu_provider_macros
 ident_case
 idna
+if-addrs
 image
 indexmap
 inotify
@@ -308,6 +309,7 @@ parking_lot
 parking_lot_core
 paste
 pathdiff
+pci_types
 pdl-compiler
 pdl-runtime
 percent-encoding
@@ -351,6 +353,7 @@ rand
 rand_chacha
 rand_core
 rand_xorshift
+raw-cpuid
 rayon
 rayon-core
 read-fonts
@@ -394,6 +397,7 @@ shlex
 signal-hook
 signal-hook-registry
 simd-adler32
+simple-dns
 siphasher
 skrifa
 slab
@@ -490,6 +494,7 @@ virtio-queue
 virtio-vsock
 vm-memory
 vmm-sys-util
+volatile
 vsock
 vsprintf
 vulkano
@@ -513,6 +518,7 @@ winnow
 writeable
 wyz
 x509-cert
+x86_64
 xml-rs
 yaml-rust
 yoke

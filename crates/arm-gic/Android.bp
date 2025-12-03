@@ -18,14 +18,14 @@ rust_library {
     defaults: ["rust_baremetal_defaults"],
     crate_name: "arm_gic",
     cargo_env_compat: true,
-    cargo_pkg_version: "0.6.1",
+    cargo_pkg_version: "0.7.1",
     crate_root: "src/lib.rs",
     edition: "2024",
     rustlibs: [
         "libbitflags",
         "libsafe_mmio",
-        "libthiserror_nostd",
-        "libzerocopy_nostd",
+        "libthiserror",
+        "libzerocopy",
     ],
     apex_available: [
         "//apex_available:platform",
