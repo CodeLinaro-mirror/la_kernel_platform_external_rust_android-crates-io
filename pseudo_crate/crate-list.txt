@@ -32,6 +32,7 @@ atomic-waker
 atty
 autocfg
 automotive_diag
+aws-lc-rs
 axum
 axum-core
 base64
@@ -200,6 +201,7 @@ httparse
 httpdate
 humantime
 hyper
+hyper-rustls
 hyper-timeout
 hyper-util
 icu_capi
@@ -209,6 +211,7 @@ icu_collections
 icu_locale
 icu_locale_core
 icu_locale_data
+icu_normalizer
 icu_properties
 icu_properties_data
 icu_provider
@@ -217,6 +220,7 @@ icu_provider_baked
 icu_provider_macros
 ident_case
 idna
+idna_adapter
 if-addrs
 image
 indexmap
@@ -227,6 +231,7 @@ intrusive-collections
 ipnet
 ipp
 ippusb
+iri-string
 is-terminal
 itertools
 itoa
@@ -375,6 +380,7 @@ regex-automata
 regex-syntax
 relative-path
 remain
+reqwest
 ring
 rtnetlink
 rusb
@@ -384,6 +390,10 @@ rustc-demangle-capi
 rustc-hash
 rustc-stable-hash
 rustix
+rustls
+rustls-native-certs
+rustls-pki-types
+rustls-webpki
 rustversion
 ryu
 safe-mmio
@@ -404,6 +414,7 @@ serde_nanos
 serde_repr
 serde_spanned
 serde_test
+serde_urlencoded
 serde_yaml
 serialport
 sharded-slab
@@ -432,6 +443,7 @@ strck
 strsim
 strum
 strum_macros
+subtle
 syn
 syn-mid
 sync_wrapper
@@ -460,6 +472,7 @@ tokio
 tokio-io-timeout
 tokio-macros
 tokio-openssl
+tokio-rustls
 tokio-stream
 tokio-test
 tokio-util
@@ -468,6 +481,7 @@ toml_datetime
 toml_edit
 tonic
 tower
+tower-http
 tower-layer
 tower-service
 tracing
@@ -501,6 +515,7 @@ url
 userfaultfd
 userfaultfd-sys
 utf-8
+utf8_iter
 uuid
 vhost
 vhost-user-backend
