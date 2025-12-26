@@ -33,6 +33,7 @@ rust_library {
         "net",
         "poll",
         "process",
+        "resource",
         "sched",
         "signal",
         "socket",
@@ -66,6 +67,12 @@ rust_library {
             cfgs: [
                 "android",
                 "linux_android",
+            ],
+        },
+        darwin: {
+            cfgs: [
+                "apple_targets",
+                "bsd",
             ],
         },
     },
