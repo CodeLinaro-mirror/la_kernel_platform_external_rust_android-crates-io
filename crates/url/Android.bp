@@ -21,15 +21,20 @@ rust_library {
     cargo_pkg_version: "2.5.2",
     crate_root: "src/lib.rs",
     edition: "2018",
-    features: ["default"],
+    features: [
+        "default",
+        "serde",
+    ],
     rustlibs: [
         "libform_urlencoded",
         "libidna",
         "libpercent_encoding",
+        "libserde",
     ],
     apex_available: [
         "//apex_available:platform",
         "com.android.resolv",
+        "com.android.tethering",
     ],
     product_available: true,
     vendor_available: true,
@@ -49,7 +54,10 @@ rust_test {
         unit_test: true,
     },
     edition: "2018",
-    features: ["default"],
+    features: [
+        "default",
+        "serde",
+    ],
     rustlibs: [
         "libbencher",
         "libform_urlencoded",
@@ -73,7 +81,10 @@ rust_test {
         unit_test: true,
     },
     edition: "2018",
-    features: ["default"],
+    features: [
+        "default",
+        "serde",
+    ],
     rustlibs: [
         "libbencher",
         "libform_urlencoded",

@@ -46,7 +46,7 @@ fn main() {
 
 ## Features
 
-`el1`, `exceptions`, `initial-pagetable` and `psci` are enabled by default.
+`exceptions`, `initial-pagetable` and `psci` are enabled by default.
 
 ### `el1`
 
@@ -69,40 +69,17 @@ configuration registers.
 ### `exceptions`
 
 Provides an exception vector table, and sets it in the appropriate `vbar` system register for the
-selected exception level. You must provide handlers for each exception like so:
+selected exception level. You must provide handlers for each exception by implementing the
+`ExceptionHandlers` trait and then calling the `exception_handlers!` macro. All methods on
+`ExceptionHandlers` have a default implementation which simply panics, so the simplest
+implementation looks like this:
 
 ```rust
-#[unsafe(no_mangle)]
-extern "C" fn sync_exception_current(_elr: u64, _spsr: u64) {
-}
+exception_handlers!(Exceptions);
 
-#[unsafe(no_mangle)]
-extern "C" fn irq_current(_elr: u64, _spsr: u64) {
-}
+struct Exceptions;
 
-#[unsafe(no_mangle)]
-extern "C" fn fiq_current(_elr: u64, _spsr: u64) {
-}
-
-#[unsafe(no_mangle)]
-extern "C" fn serr_current(_elr: u64, _spsr: u64) {
-}
-
-#[unsafe(no_mangle)]
-extern "C" fn sync_lower(_elr: u64, _spsr: u64) {
-}
-
-#[unsafe(no_mangle)]
-extern "C" fn irq_lower(_elr: u64, _spsr: u64) {
-}
-
-#[unsafe(no_mangle)]
-extern "C" fn fiq_lower(_elr: u64, _spsr: u64) {
-}
-
-#[unsafe(no_mangle)]
-extern "C" fn serr_lower(_elr: u64, _spsr: u64) {
-}
+impl ExceptionHandlers for Exceptions {}
 ```
 
 ### `initial-pagetable`
@@ -114,6 +91,10 @@ This is especially important if running at EL1 in a VM, as accessing memory with
 while the hypervisor or host has cacheable aliases to the same memory can lead to cache coherency
 issues. Even if the host doesn't explicitly access the memory, speculative accesses can lead to
 cache fills.
+
+This may be combined with one of the `elX` features to set up the page table for that exception
+level. If not, the exception level will be checked at runtime and the corresponding system registers
+used.
 
 ### `psci`
 
