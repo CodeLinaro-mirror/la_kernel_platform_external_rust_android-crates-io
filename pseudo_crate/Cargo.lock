@@ -185,7 +185,7 @@ dependencies = [
  "ciborium-ll",
  "cidr",
  "clang-sys",
- "clap 4.5.53",
+ "clap 4.5.54",
  "clap_builder",
  "clap_complete",
  "clap_derive",
@@ -388,7 +388,7 @@ dependencies = [
  "managed",
  "maplit",
  "matches",
- "matchit 0.9.0",
+ "matchit 0.9.1",
  "maybe-async",
  "memchr",
  "memmap2",
@@ -538,7 +538,7 @@ dependencies = [
  "shared_child",
  "shared_library",
  "shlex",
- "signal-hook",
+ "signal-hook 0.4.1",
  "signal-hook-registry",
  "simd-adler32",
  "simple-dns",
@@ -1250,7 +1250,7 @@ dependencies = [
  "bitflags 2.10.0",
  "cexpr",
  "clang-sys",
- "clap 4.5.53",
+ "clap 4.5.54",
  "clap_complete",
  "itertools 0.13.0",
  "log",
@@ -1663,9 +1663,9 @@ dependencies = [
 
 [[package]]
 name = "clap"
-version = "4.5.53"
+version = "4.5.54"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c9e340e012a1bf4935f5282ed1436d1489548e8f72308207ea5df0e23d2d03f8"
+checksum = "c6e6ff9dcd79cff5cd969a17a545d79e84ab086e444102a591e288a8aa3ce394"
 dependencies = [
  "clap_builder",
  "clap_derive",
@@ -1673,9 +1673,9 @@ dependencies = [
 
 [[package]]
 name = "clap_builder"
-version = "4.5.53"
+version = "4.5.54"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d76b5d13eaa18c901fd2f7fca939fefe3a0727a953561fefdf3b2922b8569d00"
+checksum = "fa42cf4d2b7a41bc8f663a7cab4031ebafa1bf3875705bfaf8466dc60ab52c00"
 dependencies = [
  "anstream",
  "anstyle",
@@ -1689,7 +1689,7 @@ version = "4.5.64"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "4c0da80818b2d95eca9aa614a30783e42f62bf5fdfee24e68cfb960b071ba8d1"
 dependencies = [
- "clap 4.5.53",
+ "clap 4.5.54",
 ]
 
 [[package]]
@@ -1974,7 +1974,7 @@ dependencies = [
  "anes 0.1.6",
  "cast",
  "ciborium",
- "clap 4.5.53",
+ "clap 4.5.54",
  "criterion-plot 0.6.0",
  "itertools 0.13.0",
  "num-traits",
@@ -3044,9 +3044,9 @@ dependencies = [
 
 [[package]]
 name = "fs-err"
-version = "3.2.0"
+version = "3.2.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "62d91fd049c123429b018c47887d3f75a265540dd3c30ba9cb7bae9197edb03a"
+checksum = "baf68cef89750956493a66a10f512b9e58d9db21f2a573c079c0bdf1207a54a7"
 dependencies = [
  "autocfg",
 ]
@@ -4790,7 +4790,7 @@ version = "0.6.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "6d8de370f98a6cb8a4606618e53e802f93b094ddec0f96988eaec2c27e6e9ce7"
 dependencies = [
- "clap 4.5.53",
+ "clap 4.5.54",
  "termcolor",
  "threadpool",
 ]
@@ -5048,9 +5048,9 @@ checksum = "47e1ffaa40ddd1f3ed91f717a33c8c0ee23fff369e3aa8772b9605cc1d22f4c3"
 
 [[package]]
 name = "matchit"
-version = "0.9.0"
+version = "0.9.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9ea5f97102eb9e54ab99fb70bb175589073f554bdadfb74d9bd656482ea73e2a"
+checksum = "b3eede3bdf92f3b4f9dc04072a9ce5ab557d5ec9038773bf9ffcd5588b3cc05b"
 
 [[package]]
 name = "maybe-async"
@@ -7063,9 +7063,9 @@ checksum = "a50f4cf475b65d88e057964e0e9bb1f0aa9bbb2036dc65c64596b42932536984"
 
 [[package]]
 name = "safe-mmio"
-version = "0.2.5"
+version = "0.2.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "db02a82ad13df46afeba34a4e54065fa912308b9101b060e4422898eac0e06f6"
+checksum = "1e278214ff688cacb43a8e71611d1fd1b0788a8b55a054dbce9a9b70b9a6a6f2"
 dependencies = [
  "zerocopy",
 ]
@@ -7488,7 +7488,7 @@ checksum = "47106eded3c154e70176fc83df9737335c94ce22f821c32d17ed1db1f83badb1"
 dependencies = [
  "libc 0.2.177",
  "os_pipe",
- "signal-hook",
+ "signal-hook 0.3.18",
 ]
 
 [[package]]
@@ -7496,6 +7496,16 @@ name = "signal-hook"
 version = "0.3.18"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d881a16cf4426aa584979d30bd82cb33429027e42122b169753d6ef1085ed6e2"
+dependencies = [
+ "libc 0.2.177",
+ "signal-hook-registry",
+]
+
+[[package]]
+name = "signal-hook"
+version = "0.4.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "2a37d01603c37b5466f808de79f845c7116049b0579adb70a6b7d47c1fa3a952"
 dependencies = [
  "libc 0.2.177",
  "signal-hook-registry",
