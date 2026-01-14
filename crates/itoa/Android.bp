@@ -47,6 +47,13 @@ rust_library {
         "com.sdv.*",
     ],
     product_available: true,
+    recovery_available: true,
     vendor_available: true,
     min_sdk_version: "29",
+}
+
+dirgroup {
+    name: "trusty_dirgroup_external_rust_crates_itoa",
+    visibility: ["//trusty/vendor/google/aosp/scripts"],
+    dirs: ["."],
 }
