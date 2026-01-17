@@ -27,6 +27,7 @@ rust_library {
         "com.android.virt",
     ],
     product_available: true,
+    recovery_available: true,
     vendor_available: true,
     min_sdk_version: "29",
 }
@@ -205,4 +206,10 @@ rust_test {
         "librand_xorshift",
         "libryu",
     ],
+}
+
+dirgroup {
+    name: "trusty_dirgroup_external_rust_crates_ryu",
+    visibility: ["//trusty/vendor/google/aosp/scripts"],
+    dirs: ["."],
 }
