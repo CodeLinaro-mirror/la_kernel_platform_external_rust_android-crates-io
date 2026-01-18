@@ -21,6 +21,14 @@
           "host_supported": true
         }
       }
+    },
+    {
+      "generate_rulesmk" : true,
+      "generate_androidbp" : false,
+      "features": [
+        "alloc"
+      ]
     }
-  ]
+  ],
+  "recovery_available": true
 }
