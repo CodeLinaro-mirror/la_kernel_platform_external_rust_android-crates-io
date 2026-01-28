@@ -390,6 +390,7 @@ ring
 rtnetlink
 rusb
 rusqlite
+rust-fuzzy-search
 rustc-demangle
 rustc-demangle-capi
 rustc-hash
@@ -516,6 +517,7 @@ uniffi_macros
 uniffi_meta
 unsafe-libyaml
 untrusted
+unty
 url
 userfaultfd
 userfaultfd-sys
