@@ -503,6 +503,7 @@ try-lock
 tryhard
 tungstenite
 twox-hash
+typed-builder-macro
 ucd-trie
 ucs2
 uefi
