@@ -337,6 +337,7 @@ pathdiff
 pci_types
 pdl-compiler
 pdl-runtime
+peg
 peg-macros
 peg-runtime
 percent-encoding
