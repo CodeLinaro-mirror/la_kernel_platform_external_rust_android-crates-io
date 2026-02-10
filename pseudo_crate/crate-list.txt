@@ -337,6 +337,7 @@ pathdiff
 pci_types
 pdl-compiler
 pdl-runtime
+peg-runtime
 percent-encoding
 percore
 pest

@@ -449,6 +449,7 @@ dependencies = [
  "pci_types",
  "pdl-compiler",
  "pdl-runtime",
+ "peg-runtime",
  "percent-encoding",
  "percore",
  "pest",
@@ -6075,6 +6076,12 @@ name = "peeking_take_while"
 version = "0.1.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "19b17cddbe7ec3f8bc800887bab5e717348c95ea2ca0b1bf0837fb964dc67099"
+
+[[package]]
+name = "peg-runtime"
+version = "0.8.5"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "132dca9b868d927b35b5dd728167b2dee150eb1ad686008fc71ccb298b776fca"
 
 [[package]]
 name = "pem-rfc7468"
