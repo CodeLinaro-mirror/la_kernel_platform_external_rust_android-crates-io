@@ -615,6 +615,7 @@ dependencies = [
  "tryhard",
  "tungstenite",
  "twox-hash",
+ "typed-builder",
  "typed-builder-macro",
  "ucd-trie",
  "ucs2",
@@ -8854,6 +8855,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "9ea3136b675547379c4bd395ca6b938e5ad3c3d20fad76e7fe85f9e0d011419c"
 dependencies = [
  "rand 0.9.2",
+]
+
+[[package]]
+name = "typed-builder"
+version = "0.23.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "31aa81521b70f94402501d848ccc0ecaa8f93c8eb6999eb9747e72287757ffda"
+dependencies = [
+ "typed-builder-macro",
 ]
 
 [[package]]
