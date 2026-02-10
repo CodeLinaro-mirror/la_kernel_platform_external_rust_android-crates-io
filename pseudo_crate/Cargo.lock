@@ -449,6 +449,7 @@ dependencies = [
  "pci_types",
  "pdl-compiler",
  "pdl-runtime",
+ "peg-macros",
  "peg-runtime",
  "percent-encoding",
  "percore",
@@ -6076,6 +6077,17 @@ name = "peeking_take_while"
 version = "0.1.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "19b17cddbe7ec3f8bc800887bab5e717348c95ea2ca0b1bf0837fb964dc67099"
+
+[[package]]
+name = "peg-macros"
+version = "0.8.5"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "6298ab04c202fa5b5d52ba03269fb7b74550b150323038878fe6c372d8280f71"
+dependencies = [
+ "peg-runtime",
+ "proc-macro2 1.0.106",
+ "quote 1.0.44",
+]
 
 [[package]]
 name = "peg-runtime"
