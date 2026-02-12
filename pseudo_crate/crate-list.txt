@@ -457,6 +457,7 @@ strsim
 strum
 strum_macros
 subtle
+symphonia-core
 syn
 syn-mid
 sync_wrapper
