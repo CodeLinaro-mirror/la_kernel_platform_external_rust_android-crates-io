@@ -441,6 +441,7 @@ dependencies = [
  "open-enum",
  "open-enum-derive",
  "openssl-macros",
+ "openssl-probe",
  "os_pipe",
  "os_str_bytes",
  "p9",
