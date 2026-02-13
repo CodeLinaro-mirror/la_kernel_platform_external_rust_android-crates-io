@@ -571,6 +571,7 @@ dependencies = [
  "strum_macros",
  "subtle",
  "symphonia-core",
+ "symphonia-metadata",
  "syn 2.0.116",
  "syn-mid",
  "sync_wrapper",
@@ -8157,6 +8158,18 @@ dependencies = [
  "bytemuck",
  "lazy_static",
  "log",
+]
+
+[[package]]
+name = "symphonia-metadata"
+version = "0.5.5"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "36306ff42b9ffe6e5afc99d49e121e0bd62fe79b9db7b9681d48e29fa19e6b16"
+dependencies = [
+ "encoding_rs",
+ "lazy_static",
+ "log",
+ "symphonia-core",
 ]
 
 [[package]]

@@ -459,6 +459,7 @@ strum
 strum_macros
 subtle
 symphonia-core
+symphonia-metadata
 syn
 syn-mid
 sync_wrapper
