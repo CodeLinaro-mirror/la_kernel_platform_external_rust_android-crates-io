@@ -561,6 +561,7 @@ dependencies = [
  "stable_deref_trait",
  "static_assertions",
  "strck",
+ "strength_reduce",
  "strsim 0.11.1",
  "strum",
  "strum_macros",
@@ -8007,6 +8008,12 @@ checksum = "42316e70da376f3d113a68d138a60d8a9883c604fe97942721ec2068dab13a9f"
 dependencies = [
  "unicode-ident",
 ]
+
+[[package]]
+name = "strength_reduce"
+version = "0.2.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "fe895eb47f22e2ddd4dabc02bce419d2e643c8e3b585c78158b349195bc24d82"
 
 [[package]]
 name = "strsim"

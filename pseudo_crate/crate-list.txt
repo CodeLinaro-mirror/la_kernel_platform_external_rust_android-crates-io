@@ -449,6 +449,7 @@ spki
 stable_deref_trait
 static_assertions
 strck
+strength_reduce
 strsim
 strum
 strum_macros
