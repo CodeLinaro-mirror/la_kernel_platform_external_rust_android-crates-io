@@ -498,6 +498,7 @@ tracing
 tracing-attributes
 tracing-core
 tracing-subscriber
+transpose
 try-lock
 tryhard
 tungstenite
