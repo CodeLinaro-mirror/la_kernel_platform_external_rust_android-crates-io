@@ -474,6 +474,7 @@ dependencies = [
  "predicates-core",
  "predicates-tree",
  "prettyplease 0.2.37",
+ "primal-check",
  "proc-macro2 1.0.106",
  "protobuf 3.7.2",
  "protobuf-codegen",
@@ -6398,6 +6399,15 @@ checksum = "479ca8adacdd7ce8f1fb39ce9ecccbfe93a3f1344b3d0d97f20bc0196208f62b"
 dependencies = [
  "proc-macro2 1.0.106",
  "syn 2.0.114",
+]
+
+[[package]]
+name = "primal-check"
+version = "0.3.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "dc0d895b311e3af9902528fbb8f928688abbd95872819320517cc24ca6b2bd08"
+dependencies = [
+ "num-integer",
 ]
 
 [[package]]

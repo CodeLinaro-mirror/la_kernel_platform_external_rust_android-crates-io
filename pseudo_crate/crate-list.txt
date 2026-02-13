@@ -362,6 +362,7 @@ predicates
 predicates-core
 predicates-tree
 prettyplease
+primal-check
 proc-macro2
 protobuf
 protobuf-codegen
