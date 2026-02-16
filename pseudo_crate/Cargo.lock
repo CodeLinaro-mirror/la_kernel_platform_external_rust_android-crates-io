@@ -573,6 +573,7 @@ dependencies = [
  "symphonia",
  "symphonia-core",
  "symphonia-metadata",
+ "symphonia-utils-xiph",
  "syn 2.0.116",
  "syn-mid",
  "sync_wrapper",

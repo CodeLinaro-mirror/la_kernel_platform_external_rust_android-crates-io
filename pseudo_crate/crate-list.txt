@@ -461,6 +461,7 @@ subtle
 symphonia
 symphonia-core
 symphonia-metadata
+symphonia-utils-xiph
 syn
 syn-mid
 sync_wrapper
