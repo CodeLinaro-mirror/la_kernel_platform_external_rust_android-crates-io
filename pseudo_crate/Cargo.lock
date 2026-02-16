@@ -571,6 +571,7 @@ dependencies = [
  "strum_macros",
  "subtle",
  "symphonia",
+ "symphonia-bundle-flac",
  "symphonia-core",
  "symphonia-metadata",
  "symphonia-utils-xiph",
