@@ -1821,6 +1821,141 @@ macro_rules! impl_vec4_float_tests {
             );
         });
 
+        glam_test!(test_exp2, {
+            assert_approx_eq!(
+                $vec4::new(1.0, 2.0, 3.0, 4.0).exp2(),
+                $vec4::new(
+                    (1.0 as $t).exp2(),
+                    (2.0 as $t).exp2(),
+                    (3.0 as $t).exp2(),
+                    (4.0 as $t).exp2()
+                ),
+                1e-5
+            );
+        });
+
+        glam_test!(test_ln, {
+            assert_approx_eq!(
+                $vec4::new(1.0, 2.0, 3.0, 4.0).ln(),
+                $vec4::new(
+                    (1.0 as $t).ln(),
+                    (2.0 as $t).ln(),
+                    (3.0 as $t).ln(),
+                    (4.0 as $t).ln()
+                ),
+                1e-5
+            );
+            assert!($vec4::NEG_ONE.ln().is_nan());
+            assert_eq!($vec4::ZERO.ln(), $vec4::NEG_INFINITY);
+        });
+
+        glam_test!(test_log2, {
+            assert_approx_eq!(
+                $vec4::new(1.0, 2.0, 3.0, 4.0).log2(),
+                $vec4::new(
+                    (1.0 as $t).log2(),
+                    (2.0 as $t).log2(),
+                    (3.0 as $t).log2(),
+                    (4.0 as $t).log2()
+                ),
+                1e-5
+            );
+            assert!($vec4::NEG_ONE.log2().is_nan());
+            assert_eq!($vec4::ZERO.log2(), $vec4::NEG_INFINITY);
+        });
+
+        glam_test!(test_sqrt, {
+            assert_approx_eq!(
+                $vec4::new(1.0, 2.0, 3.0, 4.0).sqrt(),
+                $vec4::new(
+                    (1.0 as $t).sqrt(),
+                    (2.0 as $t).sqrt(),
+                    (3.0 as $t).sqrt(),
+                    (4.0 as $t).sqrt()
+                ),
+                1e-5
+            );
+            assert!($vec4::NEG_ONE.sqrt().is_nan());
+        });
+
+        glam_test!(test_sin, {
+            assert_approx_eq!(
+                $vec4::new(1.0, 2.0, 3.0, 4.0).sin(),
+                $vec4::new(
+                    (1.0 as $t).sin(),
+                    (2.0 as $t).sin(),
+                    (3.0 as $t).sin(),
+                    (4.0 as $t).sin()
+                ),
+                1e-5
+            );
+        });
+
+        glam_test!(test_cos, {
+            assert_approx_eq!(
+                $vec4::new(1.0, 2.0, 3.0, 4.0).cos(),
+                $vec4::new(
+                    (1.0 as $t).cos(),
+                    (2.0 as $t).cos(),
+                    (3.0 as $t).cos(),
+                    (4.0 as $t).cos()
+                ),
+                1e-5
+            );
+        });
+
+        glam_test!(test_sin_cos, {
+            let (s, c) = $vec4::new(1.0, 2.0, 3.0, 4.0).sin_cos();
+            assert_approx_eq!(
+                s,
+                $vec4::new(
+                    (1.0 as $t).sin(),
+                    (2.0 as $t).sin(),
+                    (3.0 as $t).sin(),
+                    (4.0 as $t).sin()
+                ),
+                1e-5
+            );
+            assert_approx_eq!(
+                c,
+                $vec4::new(
+                    (1.0 as $t).cos(),
+                    (2.0 as $t).cos(),
+                    (3.0 as $t).cos(),
+                    (4.0 as $t).cos()
+                ),
+                1e-5
+            );
+        });
+
+        glam_test!(test_step, {
+            use glam::FloatExt;
+            assert_approx_eq!(
+                $vec4::new(1.0, 2.0, 3.0, 4.0).step($vec4::splat(2.5)),
+                $vec4::new(
+                    (1.0 as $t).step(2.5),
+                    (2.0 as $t).step(2.5),
+                    (3.0 as $t).step(2.5),
+                    (4.0 as $t).step(2.5)
+                ),
+                1e-5
+            );
+        });
+
+        glam_test!(test_saturate, {
+            use glam::FloatExt;
+            assert_approx_eq!(
+                $vec4::new(1.0, 2.0, 3.0, 4.0).saturate(),
+                $vec4::new(
+                    (1.0 as $t).saturate(),
+                    (2.0 as $t).saturate(),
+                    (3.0 as $t).saturate(),
+                    (4.0 as $t).saturate()
+                ),
+                1e-5
+            );
+        });
+
         glam_test!(test_clamp_length, {
             // Too long gets shortened
             assert_eq!(
@@ -1895,6 +2030,11 @@ macro_rules! impl_vec4_float_tests {
             let incident = $vec4::new(1.0, -1.0, 0.0, 0.0).normalize();
             let normal = $vec4::Y;
             assert_approx_eq!(incident.refract(normal, 1.5), $vec4::ZERO);
+        });
+
+        glam_test!(test_homogeneous, {
+            let v = $vec4::new(1.0, 2.0, 3.0, 1.0);
+            assert_approx_eq!(v, v.project().to_homogeneous());
         });
     };
 }

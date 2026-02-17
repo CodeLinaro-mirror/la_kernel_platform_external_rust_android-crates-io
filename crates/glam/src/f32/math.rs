@@ -51,6 +51,12 @@ mod libm_math {
 
     #[allow(unused)]
     #[inline(always)]
+    pub(crate) fn cos(f: f32) -> f32 {
+        libm::cosf(f)
+    }
+
+    #[allow(unused)]
+    #[inline(always)]
     pub(crate) fn sin(f: f32) -> f32 {
         libm::sinf(f)
     }
@@ -110,6 +116,21 @@ mod libm_math {
     }
 
     #[inline(always)]
+    pub(crate) fn exp2(f: f32) -> f32 {
+        libm::exp2f(f)
+    }
+
+    #[inline(always)]
+    pub(crate) fn ln(f: f32) -> f32 {
+        libm::logf(f)
+    }
+
+    #[inline(always)]
+    pub(crate) fn log2(f: f32) -> f32 {
+        libm::log2f(f)
+    }
+
+    #[inline(always)]
     pub(crate) fn powf(f: f32, n: f32) -> f32 {
         libm::powf(f, n)
     }
@@ -155,6 +176,12 @@ mod std_math {
     #[inline(always)]
     pub(crate) fn atan2(f: f32, other: f32) -> f32 {
         f32::atan2(f, other)
+    }
+
+    #[allow(unused)]
+    #[inline(always)]
+    pub(crate) fn cos(f: f32) -> f32 {
+        f32::cos(f)
     }
 
     #[allow(unused)]
@@ -214,6 +241,21 @@ mod std_math {
     }
 
     #[inline(always)]
+    pub(crate) fn exp2(f: f32) -> f32 {
+        f32::exp2(f)
+    }
+
+    #[inline(always)]
+    pub(crate) fn ln(f: f32) -> f32 {
+        f32::ln(f)
+    }
+
+    #[inline(always)]
+    pub(crate) fn log2(f: f32) -> f32 {
+        f32::log2(f)
+    }
+
+    #[inline(always)]
     pub(crate) fn powf(f: f32, n: f32) -> f32 {
         f32::powf(f, n)
     }
@@ -251,6 +293,10 @@ mod no_backend_math {
     }
 
     pub(crate) fn atan2(_: f32, _: f32) -> f32 {
+        unimplemented!()
+    }
+
+    pub(crate) fn cos(_: f32) -> f32 {
         unimplemented!()
     }
 
@@ -295,6 +341,18 @@ mod no_backend_math {
     }
 
     pub(crate) fn exp(_: f32) -> f32 {
+        unimplemented!()
+    }
+
+    pub(crate) fn exp2(_: f32) -> f32 {
+        unimplemented!()
+    }
+
+    pub(crate) fn ln(_: f32) -> f32 {
+        unimplemented!()
+    }
+
+    pub(crate) fn log2(_: f32) -> f32 {
         unimplemented!()
     }
 

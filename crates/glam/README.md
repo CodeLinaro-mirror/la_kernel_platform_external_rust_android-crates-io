@@ -1,4 +1,4 @@
-# glam
+# 🧑‍🎤 glam
 
 [![Build Status]][github-ci] [![Coverage Status]][coveralls.io]
 [![Latest Version]][crates.io] [![docs]][docs.rs]
@@ -12,7 +12,7 @@ A simple and fast 3D math library for games and graphics.
   * vectors: `Vec2`, `Vec3`, `Vec3A` and `Vec4`
   * square matrices: `Mat2`, `Mat3`, `Mat3A` and `Mat4`
   * a quaternion type: `Quat`
-  * affine transformation types: `Affine2` and `Affine3A`
+  * affine transformation types: `Affine2`, `Affine3` and `Affine3A`
 * `f64` types
   * vectors: `DVec2`, `DVec3` and `DVec4`
   * square matrices: `DMat2`, `DMat3` and `DMat4`
@@ -82,7 +82,7 @@ defined in `std`. For example:
 
 ```toml
 [dependencies]
-glam = { version = "0.30.9", default-features = false, features = ["libm"] }
+glam = { version = "0.31.0", default-features = false, features = ["libm"] }
 ```
 
 To support both `std` and `no_std` builds in project, you can use the following
@@ -96,7 +96,7 @@ std = ["glam/std"]
 libm = ["glam/libm"]
 
 [dependencies]
-glam = { version = "0.30.9", default-features = false }
+glam = { version = "0.31.0", default-features = false }
 ```
 
 Alternatively, you can use the `nostd-libm` feature. This will always include a
@@ -112,7 +112,7 @@ std = ["glam/std"]
 libm = ["glam/libm"]
 
 [dependencies]
-glam = { version = "0.30.9", default-features = false, features = ["nostd-libm"] }
+glam = { version = "0.31.0", default-features = false, features = ["nostd-libm"] }
 ```
 
 ### Optional features
@@ -136,17 +136,18 @@ glam = { version = "0.30.9", default-features = false, features = ["nostd-libm"]
   `glam` types.
 * [`zerocopy`] - implementations of zerocopy traits for safe transmutes.
 
-[`arbitrary`]: https://docs.rs/arbitrary
 [`approx`]: https://docs.rs/approx
+[`arbitrary`]: https://docs.rs/arbitrary
+[`bytecheck`]: https://github.com/rkyv/bytecheck
 [`bytemuck`]: https://docs.rs/bytemuck
+[`encase`]: https://github.com/teoxoy/encase
 [`libm`]: https://github.com/rust-lang/libm
 [`mint`]: https://github.com/kvark/mint
 [`rand`]: https://github.com/rust-random/rand
+[`rkyv`]: https://github.com/rkyv/rkyv
 [`serde`]: https://serde.rs
 [`speedy`]: https://docs.rs/speedy
-[`rkyv`]: https://github.com/rkyv/rkyv
-[`bytecheck`]: https://github.com/rkyv/bytecheck
-[`encase`]: https://github.com/teoxoy/encase
+[`zerocopy`]: https://github.com/google/zerocopy
 
 ### Feature gates
 

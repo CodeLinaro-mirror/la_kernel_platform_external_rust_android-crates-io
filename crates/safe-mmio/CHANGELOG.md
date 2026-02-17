@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.2.7
+
+### Improvements
+
+- Added `UniqueMmioPointer::split_some` for arrays and slices.
+
+## 0.2.6
+
+### Improvements
+
+- Optimised implementation of `From<UniqueMmioPointer<[T; LEN]>>` for `[UniqueMmioPointer<T>; LEN]`.
+
 ## 0.2.5
 
 ### Improvements

@@ -151,6 +151,7 @@ fnv
 foldhash
 font-types
 foreign-types
+foreign-types-macros
 foreign-types-shared
 form_urlencoded
 fragile
@@ -237,6 +238,7 @@ iri-string
 is-terminal
 itertools
 itoa
+jiff
 jni
 jni-sys
 json-strip-comments
@@ -390,6 +392,7 @@ ring
 rtnetlink
 rusb
 rusqlite
+rust-fuzzy-search
 rustc-demangle
 rustc-demangle-capi
 rustc-hash
@@ -516,6 +519,7 @@ uniffi_macros
 uniffi_meta
 unsafe-libyaml
 untrusted
+unty
 url
 userfaultfd
 userfaultfd-sys

@@ -38,6 +38,14 @@ bench_binop!(
 );
 
 bench_binop!(
+    mat4_mul_transpose_vec4,
+    "mat4 mul transpose vec4",
+    op => mul,
+    from1 => random_srt_mat4,
+    from2 => random_vec4
+);
+
+bench_binop!(
     mat4_transform_point3,
     "mat4 transform point3",
     op => transform_point3,
@@ -86,7 +94,7 @@ pub fn mat4_from_srt(c: &mut Criterion) {
     use glam::{Quat, Vec3};
     const SIZE: usize = 1 << 13;
     let mut rng = support::PCG32::default();
-    let inputs = criterion::black_box(
+    let inputs = core::hint::black_box(
         (0..SIZE)
             .map(|_| {
                 (
@@ -119,6 +127,7 @@ criterion_group!(
     mat4_inverse,
     mat4_mul_mat4,
     mat4_mul_vec4,
+    mat4_mul_transpose_vec4,
     mat4_transform_point3,
     mat4_transform_point3a,
     mat4_transform_vector3,

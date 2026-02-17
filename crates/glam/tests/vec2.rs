@@ -1506,6 +1506,83 @@ macro_rules! impl_vec2_float_tests {
             );
         });
 
+        glam_test!(test_exp2, {
+            assert_approx_eq!(
+                $vec2::new(1.0, 2.0).exp2(),
+                $vec2::new((1.0 as $t).exp2(), (2.0 as $t).exp2(),),
+                1e-5
+            );
+        });
+
+        glam_test!(test_ln, {
+            assert_approx_eq!(
+                $vec2::new(1.0, 2.0).ln(),
+                $vec2::new((1.0 as $t).ln(), (2.0 as $t).ln(),),
+                1e-5
+            );
+            assert!($vec2::NEG_ONE.ln().is_nan());
+            assert_eq!($vec2::ZERO.ln(), $vec2::NEG_INFINITY);
+        });
+
+        glam_test!(test_log2, {
+            assert_approx_eq!(
+                $vec2::new(1.0, 2.0).log2(),
+                $vec2::new((1.0 as $t).log2(), (2.0 as $t).log2(),),
+                1e-5
+            );
+            assert!($vec2::NEG_ONE.log2().is_nan());
+            assert_eq!($vec2::ZERO.log2(), $vec2::NEG_INFINITY);
+        });
+
+        glam_test!(test_sqrt, {
+            assert_approx_eq!(
+                $vec2::new(1.0, 2.0).sqrt(),
+                $vec2::new((1.0 as $t).sqrt(), (2.0 as $t).sqrt(),),
+                1e-5
+            );
+            assert!($vec2::NEG_ONE.sqrt().is_nan());
+        });
+
+        glam_test!(test_sin, {
+            assert_approx_eq!(
+                $vec2::new(1.0, 2.0).sin(),
+                $vec2::new((1.0 as $t).sin(), (2.0 as $t).sin(),),
+                1e-5
+            );
+        });
+
+        glam_test!(test_cos, {
+            assert_approx_eq!(
+                $vec2::new(1.0, 2.0).cos(),
+                $vec2::new((1.0 as $t).cos(), (2.0 as $t).cos(),),
+                1e-5
+            );
+        });
+
+        glam_test!(test_sin_cos, {
+            let (s, c) = $vec2::new(1.0, 2.0).sin_cos();
+            assert_approx_eq!(s, $vec2::new((1.0 as $t).sin(), (2.0 as $t).sin(),), 1e-5);
+            assert_approx_eq!(c, $vec2::new((1.0 as $t).cos(), (2.0 as $t).cos(),), 1e-5);
+        });
+
+        glam_test!(test_step, {
+            use glam::FloatExt;
+            assert_approx_eq!(
+                $vec2::new(1.0, 2.0).step($vec2::splat(2.5)),
+                $vec2::new((1.0 as $t).step(2.5), (2.0 as $t).step(2.5),),
+                1e-5
+            );
+        });
+
+        glam_test!(test_saturate, {
+            use glam::FloatExt;
+            assert_approx_eq!(
+                $vec2::new(1.0, 2.0).saturate(),
+                $vec2::new((1.0 as $t).saturate(), (2.0 as $t).saturate(),),
+                1e-5
+            );
+        });
+
         glam_test!(test_angle_to, {
             let angle = $vec2::new(1.0, 0.0).angle_to($vec2::new(0.0, 1.0));
             assert_approx_eq!(core::$t::consts::FRAC_PI_2, angle, 1e-6);

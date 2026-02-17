@@ -18,11 +18,13 @@ rust_library {
     host_supported: true,
     crate_name: "zlib_rs",
     cargo_env_compat: true,
-    cargo_pkg_version: "0.5.4",
+    cargo_pkg_version: "0.5.5",
     crate_root: "src/lib.rs",
     srcs: [
+        "src/**/*.rs",
         "src/deflate/test-data/inflate_buf_error.dat",
         "src/deflate/test-data/paper-100k.pdf",
+        "README.md",
     ],
     edition: "2021",
     features: [
@@ -39,6 +41,7 @@ rust_library {
     vendor_available: true,
     min_sdk_version: "26",
     sdk_version: "26",
+    use_expansive_default_srcs: false,
 }
 
 rust_test {
@@ -46,11 +49,13 @@ rust_test {
     host_supported: true,
     crate_name: "zlib_rs",
     cargo_env_compat: true,
-    cargo_pkg_version: "0.5.4",
+    cargo_pkg_version: "0.5.5",
     crate_root: "src/lib.rs",
     srcs: [
+        "src/**/*.rs",
         "src/deflate/test-data/inflate_buf_error.dat",
         "src/deflate/test-data/paper-100k.pdf",
+        "README.md",
     ],
     test_suites: ["general-tests"],
     auto_gen_config: true,
@@ -69,4 +74,5 @@ rust_test {
         "libmemoffset",
         "libquickcheck",
     ],
+    use_expansive_default_srcs: false,
 }

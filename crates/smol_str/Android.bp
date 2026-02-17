@@ -18,9 +18,13 @@ rust_library {
     host_supported: true,
     crate_name: "smol_str",
     cargo_env_compat: true,
-    cargo_pkg_version: "0.3.4",
+    cargo_pkg_version: "0.3.5",
     crate_root: "src/lib.rs",
-    edition: "2021",
+    srcs: [
+        "src/*.rs",
+        "src/gdb_smolstr_printer.py",
+    ],
+    edition: "2024",
     features: [
         "default",
         "serde",
@@ -34,4 +38,5 @@ rust_library {
     product_available: true,
     vendor_available: true,
     min_sdk_version: "29",
+    use_expansive_default_srcs: false,
 }
