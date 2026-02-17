@@ -127,6 +127,7 @@ drm-fourcc
 dyn-clone
 either
 elf
+encoding_rs
 enum-as-inner
 enum-primitive-derive
 enumn

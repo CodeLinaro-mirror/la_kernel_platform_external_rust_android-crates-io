@@ -244,6 +244,7 @@ dependencies = [
  "dyn-clone",
  "either",
  "elf",
+ "encoding_rs",
  "enum-as-inner 0.7.0",
  "enum-primitive-derive",
  "enumn",
