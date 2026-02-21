@@ -103,6 +103,7 @@ dashmap
 dasp_sample
 data-encoding
 dc_bundle
+dc_figma_import
 dc_layout
 debug_tree
 der
@@ -329,6 +330,7 @@ oorandom
 open-enum
 open-enum-derive
 openssl-macros
+openssl-probe
 os_pipe
 os_str_bytes
 p9
@@ -458,6 +460,7 @@ strsim
 strum
 strum_macros
 subtle
+svgtypes
 symphonia
 symphonia-bundle-flac
 symphonia-core

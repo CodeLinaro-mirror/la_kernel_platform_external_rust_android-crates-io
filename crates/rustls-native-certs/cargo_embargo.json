@@ -1,9 +1,9 @@
 {
   "run_cargo": false,
+  "min_sdk_version": "29",
   "package": {
     "rustls-native-certs": {
-      "host_supported": false
+      "patch": "patches/Android.bp.patch"
     }
-  },
-  "min_sdk_version": "29"
+  }
 }
