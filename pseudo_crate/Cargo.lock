@@ -189,7 +189,7 @@ dependencies = [
  "clap_builder",
  "clap_complete",
  "clap_derive",
- "clap_lex 1.0.0",
+ "clap_lex",
  "codespan-reporting",
  "combine",
  "command-fds",
@@ -1069,9 +1069,9 @@ dependencies = [
 
 [[package]]
 name = "aws-lc-rs"
-version = "1.15.4"
+version = "1.16.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7b7b6141e96a8c160799cc2d5adecd5cbbe5054cb8c7c4af53da0f83bb7ad256"
+checksum = "d9a7b350e3bb1767102698302bc37256cbd48422809984b98d292c40e2579aa9"
 dependencies = [
  "aws-lc-sys",
  "untrusted 0.7.1",
@@ -1699,7 +1699,7 @@ checksum = "370daa45065b80218950227371916a1633217ae42b2715b2287b606dcd618e24"
 dependencies = [
  "anstream",
  "anstyle",
- "clap_lex 1.0.0",
+ "clap_lex",
  "strsim 0.11.1",
 ]
 
@@ -1723,12 +1723,6 @@ dependencies = [
  "quote 1.0.44",
  "syn 2.0.116",
 ]
-
-[[package]]
-name = "clap_lex"
-version = "0.7.7"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c3e64b0cc0439b12df2fa678eae89a1c56a529fd067a9115f7827f1fffd22b32"
 
 [[package]]
 name = "clap_lex"
