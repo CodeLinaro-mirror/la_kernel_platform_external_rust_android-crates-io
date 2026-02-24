@@ -24,6 +24,7 @@ arm-pl011-uart
 arm-psci
 arrayvec
 ash
+askama
 askama_derive
 askama_parser
 async-stream
