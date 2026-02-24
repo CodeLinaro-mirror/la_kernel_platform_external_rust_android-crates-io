@@ -37,6 +37,7 @@ aws-lc-rs
 axum
 axum-core
 base64
+basic-toml
 bencher
 bincode
 bindgen
