@@ -135,6 +135,7 @@ dependencies = [
  "arm-psci",
  "arrayvec",
  "ash",
+ "askama_derive",
  "askama_parser",
  "async-stream",
  "async-stream-impl",
@@ -969,12 +970,31 @@ dependencies = [
 ]
 
 [[package]]
+name = "askama_derive"
+version = "0.14.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "129397200fe83088e8a68407a8e2b1f826cf0086b21ccdb866a722c8bcd3a94f"
+dependencies = [
+ "askama_parser",
+ "basic-toml",
+ "memchr",
+ "proc-macro2 1.0.106",
+ "quote 1.0.45",
+ "rustc-hash 2.1.1",
+ "serde",
+ "serde_derive",
+ "syn 2.0.117",
+]
+
+[[package]]
 name = "askama_parser"
 version = "0.14.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d6ab5630b3d5eaf232620167977f95eb51f3432fc76852328774afbd242d4358"
 dependencies = [
  "memchr",
+ "serde",
+ "serde_derive",
  "winnow 0.7.14",
 ]
 
