@@ -7125,9 +7125,9 @@ dependencies = [
 
 [[package]]
 name = "regex-syntax"
-version = "0.8.9"
+version = "0.8.10"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a96887878f22d7bad8a3b6dc5b7440e0ada9a245242924394987b21cf2210a4c"
+checksum = "dc897dd8d9e8bd1ed8cdad82b5966c3e0ecae09fb1907d58efaa013543185d0a"
 
 [[package]]
 name = "relative-path"
@@ -8249,7 +8249,7 @@ dependencies = [
  "heck 0.5.0",
  "proc-macro2 1.0.106",
  "quote 1.0.44",
- "syn 2.0.116",
+ "syn 2.0.117",
 ]
 
 [[package]]
