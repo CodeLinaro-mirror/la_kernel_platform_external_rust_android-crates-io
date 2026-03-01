@@ -279,6 +279,7 @@ lz4_flex
 macaddr
 managed
 maplit
+matchers
 matches
 matchit
 maybe-async
@@ -335,6 +336,7 @@ os_pipe
 os_str_bytes
 p9
 p9_wire_format_derive
+page_size
 parking_lot
 parking_lot_core
 paste
@@ -509,6 +511,7 @@ tower-service
 tracing
 tracing-attributes
 tracing-core
+tracing-log
 tracing-subscriber
 try-lock
 tryhard
