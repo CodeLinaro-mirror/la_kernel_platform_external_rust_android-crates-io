@@ -103,6 +103,7 @@ dashmap
 dasp_sample
 data-encoding
 dc_bundle
+dc_figma_import
 dc_layout
 debug_tree
 der
@@ -127,6 +128,7 @@ drm-fourcc
 dyn-clone
 either
 elf
+encoding_rs
 enum-as-inner
 enum-primitive-derive
 enumn
@@ -328,6 +330,7 @@ oorandom
 open-enum
 open-enum-derive
 openssl-macros
+openssl-probe
 os_pipe
 os_str_bytes
 p9
@@ -457,6 +460,12 @@ strsim
 strum
 strum_macros
 subtle
+svgtypes
+symphonia
+symphonia-bundle-flac
+symphonia-core
+symphonia-metadata
+symphonia-utils-xiph
 syn
 syn-mid
 sync_wrapper
