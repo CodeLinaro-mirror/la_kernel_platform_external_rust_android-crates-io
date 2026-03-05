@@ -637,6 +637,7 @@ dependencies = [
  "tracing-core",
  "tracing-log",
  "tracing-subscriber",
+ "transpose",
  "try-lock",
  "tryhard",
  "tungstenite",
@@ -6189,9 +6190,9 @@ dependencies = [
 
 [[package]]
 name = "pdl-compiler"
-version = "0.5.0"
+version = "0.5.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "967d899a1898c68a840d5c52c5a260bcd37e63fed9f58baf915e9ad91d5983c9"
+checksum = "4cbad65a30513ebac2f138ba2f6ef318b20edf36f10bbc9cdcec5fb10d463b8c"
 dependencies = [
  "argh",
  "codespan-reporting",
@@ -6377,9 +6378,9 @@ dependencies = [
 
 [[package]]
 name = "pin-project-lite"
-version = "0.2.16"
+version = "0.2.17"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3b3cff922bd51709b605d9ead9aa71031d81447142d828eb4a6eba76fe619f9b"
+checksum = "a89322df9ebe1c1578d689c92318e070967d1042b512afbe49518723f4e6d5cd"
 
 [[package]]
 name = "pin-utils"
@@ -9185,6 +9186,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "transpose"
+version = "0.2.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "1ad61aed86bc3faea4300c7aee358b4c6d0c8d6ccc36524c96e4c92ccf26e77e"
+dependencies = [
+ "num-integer",
+ "strength_reduce",
+]
+
+[[package]]
 name = "try-lock"
 version = "0.2.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -9599,9 +9610,9 @@ dependencies = [
 
 [[package]]
 name = "virtio-drivers-and-devices"
-version = "0.2.5"
+version = "0.2.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "31f7f78344a0105a1cea6a1947f0e2f41c6d7c7a9502329df7bad97f705a1306"
+checksum = "ed449cccabea107a9f9d7c765f4218f8104b5a7c91bf64f3637c19004ca6c339"
 dependencies = [
  "bitflags 2.11.0",
  "embedded-io",
