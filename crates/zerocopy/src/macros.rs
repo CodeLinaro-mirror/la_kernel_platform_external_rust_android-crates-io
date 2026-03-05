@@ -623,6 +623,11 @@ macro_rules! try_transmute {
 /// immutable reference of another type of the same size and compatible
 /// alignment.
 ///
+/// *Note that while the **value** of the referent is checked for validity at
+/// runtime, the **size** and **alignment** are checked at compile time. For
+/// conversions which are fallible with respect to size and alignment, see the
+/// methods on [`TryFromBytes`].*
+///
 /// This macro behaves like an invocation of this function:
 ///
 /// ```ignore
@@ -641,6 +646,8 @@ macro_rules! try_transmute {
 ///
 /// The types `Src` and `Dst` are inferred from the calling context; they cannot
 /// be explicitly specified in the macro invocation.
+///
+/// [`TryFromBytes`]: crate::TryFromBytes
 ///
 /// # Size compatibility
 ///
@@ -744,6 +751,11 @@ macro_rules! try_transmute_ref {
 /// Conditionally transmutes a mutable reference of one type to a mutable
 /// reference of another type of the same size and compatible alignment.
 ///
+/// *Note that while the **value** of the referent is checked for validity at
+/// runtime, the **size** and **alignment** are checked at compile time. For
+/// conversions which are fallible with respect to size and alignment, see the
+/// methods on [`TryFromBytes`].*
+///
 /// This macro behaves like an invocation of this function:
 ///
 /// ```ignore
@@ -762,6 +774,8 @@ macro_rules! try_transmute_ref {
 ///
 /// The types `Src` and `Dst` are inferred from the calling context; they cannot
 /// be explicitly specified in the macro invocation.
+///
+/// [`TryFromBytes`]: crate::TryFromBytes
 ///
 /// # Size compatibility
 ///
@@ -969,8 +983,11 @@ macro_rules! cryptocorrosion_derive_traits {
                 $($field_ty: $crate::FromBytes,)*
             )?
         {
-            #[inline]
-            fn is_bit_valid(_c: $crate::Maybe<'_, Self>) -> bool {
+            #[inline(always)]
+            fn is_bit_valid<A>(_: $crate::Maybe<'_, Self, A>) -> bool
+            where
+                A: $crate::invariant::Alignment,
+            {
                 // SAFETY: This macro only accepts `#[repr(C)]` and
                 // `#[repr(transparent)]` structs, and this `impl` block
                 // requires all field types to be `FromBytes`. Thus, all
@@ -1110,8 +1127,11 @@ macro_rules! cryptocorrosion_derive_traits {
                 $field_ty: $crate::FromBytes,
             )*
         {
-            #[inline]
-            fn is_bit_valid(_c: $crate::Maybe<'_, Self>) -> bool {
+            #[inline(always)]
+            fn is_bit_valid<A>(_: $crate::Maybe<'_, Self, A>) -> bool
+            where
+                A: $crate::invariant::Alignment,
+            {
                 // SAFETY: This macro only accepts `#[repr(C)]` unions, and this
                 // `impl` block requires all field types to be `FromBytes`.
                 // Thus, all initialized byte sequences constitutes valid

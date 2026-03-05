@@ -8,7 +8,7 @@
 // those terms.
 
 #![cfg(feature = "derive")] // Required for derives on `SliceDst`
-#![allow(dead_code)]
+#![allow(dead_code, missing_docs, missing_debug_implementations, missing_copy_implementations)]
 
 //! Our UI test framework, built on the `trybuild` crate, does not support
 //! testing for post-monomorphization errors. Instead, we use doctests, which
@@ -18,7 +18,6 @@ use crate::*;
 
 #[derive(KnownLayout, FromBytes, IntoBytes, Immutable)]
 #[repr(C)]
-#[allow(missing_debug_implementations, missing_copy_implementations)]
 pub struct SliceDst<T, U> {
     pub t: T,
     pub u: [U],
@@ -150,3 +149,20 @@ enum TransmuteRefMutDstOffsetNotMultiple {}
 /// let _: &mut SliceDst<(), [u8; 2]> = zerocopy::transmute_mut!(src);
 /// ```
 enum TransmuteRefMutDstElemSizeNotMultiple {}
+
+/// ```compile_fail,E0277
+/// use zerocopy::*;
+///
+/// #[derive(FromBytes, IntoBytes, Unaligned)]
+/// #[repr(transparent)]
+/// struct Foo<T>(T);
+///
+/// const _: () = unsafe {
+///     impl_or_verify!(T => TryFromBytes for Foo<T>);
+///     impl_or_verify!(T => FromZeros for Foo<T>);
+///     impl_or_verify!(T => FromBytes for Foo<T>);
+///     impl_or_verify!(T => IntoBytes for Foo<T>);
+///     impl_or_verify!(T => Unaligned for Foo<T>);
+/// };
+/// ```
+enum InvalidImplOrVerify {}
