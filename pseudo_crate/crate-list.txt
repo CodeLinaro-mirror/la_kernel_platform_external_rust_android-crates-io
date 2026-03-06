@@ -251,6 +251,7 @@ itoa
 jiff
 jni
 jni-sys
+jni-sys-macros
 json-strip-comments
 kernlog
 khronos
