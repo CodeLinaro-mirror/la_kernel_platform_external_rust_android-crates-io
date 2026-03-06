@@ -250,6 +250,7 @@ itertools
 itoa
 jiff
 jni
+jni-macros
 jni-sys
 jni-sys-macros
 json-strip-comments

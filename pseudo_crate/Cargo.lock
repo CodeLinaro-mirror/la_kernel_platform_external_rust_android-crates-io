@@ -358,6 +358,7 @@ dependencies = [
  "itoa",
  "jiff",
  "jni",
+ "jni-macros",
  "jni-sys 0.4.1",
  "jni-sys-macros",
  "json-strip-comments",
@@ -4824,6 +4825,19 @@ dependencies = [
  "thiserror 1.0.49",
  "walkdir",
  "windows-sys 0.45.0",
+]
+
+[[package]]
+name = "jni-macros"
+version = "0.22.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a00109accc170f0bdb141fed3e393c565b6f5e072365c3bd58f5b062591560a3"
+dependencies = [
+ "proc-macro2 1.0.106",
+ "quote 1.0.45",
+ "rustc_version",
+ "simd_cesu8",
+ "syn 2.0.117",
 ]
 
 [[package]]
