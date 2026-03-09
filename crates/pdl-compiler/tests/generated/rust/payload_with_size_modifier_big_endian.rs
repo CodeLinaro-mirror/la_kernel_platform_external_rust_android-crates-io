@@ -33,11 +33,17 @@ impl Test {
         &self.payload
     }
 }
+impl Default for Test {
+    fn default() -> Test {
+        Test { payload: vec![] }
+    }
+}
 impl Packet for Test {
     fn encoded_len(&self) -> usize {
         1 + self.payload.len()
     }
     fn encode(&self, buf: &mut impl BufMut) -> Result<(), EncodeError> {
+        #[allow(unused_comparisons)]
         if (self.payload.len() + 1) > 0xff {
             return Err(EncodeError::SizeOverflow {
                 packet: "Test",

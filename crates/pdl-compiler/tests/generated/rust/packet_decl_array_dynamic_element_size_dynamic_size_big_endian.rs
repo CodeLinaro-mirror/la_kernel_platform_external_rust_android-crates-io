@@ -33,6 +33,11 @@ impl Foo {
         &self.inner
     }
 }
+impl Default for Foo {
+    fn default() -> Foo {
+        Foo { inner: vec![] }
+    }
+}
 impl Packet for Foo {
     fn encoded_len(&self) -> usize {
         self.inner.len()
@@ -61,12 +66,18 @@ impl Bar {
         &self.x
     }
 }
+impl Default for Bar {
+    fn default() -> Bar {
+        Bar { x: vec![] }
+    }
+}
 impl Packet for Bar {
     fn encoded_len(&self) -> usize {
         1 + self.x.iter().map(Packet::encoded_len).sum::<usize>()
     }
     fn encode(&self, buf: &mut impl BufMut) -> Result<(), EncodeError> {
         let x_size = self.x.iter().map(Packet::encoded_len).sum::<usize>();
+        #[allow(unused_comparisons)]
         if x_size > 0xf {
             return Err(EncodeError::SizeOverflow {
                 packet: "Bar",

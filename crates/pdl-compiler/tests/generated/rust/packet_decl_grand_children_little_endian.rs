@@ -31,6 +31,11 @@ pub enum Enum16 {
     A = 0x1,
     B = 0x2,
 }
+impl Default for Enum16 {
+    fn default() -> Enum16 {
+        Enum16::A
+    }
+}
 impl TryFrom<u16> for Enum16 {
     type Error = u16;
     fn try_from(value: u16) -> Result<Self, Self::Error> {
@@ -82,10 +87,11 @@ pub struct Parent {
     pub baz: Enum16,
     pub payload: Vec<u8>,
 }
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Default, Debug, Clone, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub enum ParentChild {
     Child(Child),
+    #[default]
     None,
 }
 impl Parent {
@@ -114,6 +120,16 @@ impl Parent {
         self.baz
     }
 }
+impl Default for Parent {
+    fn default() -> Parent {
+        Parent {
+            foo: Default::default(),
+            bar: Default::default(),
+            baz: Default::default(),
+            payload: vec![],
+        }
+    }
+}
 impl Packet for Parent {
     fn encoded_len(&self) -> usize {
         7 + self.payload.len()
@@ -122,6 +138,7 @@ impl Packet for Parent {
         buf.put_u16_le(u16::from(self.foo()));
         buf.put_u16_le(u16::from(self.bar()));
         buf.put_u16_le(u16::from(self.baz()));
+        #[allow(unused_comparisons)]
         if self.payload.len() > 0xff {
             return Err(EncodeError::SizeOverflow {
                 packet: "Parent",
@@ -236,10 +253,11 @@ impl TryFrom<Parent> for Child {
         (&parent).try_into()
     }
 }
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Default, Debug, Clone, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub enum ChildChild {
     GrandChild(GrandChild),
+    #[default]
     None,
 }
 impl Child {
@@ -311,6 +329,16 @@ impl Child {
         Enum16::A
     }
 }
+impl Default for Child {
+    fn default() -> Child {
+        Child {
+            quux: Default::default(),
+            bar: Default::default(),
+            baz: Default::default(),
+            payload: vec![],
+        }
+    }
+}
 impl Packet for Child {
     fn encoded_len(&self) -> usize {
         9 + self.payload.len()
@@ -319,6 +347,7 @@ impl Packet for Child {
         buf.put_u16_le(u16::from(self.foo()));
         buf.put_u16_le(u16::from(self.bar()));
         buf.put_u16_le(u16::from(self.baz()));
+        #[allow(unused_comparisons)]
         if 2 + self.payload.len() > 0xff {
             return Err(EncodeError::SizeOverflow {
                 packet: "Parent",
@@ -398,10 +427,11 @@ impl TryFrom<Parent> for GrandChild {
         (&packet).try_into()
     }
 }
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Default, Debug, Clone, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub enum GrandChildChild {
     GrandGrandChild(GrandGrandChild),
+    #[default]
     None,
 }
 impl GrandChild {
@@ -459,6 +489,14 @@ impl GrandChild {
         Enum16::A
     }
 }
+impl Default for GrandChild {
+    fn default() -> GrandChild {
+        GrandChild {
+            baz: Default::default(),
+            payload: vec![],
+        }
+    }
+}
 impl Packet for GrandChild {
     fn encoded_len(&self) -> usize {
         9 + self.payload.len()
@@ -467,6 +505,7 @@ impl Packet for GrandChild {
         buf.put_u16_le(u16::from(self.foo()));
         buf.put_u16_le(u16::from(self.bar()));
         buf.put_u16_le(u16::from(self.baz()));
+        #[allow(unused_comparisons)]
         if 2 + self.payload.len() > 0xff {
             return Err(EncodeError::SizeOverflow {
                 packet: "Parent",
@@ -607,6 +646,11 @@ impl GrandGrandChild {
         Enum16::A
     }
 }
+impl Default for GrandGrandChild {
+    fn default() -> GrandGrandChild {
+        GrandGrandChild { payload: vec![] }
+    }
+}
 impl Packet for GrandGrandChild {
     fn encoded_len(&self) -> usize {
         9 + self.payload.len()
@@ -615,6 +659,7 @@ impl Packet for GrandGrandChild {
         buf.put_u16_le(u16::from(self.foo()));
         buf.put_u16_le(u16::from(self.bar()));
         buf.put_u16_le(u16::from(self.baz()));
+        #[allow(unused_comparisons)]
         if 2 + self.payload.len() > 0xff {
             return Err(EncodeError::SizeOverflow {
                 packet: "Parent",

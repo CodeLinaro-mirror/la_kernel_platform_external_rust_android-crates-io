@@ -37,11 +37,17 @@ impl Foo {
         &self.x
     }
 }
+impl Default for Foo {
+    fn default() -> Foo {
+        Foo { padding: 0, x: vec![] }
+    }
+}
 impl Packet for Foo {
     fn encoded_len(&self) -> usize {
         1 + (self.x.len() * 3)
     }
     fn encode(&self, buf: &mut impl BufMut) -> Result<(), EncodeError> {
+        #[allow(unused_comparisons)]
         if (self.x.len() * 3) > 0x1f {
             return Err(EncodeError::SizeOverflow {
                 packet: "Foo",
