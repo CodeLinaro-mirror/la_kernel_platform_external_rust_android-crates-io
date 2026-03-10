@@ -3875,7 +3875,7 @@ dependencies = [
  "libc 0.2.180",
  "percent-encoding",
  "pin-project-lite",
- "socket2 0.5.10",
+ "socket2 0.6.3",
  "system-configuration",
  "tokio",
  "tower-service",
@@ -4960,9 +4960,9 @@ dependencies = [
 
 [[package]]
 name = "libz-rs-sys"
-version = "0.6.0"
+version = "0.6.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "439037a3de2e0d450a7d0ff4cb0b1796ec6125bd8ad12dd2d1a849800f9a6e9e"
+checksum = "f1116a951fd9d5110720bb2ae66f72ce5d7b10bd8aa8744924677157089ce13f"
 dependencies = [
  "zlib-rs",
 ]
@@ -6780,7 +6780,7 @@ dependencies = [
  "quinn-udp",
  "rustc-hash 2.1.1",
  "rustls",
- "socket2 0.5.10",
+ "socket2 0.6.3",
  "thiserror 2.0.16",
  "tokio",
  "tracing",
@@ -6818,7 +6818,7 @@ dependencies = [
  "cfg_aliases",
  "libc 0.2.180",
  "once_cell",
- "socket2 0.5.10",
+ "socket2 0.6.3",
  "tracing",
  "windows-sys 0.60.2",
 ]
