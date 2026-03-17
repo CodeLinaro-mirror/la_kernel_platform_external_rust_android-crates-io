@@ -1935,7 +1935,7 @@ version = "0.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "8b2a41393f66f16b0823bb79094d54ac5fbd34ab292ddafb9a0456ac9f87d201"
 dependencies = [
- "libc 0.2.180",
+ "libc 0.2.183",
 ]
 
 [[package]]
@@ -3350,7 +3350,7 @@ dependencies = [
  "cfg-if",
  "js-sys",
  "libc 0.2.183",
- "r-efi",
+ "r-efi 5.2.0",
  "wasip2",
  "wasm-bindgen",
 ]
@@ -3363,7 +3363,7 @@ checksum = "0de51e6874e94e7bf76d726fc5d13ba782deca734ff60d5bb2fb2607c7406555"
 dependencies = [
  "cfg-if",
  "libc 0.2.183",
- "r-efi",
+ "r-efi 6.0.0",
  "rand_core 0.10.0",
  "wasip2",
  "wasip3",
@@ -4850,12 +4850,12 @@ dependencies = [
 
 [[package]]
 name = "libbpf-sys"
-version = "1.6.2+v1.6.2"
+version = "1.7.0+v1.7.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ba0346fc595fa2c8e274903e8a0e3ed5e6a29183af167567f6289fd3b116881b"
+checksum = "a109478760b2900aa2a6f2087e9d0de1d9c535b1758602af2845d5d2ccfaed7c"
 dependencies = [
  "cc",
- "nix 0.30.1",
+ "nix 0.31.2",
  "pkg-config",
 ]
 
@@ -5178,7 +5178,7 @@ version = "0.0.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "62bb907fe88d54d8d9ce32a3cceab4218ed2f6b7d35617cafe9adf84e43919cb"
 dependencies = [
- "libc 0.1.12",
+ "libc 0.2.183",
 ]
 
 [[package]]
@@ -6360,9 +6360,9 @@ dependencies = [
 
 [[package]]
 name = "pkg-config"
-version = "0.3.30"
+version = "0.3.32"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d231b230927b5e4ad203db57bbcbee2802f6bce620b1e4a9024a07d94e2907ec"
+checksum = "7edddbd0b52d732b21ad9a5fab5c704c14cd949e5e9a1ec5929a24fded1b904c"
 
 [[package]]
 name = "plotters"
@@ -6909,7 +6909,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "bc266eb313df6c5c09c1c7b1fbe2510961e5bcd3add930c1e31f7ed9da0feff8"
 dependencies = [
  "chacha20",
- "getrandom 0.4.1",
+ "getrandom 0.4.2",
  "rand_core 0.10.0",
 ]
 
