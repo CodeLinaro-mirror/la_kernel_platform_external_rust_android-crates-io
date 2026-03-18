@@ -397,6 +397,7 @@ read-fonts
 regex
 regex-automata
 regex-syntax
+region
 relative-path
 remain
 reqwest
