@@ -376,6 +376,7 @@ dependencies = [
  "linked-hash-map",
  "linkme",
  "linkme-impl",
+ "linux-aio-tokio",
  "litemap",
  "litrs",
  "lock_api",
@@ -5029,6 +5030,25 @@ dependencies = [
 ]
 
 [[package]]
+name = "linux-aio-tokio"
+version = "0.4.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "759662ed0b514e4842d190da836f251af724ff9dcaae0119b22f6a64853ca7ed"
+dependencies = [
+ "bindgen 0.72.1",
+ "bitflags 2.11.0",
+ "intrusive-collections",
+ "libc 0.2.183",
+ "lock_api",
+ "memmap",
+ "parking_lot",
+ "region",
+ "thiserror 2.0.16",
+ "tokio",
+ "tokio-stream",
+]
+
+[[package]]
 name = "linux-raw-sys"
 version = "0.4.14"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -5247,6 +5267,16 @@ name = "memchr"
 version = "2.8.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f8ca58f447f06ed17d5fc4043ce1b10dd205e060fb3ce5b979b8ed8e59ff3f79"
+
+[[package]]
+name = "memmap"
+version = "0.7.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "6585fd95e7bb50d6cc31e20d4cf9afb4e2ba16c5846fc76793f11218da9c475b"
+dependencies = [
+ "libc 0.2.183",
+ "winapi",
+]
 
 [[package]]
 name = "memmap2"
