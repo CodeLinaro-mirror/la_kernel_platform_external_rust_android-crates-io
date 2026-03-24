@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::backends::rust::{mask_bits, types, ToIdent, ToUpperCamelCase};
+use crate::backends::rust::{ToIdent, ToUpperCamelCase, mask_bits, types};
 use crate::{analyzer, ast};
 use quote::{format_ident, quote};
 
@@ -389,7 +389,10 @@ impl Encoder {
                     _ => panic!("Unexpected size field: {field:?}"),
                 };
 
+                // TODO: this check is generated with an allow() directive since the size might
+                // be constant. It should be removed when always true.
                 self.tokens.extend(quote! {
+                    #[allow(unused_comparisons)]
                     if #array_size > #max_value {
                         return Err(EncodeError::SizeOverflow {
                             packet: #packet_name,
@@ -471,7 +474,7 @@ impl Encoder {
         }
 
         self.bit_shift += width;
-        if self.bit_shift % 8 == 0 {
+        if self.bit_shift.is_multiple_of(8) {
             self.pack_bit_fields()
         }
     }

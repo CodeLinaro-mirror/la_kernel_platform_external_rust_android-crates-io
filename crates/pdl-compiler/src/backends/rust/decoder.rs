@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::backends::rust::{mask_bits, types, ToIdent, ToUpperCamelCase};
+use crate::backends::rust::{ToIdent, ToUpperCamelCase, mask_bits, types};
 use crate::{analyzer, ast};
 use quote::{format_ident, quote};
 
@@ -140,7 +140,7 @@ impl<'a> FieldParser<'a> {
     fn add_bit_field(&mut self, field: &'a ast::Field) {
         self.chunk.push(BitField { shift: self.shift, field });
         self.shift += self.schema.field_size(field.key).static_().unwrap();
-        if self.shift % 8 != 0 {
+        if !self.shift.is_multiple_of(8) {
             return;
         }
 
