@@ -151,6 +151,7 @@ filetime
 fixedbitset
 flagset
 flate2
+float_next_after
 fnv
 foldhash
 font-types
