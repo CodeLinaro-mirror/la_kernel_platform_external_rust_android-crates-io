@@ -278,6 +278,7 @@ lscolors
 lsp-server
 lsp-types
 lyon_geom
+lyon_path
 lz4_flex
 macaddr
 managed

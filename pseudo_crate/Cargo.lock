@@ -386,6 +386,7 @@ dependencies = [
  "lsp-server",
  "lsp-types",
  "lyon_geom",
+ "lyon_path",
  "lz4_flex",
  "macaddr",
  "managed",
@@ -5142,6 +5143,16 @@ checksum = "4336502e29e32af93cf2dad2214ed6003c17ceb5bd499df77b1de663b9042b92"
 dependencies = [
  "arrayvec",
  "euclid",
+ "num-traits",
+]
+
+[[package]]
+name = "lyon_path"
+version = "1.0.19"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "5c463f9c428b7fc5ec885dcd39ce4aa61e29111d0e33483f6f98c74e89d8621e"
+dependencies = [
+ "lyon_geom",
  "num-traits",
 ]
 
