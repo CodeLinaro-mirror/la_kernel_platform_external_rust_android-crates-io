@@ -112,19 +112,6 @@ impl Map<String, Value> {
         self.map.get_mut(key)
     }
 
-    /// Returns the key-value pair matching the given key.
-    ///
-    /// The key may be any borrowed form of the map's key type, but the ordering
-    /// on the borrowed form *must* match the ordering on the key type.
-    #[inline]
-    pub fn get_key_value<Q>(&self, key: &Q) -> Option<(&String, &Value)>
-    where
-        String: Borrow<Q>,
-        Q: ?Sized + Ord + Eq + Hash,
-    {
-        self.map.get_key_value(key)
-    }
-
     /// Inserts a key-value pair into the map.
     ///
     /// If the map did not have this key present, `None` is returned.
@@ -148,14 +135,7 @@ impl Map<String, Value> {
         String: Borrow<Q>,
         Q: Ord + Eq + Hash + ?Sized,
     {
-        #[cfg(not(feature = "preserve_order"))]
-        {
-            self.map.remove(key)
-        }
-        #[cfg(feature = "preserve_order")]
-        {
-            self.map.shift_remove(key)
-        }
+        self.map.remove(key)
     }
 
     /// Retains only the elements specified by the `keep` predicate.
@@ -261,7 +241,7 @@ impl PartialEq for Map<String, Value> {
 
 /// Access an element of this map. Panics if the given key is not present in the
 /// map.
-impl<Q> ops::Index<&Q> for Map<String, Value>
+impl<'a, Q> ops::Index<&'a Q> for Map<String, Value>
 where
     String: Borrow<Q>,
     Q: Ord + Eq + Hash + ?Sized,
@@ -275,7 +255,7 @@ where
 
 /// Mutably access an element of this map. Panics if the given key is not
 /// present in the map.
-impl<Q> ops::IndexMut<&Q> for Map<String, Value>
+impl<'a, Q> ops::IndexMut<&'a Q> for Map<String, Value>
 where
     String: Borrow<Q>,
     Q: Ord + Eq + Hash + ?Sized,
@@ -521,14 +501,7 @@ impl<'a> OccupiedEntry<'a> {
     /// Takes the value of the entry out of the map, and returns it.
     #[inline]
     pub fn remove(self) -> Value {
-        #[cfg(not(feature = "preserve_order"))]
-        {
-            self.occupied.remove()
-        }
-        #[cfg(feature = "preserve_order")]
-        {
-            self.occupied.shift_remove()
-        }
+        self.occupied.remove()
     }
 }
 

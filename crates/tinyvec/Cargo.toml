@@ -12,7 +12,7 @@
 [package]
 edition = "2018"
 name = "tinyvec"
-version = "1.11.0"
+version = "1.10.0"
 authors = ["Lokathor <zefria@gmail.com>"]
 build = false
 exclude = [
@@ -48,7 +48,6 @@ features = [
     "latest_stable_rust",
     "serde",
     "borsh",
-    "defmt",
 ]
 rustdoc-args = [
     "--cfg",
@@ -78,7 +77,6 @@ rustc_1_40 = []
 rustc_1_55 = []
 rustc_1_57 = []
 rustc_1_61 = ["rustc_1_57"]
-serde = ["dep:serde_core"]
 std = ["alloc"]
 
 [lib]
@@ -127,16 +125,12 @@ version = "1.2.0"
 optional = true
 default-features = false
 
-[dependencies.defmt]
-version = "1.0"
-optional = true
-
 [dependencies.generic-array]
 version = "1.1.1"
 optional = true
 default-features = false
 
-[dependencies.serde_core]
+[dependencies.serde]
 version = "1.0"
 optional = true
 default-features = false
@@ -162,6 +156,3 @@ version = "1"
 
 [profile.bench]
 debug = 2
-
-[profile.dev]
-lto = "thin"

@@ -2,7 +2,6 @@ use std::collections::HashMap;
 use std::str;
 
 use winnow::prelude::*;
-use winnow::Result;
 use winnow::{
     ascii::{alphanumeric1 as alphanumeric, multispace0 as multispace, space0 as space},
     combinator::opt,
@@ -15,7 +14,7 @@ pub(crate) type Stream<'i> = &'i [u8];
 
 pub(crate) fn categories<'s>(
     i: &mut Stream<'s>,
-) -> Result<HashMap<&'s str, HashMap<&'s str, &'s str>>> {
+) -> PResult<HashMap<&'s str, HashMap<&'s str, &'s str>>> {
     repeat(
         0..,
         separated_pair(
@@ -27,13 +26,13 @@ pub(crate) fn categories<'s>(
     .parse_next(i)
 }
 
-fn category<'s>(i: &mut Stream<'s>) -> Result<&'s str> {
+fn category<'s>(i: &mut Stream<'s>) -> PResult<&'s str> {
     delimited('[', take_while(0.., |c| c != b']'), ']')
         .try_map(str::from_utf8)
         .parse_next(i)
 }
 
-pub(crate) fn key_value<'s>(i: &mut Stream<'s>) -> Result<(&'s str, &'s str)> {
+pub(crate) fn key_value<'s>(i: &mut Stream<'s>) -> PResult<(&'s str, &'s str)> {
     let key = alphanumeric.try_map(str::from_utf8).parse_next(i)?;
     let _ = (opt(space), '=', opt(space)).parse_next(i)?;
     let val = take_while(0.., |c| c != b'\n' && c != b';')

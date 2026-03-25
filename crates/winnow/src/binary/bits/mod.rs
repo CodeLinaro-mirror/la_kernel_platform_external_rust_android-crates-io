@@ -5,10 +5,10 @@
 mod tests;
 
 use crate::combinator::trace;
-use crate::error::{ErrorConvert, Needed, ParserError};
+use crate::error::{ErrMode, ErrorConvert, ErrorKind, Needed, ParserError};
+use crate::lib::std::ops::{AddAssign, Div, Shl, Shr};
 use crate::stream::{Stream, StreamIsPartial, ToUsize};
-use crate::{Parser, Result};
-use core::ops::{AddAssign, Div, Shl, Shr};
+use crate::{PResult, Parser};
 
 /// Number of bits in a byte
 const BYTE: usize = u8::BITS as usize;
@@ -18,25 +18,25 @@ const BYTE: usize = u8::BITS as usize;
 /// See [`bytes`] to convert it back.
 ///
 /// # Example
-/// ```rust
-/// # use winnow::prelude::*;
-/// # use winnow::Bytes;
-/// # use winnow::binary::bits::{bits, take};
-/// # use winnow::error::ContextError;
-/// # use winnow::error::ErrMode;
+/// ```
+/// use winnow::prelude::*;
+/// use winnow::Bytes;
+/// use winnow::binary::bits::{bits, take};
+/// use winnow::error::InputError;
+///
 /// type Stream<'i> = &'i Bytes;
 ///
 /// fn stream(b: &[u8]) -> Stream<'_> {
 ///     Bytes::new(b)
 /// }
 ///
-/// fn parse(input: &mut Stream<'_>) -> ModalResult<(u8, u8)> {
-///     bits::<_, _, ErrMode<ContextError>, _, _>((take(4usize), take(8usize))).parse_next(input)
+/// fn parse(input: Stream<'_>) -> IResult<Stream<'_>, (u8, u8)> {
+///     bits::<_, _, InputError<(_, usize)>, _, _>((take(4usize), take(8usize))).parse_peek(input)
 /// }
 ///
 /// let input = stream(&[0x12, 0x34, 0xff, 0xff]);
 ///
-/// let output = parse.parse_peek(input).expect("We take 1.5 bytes and the input is longer than 2 bytes");
+/// let output = parse(input).expect("We take 1.5 bytes and the input is longer than 2 bytes");
 ///
 /// // The first byte is consumed, the second byte is partially consumed and dropped.
 /// let remaining = output.0;
@@ -69,13 +69,8 @@ where
                 *input = rest;
                 Ok(result)
             }
-            Err(e) => match e.needed() {
-                Some(n) => Err(ParserError::incomplete(
-                    input,
-                    n.map(|u| u.get() / BYTE + 1),
-                )),
-                None => Err(ErrorConvert::convert(e)),
-            },
+            Err(ErrMode::Incomplete(n)) => Err(ErrMode::Incomplete(n.map(|u| u.get() / BYTE + 1))),
+            Err(e) => Err(e.convert()),
         }
     })
 }
@@ -92,12 +87,11 @@ where
 /// # Examples
 ///
 /// ```
-/// # use winnow::prelude::*;
-/// # use winnow::Bytes;
-/// # use winnow::token::rest;
-/// # use winnow::error::ContextError;
-/// # use winnow::error::ErrMode;
+/// use winnow::prelude::*;
+/// use winnow::Bytes;
 /// use winnow::binary::bits::{bits, bytes, take};
+/// use winnow::token::rest;
+/// use winnow::error::InputError;
 ///
 /// type Stream<'i> = &'i Bytes;
 ///
@@ -105,17 +99,17 @@ where
 ///     Bytes::new(b)
 /// }
 ///
-/// fn parse<'i>(input: &mut Stream<'i>) -> ModalResult<(u8, u8, &'i [u8])> {
-///   bits::<_, _, ErrMode<ContextError>, _, _>((
+/// fn parse(input: Stream<'_>) -> IResult<Stream<'_>, (u8, u8, &[u8])> {
+///   bits::<_, _, InputError<(_, usize)>, _, _>((
 ///     take(4usize),
 ///     take(8usize),
-///     bytes::<_, _, ErrMode<ContextError>, _, _>(rest)
-///   )).parse_next(input)
+///     bytes::<_, _, InputError<_>, _, _>(rest)
+///   )).parse_peek(input)
 /// }
 ///
 /// let input = stream(&[0x12, 0x34, 0xff, 0xff]);
 ///
-/// assert_eq!(parse.parse_peek(input), Ok(( stream(&[]), (0x01, 0x23, &[0xff, 0xff][..]) )));
+/// assert_eq!(parse(input), Ok(( stream(&[]), (0x01, 0x23, &[0xff, 0xff][..]) )));
 /// ```
 pub fn bytes<Input, Output, ByteError, BitError, ParseNext>(
     mut parser: ParseNext,
@@ -138,17 +132,15 @@ where
                 *bit_input = (input, 0);
                 Ok(res)
             }
-            Err(e) => match e.needed() {
-                Some(Needed::Unknown) => Err(ParserError::incomplete(bit_input, Needed::Unknown)),
-                Some(Needed::Size(sz)) => Err(match sz.get().checked_mul(BYTE) {
-                    Some(v) => ParserError::incomplete(bit_input, Needed::new(v)),
-                    None => ParserError::assert(
-                        bit_input,
-                        "overflow in turning needed bytes into needed bits",
-                    ),
-                }),
-                None => Err(ErrorConvert::convert(e)),
-            },
+            Err(ErrMode::Incomplete(Needed::Unknown)) => Err(ErrMode::Incomplete(Needed::Unknown)),
+            Err(ErrMode::Incomplete(Needed::Size(sz))) => Err(match sz.get().checked_mul(BYTE) {
+                Some(v) => ErrMode::Incomplete(Needed::new(v)),
+                None => ErrMode::Cut(BitError::assert(
+                    bit_input,
+                    "overflow in turning needed bytes into needed bits",
+                )),
+            }),
+            Err(e) => Err(e.convert()),
         }
     })
 }
@@ -171,7 +163,7 @@ where
 /// ```rust
 /// # use winnow::prelude::*;
 /// # use winnow::Bytes;
-/// # use winnow::error::ContextError;
+/// # use winnow::error::{InputError, ErrorKind};
 /// use winnow::binary::bits::take;
 ///
 /// type Stream<'i> = &'i Bytes;
@@ -180,17 +172,21 @@ where
 ///     Bytes::new(b)
 /// }
 ///
+/// fn parser(input: (Stream<'_>, usize), count: usize)-> IResult<(Stream<'_>, usize), u8> {
+///   take(count).parse_peek(input)
+/// }
+///
 /// // Consumes 0 bits, returns 0
-/// assert_eq!(take::<_, usize, _, ContextError>(0usize).parse_peek((stream(&[0b00010010]), 0)), Ok(((stream(&[0b00010010]), 0), 0)));
+/// assert_eq!(parser((stream(&[0b00010010]), 0), 0), Ok(((stream(&[0b00010010]), 0), 0)));
 ///
 /// // Consumes 4 bits, returns their values and increase offset to 4
-/// assert_eq!(take::<_, usize, _, ContextError>(4usize).parse_peek((stream(&[0b00010010]), 0)), Ok(((stream(&[0b00010010]), 4), 0b00000001)));
+/// assert_eq!(parser((stream(&[0b00010010]), 0), 4), Ok(((stream(&[0b00010010]), 4), 0b00000001)));
 ///
 /// // Consumes 4 bits, offset is 4, returns their values and increase offset to 0 of next byte
-/// assert_eq!(take::<_, usize, _, ContextError>(4usize).parse_peek((stream(&[0b00010010]), 4)), Ok(((stream(&[]), 0), 0b00000010)));
+/// assert_eq!(parser((stream(&[0b00010010]), 4), 4), Ok(((stream(&[]), 0), 0b00000010)));
 ///
 /// // Tries to consume 12 bits but only 8 are available
-/// assert!(take::<_, usize, _, ContextError>(12usize).parse_peek((stream(&[0b00010010]), 0)).is_err());
+/// assert_eq!(parser((stream(&[0b00010010]), 0), 12), Err(winnow::error::ErrMode::Backtrack(InputError::new((stream(&[0b00010010]), 0), ErrorKind::Eof))));
 /// ```
 #[inline(always)]
 pub fn take<Input, Output, Count, Error>(count: Count) -> impl Parser<(Input, usize), Output, Error>
@@ -213,7 +209,7 @@ where
 fn take_<I, O, E: ParserError<(I, usize)>, const PARTIAL: bool>(
     bit_input: &mut (I, usize),
     count: usize,
-) -> Result<O, E>
+) -> PResult<O, E>
 where
     I: StreamIsPartial,
     I: Stream<Token = u8> + Clone,
@@ -225,9 +221,12 @@ where
         let (mut input, bit_offset) = bit_input.clone();
         if input.eof_offset() * BYTE < count + bit_offset {
             if PARTIAL && input.is_partial() {
-                Err(ParserError::incomplete(bit_input, Needed::new(count)))
+                Err(ErrMode::Incomplete(Needed::new(count)))
             } else {
-                Err(ParserError::from_input(&(input, bit_offset)))
+                Err(ErrMode::from_error_kind(
+                    &(input, bit_offset),
+                    ErrorKind::Eof,
+                ))
             }
         } else {
             let cnt = (count + bit_offset).div(BYTE);
@@ -282,7 +281,7 @@ where
 /// ```rust
 /// # use winnow::prelude::*;
 /// # use winnow::Bytes;
-/// # use winnow::error::ContextError;
+/// # use winnow::error::{InputError, ErrorKind};
 /// use winnow::binary::bits::pattern;
 ///
 /// type Stream<'i> = &'i Bytes;
@@ -294,27 +293,39 @@ where
 /// /// Compare the lowest `count` bits of `input` against the lowest `count` bits of `pattern`.
 /// /// Return Ok and the matching section of `input` if there's a match.
 /// /// Return Err if there's no match.
-/// fn parser(bits: u8, count: u8, input: &mut (Stream<'_>, usize)) -> ModalResult<u8> {
-///     pattern(bits, count).parse_next(input)
+/// fn parser(bits: u8, count: u8, input: (Stream<'_>, usize)) -> IResult<(Stream<'_>, usize), u8> {
+///     pattern(bits, count).parse_peek(input)
 /// }
 ///
 /// // The lowest 4 bits of 0b00001111 match the lowest 4 bits of 0b11111111.
 /// assert_eq!(
-///     pattern::<_, usize, _, ContextError>(0b0000_1111, 4usize).parse_peek((stream(&[0b1111_1111]), 0)),
+///     parser(0b0000_1111, 4, (stream(&[0b1111_1111]), 0)),
 ///     Ok(((stream(&[0b1111_1111]), 4), 0b0000_1111))
 /// );
 ///
 /// // The lowest bit of 0b00001111 matches the lowest bit of 0b11111111 (both are 1).
 /// assert_eq!(
-///     pattern::<_, usize, _, ContextError>(0b00000001, 1usize).parse_peek((stream(&[0b11111111]), 0)),
+///     parser(0b00000001, 1, (stream(&[0b11111111]), 0)),
 ///     Ok(((stream(&[0b11111111]), 1), 0b00000001))
 /// );
 ///
 /// // The lowest 2 bits of 0b11111111 and 0b00000001 are different.
-/// assert!(pattern::<_, usize, _, ContextError>(0b000000_01, 2usize).parse_peek((stream(&[0b111111_11]), 0)).is_err());
+/// assert_eq!(
+///     parser(0b000000_01, 2, (stream(&[0b111111_11]), 0)),
+///     Err(winnow::error::ErrMode::Backtrack(InputError::new(
+///         (stream(&[0b11111111]), 0),
+///         ErrorKind::Tag
+///     )))
+/// );
 ///
 /// // The lowest 8 bits of 0b11111111 and 0b11111110 are different.
-/// assert!(pattern::<_, usize, _, ContextError>(0b11111110, 8usize).parse_peek((stream(&[0b11111111]), 0)).is_err());
+/// assert_eq!(
+///     parser(0b11111110, 8, (stream(&[0b11111111]), 0)),
+///     Err(winnow::error::ErrMode::Backtrack(InputError::new(
+///         (stream(&[0b11111111]), 0),
+///         ErrorKind::Tag
+///     )))
+/// );
 /// ```
 #[inline(always)]
 #[doc(alias = "literal")]
@@ -342,7 +353,10 @@ where
                 Ok(o)
             } else {
                 input.reset(&start);
-                Err(ParserError::from_input(input))
+                Err(ErrMode::Backtrack(Error::from_error_kind(
+                    input,
+                    ErrorKind::Tag,
+                )))
             }
         })
     })
@@ -356,7 +370,7 @@ where
 /// ```rust
 /// # use winnow::prelude::*;;
 /// # use winnow::error::ContextError;
-/// pub fn bool(input: &mut (&[u8], usize)) -> ModalResult<bool>
+/// pub fn bool(input: &mut (&[u8], usize)) -> PResult<bool>
 /// # {
 /// #     winnow::binary::bits::bool.parse_next(input)
 /// # }
@@ -367,7 +381,7 @@ where
 /// ```rust
 /// # use winnow::prelude::*;
 /// # use winnow::Bytes;
-/// # use winnow::error::InputError;
+/// # use winnow::error::{InputError, ErrorKind};
 /// use winnow::binary::bits::bool;
 ///
 /// type Stream<'i> = &'i Bytes;
@@ -376,17 +390,17 @@ where
 ///     Bytes::new(b)
 /// }
 ///
-/// fn parse(input: &mut (Stream<'_>, usize)) -> ModalResult<bool> {
-///     bool.parse_next(input)
+/// fn parse(input: (Stream<'_>, usize)) -> IResult<(Stream<'_>, usize), bool> {
+///     bool.parse_peek(input)
 /// }
 ///
-/// assert_eq!(parse.parse_peek((stream(&[0b10000000]), 0)), Ok(((stream(&[0b10000000]), 1), true)));
-/// assert_eq!(parse.parse_peek((stream(&[0b10000000]), 1)), Ok(((stream(&[0b10000000]), 2), false)));
+/// assert_eq!(parse((stream(&[0b10000000]), 0)), Ok(((stream(&[0b10000000]), 1), true)));
+/// assert_eq!(parse((stream(&[0b10000000]), 1)), Ok(((stream(&[0b10000000]), 2), false)));
 /// ```
 #[doc(alias = "any")]
 pub fn bool<Input, Error: ParserError<(Input, usize)>>(
     input: &mut (Input, usize),
-) -> Result<bool, Error>
+) -> PResult<bool, Error>
 where
     Input: Stream<Token = u8> + StreamIsPartial + Clone,
 {

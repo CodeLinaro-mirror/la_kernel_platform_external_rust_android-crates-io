@@ -14,7 +14,7 @@ use crate::parser::prelude::*;
 // ;; Array
 
 // array = array-open array-values array-close
-pub(crate) fn array<'i>(input: &mut Input<'i>) -> ModalResult<Array> {
+pub(crate) fn array<'i>(input: &mut Input<'i>) -> PResult<Array> {
     trace("array", move |input: &mut Input<'i>| {
         delimited(
             ARRAY_OPEN,
@@ -39,7 +39,7 @@ const ARRAY_SEP: u8 = b',';
 
 // array-values =  ws-comment-newline val ws-comment-newline array-sep array-values
 // array-values =/ ws-comment-newline val ws-comment-newline [ array-sep ]
-fn array_values(input: &mut Input<'_>) -> ModalResult<Array> {
+pub(crate) fn array_values(input: &mut Input<'_>) -> PResult<Array> {
     if peek(opt(ARRAY_CLOSE)).parse_next(input)?.is_some() {
         // Optimize for empty arrays, avoiding `value` from being expected to fail
         return Ok(Array::new());
@@ -57,7 +57,7 @@ fn array_values(input: &mut Input<'_>) -> ModalResult<Array> {
     Ok(array)
 }
 
-fn array_value(input: &mut Input<'_>) -> ModalResult<Item> {
+pub(crate) fn array_value(input: &mut Input<'_>) -> PResult<Item> {
     let prefix = ws_comment_newline.span().parse_next(input)?;
     let value = value.parse_next(input)?;
     let suffix = ws_comment_newline.span().parse_next(input)?;

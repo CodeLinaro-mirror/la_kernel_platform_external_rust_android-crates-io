@@ -6,30 +6,27 @@ use crate::combinator::DisplayDebug;
 #[cfg(feature = "unstable-recover")]
 #[cfg(feature = "std")]
 use crate::error::FromRecoverableError;
-use crate::error::{AddContext, FromExternalError, ParserError};
+use crate::error::{AddContext, ErrMode, ErrorKind, FromExternalError, ParserError};
+use crate::lib::std::borrow::Borrow;
+use crate::lib::std::ops::Range;
 #[cfg(feature = "unstable-recover")]
 #[cfg(feature = "std")]
 use crate::stream::Recover;
 use crate::stream::StreamIsPartial;
 use crate::stream::{Location, Stream};
 use crate::*;
-use core::borrow::Borrow;
-use core::ops::Range;
 
 /// [`Parser`] implementation for [`Parser::by_ref`]
-pub struct ByRef<'p, P, I, O, E> {
+pub struct ByRef<'p, P> {
     pub(crate) p: &'p mut P,
-    pub(crate) i: core::marker::PhantomData<I>,
-    pub(crate) o: core::marker::PhantomData<O>,
-    pub(crate) e: core::marker::PhantomData<E>,
 }
 
-impl<I, O, E, P> Parser<I, O, E> for ByRef<'_, P, I, O, E>
+impl<I, O, E, P> Parser<I, O, E> for ByRef<'_, P>
 where
     P: Parser<I, O, E>,
 {
     #[inline(always)]
-    fn parse_next(&mut self, i: &mut I) -> Result<O, E> {
+    fn parse_next(&mut self, i: &mut I) -> PResult<O, E> {
         self.p.parse_next(i)
     }
 }
@@ -54,7 +51,7 @@ where
     G: FnMut(O) -> O2,
 {
     #[inline]
-    fn parse_next(&mut self, i: &mut I) -> Result<O2, E> {
+    fn parse_next(&mut self, i: &mut I) -> PResult<O2, E> {
         match self.parser.parse_next(i) {
             Err(e) => Err(e),
             Ok(o) => Ok((self.map)(o)),
@@ -69,7 +66,6 @@ where
     G: FnMut(O) -> Result<O2, E2>,
     I: Stream,
     E: FromExternalError<I, E2>,
-    E: ParserError<I>,
 {
     pub(crate) parser: F,
     pub(crate) map: G,
@@ -86,15 +82,14 @@ where
     G: FnMut(O) -> Result<O2, E2>,
     I: Stream,
     E: FromExternalError<I, E2>,
-    E: ParserError<I>,
 {
     #[inline]
-    fn parse_next(&mut self, input: &mut I) -> Result<O2, E> {
+    fn parse_next(&mut self, input: &mut I) -> PResult<O2, E> {
         let start = input.checkpoint();
         let o = self.parser.parse_next(input)?;
         let res = (self.map)(o).map_err(|err| {
             input.reset(&start);
-            E::from_external_error(input, err)
+            ErrMode::from_external_error(input, ErrorKind::Verify, err)
         });
         trace_result("verify", &res);
         res
@@ -125,12 +120,12 @@ where
     E: ParserError<I>,
 {
     #[inline]
-    fn parse_next(&mut self, input: &mut I) -> Result<O2, E> {
+    fn parse_next(&mut self, input: &mut I) -> PResult<O2, E> {
         let start = input.checkpoint();
         let o = self.parser.parse_next(input)?;
         let res = (self.map)(o).ok_or_else(|| {
             input.reset(&start);
-            ParserError::from_input(input)
+            ErrMode::from_error_kind(input, ErrorKind::Verify)
         });
         trace_result("verify", &res);
         res
@@ -161,7 +156,7 @@ where
     I: Stream,
 {
     #[inline(always)]
-    fn parse_next(&mut self, i: &mut I) -> Result<O2, E> {
+    fn parse_next(&mut self, i: &mut I) -> PResult<O2, E> {
         let start = i.checkpoint();
         let mut o = self.outer.parse_next(i)?;
         let _ = o.complete();
@@ -196,12 +191,12 @@ where
     E: ParserError<I>,
 {
     #[inline]
-    fn parse_next(&mut self, i: &mut I) -> Result<O2, E> {
+    fn parse_next(&mut self, i: &mut I) -> PResult<O2, E> {
         let start = i.checkpoint();
         let o = self.p.parse_next(i)?;
         let res = o.parse_slice().ok_or_else(|| {
             i.reset(&start);
-            ParserError::from_input(i)
+            ErrMode::from_error_kind(i, ErrorKind::Verify)
         });
         trace_result("verify", &res);
         res
@@ -231,34 +226,30 @@ where
     H: Parser<I, O2, E>,
 {
     #[inline(always)]
-    fn parse_next(&mut self, i: &mut I) -> Result<O2, E> {
+    fn parse_next(&mut self, i: &mut I) -> PResult<O2, E> {
         let o = self.f.parse_next(i)?;
         (self.g)(o).parse_next(i)
     }
 }
 
 /// [`Parser`] implementation for [`Parser::complete_err`]
-pub struct CompleteErr<P, I, O, E> {
-    pub(crate) p: P,
-    pub(crate) i: core::marker::PhantomData<I>,
-    pub(crate) o: core::marker::PhantomData<O>,
-    pub(crate) e: core::marker::PhantomData<E>,
+pub struct CompleteErr<F> {
+    pub(crate) f: F,
 }
 
-impl<P, I, O, E> Parser<I, O, E> for CompleteErr<P, I, O, E>
+impl<F, I, O, E> Parser<I, O, E> for CompleteErr<F>
 where
-    P: Parser<I, O, E>,
     I: Stream,
+    F: Parser<I, O, E>,
     E: ParserError<I>,
 {
     #[inline]
-    fn parse_next(&mut self, input: &mut I) -> Result<O, E> {
+    fn parse_next(&mut self, input: &mut I) -> PResult<O, E> {
         trace("complete_err", |input: &mut I| {
-            match (self.p).parse_next(input) {
-                Err(err) => match err.needed() {
-                    Some(_) => Err(ParserError::from_input(input)),
-                    None => Err(err),
-                },
+            match (self.f).parse_next(input) {
+                Err(ErrMode::Incomplete(_)) => {
+                    Err(ErrMode::from_error_kind(input, ErrorKind::Complete))
+                }
                 rest => rest,
             }
         })
@@ -294,12 +285,12 @@ where
     E: ParserError<I>,
 {
     #[inline]
-    fn parse_next(&mut self, input: &mut I) -> Result<O, E> {
+    fn parse_next(&mut self, input: &mut I) -> PResult<O, E> {
         let start = input.checkpoint();
         let o = self.parser.parse_next(input)?;
         let res = (self.filter)(o.borrow()).then_some(o).ok_or_else(|| {
             input.reset(&start);
-            ParserError::from_input(input)
+            ErrMode::from_error_kind(input, ErrorKind::Verify)
         });
         trace_result("verify", &res);
         res
@@ -325,7 +316,7 @@ where
     O2: Clone,
 {
     #[inline]
-    fn parse_next(&mut self, input: &mut I) -> Result<O2, E> {
+    fn parse_next(&mut self, input: &mut I) -> PResult<O2, E> {
         (self.parser).parse_next(input).map(|_| self.val.clone())
     }
 }
@@ -349,7 +340,7 @@ where
     O2: core::default::Default,
 {
     #[inline]
-    fn parse_next(&mut self, input: &mut I) -> Result<O2, E> {
+    fn parse_next(&mut self, input: &mut I) -> PResult<O2, E> {
         (self.parser).parse_next(input).map(|_| O2::default())
     }
 }
@@ -370,10 +361,14 @@ where
     F: Parser<I, O, E>,
 {
     #[inline(always)]
-    fn parse_next(&mut self, input: &mut I) -> Result<(), E> {
+    fn parse_next(&mut self, input: &mut I) -> PResult<(), E> {
         (self.parser).parse_next(input).map(|_| ())
     }
 }
+
+/// Replaced with [`Take`]
+#[deprecated(since = "0.6.14", note = "Replaced with `Take`")]
+pub type Recognize<F, I, O, E> = Take<F, I, O, E>;
 
 /// [`Parser`] implementation for [`Parser::take`]
 pub struct Take<F, I, O, E>
@@ -393,7 +388,7 @@ where
     I: Stream,
 {
     #[inline]
-    fn parse_next(&mut self, input: &mut I) -> Result<<I as Stream>::Slice, E> {
+    fn parse_next(&mut self, input: &mut I) -> PResult<<I as Stream>::Slice, E> {
         let checkpoint = input.checkpoint();
         match (self.parser).parse_next(input) {
             Ok(_) => {
@@ -406,6 +401,10 @@ where
         }
     }
 }
+
+/// Replaced with [`WithTaken`]
+#[deprecated(since = "0.6.14", note = "Replaced with `WithTaken`")]
+pub type WithRecognized<F, I, O, E> = WithTaken<F, I, O, E>;
 
 /// [`Parser`] implementation for [`Parser::with_taken`]
 pub struct WithTaken<F, I, O, E>
@@ -425,7 +424,7 @@ where
     I: Stream,
 {
     #[inline]
-    fn parse_next(&mut self, input: &mut I) -> Result<(O, <I as Stream>::Slice), E> {
+    fn parse_next(&mut self, input: &mut I) -> PResult<(O, <I as Stream>::Slice), E> {
         let checkpoint = input.checkpoint();
         match (self.parser).parse_next(input) {
             Ok(result) => {
@@ -457,10 +456,10 @@ where
     I: Stream + Location,
 {
     #[inline]
-    fn parse_next(&mut self, input: &mut I) -> Result<Range<usize>, E> {
-        let start = input.current_token_start();
+    fn parse_next(&mut self, input: &mut I) -> PResult<Range<usize>, E> {
+        let start = input.location();
         self.parser.parse_next(input).map(move |_| {
-            let end = input.previous_token_end();
+            let end = input.location();
             start..end
         })
     }
@@ -484,10 +483,10 @@ where
     I: Stream + Location,
 {
     #[inline]
-    fn parse_next(&mut self, input: &mut I) -> Result<(O, Range<usize>), E> {
-        let start = input.current_token_start();
+    fn parse_next(&mut self, input: &mut I) -> PResult<(O, Range<usize>), E> {
+        let start = input.location();
         self.parser.parse_next(input).map(move |output| {
-            let end = input.previous_token_end();
+            let end = input.location();
             (output, (start..end))
         })
     }
@@ -512,7 +511,7 @@ where
     O: Into<O2>,
 {
     #[inline]
-    fn parse_next(&mut self, i: &mut I) -> Result<O2, E> {
+    fn parse_next(&mut self, i: &mut I) -> PResult<O2, E> {
         self.parser.parse_next(i).map(|o| o.into())
     }
 }
@@ -536,8 +535,10 @@ where
     E: Into<E2>,
 {
     #[inline]
-    fn parse_next(&mut self, i: &mut I) -> Result<O, E2> {
-        self.parser.parse_next(i).map_err(|err| err.into())
+    fn parse_next(&mut self, i: &mut I) -> PResult<O, E2> {
+        self.parser
+            .parse_next(i)
+            .map_err(|err| err.map(|e| e.into()))
     }
 }
 
@@ -547,8 +548,7 @@ where
     F: Parser<I, O, E>,
     I: Stream,
     E: AddContext<I, C>,
-    E: ParserError<I>,
-    C: Clone + core::fmt::Debug,
+    C: Clone + crate::lib::std::fmt::Debug,
 {
     pub(crate) parser: F,
     pub(crate) context: C,
@@ -562,11 +562,10 @@ where
     F: Parser<I, O, E>,
     I: Stream,
     E: AddContext<I, C>,
-    E: ParserError<I>,
-    C: Clone + core::fmt::Debug,
+    C: Clone + crate::lib::std::fmt::Debug,
 {
     #[inline]
-    fn parse_next(&mut self, i: &mut I) -> Result<O, E> {
+    fn parse_next(&mut self, i: &mut I) -> PResult<O, E> {
         let context = self.context.clone();
         trace(DisplayDebug(self.context.clone()), move |i: &mut I| {
             let start = i.checkpoint();
@@ -575,77 +574,6 @@ where
                 .map_err(|err| err.add_context(i, &start, context.clone()))
         })
         .parse_next(i)
-    }
-}
-
-/// [`Parser`] implementation for [`Parser::context`]
-pub struct ContextWith<P, I, O, E, F, C, FI>
-where
-    P: Parser<I, O, E>,
-    I: Stream,
-    E: AddContext<I, C>,
-    E: ParserError<I>,
-    F: Fn() -> FI + Clone,
-    C: core::fmt::Debug,
-    FI: Iterator<Item = C>,
-{
-    pub(crate) parser: P,
-    pub(crate) context: F,
-    pub(crate) i: core::marker::PhantomData<I>,
-    pub(crate) o: core::marker::PhantomData<O>,
-    pub(crate) e: core::marker::PhantomData<E>,
-    pub(crate) c: core::marker::PhantomData<C>,
-    pub(crate) fi: core::marker::PhantomData<FI>,
-}
-
-impl<P, I, O, E, F, C, FI> Parser<I, O, E> for ContextWith<P, I, O, E, F, C, FI>
-where
-    P: Parser<I, O, E>,
-    I: Stream,
-    E: AddContext<I, C>,
-    E: ParserError<I>,
-    F: Fn() -> FI + Clone,
-    C: core::fmt::Debug,
-    FI: Iterator<Item = C>,
-{
-    #[inline]
-    fn parse_next(&mut self, i: &mut I) -> Result<O, E> {
-        let context = self.context.clone();
-        let start = i.checkpoint();
-        (self.parser).parse_next(i).map_err(|mut err| {
-            for context in context() {
-                err = err.add_context(i, &start, context);
-            }
-            err
-        })
-    }
-}
-
-/// [`Parser`] implementation for [`Parser::map_err`]
-pub struct MapErr<F, G, I, O, E, E2>
-where
-    F: Parser<I, O, E>,
-    G: FnMut(E) -> E2,
-{
-    pub(crate) parser: F,
-    pub(crate) map: G,
-    pub(crate) i: core::marker::PhantomData<I>,
-    pub(crate) o: core::marker::PhantomData<O>,
-    pub(crate) e: core::marker::PhantomData<E>,
-    pub(crate) e2: core::marker::PhantomData<E2>,
-}
-
-impl<F, G, I, O, E, E2> Parser<I, O, E2> for MapErr<F, G, I, O, E, E2>
-where
-    F: Parser<I, O, E>,
-    G: FnMut(E) -> E2,
-{
-    #[inline]
-    fn parse_next(&mut self, i: &mut I) -> Result<O, E2> {
-        match self.parser.parse_next(i) {
-            Err(e) => Err((self.map)(e)),
-            Ok(o) => Ok(o),
-        }
     }
 }
 
@@ -658,7 +586,7 @@ where
     R: Parser<I, (), E>,
     I: Stream,
     I: Recover<E>,
-    E: ParserError<I> + FromRecoverableError<I, E>,
+    E: FromRecoverableError<I, E>,
 {
     pub(crate) parser: P,
     pub(crate) recover: R,
@@ -675,10 +603,10 @@ where
     R: Parser<I, (), E>,
     I: Stream,
     I: Recover<E>,
-    E: ParserError<I> + FromRecoverableError<I, E>,
+    E: FromRecoverableError<I, E>,
 {
     #[inline(always)]
-    fn parse_next(&mut self, i: &mut I) -> Result<O, E> {
+    fn parse_next(&mut self, i: &mut I) -> PResult<O, E> {
         if I::is_recovery_supported() {
             retry_after_inner(&mut self.parser, &mut self.recover, i)
         } else {
@@ -689,13 +617,13 @@ where
 
 #[cfg(feature = "unstable-recover")]
 #[cfg(feature = "std")]
-fn retry_after_inner<P, R, I, O, E>(parser: &mut P, recover: &mut R, i: &mut I) -> Result<O, E>
+fn retry_after_inner<P, R, I, O, E>(parser: &mut P, recover: &mut R, i: &mut I) -> PResult<O, E>
 where
     P: Parser<I, O, E>,
     R: Parser<I, (), E>,
     I: Stream,
     I: Recover<E>,
-    E: ParserError<I> + FromRecoverableError<I, E>,
+    E: FromRecoverableError<I, E>,
 {
     loop {
         let token_start = i.checkpoint();
@@ -703,7 +631,7 @@ where
             Ok(o) => {
                 return Ok(o);
             }
-            Err(e) if e.is_incomplete() => return Err(e),
+            Err(ErrMode::Incomplete(e)) => return Err(ErrMode::Incomplete(e)),
             Err(err) => err,
         };
         let err_start = i.checkpoint();
@@ -720,7 +648,7 @@ where
         }
 
         i.reset(&err_start);
-        err = E::from_recoverable_error(&token_start, &err_start, i, err);
+        err = err.map(|err| E::from_recoverable_error(&token_start, &err_start, i, err));
         return Err(err);
     }
 }
@@ -734,7 +662,7 @@ where
     R: Parser<I, (), E>,
     I: Stream,
     I: Recover<E>,
-    E: ParserError<I> + FromRecoverableError<I, E>,
+    E: FromRecoverableError<I, E>,
 {
     pub(crate) parser: P,
     pub(crate) recover: R,
@@ -751,10 +679,10 @@ where
     R: Parser<I, (), E>,
     I: Stream,
     I: Recover<E>,
-    E: ParserError<I> + FromRecoverableError<I, E>,
+    E: FromRecoverableError<I, E>,
 {
     #[inline(always)]
-    fn parse_next(&mut self, i: &mut I) -> Result<Option<O>, E> {
+    fn parse_next(&mut self, i: &mut I) -> PResult<Option<O>, E> {
         if I::is_recovery_supported() {
             resume_after_inner(&mut self.parser, &mut self.recover, i)
         } else {
@@ -769,20 +697,20 @@ fn resume_after_inner<P, R, I, O, E>(
     parser: &mut P,
     recover: &mut R,
     i: &mut I,
-) -> Result<Option<O>, E>
+) -> PResult<Option<O>, E>
 where
     P: Parser<I, O, E>,
     R: Parser<I, (), E>,
     I: Stream,
     I: Recover<E>,
-    E: ParserError<I> + FromRecoverableError<I, E>,
+    E: FromRecoverableError<I, E>,
 {
     let token_start = i.checkpoint();
     let mut err = match parser.parse_next(i) {
         Ok(o) => {
             return Ok(Some(o));
         }
-        Err(e) if e.is_incomplete() => return Err(e),
+        Err(ErrMode::Incomplete(e)) => return Err(ErrMode::Incomplete(e)),
         Err(err) => err,
     };
     let err_start = i.checkpoint();
@@ -795,6 +723,6 @@ where
     }
 
     i.reset(&err_start);
-    err = FromRecoverableError::from_recoverable_error(&token_start, &err_start, i, err);
+    err = err.map(|err| E::from_recoverable_error(&token_start, &err_start, i, err));
     Err(err)
 }

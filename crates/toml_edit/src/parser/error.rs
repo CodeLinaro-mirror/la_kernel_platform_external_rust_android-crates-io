@@ -63,20 +63,21 @@ impl Display for CustomError {
             CustomError::DuplicateKey { key, table } => {
                 if let Some(table) = table {
                     if table.is_empty() {
-                        write!(f, "duplicate key `{key}` in document root")
+                        write!(f, "duplicate key `{}` in document root", key)
                     } else {
                         let path = table.iter().map(|k| k.get()).collect::<Vec<_>>().join(".");
-                        write!(f, "duplicate key `{key}` in table `{path}`")
+                        write!(f, "duplicate key `{}` in table `{}`", key, path)
                     }
                 } else {
-                    write!(f, "duplicate key `{key}`")
+                    write!(f, "duplicate key `{}`", key)
                 }
             }
             CustomError::DottedKeyExtendWrongType { key, actual } => {
                 let path = key.iter().map(|k| k.get()).collect::<Vec<_>>().join(".");
                 write!(
                     f,
-                    "dotted key `{path}` attempted to extend non-table type ({actual})"
+                    "dotted key `{}` attempted to extend non-table type ({})",
+                    path, actual
                 )
             }
             CustomError::OutOfRange => write!(f, "value is out of range"),

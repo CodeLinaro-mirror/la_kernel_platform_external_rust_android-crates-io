@@ -1,7 +1,8 @@
 use crate::key::Key;
 use crate::parser::error::CustomError;
 use crate::repr::Decor;
-use crate::{ArrayOfTables, ImDocument, Item, RawString, Table};
+use crate::table::TableKeyValue;
+use crate::{ArrayOfTables, ImDocument, InternalString, Item, RawString, Table};
 
 pub(crate) struct ParseState {
     root: Table,
@@ -55,23 +56,24 @@ impl ParseState {
     pub(crate) fn on_keyval(
         &mut self,
         path: Vec<Key>,
-        (mut key, value): (Key, Item),
+        mut kv: TableKeyValue,
     ) -> Result<(), CustomError> {
         {
             let mut prefix = self.trailing.take();
             let prefix = match (
                 prefix.take(),
-                key.leaf_decor.prefix().and_then(|d| d.span()),
+                kv.key.leaf_decor.prefix().and_then(|d| d.span()),
             ) {
                 (Some(p), Some(k)) => Some(p.start..k.end),
                 (Some(p), None) | (None, Some(p)) => Some(p),
                 (None, None) => None,
             };
-            key.leaf_decor
+            kv.key
+                .leaf_decor
                 .set_prefix(prefix.map(RawString::with_span).unwrap_or_default());
         }
 
-        if let (Some(existing), Some(value)) = (self.current_table.span(), value.span()) {
+        if let (Some(existing), Some(value)) = (self.current_table.span(), kv.value.span()) {
             self.current_table.span = Some((existing.start)..(value.end));
         }
         let table = &mut self.current_table;
@@ -81,19 +83,20 @@ impl ParseState {
         let mixed_table_types = table.is_dotted() == path.is_empty();
         if mixed_table_types {
             return Err(CustomError::DuplicateKey {
-                key: key.get().into(),
+                key: kv.key.get().into(),
                 table: None,
             });
         }
 
+        let key: InternalString = kv.key.get_internal().into();
         match table.items.entry(key) {
             indexmap::map::Entry::Vacant(o) => {
-                o.insert(value);
+                o.insert(kv);
             }
             indexmap::map::Entry::Occupied(o) => {
                 // "Since tables cannot be defined more than once, redefining such tables using a [table] header is not allowed"
                 return Err(CustomError::DuplicateKey {
-                    key: o.key().get().into(),
+                    key: o.key().as_str().into(),
                     table: Some(self.current_table_path.clone()),
                 });
             }
@@ -231,43 +234,39 @@ impl ParseState {
         dotted: bool,
     ) -> Result<&'t mut Table, CustomError> {
         for (i, key) in path.iter().enumerate() {
-            table = match table.entry_format(key) {
-                crate::Entry::Vacant(entry) => {
-                    let mut new_table = Table::new();
-                    new_table.set_implicit(true);
-                    new_table.set_dotted(dotted);
+            let entry = table.entry_format(key).or_insert_with(|| {
+                let mut new_table = Table::new();
+                new_table.set_implicit(true);
+                new_table.set_dotted(dotted);
 
-                    entry.insert(Item::Table(new_table)).as_table_mut().unwrap()
+                Item::Table(new_table)
+            });
+            match *entry {
+                Item::Value(ref v) => {
+                    return Err(CustomError::extend_wrong_type(path, i, v.type_name()));
                 }
-                crate::Entry::Occupied(entry) => {
-                    match entry.into_mut() {
-                        Item::Value(ref v) => {
-                            return Err(CustomError::extend_wrong_type(path, i, v.type_name()));
-                        }
-                        Item::ArrayOfTables(ref mut array) => {
-                            debug_assert!(!array.is_empty());
+                Item::ArrayOfTables(ref mut array) => {
+                    debug_assert!(!array.is_empty());
 
-                            let index = array.len() - 1;
-                            let last_child = array.get_mut(index).unwrap();
+                    let index = array.len() - 1;
+                    let last_child = array.get_mut(index).unwrap();
 
-                            last_child
-                        }
-                        Item::Table(ref mut sweet_child_of_mine) => {
-                            // Since tables cannot be defined more than once, redefining such tables using a
-                            // [table] header is not allowed. Likewise, using dotted keys to redefine tables
-                            // already defined in [table] form is not allowed.
-                            if dotted && !sweet_child_of_mine.is_implicit() {
-                                return Err(CustomError::DuplicateKey {
-                                    key: key.get().into(),
-                                    table: None,
-                                });
-                            }
-                            sweet_child_of_mine
-                        }
-                        Item::None => unreachable!(),
+                    table = last_child;
+                }
+                Item::Table(ref mut sweet_child_of_mine) => {
+                    // Since tables cannot be defined more than once, redefining such tables using a
+                    // [table] header is not allowed. Likewise, using dotted keys to redefine tables
+                    // already defined in [table] form is not allowed.
+                    if dotted && !sweet_child_of_mine.is_implicit() {
+                        return Err(CustomError::DuplicateKey {
+                            key: key.get().into(),
+                            table: None,
+                        });
                     }
+                    table = sweet_child_of_mine;
                 }
-            };
+                Item::None => unreachable!(),
+            }
         }
         Ok(table)
     }

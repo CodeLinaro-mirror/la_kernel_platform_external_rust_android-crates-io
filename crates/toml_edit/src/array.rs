@@ -5,7 +5,8 @@ use crate::repr::Decor;
 use crate::value::{DEFAULT_LEADING_VALUE_DECOR, DEFAULT_VALUE_DECOR};
 use crate::{Item, RawString, Value};
 
-/// A TOML [`Value`] that contains a sequence of [`Value`]s
+/// Type representing a TOML array,
+/// payload of the `Value::Array` variant's value
 #[derive(Debug, Default, Clone)]
 pub struct Array {
     // `trailing` represents whitespaces, newlines
@@ -19,11 +20,11 @@ pub struct Array {
     pub(crate) values: Vec<Item>,
 }
 
-/// An owned iterator type over [`Array`]'s [`Value`]s
+/// An owned iterator type over `Table`'s key/value pairs.
 pub type ArrayIntoIter = Box<dyn Iterator<Item = Value>>;
-/// An iterator type over [`Array`]'s [`Value`]s
+/// An iterator type over `Array`'s values.
 pub type ArrayIter<'a> = Box<dyn Iterator<Item = &'a Value> + 'a>;
-/// An iterator type over [`Array`]'s [`Value`]s
+/// An iterator type over `Array`'s values.
 pub type ArrayIterMut<'a> = Box<dyn Iterator<Item = &'a mut Value> + 'a>;
 
 /// Constructors
@@ -286,7 +287,7 @@ impl Array {
     pub fn replace_formatted(&mut self, index: usize, v: Value) -> Value {
         match mem::replace(&mut self.values[index], Item::Value(v)) {
             Item::Value(old_value) => old_value,
-            x => panic!("non-value item {x:?} in an array"),
+            x => panic!("non-value item {:?} in an array", x),
         }
     }
 
@@ -306,7 +307,7 @@ impl Array {
         let removed = self.values.remove(index);
         match removed {
             Item::Value(v) => v,
-            x => panic!("non-value item {x:?} in an array"),
+            x => panic!("non-value item {:?} in an array", x),
         }
     }
 

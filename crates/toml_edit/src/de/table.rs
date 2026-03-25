@@ -89,7 +89,7 @@ impl<'de> serde::Deserializer<'de> for TableDeserializer {
     }
 }
 
-impl IntoDeserializer<'_, Error> for TableDeserializer {
+impl<'de> IntoDeserializer<'de, Error> for TableDeserializer {
     type Deserializer = TableDeserializer;
 
     fn into_deserializer(self) -> Self::Deserializer {
@@ -116,7 +116,7 @@ impl crate::InlineTable {
 }
 
 pub(crate) struct TableMapAccess {
-    iter: indexmap::map::IntoIter<crate::Key, crate::Item>,
+    iter: indexmap::map::IntoIter<crate::InternalString, crate::table::TableKeyValue>,
     span: Option<std::ops::Range<usize>>,
     value: Option<(crate::Key, crate::Item)>,
 }
@@ -140,17 +140,16 @@ impl<'de> serde::de::MapAccess<'de> for TableMapAccess {
     {
         match self.iter.next() {
             Some((k, v)) => {
-                let key_span = k.span();
                 let ret = seed
-                    .deserialize(super::KeyDeserializer::new(k.clone(), key_span.clone()))
+                    .deserialize(super::KeyDeserializer::new(k, v.key.span()))
                     .map(Some)
                     .map_err(|mut e: Self::Error| {
                         if e.span().is_none() {
-                            e.set_span(key_span);
+                            e.set_span(v.key.span());
                         }
                         e
                     });
-                self.value = Some((k, v));
+                self.value = Some((v.key, v.value));
                 ret
             }
             None => Ok(None),
@@ -202,12 +201,12 @@ impl<'de> serde::de::EnumAccess<'de> for TableMapAccess {
             .deserialize(key.into_deserializer())
             .map_err(|mut e: Self::Error| {
                 if e.span().is_none() {
-                    e.set_span(key.span());
+                    e.set_span(value.key.span());
                 }
                 e
             })?;
 
-        let variant = super::TableEnumDeserializer::new(value);
+        let variant = super::TableEnumDeserializer::new(value.value);
 
         Ok((val, variant))
     }

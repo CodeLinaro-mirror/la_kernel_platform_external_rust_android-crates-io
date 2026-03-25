@@ -13,19 +13,17 @@ pub use crate::seq;
 /// # Example
 ///
 /// ```rust
-/// # use winnow::{error::ErrMode, error::Needed};
+/// # use winnow::{error::ErrMode, error::ErrorKind, error::InputError, error::Needed};
 /// # use winnow::prelude::*;
 /// # use winnow::error::Needed::Size;
 /// use winnow::combinator::preceded;
 ///
-/// fn parser<'i>(input: &mut &'i str) -> ModalResult<&'i str> {
-///     preceded("abc", "efg").parse_next(input)
-/// }
+/// let mut parser = preceded("abc", "efg");
 ///
 /// assert_eq!(parser.parse_peek("abcefg"), Ok(("", "efg")));
 /// assert_eq!(parser.parse_peek("abcefghij"), Ok(("hij", "efg")));
-/// assert!(parser.parse_peek("").is_err());
-/// assert!(parser.parse_peek("123").is_err());
+/// assert_eq!(parser.parse_peek(""), Err(ErrMode::Backtrack(InputError::new("", ErrorKind::Tag))));
+/// assert_eq!(parser.parse_peek("123"), Err(ErrMode::Backtrack(InputError::new("123", ErrorKind::Tag))));
 /// ```
 #[doc(alias = "ignore_then")]
 pub fn preceded<Input, Ignored, Output, Error, IgnoredParser, ParseNext>(
@@ -51,19 +49,17 @@ where
 /// # Example
 ///
 /// ```rust
-/// # use winnow::{error::ErrMode, error::Needed};
+/// # use winnow::{error::ErrMode, error::ErrorKind, error::InputError, error::Needed};
 /// # use winnow::prelude::*;
 /// # use winnow::error::Needed::Size;
 /// use winnow::combinator::terminated;
 ///
-/// fn parser<'i>(input: &mut &'i str) -> ModalResult<&'i str> {
-///     terminated("abc", "efg").parse_next(input)
-/// }
+/// let mut parser = terminated("abc", "efg");
 ///
 /// assert_eq!(parser.parse_peek("abcefg"), Ok(("", "abc")));
 /// assert_eq!(parser.parse_peek("abcefghij"), Ok(("hij", "abc")));
-/// assert!(parser.parse_peek("").is_err());
-/// assert!(parser.parse_peek("123").is_err());
+/// assert_eq!(parser.parse_peek(""), Err(ErrMode::Backtrack(InputError::new("", ErrorKind::Tag))));
+/// assert_eq!(parser.parse_peek("123"), Err(ErrMode::Backtrack(InputError::new("123", ErrorKind::Tag))));
 /// ```
 #[doc(alias = "then_ignore")]
 pub fn terminated<Input, Output, Ignored, Error, ParseNext, IgnoredParser>(
@@ -89,19 +85,17 @@ where
 /// # Example
 ///
 /// ```rust
-/// # use winnow::{error::ErrMode, error::Needed};
+/// # use winnow::{error::ErrMode, error::ErrorKind, error::InputError, error::Needed};
 /// # use winnow::error::Needed::Size;
 /// # use winnow::prelude::*;
 /// use winnow::combinator::separated_pair;
 ///
-/// fn parser<'i>(input: &mut &'i str) -> ModalResult<(&'i str, &'i str)> {
-///     separated_pair("abc", "|", "efg").parse_next(input)
-/// }
+/// let mut parser = separated_pair("abc", "|", "efg");
 ///
 /// assert_eq!(parser.parse_peek("abc|efg"), Ok(("", ("abc", "efg"))));
 /// assert_eq!(parser.parse_peek("abc|efghij"), Ok(("hij", ("abc", "efg"))));
-/// assert!(parser.parse_peek("").is_err());
-/// assert!(parser.parse_peek("123").is_err());
+/// assert_eq!(parser.parse_peek(""), Err(ErrMode::Backtrack(InputError::new("", ErrorKind::Tag))));
+/// assert_eq!(parser.parse_peek("123"), Err(ErrMode::Backtrack(InputError::new("123", ErrorKind::Tag))));
 /// ```
 pub fn separated_pair<Input, O1, Sep, O2, Error, P1, SepParser, P2>(
     mut first: P1,
@@ -129,19 +123,17 @@ where
 /// # Example
 ///
 /// ```rust
-/// # use winnow::{error::ErrMode, error::Needed};
+/// # use winnow::{error::ErrMode, error::ErrorKind, error::InputError, error::Needed};
 /// # use winnow::error::Needed::Size;
 /// # use winnow::prelude::*;
 /// use winnow::combinator::delimited;
 ///
-/// fn parser<'i>(input: &mut &'i str) -> ModalResult<&'i str> {
-///     delimited("(", "abc", ")").parse_next(input)
-/// }
+/// let mut parser = delimited("(", "abc", ")");
 ///
 /// assert_eq!(parser.parse_peek("(abc)"), Ok(("", "abc")));
 /// assert_eq!(parser.parse_peek("(abc)def"), Ok(("def", "abc")));
-/// assert!(parser.parse_peek("").is_err());
-/// assert!(parser.parse_peek("123").is_err());
+/// assert_eq!(parser.parse_peek(""), Err(ErrMode::Backtrack(InputError::new("", ErrorKind::Tag))));
+/// assert_eq!(parser.parse_peek("123"), Err(ErrMode::Backtrack(InputError::new("123", ErrorKind::Tag))));
 /// ```
 #[doc(alias = "between")]
 #[doc(alias = "padded")]

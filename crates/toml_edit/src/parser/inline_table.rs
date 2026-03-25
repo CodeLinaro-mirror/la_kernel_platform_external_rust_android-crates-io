@@ -10,14 +10,15 @@ use crate::parser::key::key;
 use crate::parser::prelude::*;
 use crate::parser::trivia::ws;
 use crate::parser::value::value;
-use crate::{InlineTable, Item, RawString, Value};
+use crate::table::TableKeyValue;
+use crate::{InlineTable, InternalString, Item, RawString, Value};
 
 use indexmap::map::Entry;
 
 // ;; Inline Table
 
 // inline-table = inline-table-open inline-table-keyvals inline-table-close
-pub(crate) fn inline_table<'i>(input: &mut Input<'i>) -> ModalResult<InlineTable> {
+pub(crate) fn inline_table<'i>(input: &mut Input<'i>) -> PResult<InlineTable> {
     trace("inline-table", move |input: &mut Input<'i>| {
         delimited(
             INLINE_TABLE_OPEN,
@@ -32,7 +33,7 @@ pub(crate) fn inline_table<'i>(input: &mut Input<'i>) -> ModalResult<InlineTable
 }
 
 fn table_from_pairs(
-    v: Vec<(Vec<Key>, (Key, Item))>,
+    v: Vec<(Vec<Key>, TableKeyValue)>,
     preamble: RawString,
 ) -> Result<InlineTable, CustomError> {
     let mut root = InlineTable::new();
@@ -40,25 +41,26 @@ fn table_from_pairs(
     // Assuming almost all pairs will be directly in `root`
     root.items.reserve(v.len());
 
-    for (path, (key, value)) in v {
-        let table = descend_path(&mut root, &path, true)?;
+    for (path, kv) in v {
+        let table = descend_path(&mut root, &path)?;
 
         // "Likewise, using dotted keys to redefine tables already defined in [table] form is not allowed"
         let mixed_table_types = table.is_dotted() == path.is_empty();
         if mixed_table_types {
             return Err(CustomError::DuplicateKey {
-                key: key.get().into(),
+                key: kv.key.get().into(),
                 table: None,
             });
         }
 
+        let key: InternalString = kv.key.get_internal().into();
         match table.items.entry(key) {
             Entry::Vacant(o) => {
-                o.insert(value);
+                o.insert(kv);
             }
             Entry::Occupied(o) => {
                 return Err(CustomError::DuplicateKey {
-                    key: o.key().get().into(),
+                    key: o.key().as_str().into(),
                     table: None,
                 });
             }
@@ -70,40 +72,33 @@ fn table_from_pairs(
 fn descend_path<'a>(
     mut table: &'a mut InlineTable,
     path: &'a [Key],
-    dotted: bool,
 ) -> Result<&'a mut InlineTable, CustomError> {
+    let dotted = !path.is_empty();
     for (i, key) in path.iter().enumerate() {
-        table = match table.entry_format(key) {
-            crate::InlineEntry::Vacant(entry) => {
-                let mut new_table = InlineTable::new();
-                new_table.set_implicit(true);
-                new_table.set_dotted(dotted);
+        let entry = table.entry_format(key).or_insert_with(|| {
+            let mut new_table = InlineTable::new();
+            new_table.set_implicit(dotted);
+            new_table.set_dotted(dotted);
 
-                entry
-                    .insert(Value::InlineTable(new_table))
-                    .as_inline_table_mut()
-                    .unwrap()
-            }
-            crate::InlineEntry::Occupied(entry) => {
-                match entry.into_mut() {
-                    Value::InlineTable(ref mut sweet_child_of_mine) => {
-                        // Since tables cannot be defined more than once, redefining such tables using a
-                        // [table] header is not allowed. Likewise, using dotted keys to redefine tables
-                        // already defined in [table] form is not allowed.
-                        if dotted && !sweet_child_of_mine.is_implicit() {
-                            return Err(CustomError::DuplicateKey {
-                                key: key.get().into(),
-                                table: None,
-                            });
-                        }
-                        sweet_child_of_mine
-                    }
-                    ref v => {
-                        return Err(CustomError::extend_wrong_type(path, i, v.type_name()));
-                    }
+            Value::InlineTable(new_table)
+        });
+        match *entry {
+            Value::InlineTable(ref mut sweet_child_of_mine) => {
+                // Since tables cannot be defined more than once, redefining such tables using a
+                // [table] header is not allowed. Likewise, using dotted keys to redefine tables
+                // already defined in [table] form is not allowed.
+                if dotted && !sweet_child_of_mine.is_implicit() {
+                    return Err(CustomError::DuplicateKey {
+                        key: key.get().into(),
+                        table: None,
+                    });
                 }
+                table = sweet_child_of_mine;
             }
-        };
+            ref v => {
+                return Err(CustomError::extend_wrong_type(path, i, v.type_name()));
+            }
+        }
     }
     Ok(table)
 }
@@ -124,7 +119,7 @@ pub(crate) const KEYVAL_SEP: u8 = b'=';
 
 fn inline_table_keyvals(
     input: &mut Input<'_>,
-) -> ModalResult<(Vec<(Vec<Key>, (Key, Item))>, RawString)> {
+) -> PResult<(Vec<(Vec<Key>, TableKeyValue)>, RawString)> {
     (
         separated(0.., keyval, INLINE_TABLE_SEP),
         ws.span().map(RawString::with_span),
@@ -132,7 +127,7 @@ fn inline_table_keyvals(
         .parse_next(input)
 }
 
-fn keyval(input: &mut Input<'_>) -> ModalResult<(Vec<Key>, (Key, Item))> {
+fn keyval(input: &mut Input<'_>) -> PResult<(Vec<Key>, TableKeyValue)> {
     (
         key,
         cut_err((
@@ -150,7 +145,13 @@ fn keyval(input: &mut Input<'_>) -> ModalResult<(Vec<Key>, (Key, Item))> {
             let pre = RawString::with_span(pre);
             let suf = RawString::with_span(suf);
             let v = v.decorated(pre, suf);
-            (path, (key, Item::Value(v)))
+            (
+                path,
+                TableKeyValue {
+                    key,
+                    value: Item::Value(v),
+                },
+            )
         })
         .parse_next(input)
 }

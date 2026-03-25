@@ -51,7 +51,12 @@ pub(crate) fn parse_key_path(raw: &str) -> Result<Vec<crate::Key>, TomlError> {
     let b = new_input(raw);
     let result = key::key.parse(b.clone());
     match result {
-        Ok(keys) => Ok(keys),
+        Ok(mut keys) => {
+            for key in &mut keys {
+                key.despan(raw);
+            }
+            Ok(keys)
+        }
         Err(e) => Err(TomlError::new(e, b)),
     }
 }
@@ -62,7 +67,12 @@ pub(crate) fn parse_value(raw: &str) -> Result<crate::Value, TomlError> {
     let b = new_input(raw);
     let parsed = value::value.parse(b.clone());
     match parsed {
-        Ok(value) => Ok(value),
+        Ok(mut value) => {
+            // Only take the repr and not decor, as its probably not intended
+            value.decor_mut().clear();
+            value.despan(raw);
+            Ok(value)
+        }
         Err(e) => Err(TomlError::new(e, b)),
     }
 }
@@ -73,16 +83,14 @@ pub(crate) mod prelude {
     pub(crate) use winnow::error::FromExternalError;
     pub(crate) use winnow::error::StrContext;
     pub(crate) use winnow::error::StrContextValue;
-    pub(crate) use winnow::ModalParser;
-    pub(crate) use winnow::ModalResult;
-    pub(crate) use winnow::Parser as _;
+    pub(crate) use winnow::PResult;
+    pub(crate) use winnow::Parser;
 
-    pub(crate) type Input<'b> =
-        winnow::Stateful<winnow::LocatingSlice<&'b winnow::BStr>, RecursionCheck>;
+    pub(crate) type Input<'b> = winnow::Stateful<winnow::Located<&'b winnow::BStr>, RecursionCheck>;
 
     pub(crate) fn new_input(s: &str) -> Input<'_> {
         winnow::Stateful {
-            input: winnow::LocatingSlice::new(winnow::BStr::new(s)),
+            input: winnow::Located::new(winnow::BStr::new(s)),
             state: Default::default(),
         }
     }
@@ -126,13 +134,17 @@ pub(crate) mod prelude {
     }
 
     pub(crate) fn check_recursion<'b, O>(
-        mut parser: impl ModalParser<Input<'b>, O, ContextError>,
-    ) -> impl ModalParser<Input<'b>, O, ContextError> {
+        mut parser: impl Parser<Input<'b>, O, ContextError>,
+    ) -> impl Parser<Input<'b>, O, ContextError> {
         move |input: &mut Input<'b>| {
-            input
-                .state
-                .enter()
-                .map_err(|err| winnow::error::ErrMode::from_external_error(input, err).cut())?;
+            input.state.enter().map_err(|err| {
+                winnow::error::ErrMode::from_external_error(
+                    input,
+                    winnow::error::ErrorKind::Eof,
+                    err,
+                )
+                .cut()
+            })?;
             let result = parser.parse_next(input);
             input.state.exit();
             result
@@ -214,7 +226,10 @@ key = "value"
             let doc = match parsed {
                 Ok(doc) => doc,
                 Err(err) => {
-                    panic!("Parse error: {err:?}\nFailed to parse:\n```\n{input}\n```")
+                    panic!(
+                        "Parse error: {:?}\nFailed to parse:\n```\n{}\n```",
+                        err, input
+                    )
                 }
             };
 
@@ -236,7 +251,10 @@ authors = []
             match parsed {
                 Ok(_) => (),
                 Err(err) => {
-                    panic!("Parse error: {err:?}\nFailed to parse:\n```\n{input}\n```")
+                    panic!(
+                        "Parse error: {:?}\nFailed to parse:\n```\n{}\n```",
+                        err, input
+                    )
                 }
             }
         }
@@ -249,7 +267,7 @@ $"#];
         for input in invalid_inputs {
             dbg!(input);
             let parsed = parse_document(input).map(|d| d.into_mut());
-            assert!(parsed.is_err(), "Input: {input:?}");
+            assert!(parsed.is_err(), "Input: {:?}", input);
         }
     }
 }

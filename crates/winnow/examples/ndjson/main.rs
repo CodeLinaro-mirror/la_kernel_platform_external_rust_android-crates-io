@@ -7,6 +7,7 @@ use winnow::error::ErrMode;
 use winnow::error::Needed;
 use winnow::prelude::*;
 use winnow::stream::Offset;
+use winnow::stream::Stream as _;
 
 fn main() -> Result<(), lexopt::Error> {
     let args = Args::parse()?;

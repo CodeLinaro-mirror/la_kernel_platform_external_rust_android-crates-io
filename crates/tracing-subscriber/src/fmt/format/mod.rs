@@ -49,7 +49,7 @@ use tracing_log::NormalizeEvent;
 use nu_ansi_term::{Color, Style};
 
 mod escape;
-use escape::EscapeGuard;
+use escape::Escape;
 
 #[cfg(feature = "json")]
 mod json;
@@ -310,7 +310,6 @@ pub struct Writer<'writer> {
     writer: &'writer mut dyn fmt::Write,
     // TODO(eliza): add ANSI support
     is_ansi: bool,
-    ansi_sanitization: bool,
 }
 
 /// A [`FormatFields`] implementation that formats fields by calling a function
@@ -401,7 +400,7 @@ pub struct Full;
 /// span context, but other information is abbreviated. The [`Pretty`] logging
 /// format is an extra-verbose, multi-line human-readable logging format
 /// intended for use in development.
-///
+/// 
 /// [`FmtSubscriber`]: super::Subscriber
 #[derive(Debug, Clone)]
 pub struct Format<F = Full, T = SystemTime> {
@@ -442,20 +441,12 @@ impl<'writer> Writer<'writer> {
         Self {
             writer: writer as &mut dyn fmt::Write,
             is_ansi: false,
-            ansi_sanitization: true,
         }
     }
 
     // TODO(eliza): consider making this a public API?
     pub(crate) fn with_ansi(self, is_ansi: bool) -> Self {
         Self { is_ansi, ..self }
-    }
-
-    pub(crate) fn with_ansi_sanitization(self, ansi_sanitization: bool) -> Self {
-        Self {
-            ansi_sanitization,
-            ..self
-        }
     }
 
     /// Return a new [`Writer`] that mutably borrows [`self`].
@@ -465,11 +456,9 @@ impl<'writer> Writer<'writer> {
     /// to still be used once that function returns.
     pub fn by_ref(&mut self) -> Writer<'_> {
         let is_ansi = self.is_ansi;
-        let ansi_sanitization = self.ansi_sanitization;
         Writer {
             writer: self as &mut dyn fmt::Write,
             is_ansi,
-            ansi_sanitization,
         }
     }
 
@@ -542,11 +531,6 @@ impl<'writer> Writer<'writer> {
         self.is_ansi
     }
 
-    /// Returns `true` if ANSI escape codes should be sanitized.
-    pub fn sanitizes_ansi_escapes(&self) -> bool {
-        self.ansi_sanitization
-    }
-
     pub(in crate::fmt::format) fn bold(&self) -> Style {
         #[cfg(feature = "ansi")]
         {
@@ -603,7 +587,6 @@ impl fmt::Debug for Writer<'_> {
         f.debug_struct("Writer")
             .field("writer", &format_args!("<&mut dyn fmt::Write>"))
             .field("is_ansi", &self.is_ansi)
-            .field("ansi_sanitization", &self.ansi_sanitization)
             .finish()
     }
 }
@@ -1274,24 +1257,23 @@ impl field::Visit for DefaultVisitor<'_> {
     }
 
     fn record_error(&mut self, field: &Field, value: &(dyn std::error::Error + 'static)) {
-        let sanitize = self.writer.sanitizes_ansi_escapes();
         if let Some(source) = value.source() {
             let italic = self.writer.italic();
             self.record_debug(
                 field,
                 &format_args!(
                     "{} {}{}{}{}",
-                    EscapeGuard::new(format_args!("{}", value), sanitize),
+                    Escape(&format_args!("{}", value)),
                     italic.paint(field.name()),
                     italic.paint(".sources"),
                     self.writer.dimmed().paint("="),
-                    ErrorSourceList::new(source, sanitize)
+                    ErrorSourceList(source)
                 ),
             )
         } else {
             self.record_debug(
                 field,
-                &format_args!("{}", EscapeGuard::new(format_args!("{}", value), sanitize)),
+                &format_args!("{}", Escape(&format_args!("{}", value))),
             )
         }
     }
@@ -1316,11 +1298,7 @@ impl field::Visit for DefaultVisitor<'_> {
         self.result = match name {
             "message" => {
                 // Escape ANSI characters to prevent malicious patterns (e.g., terminal injection attacks)
-                write!(
-                    self.writer,
-                    "{:?}",
-                    EscapeGuard::new(value, self.writer.sanitizes_ansi_escapes())
-                )
+                write!(self.writer, "{:?}", Escape(value))
             }
             name if name.starts_with("r#") => write!(
                 self.writer,
@@ -1353,29 +1331,14 @@ impl crate::field::VisitFmt for DefaultVisitor<'_> {
 }
 
 /// Renders an error into a list of sources, *including* the error.
-struct ErrorSourceList<'a> {
-    error: &'a (dyn std::error::Error + 'static),
-    ansi_sanitization: bool,
-}
-
-impl<'a> ErrorSourceList<'a> {
-    fn new(error: &'a (dyn std::error::Error + 'static), ansi_sanitization: bool) -> Self {
-        Self {
-            error,
-            ansi_sanitization,
-        }
-    }
-}
+struct ErrorSourceList<'a>(&'a (dyn std::error::Error + 'static));
 
 impl Display for ErrorSourceList<'_> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let mut list = f.debug_list();
-        let mut curr = Some(self.error);
+        let mut curr = Some(self.0);
         while let Some(curr_err) = curr {
-            list.entry(&EscapeGuard::new(
-                format_args!("{}", curr_err),
-                self.ansi_sanitization,
-            ));
+            list.entry(&Escape(&format_args!("{}", curr_err)));
             curr = curr_err.source();
         }
         list.finish()
@@ -1638,7 +1601,7 @@ impl<F> fmt::Debug for FieldFnVisitor<'_, F> {
 /// Configures what points in the span lifecycle are logged as events.
 ///
 /// See also [`with_span_events`].
-///
+/// 
 /// [`with_span_events`]: super::SubscriberBuilder::with_span_events
 #[derive(Clone, Eq, PartialEq, Ord, PartialOrd)]
 pub struct FmtSpan(u8);

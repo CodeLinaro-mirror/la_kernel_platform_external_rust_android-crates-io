@@ -17,7 +17,7 @@ use crate::RawString;
 
 // key = simple-key / dotted-key
 // dotted-key = simple-key 1*( dot-sep simple-key )
-pub(crate) fn key(input: &mut Input<'_>) -> ModalResult<Vec<Key>> {
+pub(crate) fn key(input: &mut Input<'_>) -> PResult<Vec<Key>> {
     let mut key_path = trace(
         "dotted-key",
         separated(
@@ -68,7 +68,7 @@ pub(crate) fn key(input: &mut Input<'_>) -> ModalResult<Vec<Key>> {
 
 // simple-key = quoted-key / unquoted-key
 // quoted-key = basic-string / literal-string
-pub(crate) fn simple_key(input: &mut Input<'_>) -> ModalResult<(RawString, InternalString)> {
+pub(crate) fn simple_key(input: &mut Input<'_>) -> PResult<(RawString, InternalString)> {
     trace(
         "simple-key",
         dispatch! {peek(any);
@@ -87,13 +87,18 @@ pub(crate) fn simple_key(input: &mut Input<'_>) -> ModalResult<(RawString, Inter
 }
 
 // unquoted-key = 1*( ALPHA / DIGIT / %x2D / %x5F ) ; A-Z / a-z / 0-9 / - / _
-fn unquoted_key<'i>(input: &mut Input<'i>) -> ModalResult<&'i str> {
+fn unquoted_key<'i>(input: &mut Input<'i>) -> PResult<&'i str> {
     trace(
         "unquoted-key",
         take_while(1.., UNQUOTED_CHAR)
             .map(|b| unsafe { from_utf8_unchecked(b, "`is_unquoted_char` filters out on-ASCII") }),
     )
     .parse_next(input)
+}
+
+pub(crate) fn is_unquoted_char(c: u8) -> bool {
+    use winnow::stream::ContainsToken;
+    UNQUOTED_CHAR.contains_token(c)
 }
 
 const UNQUOTED_CHAR: (

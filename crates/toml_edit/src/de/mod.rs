@@ -21,7 +21,7 @@ use table_enum::TableEnumDeserializer;
 pub use value::ValueDeserializer;
 
 /// Errors that can occur when deserializing a type.
-#[derive(Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Error {
     inner: crate::TomlError,
 }
@@ -66,12 +66,6 @@ impl serde::de::Error for Error {
 }
 
 impl std::fmt::Display for Error {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        self.inner.fmt(f)
-    }
-}
-
-impl std::fmt::Debug for Error {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         self.inner.fmt(f)
     }
@@ -269,7 +263,7 @@ impl<'de, S: Into<String>> serde::Deserializer<'de> for Deserializer<S> {
     }
 }
 
-impl serde::de::IntoDeserializer<'_, Error> for Deserializer {
+impl<'de> serde::de::IntoDeserializer<'de, Error> for Deserializer {
     type Deserializer = Deserializer;
 
     fn into_deserializer(self) -> Self::Deserializer {
@@ -277,7 +271,7 @@ impl serde::de::IntoDeserializer<'_, Error> for Deserializer {
     }
 }
 
-impl serde::de::IntoDeserializer<'_, Error> for crate::DocumentMut {
+impl<'de> serde::de::IntoDeserializer<'de, Error> for crate::DocumentMut {
     type Deserializer = Deserializer;
 
     fn into_deserializer(self) -> Self::Deserializer {
@@ -285,7 +279,7 @@ impl serde::de::IntoDeserializer<'_, Error> for crate::DocumentMut {
     }
 }
 
-impl serde::de::IntoDeserializer<'_, Error> for crate::ImDocument<String> {
+impl<'de> serde::de::IntoDeserializer<'de, Error> for crate::ImDocument<String> {
     type Deserializer = Deserializer;
 
     fn into_deserializer(self) -> Self::Deserializer {
@@ -298,10 +292,10 @@ pub(crate) fn validate_struct_keys(
     fields: &'static [&'static str],
 ) -> Result<(), Error> {
     let extra_fields = table
-        .keys()
-        .filter_map(|key| {
-            if !fields.contains(&key.get()) {
-                Some(key.clone())
+        .iter()
+        .filter_map(|(key, val)| {
+            if !fields.contains(&key.as_str()) {
+                Some(val.clone())
             } else {
                 None
             }
@@ -316,12 +310,12 @@ pub(crate) fn validate_struct_keys(
                 "unexpected keys in table: {}, available keys: {}",
                 extra_fields
                     .iter()
-                    .map(|k| k.get())
+                    .map(|k| k.key.get())
                     .collect::<Vec<_>>()
                     .join(", "),
                 fields.join(", "),
             ),
-            extra_fields[0].span(),
+            extra_fields[0].key.span(),
         ))
     }
 }

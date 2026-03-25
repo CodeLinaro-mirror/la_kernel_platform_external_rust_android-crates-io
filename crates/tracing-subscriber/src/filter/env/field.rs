@@ -169,7 +169,6 @@ impl Match {
             })?
             // TODO: validate field name
             .to_string();
-        #[allow(clippy::result_large_err)]
         let value = parts
             .next()
             .map(|part| match regex {
