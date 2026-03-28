@@ -417,6 +417,7 @@ dependencies = [
  "mockall_derive",
  "mockall_double",
  "named-lock",
+ "neli",
  "netlink-packet-core",
  "netlink-packet-route",
  "netlink-packet-utils",
@@ -544,6 +545,7 @@ dependencies = [
  "serde_derive",
  "serde_json",
  "serde_nanos",
+ "serde_path_to_error",
  "serde_repr",
  "serde_spanned 0.6.9",
  "serde_test",
@@ -642,7 +644,7 @@ dependencies = [
  "ucs2",
  "uefi",
  "uefi-macros",
- "uefi-raw",
+ "uefi-raw 0.14.0",
  "uguid",
  "unicode-bidi",
  "unicode-ident",
@@ -4742,9 +4744,9 @@ dependencies = [
 
 [[package]]
 name = "itoa"
-version = "1.0.17"
+version = "1.0.18"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "92ecc6618181def0457392ccd0ee51198e065e016d1d527a7ac1b6dc7c1f09d2"
+checksum = "8f42a60cbdf9a97f5d2305f08a87dc4e09308d1276d28c869c684d7777685682"
 
 [[package]]
 name = "ixdtf"
@@ -5684,6 +5686,16 @@ name = "nb"
 version = "1.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "8d5439c4ad607c3c23abf66de8c8bf57ba8adcd1f129e699851a6e43935d339d"
+
+[[package]]
+name = "neli"
+version = "0.5.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "9053554eb5dcb7e10d9cdab1206965bde870eed5d0d341532ca035e3ba221508"
+dependencies = [
+ "byteorder",
+ "libc 0.2.183",
+]
 
 [[package]]
 name = "netlink-packet-core"
@@ -9441,7 +9453,7 @@ dependencies = [
  "ptr_meta",
  "ucs2",
  "uefi-macros",
- "uefi-raw",
+ "uefi-raw 0.13.0",
  "uguid",
 ]
 
@@ -9461,6 +9473,16 @@ name = "uefi-raw"
 version = "0.13.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7f64fe59e11af447d12fd60a403c74106eb104309f34b4c6dbce6e927d97da9d"
+dependencies = [
+ "bitflags 2.11.0",
+ "uguid",
+]
+
+[[package]]
+name = "uefi-raw"
+version = "0.14.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f3775e5934877acaef4b00f254f252df1e2266903c31e51455c117f4f2824eda"
 dependencies = [
  "bitflags 2.11.0",
  "uguid",
