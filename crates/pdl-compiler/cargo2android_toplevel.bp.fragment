@@ -15,22 +15,6 @@ genrule_defaults {
     ],
 }
 
-// Defaults for legacy rust backend generation.
-genrule_defaults {
-    name: "pdl_rust_legacy_generator_defaults",
-    cmd: "$(location :pdlc) --output-format rust_legacy $(in) > $(out)",
-    tools: [":pdlc"],
-    defaults_visibility: [
-        "//system/nfc:__subpackages__",
-        "//external/rust/pica",
-        "//packages/modules/Bluetooth:__subpackages__",
-        "//packages/modules/Nfc:__subpackages__",
-        "//packages/modules/Uwb:__subpackages__",
-        "//tools/netsim:__subpackages__",
-        "//tools/rootcanal:__subpackages__",
-    ],
-}
-
 // Defaults for PDL python backend generation.
 genrule_defaults {
     name: "pdl_python_generator_defaults",
@@ -59,6 +43,8 @@ filegroup {
 rust_test_host {
     name: "pdl_tests",
     host_cross_supported: false,
+    cargo_env_compat: true,
+    cargo_pkg_version: "0.0.0",
     srcs: ["src/main.rs"],
     rustlibs: [
         "libargh",
