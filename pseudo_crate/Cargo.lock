@@ -564,6 +564,7 @@ dependencies = [
  "signal-hook 0.4.3",
  "signal-hook-registry",
  "simd-adler32",
+ "simdutf8",
  "simple-dns",
  "siphasher",
  "skrifa",
@@ -8171,6 +8172,12 @@ checksum = "95890f873bec569a0362c235787f3aca6e1e887302ba4840839bcc6459c42da6"
 dependencies = [
  "quote 1.0.45",
 ]
+
+[[package]]
+name = "simdutf8"
+version = "0.1.5"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e3a9fe34e3e7a50316060351f37187a3f546bce95496156754b601a5fa71b76e"
 
 [[package]]
 name = "simple-dns"
