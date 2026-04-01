@@ -358,7 +358,7 @@ dependencies = [
  "itoa",
  "jiff",
  "jni",
- "jni-sys",
+ "jni-sys 0.4.1",
  "jni-sys-macros",
  "json-strip-comments",
  "kernlog",
@@ -4819,7 +4819,7 @@ dependencies = [
  "cesu8",
  "cfg-if",
  "combine",
- "jni-sys",
+ "jni-sys 0.3.0",
  "log",
  "thiserror 1.0.49",
  "walkdir",
@@ -4831,6 +4831,15 @@ name = "jni-sys"
 version = "0.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "8eaf4bc02d17cbdd7ff4c7438cafcdf7fb9a4613313ad11b4f8fefe7d3fa0130"
+
+[[package]]
+name = "jni-sys"
+version = "0.4.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "c6377a88cb3910bee9b0fa88d4f42e1d2da8e79915598f65fb0c7ee14c878af2"
+dependencies = [
+ "jni-sys-macros",
+]
 
 [[package]]
 name = "jni-sys-macros"
