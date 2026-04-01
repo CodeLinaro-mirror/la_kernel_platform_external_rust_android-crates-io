@@ -458,6 +458,7 @@ shlex
 signal-hook
 signal-hook-registry
 simd-adler32
+simd_cesu8
 simdutf8
 simple-dns
 siphasher
