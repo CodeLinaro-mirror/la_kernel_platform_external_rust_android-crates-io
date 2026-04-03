@@ -7,7 +7,7 @@
 //! - [Tutorial][_tutorial::chapter_0]
 //! - [Special Topics][_topic]
 //! - [Discussions](https://github.com/winnow-rs/winnow/discussions)
-//! - [CHANGELOG](https://github.com/winnow-rs/winnow/blob/v0.6.26/CHANGELOG.md) (includes major version migration
+//! - [CHANGELOG](https://github.com/winnow-rs/winnow/blob/v1.0.1/CHANGELOG.md) (includes major version migration
 //!   guides)
 //!
 //! ## Aspirations
@@ -17,8 +17,8 @@
 //! In roughly priority order:
 //! 1. Support writing parser declaratively while not getting in the way of imperative-style
 //!    parsing when needed, working as an open-ended toolbox rather than a close-ended framework.
-//! 2. Flexible enough to be used for any application, including parsing binary data, strings, or
-//!    separate lexing and parsing phases
+//! 2. Flexible enough to be used for any application, including parsing strings, binary data,
+//!    or separate [lexing and parsing phases][_topic::lexing]
 //! 3. Zero-cost abstractions, making it easy to write high performance parsers
 //! 4. Easy to use, making it trivial for one-off uses
 //!
@@ -26,7 +26,7 @@
 //! - Resilient maintainership, including
 //!   - Willing to break compatibility rather than batching up breaking changes in large releases
 //!   - Leverage feature flags to keep one active branch
-//! - We will support the last 6 months of rust releases (MSRV, currently 1.64.0)
+//! - We will support the last 6 months of rust releases (MSRV)
 //!
 //! See also [Special Topic: Why winnow?][crate::_topic::why]
 //!
@@ -39,19 +39,19 @@
 //!
 //! Then use it to parse:
 //! ```rust
-//! # #[cfg(feature = "alloc")] {
+//! # #[cfg(all(feature = "alloc", feature = "parser"))] {
 #![doc = include_str!("../examples/css/parser.rs")]
 //! # }
 //! ```
 //!
 //! See also the [Tutorial][_tutorial::chapter_0] and [Special Topics][_topic]
 
-#![cfg_attr(docsrs, feature(doc_auto_cfg))]
 #![cfg_attr(docsrs, feature(doc_cfg))]
 #![cfg_attr(docsrs, feature(extended_key_value_attributes))]
-#![cfg_attr(not(feature = "std"), no_std)]
+#![cfg_attr(all(not(feature = "std"), not(test)), no_std)]
 #![warn(missing_docs)]
 #![warn(clippy::std_instead_of_core)]
+#![warn(clippy::std_instead_of_alloc)]
 #![warn(clippy::print_stderr)]
 #![warn(clippy::print_stdout)]
 
@@ -59,46 +59,39 @@
 #[cfg_attr(test, macro_use)]
 #[allow(unused_extern_crates)]
 extern crate alloc;
+
+#[doc = include_str!("../README.md")]
 #[cfg(doctest)]
-extern crate doc_comment;
+pub struct ReadmeDoctests;
 
-#[cfg(doctest)]
-doc_comment::doctest!("../README.md");
-
-/// Lib module to re-export everything needed from `std` or `core`/`alloc`. This is how `serde` does
-/// it, albeit there it is not public.
-#[doc(hidden)]
-pub(crate) mod lib {
-    #![allow(unused_imports)]
-
-    /// `std` facade allowing `std`/`core` to be interchangeable. Reexports `alloc` crate optionally,
-    /// as well as `core` or `std`
-    #[cfg(not(feature = "std"))]
-    /// internal std exports for no_std compatibility
-    pub(crate) mod std {
-        #[doc(hidden)]
-        #[cfg(not(feature = "alloc"))]
-        pub(crate) use core::borrow;
-
-        #[cfg(feature = "alloc")]
-        #[doc(hidden)]
-        pub(crate) use alloc::{borrow, boxed, collections, string, vec};
-
-        #[doc(hidden)]
-        pub(crate) use core::{
-            cmp, convert, fmt, hash, iter, mem, ops, option, result, slice, str,
-        };
+pub(crate) mod util {
+    #[allow(dead_code)]
+    pub(crate) fn from_fn<F: Fn(&mut core::fmt::Formatter<'_>) -> core::fmt::Result>(
+        f: F,
+    ) -> FromFn<F> {
+        FromFn(f)
     }
 
-    #[cfg(feature = "std")]
-    /// internal std exports for `no_std` compatibility
-    pub(crate) mod std {
-        #![allow(clippy::std_instead_of_core)]
-        #[doc(hidden)]
-        pub(crate) use std::{
-            borrow, boxed, cmp, collections, convert, fmt, hash, iter, mem, ops, result, slice,
-            str, string, vec,
-        };
+    pub(crate) struct FromFn<F>(F)
+    where
+        F: Fn(&mut core::fmt::Formatter<'_>) -> core::fmt::Result;
+
+    impl<F> core::fmt::Debug for FromFn<F>
+    where
+        F: Fn(&mut core::fmt::Formatter<'_>) -> core::fmt::Result,
+    {
+        fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+            (self.0)(f)
+        }
+    }
+
+    impl<F> core::fmt::Display for FromFn<F>
+    where
+        F: Fn(&mut core::fmt::Formatter<'_>) -> core::fmt::Result,
+    {
+        fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+            (self.0)(f)
+        }
     }
 }
 
@@ -106,15 +99,21 @@ pub(crate) mod lib {
 mod macros;
 
 #[macro_use]
+#[cfg(feature = "parser")]
 pub mod error;
 
+#[cfg(feature = "parser")]
 mod parser;
 
 pub mod stream;
 
+#[cfg(feature = "ascii")]
 pub mod ascii;
+#[cfg(feature = "binary")]
 pub mod binary;
+#[cfg(feature = "parser")]
 pub mod combinator;
+#[cfg(feature = "parser")]
 pub mod token;
 
 #[cfg(feature = "unstable-doc")]
@@ -131,9 +130,10 @@ pub mod _tutorial;
 /// ## Example
 ///
 /// ```rust
+/// # #[cfg(feature = "ascii")] {
 /// use winnow::prelude::*;
 ///
-/// fn parse_data(input: &mut &str) -> PResult<u64> {
+/// fn parse_data(input: &mut &str) -> ModalResult<u64> {
 ///     // ...
 /// #   winnow::ascii::dec_uint(input)
 /// }
@@ -142,28 +142,48 @@ pub mod _tutorial;
 ///   let result = parse_data.parse("100");
 ///   assert_eq!(result, Ok(100));
 /// }
+/// # }
 /// ```
 pub mod prelude {
+    #[cfg(feature = "parser")]
+    pub use crate::error::ModalError as _;
+    #[cfg(feature = "parser")]
+    pub use crate::error::ParserError as _;
+    pub use crate::stream::AsChar as _;
+    pub use crate::stream::ContainsToken as _;
+    pub use crate::stream::Stream as _;
     pub use crate::stream::StreamIsPartial as _;
-    pub use crate::IResult;
+    #[cfg(feature = "parser")]
     pub use crate::ModalParser;
+    #[cfg(feature = "parser")]
     pub use crate::ModalResult;
-    pub use crate::PResult;
+    #[cfg(feature = "parser")]
     pub use crate::Parser;
     #[cfg(feature = "unstable-recover")]
     #[cfg(feature = "std")]
+    #[cfg(feature = "parser")]
     pub use crate::RecoverableParser as _;
+
+    #[cfg(all(test, feature = "parser"))]
+    pub(crate) use crate::TestResult;
 }
 
-pub use error::IResult;
+#[cfg(feature = "parser")]
 pub use error::ModalResult;
-pub use error::PResult;
-pub use parser::*;
+#[cfg(feature = "parser")]
+pub use error::Result;
+#[cfg(feature = "unstable-recover")]
+#[cfg(feature = "std")]
+#[cfg(feature = "parser")]
+pub use parser::RecoverableParser;
+#[cfg(feature = "parser")]
+pub use parser::{ModalParser, Parser};
 pub use stream::BStr;
 pub use stream::Bytes;
-#[allow(deprecated)]
-pub use stream::Located;
 pub use stream::LocatingSlice;
 pub use stream::Partial;
 pub use stream::Stateful;
 pub use stream::Str;
+
+#[cfg(all(test, feature = "parser"))]
+pub(crate) use error::TestResult;

@@ -13,16 +13,27 @@ license {
     license_text: ["LICENSE"],
 }
 
-rust_library_host {
+rust_library {
     name: "libwinnow",
+    host_supported: true,
     crate_name: "winnow",
     cargo_env_compat: true,
-    cargo_pkg_version: "0.6.26",
+    cargo_pkg_version: "1.0.1",
     crate_root: "src/lib.rs",
     edition: "2021",
     features: [
         "alloc",
+        "ascii",
+        "binary",
         "default",
+        "parser",
         "std",
     ],
+    apex_available: [
+        "//apex_available:platform",
+        "//apex_available:anyapex",
+    ],
+    product_available: true,
+    vendor_available: true,
+    min_sdk_version: "29",
 }

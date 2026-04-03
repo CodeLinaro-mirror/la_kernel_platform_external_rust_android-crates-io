@@ -9,22 +9,13 @@ use winnow::prelude::*;
 fn main() {
     let mut data = "abcabcabcabc";
 
-    fn parser<'s>(i: &mut &'s str) -> PResult<&'s str> {
+    fn parser<'s>(i: &mut &'s str) -> ModalResult<&'s str> {
         "abc".parse_next(i)
     }
 
     // `from_fn` (available from Rust 1.34) can create an iterator
     // from a closure
-    let it = std::iter::from_fn(move || {
-        match parser.parse_next(&mut data) {
-            // when successful, a parser returns a tuple of
-            // the remaining input and the output value.
-            // So we replace the captured input data with the
-            // remaining input, to be parsed on the next call
-            Ok(o) => Some(o),
-            _ => None,
-        }
-    });
+    let it = std::iter::from_fn(move || parser.parse_next(&mut data).ok());
 
     for value in it {
         println!("parser returned: {value}");
@@ -57,8 +48,9 @@ fn main() {
     // solutions:
     // - we can work with a normal iterator like `from_fn`
     // - we can get the remaining input afterwards, like with the `try_fold` trick
+    let mut i = data;
     let mut winnow_it = iterator(
-        data,
+        &mut i,
         terminated(separated_pair(alphanumeric1, ":", alphanumeric1), ","),
     );
 
@@ -66,9 +58,9 @@ fn main() {
         .map(|(k, v)| (k.to_uppercase(), v))
         .collect::<HashMap<_, _>>();
 
-    let parser_result: PResult<(_, _), ()> = winnow_it.finish();
-    let (remaining_input, ()) = parser_result.unwrap();
+    let parser_result: Result<_, ()> = winnow_it.finish();
+    parser_result.unwrap();
 
     // will print "iterator returned {"key1": "value1", "key3": "value3", "key2": "value2"}, remaining input is ';'"
-    println!("iterator returned {res:?}, remaining input is '{remaining_input}'");
+    println!("iterator returned {res:?}, remaining input is '{i}'");
 }
