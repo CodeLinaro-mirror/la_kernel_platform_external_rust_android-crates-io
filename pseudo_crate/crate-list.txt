@@ -144,6 +144,7 @@ equivalent
 errno
 etcetera
 etherparse
+euclid
 evdev
 faccess
 fallible-iterator
@@ -154,6 +155,7 @@ filetime
 fixedbitset
 flagset
 flate2
+float_next_after
 fnv
 foldhash
 font-types
@@ -281,6 +283,9 @@ lru-cache
 lscolors
 lsp-server
 lsp-types
+lyon_geom
+lyon_path
+lyon_tessellation
 lz4_flex
 macaddr
 managed
