@@ -2,18 +2,7 @@
 
 ## [Unreleased]
 
-## [0.7.12]
-
-* Add helpers to make it easy to implement `template::context::Context` trait.
-
-### Added
-* Add helpers to make it easy to implement `template::context::Context` trait.
-    + List of added items:
-        + `template::context::VisitValueNaive` trait
-        + `template::context::visit_value_naive` function
-        + `impl_template_context_naive!` macro
-
-## [0.7.11]
+## [v0.7.11]
 
 * Add utility functions to visit a list or an associative array for URI template
   expansion.
@@ -1137,8 +1126,7 @@ Beleive rustdoc rather than this CHANGELOG.**
 
 Totally rewritten.
 
-[Unreleased]: <https://github.com/lo48576/iri-string/compare/v0.7.12...develop>
-[0.7.12]: <https://github.com/lo48576/iri-string/releases/tag/v0.7.12>
+[Unreleased]: <https://github.com/lo48576/iri-string/compare/v0.7.11...develop>
 [0.7.11]: <https://github.com/lo48576/iri-string/releases/tag/v0.7.11>
 [0.7.10]: <https://github.com/lo48576/iri-string/releases/tag/v0.7.10>
 [0.7.9]: <https://github.com/lo48576/iri-string/releases/tag/v0.7.9>

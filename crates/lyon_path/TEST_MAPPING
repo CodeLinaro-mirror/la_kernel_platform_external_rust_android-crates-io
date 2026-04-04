@@ -1,7 +1,0 @@
-{
-  "postsubmit": [
-    {
-      "name": "lyon_path_test_src_lib"
-    }
-  ]
-}

@@ -3,7 +3,7 @@
 //! Text I/O.
 
 mod input;
-mod output;
+pub use input::{Input, Key, ScanCode};
 
-pub use input::*;
-pub use output::*;
+mod output;
+pub use output::{Color, Output, OutputMode};

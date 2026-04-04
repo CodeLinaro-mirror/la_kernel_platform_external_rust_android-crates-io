@@ -12,7 +12,7 @@
 [package]
 edition = "2018"
 name = "simd-adler32"
-version = "0.3.9"
+version = "0.3.8"
 authors = ["Marvin Countryman <me@maar.vin>"]
 build = false
 exclude = ["bench"]
@@ -61,7 +61,6 @@ version = "0.3"
 
 [dev-dependencies.rand]
 version = "0.8"
-features = ["small_rng"]
 
 [profile.release]
 opt-level = 2

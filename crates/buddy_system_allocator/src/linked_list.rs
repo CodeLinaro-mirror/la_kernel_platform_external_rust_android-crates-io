@@ -30,16 +30,8 @@ impl LinkedList {
     }
 
     /// Push `item` to the front of the list
-    ///
-    /// # Safety
-    ///
-    /// `item` must be a valid, writable pointer, properly aligned for `usize` reads and writes.
-    /// The caller must ensure that the pointed value can be used to store the next pointer for
-    /// this intrusive linked list, and remains valid for as long as it is contained in the list.
     pub unsafe fn push(&mut self, item: *mut usize) {
-        unsafe {
-            *item = self.head as usize;
-        }
+        *item = self.head as usize;
         self.head = item;
     }
 
@@ -57,7 +49,7 @@ impl LinkedList {
     }
 
     /// Return an iterator over the items in the list
-    pub fn iter(&self) -> Iter<'_> {
+    pub fn iter(&self) -> Iter {
         Iter {
             curr: self.head,
             list: PhantomData,
@@ -65,7 +57,7 @@ impl LinkedList {
     }
 
     /// Return an mutable iterator over the items in the list
-    pub fn iter_mut(&mut self) -> IterMut<'_> {
+    pub fn iter_mut(&mut self) -> IterMut {
         IterMut {
             prev: &mut self.head as *mut *mut usize as *mut usize,
             curr: self.head,

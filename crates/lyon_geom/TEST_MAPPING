@@ -1,7 +1,0 @@
-{
-  "postsubmit": [
-    {
-      "name": "lyon_geom_test_src_lib"
-    }
-  ]
-}

@@ -116,7 +116,6 @@
     doc = "[`SimpleContext`]: `simple_context::SimpleContext`"
 )]
 mod components;
-#[macro_use]
 pub mod context;
 mod error;
 mod expand;
@@ -124,7 +123,6 @@ mod parser;
 #[cfg(feature = "alloc")]
 pub mod simple_context;
 mod string;
-mod value;
 
 pub use self::context::{Context, DynamicContext};
 #[cfg(feature = "alloc")]

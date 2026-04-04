@@ -52,7 +52,7 @@ impl Rng {
 
         let algo = match algorithm.as_ref() {
             None => ptr::null(),
-            Some(algo) => ptr::from_ref(algo),
+            Some(algo) => algo as *const RngAlgorithmType,
         };
 
         unsafe {

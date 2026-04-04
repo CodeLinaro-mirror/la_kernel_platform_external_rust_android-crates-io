@@ -183,7 +183,7 @@ impl ConfigurationString {
     /// An `Option<String>` containing the parsed string.
     #[must_use]
     pub fn parse_string_from_hex(data: &str) -> Option<String> {
-        if !data.len().is_multiple_of(2) {
+        if data.len() % 2 != 0 {
             return None;
         }
         let size_bytes = data.len() / 2 + 2; // includes \0 terminator
