@@ -1555,7 +1555,7 @@ name = "bzip2-cli"
 version = "0.2.2"
 dependencies = [
  "libbz2-rs-sys",
- "libc 0.2.183",
+ "libc 0.2.184",
 ]
 
 [[package]]
@@ -2334,9 +2334,9 @@ checksum = "d7a1e2f27636f116493b8b860f5546edb47c8d8f8ea73e1d2a20be88e28d1fea"
 
 [[package]]
 name = "dc_bundle"
-version = "0.38.2"
+version = "0.38.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1934aa17a5018fc6bc650000bb353cf25aab751ba5da292f03a22810f41685a7"
+checksum = "cdfcf7950b862b2b9b659d28cda2656b70bed2b198f40f914d1f8f73b338d352"
 dependencies = [
  "log",
  "protobuf 3.7.2",
@@ -2516,6 +2516,18 @@ dependencies = [
  "block-buffer",
  "crypto-common",
  "subtle",
+]
+
+[[package]]
+name = "diplomat"
+version = "0.14.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "9adb46b05e2f53dcf6a7dfc242e4ce9eb60c369b6b6eb10826a01e93167f59c6"
+dependencies = [
+ "diplomat_core 0.14.0",
+ "proc-macro2 1.0.106",
+ "quote 1.0.45",
+ "syn 2.0.117",
 ]
 
 [[package]]
@@ -5426,7 +5438,7 @@ version = "0.0.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "62bb907fe88d54d8d9ce32a3cceab4218ed2f6b7d35617cafe9adf84e43919cb"
 dependencies = [
- "libc 0.1.12",
+ "libc 0.2.184",
 ]
 
 [[package]]
@@ -5932,7 +5944,6 @@ dependencies = [
  "cfg-if",
  "cfg_aliases",
  "libc 0.2.184",
- "memoffset",
 ]
 
 [[package]]
