@@ -310,7 +310,7 @@ dependencies = [
  "grpcio-compiler",
  "grpcio-sys",
  "h2",
- "half 2.2.1",
+ "half 2.7.1",
  "handlebars",
  "hashbrown 0.17.0",
  "hashlink 0.11.0",
@@ -1765,7 +1765,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "57663b653d948a338bfb3eeba9bb2fd5fcfaecb9e199e87e1eda4d9e8b240fd9"
 dependencies = [
  "ciborium-io",
- "half 2.2.1",
+ "half 2.7.1",
 ]
 
 [[package]]
@@ -3039,7 +3039,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f83197f59927b46c04a183a619b7c29df34e63e63c7869320862268c0ef687e0"
 dependencies = [
  "bit_field",
- "half 2.2.1",
+ "half 2.7.1",
  "lebe",
  "miniz_oxide 0.8.9",
  "rayon-core",
@@ -3777,12 +3777,14 @@ checksum = "1b43ede17f21864e81be2fa654110bf1e793774238d86ef8555c37e6519c0403"
 
 [[package]]
 name = "half"
-version = "2.2.1"
+version = "2.7.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "02b4af3693f1b705df946e9fe5631932443781d0aabb423b62fcd4d73f6d2fd0"
+checksum = "6ea2d84b969582b4b1864a92dc5d27cd2b77b622a8d79306834f1be5ba20d84b"
 dependencies = [
  "bytemuck",
+ "cfg-if",
  "crunchy",
+ "zerocopy",
 ]
 
 [[package]]
@@ -10144,7 +10146,7 @@ dependencies = [
  "bytemuck",
  "core-graphics-types",
  "crossbeam-queue",
- "half 2.2.1",
+ "half 2.7.1",
  "heck 0.4.1",
  "indexmap 1.9.3",
  "libloading 0.7.4",
