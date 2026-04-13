@@ -503,6 +503,7 @@ dependencies = [
  "protobuf-support",
  "ptr_meta",
  "ptr_meta_derive",
+ "pxfm",
  "quiche",
  "quickcheck",
  "quote 1.0.45",
@@ -7051,6 +7052,12 @@ dependencies = [
  "quote 1.0.45",
  "syn 2.0.117",
 ]
+
+[[package]]
+name = "pxfm"
+version = "0.1.28"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b5a041e753da8b807c9255f28de81879c78c876392ff2469cde94799b2896b9d"
 
 [[package]]
 name = "qoi"
