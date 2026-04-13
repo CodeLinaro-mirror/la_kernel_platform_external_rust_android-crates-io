@@ -46,6 +46,7 @@ bencher
 bincode
 bindgen
 bindgen-cli
+binrw_derive
 bit_field
 bitflags
 bitreader
