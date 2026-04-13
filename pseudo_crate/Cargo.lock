@@ -425,6 +425,7 @@ dependencies = [
  "mockall",
  "mockall_derive",
  "mockall_double",
+ "moxcms",
  "named-lock",
  "neli",
  "netlink-packet-core",
@@ -5816,6 +5817,16 @@ dependencies = [
  "proc-macro2 1.0.106",
  "quote 1.0.45",
  "syn 2.0.117",
+]
+
+[[package]]
+name = "moxcms"
+version = "0.8.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "bb85c154ba489f01b25c0d36ae69a87e4a1c73a72631fc6c0eb6dde34a73e44b"
+dependencies = [
+ "num-traits",
+ "pxfm",
 ]
 
 [[package]]
