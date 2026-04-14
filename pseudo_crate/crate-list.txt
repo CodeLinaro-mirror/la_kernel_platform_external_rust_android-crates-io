@@ -85,6 +85,7 @@ command-fds
 config
 configparser
 const-oid
+const_fn
 coset
 cov-mark
 crates-index
