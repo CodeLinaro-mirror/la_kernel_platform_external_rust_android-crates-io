@@ -497,6 +497,7 @@ dependencies = [
  "prettyplease 0.2.37",
  "primal-check",
  "proc-macro-error-attr2",
+ "proc-macro-error2",
  "proc-macro2 1.0.106",
  "protobuf 3.7.2",
  "protobuf-codegen",
