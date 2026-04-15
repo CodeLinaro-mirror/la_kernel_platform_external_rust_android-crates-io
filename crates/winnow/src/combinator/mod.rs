@@ -26,7 +26,6 @@
 //! |---|---|---|---|---|---|
 //! | [`alt`] | `alt(("ab", "cd"))` |  `"cdef"` |  `"ef"` | `Ok("cd")` |Try a list of parsers and return the result of the first successful one|
 //! | [`dispatch`] | \- | \- | \- | \- | `match` for parsers |
-//! | [`permutation`] | `permutation(("ab", "cd", "12"))` | `"cd12abc"` | `"c"` | `Ok(("ab", "cd", "12"))` |Succeeds when all its child parser have succeeded, whatever the order|
 //!
 //! ## Sequence combinators
 //!
@@ -85,7 +84,7 @@
 //!
 //! ## Remaining combinators
 //!
-//! - [`empty`]: Returns a value without consuming any input, always succeeds
+//! - [`empty`]: Succeed, consuming no input
 //! - [`fail`]: Inversion of [`empty`]. Always fails.
 //! - [`Parser::by_ref`]: Allow moving `&mut impl Parser` into other parsers
 //!
@@ -97,7 +96,7 @@
 //! - [`line_ending`][crate::ascii::line_ending]: Recognizes an end of line (both `\n` and `\r\n`)
 //! - [`newline`][crate::ascii::newline]: Matches a newline character `\n`
 //! - [`till_line_ending`][crate::ascii::till_line_ending]: Recognizes a string of any char except `\r` or `\n`
-//! - [`rest`]: Return the remaining input
+//! - [`rest`][crate::token::rest]: Return the remaining input
 //!
 //! - [`alpha0`][crate::ascii::alpha0]: Recognizes zero or more lowercase and uppercase alphabetic characters: `[a-zA-Z]`. [`alpha1`][crate::ascii::alpha1] does the same but returns at least one character
 //! - [`alphanumeric0`][crate::ascii::alphanumeric0]: Recognizes zero or more numerical and alphabetic characters: `[0-9a-zA-Z]`. [`alphanumeric1`][crate::ascii::alphanumeric1] does the same but returns at least one character
@@ -113,7 +112,9 @@
 //! - [`hex_uint`][crate::ascii::hex_uint]: Decode a variable-width, hexadecimal integer
 //!
 //! - [`take_escaped`][crate::ascii::take_escaped]: Recognize the input slice with escaped characters
-//! - [`escaped_transform`][crate::ascii::escaped_transform]: Parse escaped characters, unescaping them
+//! - [`escaped`][crate::ascii::escaped]: Parse escaped characters, unescaping them
+//!
+//! - [`expression()`]: Parse an operator precedence expression with Pratt parsing
 //!
 //! ### Character test functions
 //!
@@ -162,21 +163,27 @@
 mod branch;
 mod core;
 mod debug;
+mod expression;
 mod multi;
 mod sequence;
 
-#[cfg(test)]
+#[cfg(all(test, feature = "ascii", feature = "binary"))]
 mod tests;
 
 pub mod impls;
 
-pub use self::branch::*;
-pub use self::core::*;
-pub use self::debug::*;
-#[deprecated(since = "0.6.23", note = "Replaced with `combinator::impls`")]
-pub use self::impls::*;
-pub use self::multi::*;
-pub use self::sequence::*;
+pub use self::branch::{alt, dispatch, Alt};
+pub use self::core::{backtrack_err, cond, cut_err, empty, eof, fail, not, opt, peek, todo};
+pub use self::debug::trace;
+pub use self::expression::{expression, Expression, Infix, Postfix, Prefix};
+#[cfg(feature = "alloc")]
+pub use self::multi::separated_foldr1;
+pub use self::multi::{
+    fill, iterator, repeat, repeat_till, separated, separated_foldl1, ParserIterator, Repeat,
+};
+pub use self::sequence::{delimited, preceded, separated_pair, seq, terminated, unordered_seq};
+
+pub(crate) use self::debug::{trace_result, DisplayDebug};
 
 #[allow(unused_imports)]
 use crate::Parser;
