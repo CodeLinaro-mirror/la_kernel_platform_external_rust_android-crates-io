@@ -10,12 +10,14 @@
 # See Cargo.toml.orig for the original contents.
 
 [package]
-edition = "2021"
+edition = "2024"
+rust-version = "1.88"
 name = "selinux-sys"
-version = "0.6.13"
+version = "0.7.0"
 authors = ["Koutheir Attouchi <koutheir@gmail.com>"]
 build = "build.rs"
 links = "selinux"
+autolib = false
 autobins = false
 autoexamples = false
 autotests = false
@@ -104,12 +106,15 @@ targets = [
     "x86_64-unknown-linux-musl",
 ]
 
+[features]
+static = []
+
 [lib]
 name = "selinux_sys"
 path = "src/lib.rs"
 
 [build-dependencies.bindgen]
-version = "0.70"
+version = "0.72"
 
 [build-dependencies.cc]
 version = "1"
@@ -120,5 +125,22 @@ version = "1"
 [build-dependencies.walkdir]
 version = "2"
 
-[features]
-static = []
+[lints.clippy]
+doc_markdown = "allow"
+redundant_static_lifetimes = "allow"
+unreadable_literal = "allow"
+upper_case_acronyms = "allow"
+
+[lints.clippy.all]
+level = "warn"
+priority = -1
+
+[lints.clippy.pedantic]
+level = "warn"
+priority = -1
+
+[lints.rust]
+non_camel_case_types = "allow"
+non_snake_case = "allow"
+non_upper_case_globals = "allow"
+unsafe_op_in_unsafe_fn = "warn"

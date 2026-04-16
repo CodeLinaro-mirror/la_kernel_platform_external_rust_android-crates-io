@@ -1,9 +1,10 @@
 [package]
 name          = "selinux-sys"
 description   = "Flexible Mandatory Access Control (MAC) for Linux"
-version       = "0.6.13" # Remember to update version in `html_root_url`.
+version       = "0.7.0" # Remember to update version in `html_root_url`.
+rust-version  = "1.88"
 authors       = ["Koutheir Attouchi <koutheir@gmail.com>"]
-edition       = "2021"
+edition       = "2024"
 readme        = "README.md"
 license       = "MIT"
 keywords      = ["selinux", "security", "access-control", "linux", "filesystem"]
@@ -14,8 +15,25 @@ documentation = "https://docs.rs/selinux-sys"
 homepage      = "https://codeberg.org/koutheir/selinux-sys.git"
 repository    = "https://codeberg.org/koutheir/selinux-sys.git"
 
+[lints.rust]
+unsafe_op_in_unsafe_fn = "warn"
+
+non_upper_case_globals = "allow"
+non_camel_case_types   = "allow"
+non_snake_case         = "allow"
+
+[lints.clippy]
+all      = { level = "warn", priority = -1 }
+pedantic = { level = "warn", priority = -1 }
+#restriction = { level = "warn", priority = -1 }
+
+redundant_static_lifetimes = "allow"
+upper_case_acronyms        = "allow"
+unreadable_literal         = "allow"
+doc_markdown               = "allow"
+
 [build-dependencies]
-bindgen = { version = "0.70" }
+bindgen = { version = "0.72" }
 walkdir = { version = "2" }
 dunce   = { version = "1" }
 cc      = { version = "1" }
