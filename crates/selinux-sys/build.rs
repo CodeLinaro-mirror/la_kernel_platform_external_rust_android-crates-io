@@ -346,7 +346,6 @@ fn generate_bindings(target: &str, sysroot: Option<&Path>, out_dir: &Path, inclu
         .derive_eq(true)
         .derive_ord(true)
         .impl_debug(true)
-        .layout_tests(false)
         .clang_arg(format!("--target={clang_target}"))
         .clang_args(&["-I", path_to_str(include_path)]);
 
