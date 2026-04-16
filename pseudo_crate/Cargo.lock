@@ -7980,11 +7980,12 @@ dependencies = [
 
 [[package]]
 name = "selinux"
-version = "0.5.0"
+version = "0.6.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5ed8a2f05a488befa851d8de2e3b55bc3889d4fac6758d120bd94098608f63fb"
+checksum = "90fee6a6e1169aaaedef3a34850d69fd01e80500bc9cf6c0681c4df5968f5822"
 dependencies = [
  "bitflags 2.11.0",
+ "errno",
  "libc 0.2.184",
  "once_cell",
  "parking_lot",
@@ -11140,9 +11141,9 @@ dependencies = [
 
 [[package]]
 name = "xml-rs"
-version = "0.8.28"
+version = "0.8.19"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3ae8337f8a065cfc972643663ea4279e04e7256de865aa66fe25cec5fb912d3f"
+checksum = "0fcb9cbac069e033553e8bb871be2fbdffcab578eb25bd0f7c508cedc6dcd75a"
 
 [[package]]
 name = "yaml-rust"
