@@ -1,5 +1,66 @@
 # CHANGELOG
 
+0.2.23 (2026-03-03)
+===================
+This release updates Jiff's bundled copy of the [IANA Time Zone Database]
+to `2026a`. See the [`2026a` release announcement] for more details.
+
+[`2026a` release announcement]: https://lists.iana.org/hyperkitty/list/tz-announce@iana.org/thread/ASPLBE3A4BAEXIOQ3KZ6EJSJWBU6L53G/
+
+0.2.22 (2026-02-28)
+===================
+This release includes a bug fix where fallible conversions from signed
+durations to unsigned durations could panic in some cases.
+
+Bug fixes:
+
+* [#526](https://github.com/BurntSushi/jiff/issues/526):
+Fix a panicking bug that occurs for
+`std::time::Duration::try_from(SignedDuration::new(0, -1))`.
+
+
+0.2.21 (2026-02-22)
+===================
+This release contains a performance improvement and a bug fix for
+`civil::Date::new` where it could panic on some inputs.
+
+Bug fixes:
+
+* [#523](https://github.com/BurntSushi/jiff/issues/523):
+Fix a bug where `Date::new` could panic. This was a regression introduced in
+`jiff 0.2.20`.
+
+Performance:
+
+* [#518](https://github.com/BurntSushi/jiff/pull/518):
+Improve `Timestamp` to `civil::DateTime` conversion performance by ~15%.
+
+
+0.2.20 (2026-02-11)
+===================
+This release contains a major internal refactor that moves off of using ranged
+integers internally. There are also some small bug fixes and added support for
+finding the system time zone on emscripten targets.
+
+Enhancements:
+
+* [#11](https://github.com/BurntSushi/jiff/issues/11):
+Stop using ranged integers internally.
+* [#490](https://github.com/BurntSushi/jiff/issues/490):
+Add support for retrieving the system time zone on emscripten targets.
+* [#500](https://github.com/BurntSushi/jiff/issues/500):
+Update comparison with the `time` crate in the Jiff documentation.
+* [#502](https://github.com/BurntSushi/jiff/issues/502):
+Enable some non-default features for the Rust Playground deployment.
+
+Bug fixes:
+
+* [#485](https://github.com/BurntSushi/jiff/issues/485):
+Fix bug with padding for negative integers in `strftime`.
+* [#486](https://github.com/BurntSushi/jiff/issues/486):
+Make `%^c` result in uppercase strings where appropriate.
+
+
 0.2.19 (2026-02-05)
 ===================
 This is a small release with a performance optimization (with respect to doing

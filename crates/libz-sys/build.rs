@@ -30,12 +30,11 @@ fn main() {
         return;
     }
 
+    let want_static = should_link_static();
     // Don't run pkg-config if we're linking statically (we'll build below) and
     // also don't run pkg-config on FreeBSD/DragonFly. That'll end up printing
     // `-L /usr/lib` which wreaks havoc with linking to an OpenSSL in /usr/local/lib
     // (Ports, etc.)
-    let want_static =
-        cfg!(feature = "static") || env::var("LIBZ_SYS_STATIC").unwrap_or(String::new()) == "1";
     if !want_static &&
        !target.contains("msvc") && // pkg-config just never works here
        !(host_and_target_contain("freebsd") ||
@@ -120,6 +119,9 @@ fn build_zlib(cfg: &mut cc::Build, target: &str) {
 
     if !cfg!(feature = "libc") || target.starts_with("wasm32") {
         cfg.define("Z_SOLO", None);
+        // zlib 1.3.2 uses `NULL` directly in compress.c/uncompr.c, but the
+        // Z_SOLO config path doesn't pull in headers that always define it.
+        cfg.define("NULL", Some("0"));
     } else {
         cfg.file("src/zlib/gzclose.c")
             .file("src/zlib/gzlib.c")
@@ -127,8 +129,11 @@ fn build_zlib(cfg: &mut cc::Build, target: &str) {
             .file("src/zlib/gzwrite.c");
     }
 
+    // zlib's zconf.h gates standard headers on `STDC` (not `__STDC__`), and
+    // 1.3.2 uses `NULL` directly in compress.c/uncompr.c.
+    cfg.define("STDC", None);
+
     if !target.contains("windows") {
-        cfg.define("STDC", None);
         cfg.define("_LARGEFILE64_SOURCE", None);
         cfg.define("_POSIX_SOURCE", None);
         cfg.flag("-fvisibility=hidden");
@@ -237,4 +242,23 @@ fn zlib_installed(cfg: &mut cc::Build) -> bool {
     }
 
     false
+}
+
+/// The environment variable `LIBZ_SYS_STATIC` is first checked for a value of `0` (false) or `1` (true),
+/// before considering the `static` feature when no explicit ENV value was detected.
+/// When `libz-sys` is a transitive dependency from a crate that forces static linking via the `static` feature,
+/// this enables the build environment to revert that preference via `LIBZ_SYS_STATIC=0`.
+/// The default is otherwise `false`.
+fn should_link_static() -> bool {
+  let has_static_env: Option<&'static str> = option_env!("LIBZ_SYS_STATIC");
+  let has_static_cfg = cfg!(feature = "static");
+
+  has_static_env
+    .and_then(|s: &str| s.parse::<u8>().ok())
+    .and_then(|b| match b {
+      0 => Some(false),
+      1 => Some(true),
+      _ => None,
+    })
+    .unwrap_or(has_static_cfg)
 }
