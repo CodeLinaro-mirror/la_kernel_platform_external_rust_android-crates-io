@@ -1,0 +1,1 @@
+notpermitted = "Only used by the openssl crate which we are moving away from b/467151340"
