@@ -697,7 +697,7 @@ dependencies = [
  "virtio-vsock",
  "vm-memory 0.16.2",
  "vmm-sys-util 0.15.0",
- "volatile",
+ "volatile 0.6.1",
  "vsock",
  "vsprintf",
  "vulkano",
@@ -2142,7 +2142,7 @@ dependencies = [
  "anes 0.1.6",
  "cast",
  "ciborium",
- "clap 4.6.0",
+ "clap 4.6.1",
  "criterion-plot",
  "itertools 0.13.0",
  "num-traits",
@@ -5247,7 +5247,7 @@ version = "0.6.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "6d8de370f98a6cb8a4606618e53e802f93b094ddec0f96988eaec2c27e6e9ce7"
 dependencies = [
- "clap 4.6.0",
+ "clap 4.6.1",
  "termcolor",
  "threadpool",
 ]
@@ -10162,6 +10162,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "442887c63f2c839b346c192d047a7c87e73d0689c9157b00b53dcc27dd5ea793"
 
 [[package]]
+name = "volatile"
+version = "0.6.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "af8ca9a5d4debca0633e697c88269395493cebf2e10db21ca2dbde37c1356452"
+
+[[package]]
 name = "vsock"
 version = "0.5.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -11206,7 +11212,7 @@ dependencies = [
  "bitflags 2.11.0",
  "const_fn",
  "rustversion",
- "volatile",
+ "volatile 0.4.6",
 ]
 
 [[package]]
