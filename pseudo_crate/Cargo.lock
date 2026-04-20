@@ -118,6 +118,17 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "683d7910e743518b0e34f1186f92494becacb047c7b6bf616c96772180fef923"
 
 [[package]]
+name = "android-chrono-tz"
+version = "0.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "c7fada6e0edc486ea037ff973e2078329baeb79eea006064a25c5bcea928c810"
+dependencies = [
+ "chrono",
+ "libc 0.2.184",
+ "thiserror 2.0.18",
+]
+
+[[package]]
 name = "android-pseudo-crate"
 version = "0.1.0"
 dependencies = [
@@ -128,6 +139,7 @@ dependencies = [
  "ahash 0.8.12",
  "aho-corasick",
  "alloca",
+ "android-chrono-tz",
  "android_bp",
  "android_log-sys",
  "android_logger 0.15.1",
@@ -2142,7 +2154,7 @@ dependencies = [
  "anes 0.1.6",
  "cast",
  "ciborium",
- "clap 4.6.0",
+ "clap 4.6.1",
  "criterion-plot",
  "itertools 0.13.0",
  "num-traits",
@@ -5247,7 +5259,7 @@ version = "0.6.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "6d8de370f98a6cb8a4606618e53e802f93b094ddec0f96988eaec2c27e6e9ce7"
 dependencies = [
- "clap 4.6.0",
+ "clap 4.6.1",
  "termcolor",
  "threadpool",
 ]
