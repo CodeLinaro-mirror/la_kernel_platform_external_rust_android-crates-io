@@ -119,6 +119,7 @@ dc_figma_import
 dc_jni
 dc_layout
 dc_squoosh_animation
+dc_squoosh_parser
 debug_tree
 der
 der_derive
