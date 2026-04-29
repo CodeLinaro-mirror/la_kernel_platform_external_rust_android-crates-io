@@ -89,6 +89,22 @@
 //! ["Address Sanitizer" section](https://doc.rust-lang.org/beta/unstable-book/compiler-flags/sanitizer.html#addresssanitizer)
 //! of the [Rust Unstable Book](https://doc.rust-lang.org/beta/unstable-book/).
 //!
+//! **Preferred alternative:** Instead of the `asan` feature flag, you can set the
+//! `AWS_LC_SYS_SANITIZER` environment variable (or `AWS_LC_FIPS_SYS_SANITIZER` for FIPS builds)
+//! to one of: `asan`, `msan`, `tsan`. This approach does not require forwarding a feature through
+//! the dependency graph and also supports MemorySanitizer and ThreadSanitizer.
+//! MSAN and TSAN require the standard library to be rebuilt with sanitizer instrumentation, so
+//! you must install the `rust-src` component and pass `-Zbuild-std` to Cargo. For example:
+//!
+//! ```bash
+//! rustup component add rust-src --toolchain nightly
+//! AWS_LC_SYS_SANITIZER=msan RUSTFLAGS="-Zsanitizer=memory -Zsanitizer-memory-track-origins" \
+//!     cargo +nightly test -Zbuild-std --target x86_64-unknown-linux-gnu
+//! ```
+//!
+//! **Note:** MSAN is not currently supported for FIPS builds due to a missing preprocessor guard
+//! in the upstream AWS-LC `bcm.c` integrity check.
+//!
 //! #### bindgen
 //!
 //! Causes `aws-lc-sys` or `aws-lc-fips-sys` to generates fresh bindings for AWS-LC instead of using
@@ -107,6 +123,24 @@
 //!
 //! Be aware that [features are additive](https://doc.rust-lang.org/cargo/reference/features.html#feature-unification);
 //! by enabling this feature, it is enabled for all crates within the same build.
+//!
+//! #### dev-tests-only
+//!
+//! Enables the `rand::unsealed` module, which re-exports the normally sealed `SecureRandom` trait.
+//! This allows consumers to provide their own implementations of `SecureRandom` (e.g., a
+//! deterministic RNG) for testing purposes. When enabled, a `mut_fill` method is also available on
+//! `SecureRandom`.
+//!
+//! This feature is restricted to **dev/debug profile builds only** — attempting to use it in a
+//! release build will result in a compile-time error.
+//!
+//! It can be enabled in two ways:
+//! * **Feature flag:** `cargo test --features dev-tests-only`
+//! * **Environment variable:** `AWS_LC_RS_DEV_TESTS_ONLY=1 cargo test`
+//!
+//! **⚠️ Warning:** This feature is intended **only** for development and testing. It must not be
+//! used in production builds. The `rand::unsealed` module and `mut_fill` method are not part of the
+//! stable public API and may change without notice.
 //!
 //! # Use of prebuilt NASM objects
 //!
