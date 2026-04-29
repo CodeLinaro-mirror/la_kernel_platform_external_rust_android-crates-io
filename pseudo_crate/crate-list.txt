@@ -24,6 +24,9 @@ arm-pl011-uart
 arm-psci
 arrayvec
 ash
+askama
+askama_derive
+askama_parser
 async-stream
 async-stream-impl
 async-task
@@ -37,6 +40,7 @@ aws-lc-rs
 axum
 axum-core
 base64
+basic-toml
 bencher
 bincode
 bindgen
@@ -268,6 +272,7 @@ libz-sys
 linked-hash-map
 linkme
 linkme-impl
+linux-aio-tokio
 litemap
 litrs
 lock_api
@@ -305,6 +310,7 @@ mockall_derive
 mockall_double
 moveit
 named-lock
+neli
 netlink-packet-core
 netlink-packet-route
 netlink-packet-utils
@@ -397,6 +403,7 @@ read-fonts
 regex
 regex-automata
 regex-syntax
+region
 relative-path
 remain
 reqwest
@@ -432,6 +439,7 @@ serde_core
 serde_derive
 serde_json
 serde_nanos
+serde_path_to_error
 serde_repr
 serde_spanned
 serde_test
@@ -508,6 +516,7 @@ tokio-util
 toml
 toml_datetime
 toml_edit
+toml_write
 tonic
 tower
 tower-http
