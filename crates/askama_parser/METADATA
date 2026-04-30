@@ -1,17 +1,17 @@
 name: "askama_parser"
 description: "Parser for Askama templates"
 third_party {
-  version: "0.14.0"
+  version: "0.15.6"
   license_type: NOTICE
   last_upgrade_date {
     year: 2026
-    month: 2
-    day: 24
+    month: 4
+    day: 30
   }
   homepage: "https://crates.io/crates/askama_parser"
   identifier {
     type: "crates.io"
     value: "askama_parser"
-    version: "0.14.0"
+    version: "0.15.6"
   }
 }
