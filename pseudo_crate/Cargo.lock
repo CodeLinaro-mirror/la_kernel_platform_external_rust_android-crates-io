@@ -139,6 +139,7 @@ dependencies = [
  "ash",
  "askama",
  "askama_derive 0.15.6",
+ "askama_macros",
  "askama_parser 0.15.6",
  "async-stream",
  "async-stream-impl",
@@ -1076,6 +1077,15 @@ dependencies = [
  "serde",
  "serde_derive",
  "syn 2.0.117",
+]
+
+[[package]]
+name = "askama_macros"
+version = "0.15.6"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f0756b45480437dded0565dfc568af62ccce146fb6cfe902e808ba86e445f44f"
+dependencies = [
+ "askama_derive 0.15.6",
 ]
 
 [[package]]
