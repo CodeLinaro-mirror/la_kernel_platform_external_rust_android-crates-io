@@ -19,6 +19,7 @@ use crate::{Error, OtherError};
 
 /// Hybrid public key encryption (HPKE).
 pub mod hpke;
+/// Post-quantum secure algorithms.
 /// Using software keys for authentication.
 pub mod sign;
 
