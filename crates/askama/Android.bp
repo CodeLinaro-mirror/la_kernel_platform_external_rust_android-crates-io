@@ -18,9 +18,9 @@ rust_library {
     host_supported: true,
     crate_name: "askama",
     cargo_env_compat: true,
-    cargo_pkg_version: "0.14.0",
+    cargo_pkg_version: "0.15.6",
     crate_root: "src/lib.rs",
-    edition: "2021",
+    edition: "2024",
     features: [
         "alloc",
         "config",
@@ -33,7 +33,7 @@ rust_library {
         "libitoa",
         "libpercent_encoding",
     ],
-    proc_macros: ["libaskama_derive"],
+    proc_macros: ["libaskama_macros"],
     apex_available: [
         "//apex_available:platform",
         "//apex_available:anyapex",
