@@ -457,7 +457,7 @@ dependencies = [
  "os_pipe",
  "os_str_bytes",
  "p9",
- "p9_wire_format_derive 0.2.3",
+ "p9_wire_format_derive",
  "page_size",
  "parking_lot",
  "parking_lot_core",
@@ -6451,19 +6451,8 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "0dc5b2b13cb6a9a5fcf7c668ebf2aef67e0d83d4451c1db95feb9fb0775874f0"
 dependencies = [
  "libc 0.2.185",
- "p9_wire_format_derive 0.3.0",
+ "p9_wire_format_derive",
  "serde",
-]
-
-[[package]]
-name = "p9_wire_format_derive"
-version = "0.2.3"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e6085210d8ec9bcbdf38b5c8e97bccef1877f3f291eae48b65388ca979f5314e"
-dependencies = [
- "proc-macro2 1.0.106",
- "quote 1.0.45",
- "syn 1.0.109",
 ]
 
 [[package]]
