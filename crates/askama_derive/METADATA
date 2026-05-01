@@ -1,17 +1,17 @@
 name: "askama_derive"
-description: "Procedural macro package for Askama"
+description: "Code generator of Askama templating engine"
 third_party {
-  version: "0.14.0"
+  version: "0.15.6"
   license_type: NOTICE
   last_upgrade_date {
     year: 2026
-    month: 2
-    day: 24
+    month: 4
+    day: 30
   }
   homepage: "https://crates.io/crates/askama_derive"
   identifier {
     type: "crates.io"
     value: "askama_derive"
-    version: "0.14.0"
+    version: "0.15.6"
   }
 }
