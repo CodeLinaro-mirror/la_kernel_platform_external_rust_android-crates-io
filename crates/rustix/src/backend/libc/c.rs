@@ -63,24 +63,13 @@ pub(crate) const ETH_P_XDSA: c_int = linux_raw_sys::if_ether::ETH_P_XDSA as _;
 pub(crate) const ETH_P_MAP: c_int = linux_raw_sys::if_ether::ETH_P_MAP as _;
 #[cfg(all(linux_raw_dep, feature = "net"))]
 pub(crate) const ETH_P_MCTP: c_int = linux_raw_sys::if_ether::ETH_P_MCTP as _;
-
-#[cfg(all(
-    linux_kernel,
-    any(
-        target_arch = "mips",
-        target_arch = "mips32r6",
-        target_arch = "mips64",
-        target_arch = "mips64r6",
-        target_arch = "sparc",
-        target_arch = "sparc64"
-    )
-))]
-pub(crate) const SIGEMT: c_int = linux_raw_sys::general::SIGEMT as _;
+#[cfg(all(linux_raw_dep, feature = "mount"))]
+pub(crate) const MS_NOSYMFOLLOW: c_ulong = linux_raw_sys::general::MS_NOSYMFOLLOW as _;
 
 // TODO: Upstream these.
-#[cfg(all(linux_kernel, feature = "termios"))]
+#[cfg(all(linux_raw_dep, feature = "termios"))]
 pub(crate) const IUCLC: tcflag_t = linux_raw_sys::general::IUCLC as _;
-#[cfg(all(linux_kernel, feature = "termios"))]
+#[cfg(all(linux_raw_dep, feature = "termios"))]
 pub(crate) const XCASE: tcflag_t = linux_raw_sys::general::XCASE as _;
 
 #[cfg(target_os = "aix")]
@@ -490,7 +479,11 @@ pub(super) use readwrite_pv64v2::{preadv64v2 as preadv2, pwritev64v2 as pwritev2
 #[cfg(all(
     linux_like,
     linux_raw_dep,
-    not(any(target_os = "emscripten", target_env = "gnu"))
+    not(any(
+        target_os = "emscripten",
+        target_env = "gnu",
+        all(target_arch = "loongarch64", target_env = "musl")
+    ))
 ))]
 mod statx_flags {
     pub(crate) use linux_raw_sys::general::{
@@ -509,13 +502,82 @@ mod statx_flags {
 #[cfg(all(
     linux_like,
     linux_raw_dep,
-    not(any(target_os = "emscripten", target_env = "gnu"))
+    not(any(
+        target_os = "android",
+        target_os = "emscripten",
+        target_env = "gnu",
+        all(target_arch = "loongarch64", target_env = "musl")
+    ))
 ))]
 pub(crate) use statx_flags::*;
 
 #[cfg(feature = "fs")]
 #[cfg(target_os = "android")]
 pub(crate) use __fsid_t as fsid_t;
+
+// Android's libc crate is missing some constants.
+// TODO(https://github.com/bytecodealliance/rustix/issues/1589): try to upstream these
+// constants to libc.
+#[cfg(target_os = "android")]
+pub(crate) const CLONE_NEWTIME: c_int = 0x00000080;
+#[cfg(target_os = "android")]
+pub(crate) const FUTEX_WAITERS: u32 = 0x80000000;
+#[cfg(target_os = "android")]
+pub(crate) const FUTEX_OWNER_DIED: u32 = 0x40000000;
+
+// FreeBSD added `timerfd_*` in FreeBSD 14. NetBSD added then in NetBSD 10.
+#[cfg(all(feature = "time", any(target_os = "freebsd", target_os = "netbsd")))]
+syscall!(pub(crate) fn timerfd_create(
+    clockid: c_int,
+    flags: c_int
+) via SYS_timerfd_create -> c_int);
+#[cfg(all(feature = "time", any(target_os = "freebsd", target_os = "netbsd")))]
+syscall!(pub(crate) fn timerfd_gettime(
+    fd: c_int,
+    curr_value: *mut itimerspec
+) via SYS_timerfd_gettime -> c_int);
+#[cfg(all(feature = "time", any(target_os = "freebsd", target_os = "netbsd")))]
+syscall!(pub(crate) fn timerfd_settime(
+    fd: c_int,
+    flags: c_int,
+    new_value: *const itimerspec,
+    old_value: *mut itimerspec
+) via SYS_timerfd_settime -> c_int);
+
+#[cfg(all(feature = "time", target_os = "illumos"))]
+extern "C" {
+    pub(crate) fn timerfd_create(clockid: c_int, flags: c_int) -> c_int;
+    pub(crate) fn timerfd_gettime(fd: c_int, curr_value: *mut itimerspec) -> c_int;
+    pub(crate) fn timerfd_settime(
+        fd: c_int,
+        flags: c_int,
+        new_value: *const itimerspec,
+        old_value: *mut itimerspec,
+    ) -> c_int;
+}
+
+// illumos and NetBSD timerfd support.
+// Submitted upstream in <https://github.com/rust-lang/libc/pull/4333>.
+
+// <https://code.illumos.org/plugins/gitiles/illumos-gate/+/refs/heads/master/usr/src/uts/common/sys/timerfd.h#34>
+#[cfg(all(feature = "time", target_os = "illumos"))]
+pub(crate) const TFD_CLOEXEC: i32 = 0o2000000;
+#[cfg(all(feature = "time", target_os = "illumos"))]
+pub(crate) const TFD_NONBLOCK: i32 = 0o4000;
+#[cfg(all(feature = "time", target_os = "illumos"))]
+pub(crate) const TFD_TIMER_ABSTIME: i32 = 1 << 0;
+#[cfg(all(feature = "time", target_os = "illumos"))]
+pub(crate) const TFD_TIMER_CANCEL_ON_SET: i32 = 1 << 1;
+
+// <https://nxr.netbsd.org/xref/src/sys/sys/timerfd.h#44>
+#[cfg(all(feature = "time", target_os = "netbsd"))]
+pub(crate) const TFD_CLOEXEC: i32 = O_CLOEXEC;
+#[cfg(all(feature = "time", target_os = "netbsd"))]
+pub(crate) const TFD_NONBLOCK: i32 = O_NONBLOCK;
+#[cfg(all(feature = "time", target_os = "netbsd"))]
+pub(crate) const TFD_TIMER_ABSTIME: i32 = O_WRONLY;
+#[cfg(all(feature = "time", target_os = "netbsd"))]
+pub(crate) const TFD_TIMER_CANCEL_ON_SET: i32 = O_RDWR;
 
 #[cfg(test)]
 mod tests {
