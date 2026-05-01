@@ -29,6 +29,7 @@
 #![deny(unreachable_code, unreachable_pub)]
 mod ar30_utils;
 mod ayuv_to_rgba;
+mod cgco;
 #[cfg(feature = "nightly_f16")]
 mod f16_converter;
 #[cfg(feature = "nightly_f16")]
@@ -70,7 +71,6 @@ mod utils;
 mod y_p16_to_rgba16;
 mod y_to_rgb;
 mod y_to_rgb_alpha;
-mod ycgco_to_rgb;
 mod yuv_nv_p10_to_ar30;
 mod yuv_nv_p10_to_rgba;
 #[cfg(feature = "professional_mode")]
@@ -87,6 +87,7 @@ mod yuv_nv_to_rgbx_fast;
 #[cfg(feature = "fast_mode")]
 mod yuv_nv_to_rgbx_fast420;
 mod yuv_p16_to_rgba16;
+mod yuv_p16_to_rgba16_420;
 mod yuv_p16_to_rgba16_alpha;
 mod yuv_p16_to_rgba16_bilinear;
 mod yuv_p16_to_rgba8;
@@ -106,6 +107,9 @@ mod yuy2_to_yuv;
 pub(crate) use ayuv_to_rgba::neon_ayuv_to_rgba;
 #[cfg(feature = "rdm")]
 pub(crate) use ayuv_to_rgba::neon_ayuv_to_rgba_rdm;
+pub(crate) use cgco::{neon_ycgco420_to_rgba_row, neon_ycgco_full_range_to_rgb};
+#[cfg(feature = "ycgco_r_type")]
+pub(crate) use cgco::{ycgco_ro_re_u16_to_rgba_neon, ycgco_ro_re_u16_to_rgba_neon_full};
 #[cfg(feature = "nightly_f16")]
 pub(crate) use f16_converter::{
     SurfaceF16ToUnsigned16Neon, SurfaceF16ToUnsigned16NeonFallback, SurfaceF16ToUnsigned8Neon,
@@ -168,7 +172,6 @@ pub(crate) use y_to_rgb::neon_y_to_rgb_row_rdm;
 pub(crate) use y_to_rgb_alpha::neon_y_to_rgb_alpha_row;
 #[cfg(feature = "rdm")]
 pub(crate) use y_to_rgb_alpha::neon_y_to_rgb_row_alpha_rdm;
-pub(crate) use ycgco_to_rgb::{neon_ycgco420_to_rgba_row, neon_ycgco_full_range_to_rgb};
 pub(crate) use yuv_nv_p10_to_ar30::neon_yuv_nv12_p10_to_ar30_row;
 pub(crate) use yuv_nv_p10_to_rgba::neon_yuv_nv12_p10_to_rgba_row;
 #[cfg(feature = "professional_mode")]
@@ -193,6 +196,9 @@ pub(crate) use yuv_nv_to_rgbx_fast420::neon_yuv_nv_to_rgba_fast_row420;
 pub(crate) use yuv_p16_to_rgba16::neon_yuv_p16_to_rgba16_row;
 #[cfg(feature = "rdm")]
 pub(crate) use yuv_p16_to_rgba16::neon_yuv_p16_to_rgba16_row_rdm;
+pub(crate) use yuv_p16_to_rgba16_420::neon_yuv_p16_to_rgba16_row420;
+#[cfg(feature = "rdm")]
+pub(crate) use yuv_p16_to_rgba16_420::neon_yuv_p16_to_rgba16_row420_rdm;
 pub(crate) use yuv_p16_to_rgba16_alpha::neon_yuv_p16_to_rgba16_alpha_row;
 #[cfg(feature = "rdm")]
 pub(crate) use yuv_p16_to_rgba16_alpha::neon_yuv_p16_to_rgba16_alpha_row_rdm;
