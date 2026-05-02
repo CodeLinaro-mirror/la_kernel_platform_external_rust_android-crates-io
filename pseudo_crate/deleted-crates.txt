@@ -13,7 +13,6 @@ miette-derive
 moveit
 oneshot-uniffi
 syn-mid
-tinyjson
 uniffi
 uniffi_checksum_derive
 uniffi_core
