@@ -1,5 +1,6 @@
 use std::env::var;
 use std::io::Write as _;
+use std::path::PathBuf;
 
 /// The directory for inline asm.
 const ASM_PATH: &str = "src/backend/linux_raw/arch";
@@ -83,6 +84,15 @@ fn main() {
         use_feature("static_assertions");
     }
 
+    // `LowerExp`/`UpperExp` for `NonZeroI32` etc.
+    if has_lower_upper_exp_for_non_zero() {
+        use_feature("lower_upper_exp_for_non_zero");
+    }
+
+    if can_compile("#[diagnostic::on_unimplemented()] trait Foo {}") {
+        use_feature("rustc_diagnostics")
+    }
+
     // WASI support can utilize wasi_ext if present.
     if os == "wasi" {
         use_feature_or_nothing("wasi_ext");
@@ -107,7 +117,7 @@ fn main() {
             || arch.starts_with("mips"))
             && !rustix_use_experimental_asm);
     if libc {
-        if os != "android" && os == "linux" && !cfg_no_linux_raw {
+        if (os == "linux" || os == "android") && !cfg_no_linux_raw {
             use_feature("linux_raw_dep");
         }
 
@@ -197,6 +207,12 @@ fn use_thumb_mode() -> bool {
     !can_compile("pub unsafe fn f() { core::arch::asm!(\"udf #16\", in(\"r7\") 0); }")
 }
 
+fn has_lower_upper_exp_for_non_zero() -> bool {
+    // LowerExp/UpperExp for NonZero* were added in Rust 1.84.
+    // <https://doc.rust-lang.org/stable/std/fmt/trait.LowerExp.html#impl-LowerExp-for-NonZero%3CT%3E>
+    can_compile("fn a(x: &core::num::NonZeroI32, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result { core::fmt::LowerExp::fmt(x, f) }")
+}
+
 fn use_feature_or_nothing(feature: &str) {
     if has_feature(feature) {
         use_feature(feature);
@@ -238,12 +254,14 @@ fn can_compile<T: AsRef<str>>(test: T) -> bool {
         std::process::Command::new(rustc)
     };
 
+    let out_dir = var("OUT_DIR").unwrap();
+    let out_file = PathBuf::from(out_dir).join("rustix_test_can_compile");
     cmd.arg("--crate-type=rlib") // Don't require `main`.
         .arg("--emit=metadata") // Do as little as possible but still parse.
         .arg("--target")
         .arg(target)
         .arg("-o")
-        .arg("-")
+        .arg(out_file)
         .stdout(Stdio::null()); // We don't care about the output (only whether it builds or not)
 
     // If Cargo wants to set RUSTFLAGS, use that.

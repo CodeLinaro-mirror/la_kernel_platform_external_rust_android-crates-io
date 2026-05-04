@@ -341,13 +341,13 @@ pub(crate) fn setns(fd: BorrowedFd<'_>, nstype: c::c_int) -> io::Result<c::c_int
     unsafe { ret_c_int(setns(borrowed_fd(fd), nstype)) }
 }
 
-#[cfg(linux_kernel)]
+#[cfg(all(linux_kernel, linux_raw_dep))]
 #[inline]
-pub(crate) fn unshare(flags: crate::thread::UnshareFlags) -> io::Result<()> {
-    unsafe { ret(c::unshare(flags.bits() as i32)) }
+pub(crate) unsafe fn unshare(flags: crate::thread::UnshareFlags) -> io::Result<()> {
+    ret(c::unshare(flags.bits() as i32))
 }
 
-#[cfg(linux_kernel)]
+#[cfg(all(linux_kernel, linux_raw_dep))]
 #[inline]
 pub(crate) fn capget(
     header: &mut linux_raw_sys::general::__user_cap_header_struct,
@@ -369,7 +369,7 @@ pub(crate) fn capget(
     }
 }
 
-#[cfg(linux_kernel)]
+#[cfg(all(linux_kernel, linux_raw_dep))]
 #[inline]
 pub(crate) fn capset(
     header: &mut linux_raw_sys::general::__user_cap_header_struct,
@@ -398,9 +398,9 @@ pub(crate) fn setuid_thread(uid: crate::ugid::Uid) -> io::Result<()> {
 #[cfg(linux_kernel)]
 #[inline]
 pub(crate) fn setresuid_thread(
-    ruid: crate::ugid::Uid,
-    euid: crate::ugid::Uid,
-    suid: crate::ugid::Uid,
+    ruid: Option<crate::ugid::Uid>,
+    euid: Option<crate::ugid::Uid>,
+    suid: Option<crate::ugid::Uid>,
 ) -> io::Result<()> {
     #[cfg(any(target_arch = "x86", target_arch = "arm", target_arch = "sparc"))]
     const SYS: c::c_long = c::SYS_setresuid32 as c::c_long;
@@ -411,7 +411,13 @@ pub(crate) fn setresuid_thread(
         fn setresuid(ruid: c::uid_t, euid: c::uid_t, suid: c::uid_t) via SYS -> c::c_int
     }
 
-    unsafe { ret(setresuid(ruid.as_raw(), euid.as_raw(), suid.as_raw())) }
+    unsafe {
+        ret(setresuid(
+            ruid.map_or(-1_i32 as u32, |x| x.as_raw()),
+            euid.map_or(-1_i32 as u32, |x| x.as_raw()),
+            suid.map_or(-1_i32 as u32, |x| x.as_raw()),
+        ))
+    }
 }
 
 #[cfg(linux_kernel)]
@@ -427,9 +433,9 @@ pub(crate) fn setgid_thread(gid: crate::ugid::Gid) -> io::Result<()> {
 #[cfg(linux_kernel)]
 #[inline]
 pub(crate) fn setresgid_thread(
-    rgid: crate::ugid::Gid,
-    egid: crate::ugid::Gid,
-    sgid: crate::ugid::Gid,
+    rgid: Option<crate::ugid::Gid>,
+    egid: Option<crate::ugid::Gid>,
+    sgid: Option<crate::ugid::Gid>,
 ) -> io::Result<()> {
     #[cfg(any(target_arch = "x86", target_arch = "arm", target_arch = "sparc"))]
     const SYS: c::c_long = c::SYS_setresgid32 as c::c_long;
@@ -440,7 +446,13 @@ pub(crate) fn setresgid_thread(
         fn setresgid(rgid: c::gid_t, egid: c::gid_t, sgid: c::gid_t) via SYS -> c::c_int
     }
 
-    unsafe { ret(setresgid(rgid.as_raw(), egid.as_raw(), sgid.as_raw())) }
+    unsafe {
+        ret(setresgid(
+            rgid.map_or(-1_i32 as u32, |x| x.as_raw()),
+            egid.map_or(-1_i32 as u32, |x| x.as_raw()),
+            sgid.map_or(-1_i32 as u32, |x| x.as_raw()),
+        ))
+    }
 }
 
 /// # Safety
@@ -465,6 +477,7 @@ pub(crate) unsafe fn futex_val2(
     let timeout = val2 as usize as *const Timespec;
 
     #[cfg(all(
+        linux_raw_dep,
         target_pointer_width = "32",
         not(any(target_arch = "aarch64", target_arch = "x86_64"))
     ))]
@@ -492,6 +505,16 @@ pub(crate) unsafe fn futex_val2(
             uaddr2,
             val3,
         ))
+    }
+
+    #[cfg(all(
+        not(linux_raw_dep),
+        target_pointer_width = "32",
+        not(any(target_arch = "aarch64", target_arch = "x86_64"))
+    ))]
+    {
+        let _ = (uaddr, op, flags, val, timeout, uaddr2, val3);
+        Err(io::Errno::NOSYS)
     }
 
     #[cfg(any(
@@ -536,6 +559,7 @@ pub(crate) unsafe fn futex_timeout(
     val3: u32,
 ) -> io::Result<usize> {
     #[cfg(all(
+        linux_raw_dep,
         target_pointer_width = "32",
         not(any(target_arch = "aarch64", target_arch = "x86_64"))
     ))]
@@ -573,6 +597,16 @@ pub(crate) unsafe fn futex_timeout(
         })
     }
 
+    #[cfg(all(
+        not(linux_raw_dep),
+        target_pointer_width = "32",
+        not(any(target_arch = "aarch64", target_arch = "x86_64"))
+    ))]
+    {
+        let _ = (uaddr, op, flags, val, timeout, uaddr2, val3);
+        Err(io::Errno::NOSYS)
+    }
+
     #[cfg(any(
         target_pointer_width = "64",
         target_arch = "aarch64",
@@ -606,6 +640,7 @@ pub(crate) unsafe fn futex_timeout(
 /// The raw pointers must point to valid aligned memory.
 #[cfg(linux_kernel)]
 #[cfg(all(
+    linux_raw_dep,
     target_pointer_width = "32",
     not(any(target_arch = "aarch64", target_arch = "x86_64"))
 ))]
@@ -654,8 +689,9 @@ pub(crate) fn futex_waitv(
     timeout: Option<&Timespec>,
     clockid: ClockId,
 ) -> io::Result<usize> {
+    use crate::backend::c::clockid_t;
     use futex::Wait as FutexWait;
-    use linux_raw_sys::general::__kernel_clockid_t as clockid_t;
+
     syscall! {
         fn futex_waitv(
             waiters: *const FutexWait,
