@@ -416,11 +416,6 @@ dependencies = [
  "minimal-lexical",
  "miniz_oxide 0.9.1",
  "mio",
- "mls-rs",
- "mls-rs-codec 0.6.0",
- "mls-rs-codec-derive 0.2.0",
- "mls-rs-core",
- "mls-rs-crypto-traits",
  "mockall",
  "mockall_derive",
  "mockall_double",
@@ -493,7 +488,7 @@ dependencies = [
  "predicates",
  "predicates-core",
  "predicates-tree",
- "prettyplease 0.2.37",
+ "prettyplease",
  "primal-check",
  "proc-macro-error-attr2",
  "proc-macro-error2",
@@ -1413,7 +1408,7 @@ dependencies = [
  "clap_complete",
  "itertools 0.13.0",
  "log",
- "prettyplease 0.2.37",
+ "prettyplease",
  "proc-macro2 1.0.106",
  "quote 1.0.45",
  "regex",
@@ -3135,39 +3130,10 @@ dependencies = [
 ]
 
 [[package]]
-name = "ext-trait"
-version = "1.0.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d772df1c1a777963712fb68e014235e80863d6a91a85c4e06ba2d16243a310e5"
-dependencies = [
- "ext-trait-proc_macros",
-]
-
-[[package]]
-name = "ext-trait-proc_macros"
-version = "1.0.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1ab7934152eaf26aa5aa9f7371408ad5af4c31357073c9e84c3b9d7f11ad639a"
-dependencies = [
- "proc-macro2 1.0.106",
- "quote 1.0.45",
- "syn 1.0.109",
-]
-
-[[package]]
 name = "extended"
 version = "0.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "af9673d8203fcb076b19dfd17e38b3d4ae9f44959416ea532ce72415a6020365"
-
-[[package]]
-name = "extension-traits"
-version = "1.0.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a296e5a895621edf9fa8329c83aa1cb69a964643e36cf54d8d7a69b789089537"
-dependencies = [
- "ext-trait",
-]
 
 [[package]]
 name = "faccess"
@@ -5606,22 +5572,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "macro_rules_attribute"
-version = "0.1.3"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "cf0c9b980bf4f3a37fd7b1c066941dd1b1d0152ce6ee6e8fe8c49b9f6810d862"
-dependencies = [
- "macro_rules_attribute-proc_macro",
- "paste",
-]
-
-[[package]]
-name = "macro_rules_attribute-proc_macro"
-version = "0.1.3"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "58093314a45e00c77d5c508f76e77c3396afbbc0d01506e7fae47b018bac2b1d"
-
-[[package]]
 name = "malloc_buf"
 version = "0.0.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -5765,122 +5715,6 @@ dependencies = [
  "log",
  "wasi",
  "windows-sys 0.61.2",
-]
-
-[[package]]
-name = "mls-rs"
-version = "0.39.4"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4eb9f20304acc58e73253c137f7f1266ad4d4efe327554b652a3ccad5827c3bb"
-dependencies = [
- "async-trait",
- "cfg-if",
- "debug_tree",
- "futures",
- "getrandom 0.2.16",
- "hex",
- "itertools 0.12.1",
- "maybe-async",
- "mls-rs-codec 0.5.3",
- "mls-rs-core",
- "mls-rs-identity-x509",
- "portable-atomic",
- "portable-atomic-util 0.1.5",
- "rand_core 0.6.4",
- "rayon",
- "safer-ffi-gen",
- "serde",
- "spin 0.9.8",
- "thiserror 1.0.49",
- "wasm-bindgen",
- "zeroize",
-]
-
-[[package]]
-name = "mls-rs-codec"
-version = "0.5.3"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1f84f5344d759b6f5e64870845b90f0829a3402534582be354deb12e23de8741"
-dependencies = [
- "mls-rs-codec-derive 0.1.1",
- "thiserror 1.0.49",
- "wasm-bindgen",
-]
-
-[[package]]
-name = "mls-rs-codec"
-version = "0.6.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f865c30512488ec839e934208ff2ca4b2491cb3cde5a929f2b0cfed064e05511"
-dependencies = [
- "mls-rs-codec-derive 0.2.0",
- "thiserror 1.0.49",
- "wasm-bindgen",
-]
-
-[[package]]
-name = "mls-rs-codec-derive"
-version = "0.1.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "264e7261ff5d3d0d0bbc3af01df1d294727440861bf9ce3d30e93c90191ab9f3"
-dependencies = [
- "darling 0.20.10",
- "proc-macro2 1.0.106",
- "quote 1.0.45",
- "syn 2.0.117",
-]
-
-[[package]]
-name = "mls-rs-codec-derive"
-version = "0.2.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c8b31fb579767147e96686889f1e7459d6bd41a131b11d7cd130776cffadb1c3"
-dependencies = [
- "darling 0.20.10",
- "proc-macro2 1.0.106",
- "quote 1.0.45",
- "syn 2.0.117",
-]
-
-[[package]]
-name = "mls-rs-core"
-version = "0.18.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "02e954709b09503192bba7b79f9ef907106bb25e68607342971e8b2dbbbbddec"
-dependencies = [
- "async-trait",
- "hex",
- "maybe-async",
- "mls-rs-codec 0.5.3",
- "safer-ffi-gen",
- "serde",
- "thiserror 1.0.49",
- "wasm-bindgen",
- "zeroize",
-]
-
-[[package]]
-name = "mls-rs-crypto-traits"
-version = "0.10.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "af670b03ef8413b9bf7af33cd921ac87ef4e9daa26e4eaf0200b2e8954471d43"
-dependencies = [
- "async-trait",
- "maybe-async",
- "mls-rs-core",
-]
-
-[[package]]
-name = "mls-rs-identity-x509"
-version = "0.11.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8da83f76a159e3828350d3a5279e911cacf18ec83998008c922781904da1a6f8"
-dependencies = [
- "async-trait",
- "maybe-async",
- "mls-rs-core",
- "thiserror 1.0.49",
- "wasm-bindgen",
 ]
 
 [[package]]
@@ -6583,7 +6417,7 @@ dependencies = [
  "heck 0.4.1",
  "pest",
  "pest_derive",
- "prettyplease 0.2.37",
+ "prettyplease",
  "proc-macro2 1.0.106",
  "quote 1.0.45",
  "serde",
@@ -6886,18 +6720,6 @@ name = "portable-atomic"
 version = "1.13.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c33a9471896f1c69cecef8d20cbe2f7accd12527ce60845ff44c153bb2a21b49"
-dependencies = [
- "critical-section",
-]
-
-[[package]]
-name = "portable-atomic-util"
-version = "0.1.5"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a1a7411625b38d51b41421c6333976adffd4674a925a978856734a2dc853449b"
-dependencies = [
- "portable-atomic",
-]
 
 [[package]]
 name = "portable-atomic-util"
@@ -6966,16 +6788,6 @@ dependencies = [
 
 [[package]]
 name = "prettyplease"
-version = "0.1.25"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6c8646e95016a7a6c4adea95bafa8a16baab64b583356217f2c85db4a39d9a86"
-dependencies = [
- "proc-macro2 1.0.106",
- "syn 1.0.109",
-]
-
-[[package]]
-name = "prettyplease"
 version = "0.2.37"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "479ca8adacdd7ce8f1fb39ce9ecccbfe93a3f1344b3d0d97f20bc0196208f62b"
@@ -7010,30 +6822,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e67ba7e9b2b56446f1d419b1d807906278ffa1a658a8a5d8a39dcb1f5a78614f"
 dependencies = [
  "toml_edit 0.25.4+spec-1.1.0",
-]
-
-[[package]]
-name = "proc-macro-error"
-version = "1.0.4"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "da25490ff9892aab3fcf7c36f08cfb902dd3e71ca0f9f9517bea02a73a5ce38c"
-dependencies = [
- "proc-macro-error-attr",
- "proc-macro2 1.0.106",
- "quote 1.0.45",
- "syn 1.0.109",
- "version_check",
-]
-
-[[package]]
-name = "proc-macro-error-attr"
-version = "1.0.4"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a1be40180e52ecc98ad80b184934baf3d0d29f979574e439af5a55274b35f869"
-dependencies = [
- "proc-macro2 1.0.106",
- "quote 1.0.45",
- "version_check",
 ]
 
 [[package]]
@@ -7341,8 +7129,6 @@ version = "0.8.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "34af8d1a0e25924bc5b7c43c079c942339d8f0a8b57c39049bef581b46327404"
 dependencies = [
- "libc 0.2.185",
- "rand_chacha 0.3.1",
  "rand_core 0.6.4",
 ]
 
@@ -7352,7 +7138,7 @@ version = "0.9.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7ec095654a25171c2124e9e3393a930bddbffdc939556c914957a4c3e0a87166"
 dependencies = [
- "rand_chacha 0.9.0",
+ "rand_chacha",
  "rand_core 0.9.5",
 ]
 
@@ -7365,16 +7151,6 @@ dependencies = [
  "chacha20",
  "getrandom 0.4.2",
  "rand_core 0.10.0",
-]
-
-[[package]]
-name = "rand_chacha"
-version = "0.3.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e6c10a63a0fa32252be49d21e7709d4d4baf8d231c2dbce1eaa8141b9b127d88"
-dependencies = [
- "ppv-lite86",
- "rand_core 0.6.4",
 ]
 
 [[package]]
@@ -7991,61 +7767,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "safer-ffi"
-version = "0.1.12"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "614978f55c6e885794b44afb2e2378fe61b104ec4391f310d879edf3df9d874c"
-dependencies = [
- "libc 0.2.185",
- "macro_rules_attribute",
- "paste",
- "safer_ffi-proc_macros",
- "scopeguard",
- "stabby",
- "uninit",
- "unwind_safe",
- "with_builtin_macros",
-]
-
-[[package]]
-name = "safer-ffi-gen"
-version = "0.9.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "bdc3e72a8e99de537461ab5e9331d32c08dd558493e844cb70753a9890fdbc48"
-dependencies = [
- "once_cell",
- "safer-ffi",
- "safer-ffi-gen-macro",
-]
-
-[[package]]
-name = "safer-ffi-gen-macro"
-version = "0.9.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "836aa8cd7b269dcdd3d81cca1ddc136aa1d2b05f30b6a34c0ff075152b2e3771"
-dependencies = [
- "heck 0.4.1",
- "proc-macro-error",
- "proc-macro2 1.0.106",
- "quote 1.0.45",
- "syn 2.0.117",
- "thiserror 1.0.49",
-]
-
-[[package]]
-name = "safer_ffi-proc_macros"
-version = "0.1.12"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7cdcb365894c49e42b5413def59ac644ea085bbbdee535d7c80b2b008a345686"
-dependencies = [
- "macro_rules_attribute",
- "prettyplease 0.1.25",
- "proc-macro2 1.0.106",
- "quote 1.0.45",
- "syn 1.0.109",
-]
-
-[[package]]
 name = "same-file"
 version = "1.0.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -8360,12 +8081,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "sha2-const-stable"
-version = "0.1.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5f179d4e11094a893b82fff208f74d448a7512f99f5a0acbd5c679b705f83ed9"
-
-[[package]]
 name = "sharded-slab"
 version = "0.1.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -8601,9 +8316,6 @@ name = "spin"
 version = "0.9.8"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "6980e8d7511241f8acf4aebddbb1ff938df5eebe98691418c4468d0b72a96a67"
-dependencies = [
- "portable-atomic",
-]
 
 [[package]]
 name = "spin"
@@ -8631,40 +8343,6 @@ checksum = "d91ed6c858b01f942cd56b37a94b3e0a1798290327d1236e4d9cf4eaca44d29d"
 dependencies = [
  "base64ct",
  "der",
-]
-
-[[package]]
-name = "stabby"
-version = "36.1.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "311d6bcf0070c462ff626122ec2246f42bd2acd44b28908eedbfd07d500c7d99"
-dependencies = [
- "rustversion",
- "stabby-abi",
-]
-
-[[package]]
-name = "stabby-abi"
-version = "36.1.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e6daae1a0707399f56d27fce7f212e50e31d215112a447e1bbcd837ae1bf5f49"
-dependencies = [
- "rustversion",
- "sha2-const-stable",
- "stabby-macros",
-]
-
-[[package]]
-name = "stabby-macros"
-version = "36.1.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "43cf89a0cc9131279235baf8599b0e073fbcb096419204de0cc5d1a48ae73f74"
-dependencies = [
- "proc-macro-crate 3.5.0",
- "proc-macro2 1.0.106",
- "quote 1.0.45",
- "rand 0.8.5",
- "syn 1.0.109",
 ]
 
 [[package]]
@@ -9859,15 +9537,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "ebc1c04c71510c7f702b52b7c350734c9ff1295c464a03335b00bb84fc54f853"
 
 [[package]]
-name = "uninit"
-version = "0.5.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3e130f2ed46ca5d8ec13c7ff95836827f92f5f5f37fd2b2bf16f33c408d98bb6"
-dependencies = [
- "extension-traits",
-]
-
-[[package]]
 name = "unsafe-libyaml"
 version = "0.2.11"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -9896,12 +9565,6 @@ name = "unty"
 version = "0.0.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7dbe8d477efbc6c70a1dea1f9f1e0482168983a9147dee6b3a619f666f3aeac6"
-
-[[package]]
-name = "unwind_safe"
-version = "0.1.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0976c77def3f1f75c4ef892a292c31c0bbe9e3d0702c63044d7c76db298171a3"
 
 [[package]]
 name = "url"
@@ -11116,7 +10779,7 @@ dependencies = [
  "anyhow",
  "heck 0.5.0",
  "indexmap 2.14.0",
- "prettyplease 0.2.37",
+ "prettyplease",
  "syn 2.0.117",
  "wasm-metadata",
  "wit-bindgen-core",
@@ -11130,7 +10793,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "0c0f9bfd77e6a48eccf51359e3ae77140a7f50b1e2ebfe62422d8afdaffab17a"
 dependencies = [
  "anyhow",
- "prettyplease 0.2.37",
+ "prettyplease",
  "proc-macro2 1.0.106",
  "quote 1.0.45",
  "syn 2.0.117",
@@ -11173,26 +10836,6 @@ dependencies = [
  "serde_json",
  "unicode-xid 0.2.6",
  "wasmparser",
-]
-
-[[package]]
-name = "with_builtin_macros"
-version = "0.0.3"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a59d55032495429b87f9d69954c6c8602e4d3f3e0a747a12dea6b0b23de685da"
-dependencies = [
- "with_builtin_macros-proc_macros",
-]
-
-[[package]]
-name = "with_builtin_macros-proc_macros"
-version = "0.0.3"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "15bd7679c15e22924f53aee34d4e448c45b674feb6129689af88593e129f8f42"
-dependencies = [
- "proc-macro2 1.0.106",
- "quote 1.0.45",
- "syn 1.0.109",
 ]
 
 [[package]]
