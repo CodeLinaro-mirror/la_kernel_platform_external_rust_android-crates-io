@@ -9,6 +9,7 @@
   "variants": [
     {},
     {
+      "features": [],
       "generate_rulesmk": true,
       "generate_androidbp": false,
       "tests": false
