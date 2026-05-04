@@ -13,7 +13,7 @@
 edition = "2021"
 rust-version = "1.71"
 name = "tokio"
-version = "1.51.1"
+version = "1.52.1"
 authors = ["Tokio Contributors <team@tokio.rs>"]
 build = false
 autolib = false
@@ -231,6 +231,10 @@ path = "tests/fs_uring_cancel_open.rs"
 [[test]]
 name = "fs_uring_completed_then_dropped_before_repoll"
 path = "tests/fs_uring_completed_then_dropped_before_repoll.rs"
+
+[[test]]
+name = "fs_uring_file_read"
+path = "tests/fs_uring_file_read.rs"
 
 [[test]]
 name = "fs_uring_read"
@@ -515,6 +519,10 @@ path = "tests/rt_threaded.rs"
 [[test]]
 name = "rt_time_start_paused"
 path = "tests/rt_time_start_paused.rs"
+
+[[test]]
+name = "rt_unstable_eager_driver_handoff"
+path = "tests/rt_unstable_eager_driver_handoff.rs"
 
 [[test]]
 name = "rt_unstable_metrics"
@@ -882,6 +890,9 @@ default-features = false
 version = "0.4.9"
 optional = true
 
+[target.'cfg(all(tokio_unstable, target_os = "linux"))'.dev-dependencies.backtrace]
+version = "0.3.58"
+
 [target.'cfg(any(not(target_family = "wasm"), all(target_os = "wasi", not(target_env = "p1"))))'.dependencies.socket2]
 version = "0.6.3"
 features = ["all"]
@@ -907,7 +918,7 @@ version = "0.6.0"
 version = "3.1.0"
 
 [target.'cfg(target_os = "freebsd")'.dev-dependencies.mio-aio]
-version = "1"
+version = "2"
 features = ["tokio"]
 
 [target.'cfg(target_os = "wasi")'.dependencies.libc]
@@ -932,7 +943,7 @@ optional = true
 version = "0.2.168"
 
 [target."cfg(unix)".dev-dependencies.nix]
-version = "0.29.0"
+version = "0.31.0"
 features = [
     "aio",
     "fs",
