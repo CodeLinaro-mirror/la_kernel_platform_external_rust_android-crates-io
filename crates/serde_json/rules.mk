@@ -16,7 +16,7 @@ MODULE_RUSTFLAGS += \
 MODULE_LIBRARY_DEPS := \
 	$(call FIND_CRATE,itoa) \
 	$(call FIND_CRATE,memchr) \
-	$(call FIND_CRATE,ryu) \
-	$(call FIND_CRATE,serde_core)
+	$(call FIND_CRATE,serde_core) \
+	$(call FIND_CRATE,zmij)
 
 include make/library.mk
