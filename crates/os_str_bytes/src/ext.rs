@@ -1,7 +1,6 @@
 use std::ffi::OsStr;
 use std::ffi::OsString;
 use std::iter;
-use std::mem;
 use std::ops::Range;
 use std::ops::RangeFrom;
 use std::ops::RangeFull;
@@ -154,7 +153,6 @@ where
 /// [`memchr::memmem::find`][memchr_complexity]).
 ///
 /// [memchr_complexity]: ::memchr::memmem::find#complexity
-#[cfg_attr(not(feature = "conversions"), allow(private_bounds))]
 #[cfg_attr(os_str_bytes_docs_rs, doc(cfg(feature = "raw_os_str")))]
 pub trait OsStrBytesExt: OsStrBytes {
     /// Equivalent to [`str::contains`].
@@ -822,38 +820,3 @@ r#impl!(RangeFull);
 r#impl!(RangeInclusive<usize>, x, *x.start(), x.end().wrapping_add(1));
 r#impl!(RangeTo<usize>, x, x.end);
 r#impl!(RangeToInclusive<usize>, x, x.end.wrapping_add(1));
-
-/// A container for platform strings containing no unicode characters.
-///
-/// Instances can only be constructed using [`Utf8Chunks`].
-#[derive(Debug)]
-#[cfg_attr(os_str_bytes_docs_rs, doc(cfg(feature = "raw_os_str")))]
-#[repr(transparent)]
-pub struct NonUnicodeOsStr(OsStr);
-
-impl NonUnicodeOsStr {
-    unsafe fn from_inner(string: &OsStr) -> &Self {
-        // SAFETY: This struct has a layout that makes this operation safe.
-        unsafe { mem::transmute(string) }
-    }
-
-    pub(super) unsafe fn new_unchecked(string: &[u8]) -> &Self {
-        // SAFETY: This method has stricter safety requirements.
-        unsafe { Self::from_inner(os_str(string)) }
-    }
-
-    /// Converts this representation back to a platform-native string, without
-    /// copying or encoding conversion.
-    #[inline]
-    #[must_use]
-    pub fn as_os_str(&self) -> &OsStr {
-        &self.0
-    }
-}
-
-impl AsRef<OsStr> for NonUnicodeOsStr {
-    #[inline]
-    fn as_ref(&self) -> &OsStr {
-        &self.0
-    }
-}
