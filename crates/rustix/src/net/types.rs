@@ -752,7 +752,7 @@ impl AddressFamily {
     #[cfg(apple)]
     pub const UTUN: Self = Self(c::AF_UTUN as _);
     /// `AF_VSOCK`
-    #[cfg(any(apple, target_os = "emscripten", target_os = "fuchsia"))]
+    #[cfg(any(apple, linux_kernel, target_os = "emscripten", target_os = "fuchsia"))]
     pub const VSOCK: Self = Self(c::AF_VSOCK as _);
     /// `AF_XDP`
     #[cfg(target_os = "linux")]
@@ -1719,6 +1719,21 @@ bitflags! {
         // This deliberately lacks a `const _ = !0`, so that users can use
         // `from_bits_truncate` to extract the `SocketFlags` from a flags
         // value that also includes a `SocketType`.
+    }
+}
+
+#[cfg(all(target_os = "linux", feature = "time"))]
+bitflags! {
+    /// Flags for use with [`set_txtime`].
+    ///
+    /// [`set_txtime`]: crate::net::sockopt::set_txtime
+    #[repr(transparent)]
+    #[derive(Copy, Clone, Eq, PartialEq, Hash, Debug)]
+    pub struct TxTimeFlags: u32 {
+        /// `SOF_TXTIME_DEADLINE_MODE`
+        const DEADLINE_MODE = bitcast!(c::SOF_TXTIME_DEADLINE_MODE);
+        /// `SOF_TXTIME_REPORT_ERRORS`
+        const REPORT_ERRORS = bitcast!(c::SOF_TXTIME_REPORT_ERRORS);
     }
 }
 

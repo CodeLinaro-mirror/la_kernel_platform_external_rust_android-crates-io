@@ -18,20 +18,20 @@ use crate::fd::{AsFd, BorrowedFd};
 use crate::ffi as c;
 use crate::io::Result;
 
-#[cfg(any(linux_kernel, bsd))]
+#[cfg(any(linux_kernel, bsd, target_os = "redox"))]
 use core::mem;
 
 pub use patterns::*;
 
 mod patterns;
 
-#[cfg(linux_kernel)]
+#[cfg(any(linux_kernel, target_os = "redox"))]
 mod linux;
 
 #[cfg(bsd)]
 mod bsd;
 
-#[cfg(linux_kernel)]
+#[cfg(any(linux_kernel, target_os = "redox"))]
 use linux as platform;
 
 #[cfg(bsd)]
@@ -198,7 +198,7 @@ pub unsafe trait Ioctl {
 ///
 /// If you're writing a driver and defining your own ioctl numbers, it's
 /// recommended to use these functions to compute them.
-#[cfg(any(linux_kernel, bsd))]
+#[cfg(any(linux_kernel, bsd, target_os = "redox"))]
 pub mod opcode {
     use super::*;
 
@@ -343,6 +343,36 @@ type _Opcode = c::c_uint;
 // Windows has `ioctlsocket`, which uses `i32`.
 #[cfg(windows)]
 type _Opcode = i32;
+
+/// Convenience macro for Rustix's ioctl write
+#[macro_export]
+macro_rules! ioctl_write_ptr {
+    ($name:ident, $ioty:expr, $nr:expr, $ty:ty) => {
+        pub unsafe fn $name(fd: std::os::fd::BorrowedFd, data: &$ty) -> std::io::Result<()> {
+            const OPCODE: $crate::ioctl::Opcode =
+                $crate::ioctl::opcode::write::<$ty>($ioty as u8, $nr as u8);
+            Ok(rustix::ioctl::ioctl(
+                fd,
+                $crate::ioctl::Setter::<OPCODE, $ty>::new(*data),
+            )?)
+        }
+    };
+}
+
+/// Convenience macro for Rustix's ioctl read
+#[macro_export]
+macro_rules! ioctl_readwrite {
+    ($name:ident, $ioty:expr, $nr:expr, $ty:ty) => {
+        pub unsafe fn $name(fd: std::os::fd::BorrowedFd, data: &mut $ty) -> std::io::Result<()> {
+            const OPCODE: $crate::ioctl::Opcode =
+                $crate::ioctl::opcode::read_write::<$ty>($ioty as u8, $nr as u8);
+            Ok($crate::ioctl::ioctl(
+                fd,
+                $crate::ioctl::Updater::<OPCODE, $ty>::new(data),
+            )?)
+        }
+    };
+}
 
 #[cfg(linux_raw_dep)]
 #[cfg(not(any(target_arch = "sparc", target_arch = "sparc64")))]
