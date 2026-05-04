@@ -1,0 +1,17 @@
+name: "toml_parser"
+description: "Yet another format-preserving TOML parser."
+third_party {
+  version: "1.1.2+spec-1.1.0"
+  license_type: NOTICE
+  last_upgrade_date {
+    year: 2026
+    month: 5
+    day: 4
+  }
+  homepage: "https://crates.io/crates/toml_parser"
+  identifier {
+    type: "crates.io"
+    value: "toml_parser"
+    version: "1.1.2+spec-1.1.0"
+  }
+}
