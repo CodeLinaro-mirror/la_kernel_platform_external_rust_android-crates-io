@@ -10,6 +10,11 @@ merge
 merge_derive
 miette
 miette-derive
+mls-rs
+mls-rs-codec
+mls-rs-codec-derive
+mls-rs-core
+mls-rs-crypto-traits
 moveit
 oneshot-uniffi
 syn-mid
