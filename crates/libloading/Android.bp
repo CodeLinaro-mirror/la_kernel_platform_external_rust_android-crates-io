@@ -25,6 +25,9 @@ rust_library {
         android: {
             rustlibs: ["libcfg_if"],
         },
+        darwin: {
+            rustlibs: ["libcfg_if"],
+        },
         host_linux: {
             rustlibs: ["libcfg_if"],
         },

@@ -30,6 +30,9 @@ rust_library {
         android: {
             rustlibs: ["liblibc"],
         },
+        darwin: {
+            rustlibs: ["liblibc"],
+        },
         host_linux: {
             rustlibs: ["liblibc"],
         },
@@ -72,6 +75,9 @@ rust_test {
     ],
     target: {
         android: {
+            rustlibs: ["liblibc"],
+        },
+        darwin: {
             rustlibs: ["liblibc"],
         },
         host_linux: {
