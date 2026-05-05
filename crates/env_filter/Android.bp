@@ -21,14 +21,7 @@ rust_library {
     cargo_pkg_version: "1.0.1",
     crate_root: "src/lib.rs",
     edition: "2021",
-    features: [
-        "default",
-        "regex",
-    ],
-    rustlibs: [
-        "liblog_rust",
-        "libregex",
-    ],
+    rustlibs: ["liblog_rust"],
     target: {
         windows: {
             enabled: true,
@@ -52,14 +45,7 @@ rust_library {
     cargo_pkg_version: "1.0.1",
     crate_root: "src/lib.rs",
     edition: "2021",
-    features: [
-        "default",
-        "regex",
-    ],
-    rustlibs: [
-        "liblog_rust_max_level_info",
-        "libregex",
-    ],
+    rustlibs: ["liblog_rust_max_level_info"],
     target: {
         windows: {
             enabled: true,
