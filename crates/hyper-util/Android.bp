@@ -55,6 +55,11 @@ rust_library {
         "libtower_service",
         "libtracing",
     ],
+    target: {
+        darwin: {
+            rustlibs: ["libsystem_configuration"],
+        },
+    },
     apex_available: [
         "//apex_available:platform",
         "//apex_available:anyapex",
