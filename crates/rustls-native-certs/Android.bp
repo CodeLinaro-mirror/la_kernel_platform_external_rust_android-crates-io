@@ -24,6 +24,9 @@ rust_library {
     rustlibs: ["librustls_pki_types"],
     aliases: ["rustls_pki_types:pki_types"],
     target: {
+        darwin: {
+            rustlibs: ["libsecurity_framework"],
+        },
         host_linux: {
             rustlibs: ["libopenssl_probe"],
         },
