@@ -21,6 +21,9 @@ rust_library_host {
     crate_root: "src/lib.rs",
     edition: "2021",
     target: {
+        darwin: {
+            rustlibs: ["liblibc"],
+        },
         host_linux: {
             rustlibs: ["liblibc"],
         },
