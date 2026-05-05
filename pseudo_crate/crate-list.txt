@@ -5,6 +5,7 @@ adler2
 ahash
 aho-corasick
 alloca
+android-chrono-tz
 android_bp
 android_log-sys
 android_logger
