@@ -1,3 +1,5 @@
+#![cfg_attr(not(feature = "std"), no_std)]
+
 //! `rust-peg` is a simple yet flexible parser generator that makes it easy to
 //! write robust parsers. Based on the [Parsing Expression
 //! Grammar][wikipedia-peg] formalism, it provides a Rust macro that builds a
@@ -23,7 +25,7 @@
 //! language.
 //!
 //! Rules are defined with `rule NAME(PARAMETERS) -> RETURN_TYPE = PEG_EXPR`.
-//! The body of the rule, following the `=`, is a PEG expression, definining how
+//! The body of the rule, following the `=`, is a PEG expression, defining how
 //! the input is matched to produce a value.
 //!
 //! PEG expressions are evaluated at a particular position of the input. When an
@@ -52,6 +54,8 @@
 //!   }
 //! }
 //!
+//! # // Lint: Showing the function name is clearer in this case
+//! # #[allow(clippy::needless_doctest_main)]
 //! pub fn main() {
 //!     assert_eq!(list_parser::list("[1,1,2,3,5,8]"), Ok(vec![1, 1, 2, 3, 5, 8]));
 //! }
@@ -126,7 +130,7 @@
 //!   * `precedence!{ ... }` - Parse infix, prefix, or postfix expressions by precedence climbing.
 //!     [(details)](#precedence-climbing)
 //!   * `#{|input, pos| ... }` - _Custom:_ The provided closure is passed the full input and current
-//!      parse position, and returns a [`RuleResult`].
+//!     parse position, and returns a [`RuleResult`].
 //!
 //! ## Expression details
 //!
@@ -135,7 +139,7 @@
 //! The `[pat]` syntax expands into a [Rust `match`
 //! pattern](https://doc.rust-lang.org/book/ch18-03-pattern-syntax.html) against the next character
 //! (or element) of the input.
-//! 
+//!
 //! When the pattern begins with `^`, the matching behavior is inverted:
 //! the expression succeeds only if the pattern does *not* match.
 //! `[^' ']` matches any character other than a space.
@@ -149,16 +153,16 @@
 //!
 //! Variables captured by the pattern are accessible in a subsequent action
 //! block: `[Token::Integer(i)] { i }`.
-//! 
+//!
 //! The pattern expression also evaluates to the matched element, which can be
 //! captured into a variable or used as the return value of a rule: `c:['+'|'-']`.
-//! 
+//!
 //! Like Rust `match`, pattern expressions support guard expressions:
 //! `[c if c.is_ascii_digit()]`.
 //!
 //! `[_]` matches any single element. As this always matches except at end-of-file, combining it
 //! with negative lookahead as `![_]` is the idiom for matching EOF in PEG.
-//! 
+//!
 //! ### Repeat ranges
 //!
 //! The repeat operators `*` and `**` can be followed by an optional range specification of the
@@ -230,20 +234,37 @@
 //!
 //! Rules can be parameterized with types, lifetimes, and values, just like Rust functions.
 //!
+//! ```rust,no_run
+//! # peg::parser!{grammar doc() for str {
+//! // Value parameter
+//! rule num_radix(radix: u32) -> u32
+//!   = n:$(['0'..='9']+) {? u32::from_str_radix(n, radix).or(Err("number")) }
+//!
+//! // Type parameter
+//! rule number<T: std::str::FromStr>() -> T
+//!   = s:$(['0'..='9']+) {? s.parse().or(Err("number")) }
+//!
+//! rule literal() -> u32
+//!   = "0x" n:num_radix(16) { n }
+//!   / "0b" n:num_radix(2) { n }
+//!   / number()
+//!
+//! # }}
+//! # fn main() {}
+//! ```
+//!
+//! For a `pub rule`, the exposed function accepts the rule parameters after the input argument.
+//!
 //! In addition to Rust values, rules can also accept PEG expression fragments as arguments by using
 //! `rule<R>` as a parameter type. When calling such a rule, use `<>` around a PEG expression in the
 //! argument list to capture the expression and pass it to the rule.
 //!
-//! For example:
-//!
 //! ```rust,no_run
 //! # peg::parser!{grammar doc() for str {
-//! rule num_radix(radix: u32) -> u32
-//!   = n:$(['0'..='9']+) {? u32::from_str_radix(n, radix).or(Err("number")) }
-//!
+//! # rule expression() -> u32 = "..." { 0 }
 //! rule list<T>(x: rule<T>) -> Vec<T> = "[" v:(x() ** ",") ","? "]" {v}
 //!
-//! pub rule octal_list() -> Vec<u32> = list(<num_radix(8)>)
+//! pub rule array() -> Vec<u32> = list(<expression()>)
 //! # }}
 //! # fn main() {}
 //! ```
@@ -329,6 +350,33 @@
 //!
 //! The `precedence!{}` syntax is another way to handle nested operators and avoid
 //! repeatedly matching an expression rule.
+//!
+//! ## Injected variables
+//!
+//! When building a syntax tree, you commonly want to attach location information to each node.
+//!
+//! `inject name(input, lpos, rpos) -> Type { expr }` defines an internal function
+//! that is evaluated before entering each action code block. It is passed the full
+//! input and the `usize` start and end positions of the text matched by the sequence
+//! leading up to the action block. The returned value is available in the block as
+//! the variable with the same name.
+//!
+//! For example,
+//!
+//! ```rust,no_run
+//! // (Type defined outside the grammar)
+//! struct Identifier { span: std::ops::Range<usize>, name: String }
+//!
+//! # peg::parser!{grammar doc() for str {
+//! inject span(_input, lpos, rpos) -> std::ops::Range<usize> { lpos..rpos }
+//!
+//! rule identifier() -> Identifier
+//!   = name:$([ 'a'..='z']+) { Identifier { span, name: name.to_owned() } }
+//! # }}
+//! # fn main() {}
+//! ```
+//!
+//! defines a variable `span` that is a `Range` of the matched text for each action block.
 //!
 //! ## Tracing
 //!
