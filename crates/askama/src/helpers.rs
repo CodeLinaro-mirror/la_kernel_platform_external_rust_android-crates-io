@@ -43,12 +43,11 @@ where
 
     #[inline]
     fn next(&mut self) -> Option<(<I as Iterator>::Item, LoopItem)> {
-        self.iter.next().map(|(index, item)| {
+        self.iter.next().map(|(index0, item)| {
             (
                 item,
                 LoopItem {
-                    index,
-                    first: index == 0,
+                    index0,
                     last: self.iter.peek().is_none(),
                 },
             )
@@ -58,8 +57,7 @@ where
 
 #[derive(Copy, Clone)]
 pub struct LoopItem {
-    pub index: usize,
-    pub first: bool,
+    pub index0: usize,
     pub last: bool,
 }
 
@@ -92,11 +90,11 @@ where
 {
     #[inline]
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        if let Some(func) = self.func.take() {
-            if let Err(err) = func(f) {
-                self.err.set(Some(err));
-                return Err(fmt::Error);
-            }
+        if let Some(func) = self.func.take()
+            && let Err(err) = func(f)
+        {
+            self.err.set(Some(err));
+            return Err(fmt::Error);
         }
         Ok(())
     }
