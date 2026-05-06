@@ -13,18 +13,20 @@ license {
     license_text: ["LICENSE"],
 }
 
-rust_proc_macro {
+rust_library_host {
     name: "libaskama_derive",
+    host_cross_supported: false,
     crate_name: "askama_derive",
     cargo_env_compat: true,
-    cargo_pkg_version: "0.14.0",
+    cargo_pkg_version: "0.15.6",
     crate_root: "src/lib.rs",
-    edition: "2021",
+    edition: "2024",
     features: [
         "alloc",
         "config",
-        "default",
-        "derive",
+        "external-sources",
+        "proc-macro",
+        "serde_json",
         "std",
         "urlencode",
     ],
@@ -40,11 +42,5 @@ rust_proc_macro {
     ],
     proc_macros: ["libserde_derive"],
     aliases: ["askama_parser:parser"],
-    apex_available: [
-        "//apex_available:platform",
-        "//apex_available:anyapex",
-    ],
-    product_available: true,
-    vendor_available: true,
-    min_sdk_version: "29",
+    compile_multilib: "first",
 }

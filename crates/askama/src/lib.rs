@@ -1,19 +1,19 @@
 //! [![Crates.io](https://img.shields.io/crates/v/askama?logo=rust&style=flat-square&logoColor=white "Crates.io")](https://crates.io/crates/askama)
 //! [![GitHub Workflow Status](https://img.shields.io/github/actions/workflow/status/askama-rs/askama/rust.yml?branch=master&logo=github&style=flat-square&logoColor=white "GitHub Workflow Status")](https://github.com/askama-rs/askama/actions/workflows/rust.yml)
-//! [![Book](https://img.shields.io/readthedocs/askama?label=book&logo=readthedocs&style=flat-square&logoColor=white "Book")](https://askama.readthedocs.io/)
+//! [![Book](https://img.shields.io/readthedocs/askama?label=book&logo=readthedocs&style=flat-square&logoColor=white "Book")](https://askama.rs/)
 //! [![docs.rs](https://img.shields.io/docsrs/askama?logo=docsdotrs&style=flat-square&logoColor=white "docs.rs")](https://docs.rs/askama/)
 //!
 //! Askama implements a type-safe compiler for Jinja-like templates.
 //! It lets you write templates in a Jinja-like syntax,
 //! which are linked to a `struct` or an `enum` defining the template context.
 //! This is done using a custom derive implementation (implemented
-//! in [`askama_derive`](https://crates.io/crates/askama_derive)).
+//! in [`askama_macros`](https://crates.io/crates/askama_macros)).
 //!
 //! For feature highlights and a quick start, please review the
 //! [README](https://github.com/askama-rs/askama/blob/master/README.md).
 //!
 //! You can find the documentation about our syntax, features, configuration in our book:
-//! [askama.readthedocs.io](https://askama.readthedocs.io/).
+//! [askama.rs](https://askama.rs/).
 //!
 //! # Creating Askama templates
 //!
@@ -54,7 +54,7 @@
 //! as well as Jinja-derivatives like [Twig](https://twig.symfony.com/) or
 //! [Tera](https://github.com/Keats/tera).
 
-#![cfg_attr(docsrs, feature(doc_cfg, doc_auto_cfg))]
+#![cfg_attr(docsrs, feature(doc_cfg))]
 #![deny(elided_lifetimes_in_paths)]
 #![deny(unreachable_pub)]
 #![deny(missing_docs)]
@@ -81,10 +81,10 @@ use core::ops::Deref;
 use std::io;
 
 #[cfg(feature = "derive")]
-pub use askama_derive::Template;
+pub use askama_macros::Template;
+#[cfg(feature = "derive")]
+pub use askama_macros::filter_fn;
 
-#[doc(hidden)]
-pub use crate as shared;
 pub use crate::error::{Error, Result};
 pub use crate::helpers::PrimitiveType;
 pub use crate::values::{NO_VALUES, Value, Values, get_value};
@@ -161,6 +161,7 @@ pub trait Template: fmt::Display + FastWritable {
         }
 
         impl<W: io::Write> fmt::Write for Wrapped<W> {
+            #[inline]
             fn write_str(&mut self, s: &str) -> fmt::Result {
                 if let Err(err) = self.writer.write_all(s.as_bytes()) {
                     self.err = Some(err);
@@ -176,7 +177,7 @@ pub trait Template: fmt::Display + FastWritable {
             Ok(())
         } else {
             let err = wrapped.err.take();
-            Err(err.unwrap_or_else(|| io::Error::new(io::ErrorKind::Other, fmt::Error)))
+            Err(err.unwrap_or_else(|| io::Error::other(fmt::Error)))
         }
     }
 
@@ -286,6 +287,7 @@ impl<T: Template> DynTemplate for T {
         <Self as Template>::render(self)
     }
 
+    #[inline]
     #[cfg(feature = "alloc")]
     fn dyn_render_with_values(&self, values: &dyn Values) -> Result<String> {
         <Self as Template>::render_with_values(self, values)
@@ -296,6 +298,7 @@ impl<T: Template> DynTemplate for T {
         <Self as Template>::render_into(self, writer)
     }
 
+    #[inline]
     fn dyn_render_into_with_values(
         &self,
         writer: &mut dyn fmt::Write,
@@ -304,6 +307,7 @@ impl<T: Template> DynTemplate for T {
         <Self as Template>::render_into_with_values(self, writer, values)
     }
 
+    #[inline]
     #[cfg(feature = "std")]
     fn dyn_write_into(&self, writer: &mut dyn io::Write) -> io::Result<()> {
         <Self as Template>::write_into(self, writer)
@@ -411,7 +415,7 @@ const _: () = {
     }
 
     #[cfg(feature = "alloc")]
-    impl<T: FastWritable + alloc::borrow::ToOwned> FastWritable for alloc::borrow::Cow<'_, T> {
+    impl<T: FastWritable + alloc::borrow::ToOwned + ?Sized> FastWritable for alloc::borrow::Cow<'_, T> {
         #[inline]
         fn write_into<W: fmt::Write + ?Sized>(
             &self,
@@ -513,6 +517,7 @@ const _: () = {
     }
 
     impl FastWritable for fmt::Arguments<'_> {
+        #[inline]
         fn write_into<W: fmt::Write + ?Sized>(
             &self,
             dest: &mut W,

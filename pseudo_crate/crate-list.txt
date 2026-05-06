@@ -28,6 +28,7 @@ arrayvec
 ash
 askama
 askama_derive
+askama_macros
 askama_parser
 async-stream
 async-stream-impl
