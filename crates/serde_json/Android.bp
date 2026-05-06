@@ -18,7 +18,7 @@ rust_library {
     host_supported: true,
     crate_name: "serde_json",
     cargo_env_compat: true,
-    cargo_pkg_version: "1.0.146",
+    cargo_pkg_version: "1.0.149",
     crate_root: "src/lib.rs",
     edition: "2021",
     features: [
@@ -29,8 +29,8 @@ rust_library {
     rustlibs: [
         "libitoa",
         "libmemchr",
-        "libryu",
         "libserde_core",
+        "libzmij",
     ],
     apex_available: [
         "//apex_available:platform",
@@ -48,7 +48,7 @@ rust_library {
     host_supported: true,
     crate_name: "serde_json",
     cargo_env_compat: true,
-    cargo_pkg_version: "1.0.146",
+    cargo_pkg_version: "1.0.149",
     crate_root: "src/lib.rs",
     edition: "2021",
     features: [
@@ -60,8 +60,8 @@ rust_library {
     rustlibs: [
         "libitoa",
         "libmemchr",
-        "libryu",
         "libserde_core",
+        "libzmij",
     ],
     apex_available: [
         "//apex_available:platform",
