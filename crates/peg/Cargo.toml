@@ -11,9 +11,9 @@
 
 [package]
 edition = "2021"
-rust-version = "1.68.0"
+rust-version = "1.82.0"
 name = "peg"
-version = "0.8.5"
+version = "0.8.6"
 authors = ["Kevin Mehall <km@kevinmehall.net>"]
 build = false
 autolib = false
@@ -44,15 +44,19 @@ name = "peg"
 path = "src/lib.rs"
 
 [[test]]
+name = "run-pass"
+path = "tests/run-pass.rs"
+
+[[test]]
 name = "trybuild"
 path = "tests/trybuild.rs"
 harness = false
 
 [dependencies.peg-macros]
-version = "= 0.8.5"
+version = "= 0.8.6"
 
 [dependencies.peg-runtime]
-version = "= 0.8.5"
+version = "= 0.8.6"
 
 [dev-dependencies.trybuild]
 version = "1.0.80"

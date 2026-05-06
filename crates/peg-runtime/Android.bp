@@ -18,7 +18,7 @@ rust_library {
     host_supported: true,
     crate_name: "peg_runtime",
     cargo_env_compat: true,
-    cargo_pkg_version: "0.8.5",
+    cargo_pkg_version: "0.8.6",
     crate_root: "lib.rs",
     edition: "2021",
     features: ["std"],

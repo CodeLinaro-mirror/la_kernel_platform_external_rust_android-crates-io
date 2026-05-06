@@ -11,8 +11,9 @@
 
 [package]
 edition = "2021"
+rust-version = "1.82.0"
 name = "peg-runtime"
-version = "0.8.5"
+version = "0.8.6"
 authors = ["Kevin Mehall <km@kevinmehall.net>"]
 build = false
 autolib = false
