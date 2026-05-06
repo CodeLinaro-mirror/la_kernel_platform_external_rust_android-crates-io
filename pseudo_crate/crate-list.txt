@@ -209,6 +209,7 @@ grpcio-sys
 h2
 half
 handlebars
+hash32
 hashbrown
 hashlink
 heck
