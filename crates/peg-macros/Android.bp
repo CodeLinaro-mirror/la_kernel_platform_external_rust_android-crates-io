@@ -17,7 +17,7 @@ rust_proc_macro {
     name: "libpeg_macros",
     crate_name: "peg_macros",
     cargo_env_compat: true,
-    cargo_pkg_version: "0.8.5",
+    cargo_pkg_version: "0.8.6",
     crate_root: "lib.rs",
     edition: "2021",
     rustlibs: [
@@ -32,7 +32,7 @@ rust_binary_host {
     host_cross_supported: false,
     crate_name: "rust_peg",
     cargo_env_compat: true,
-    cargo_pkg_version: "0.8.5",
+    cargo_pkg_version: "0.8.6",
     crate_root: "bin.rs",
     edition: "2021",
     rustlibs: [

@@ -1,8 +1,8 @@
 pub grammar peg() for FlatTokenStream {
 
 use crate::ast::*;
-use crate::ast::Expr::*;
 use crate::tokens::FlatTokenStream;
+use crate::translate::report_error_expr;
 use proc_macro2::{ TokenStream, Ident, Group, Literal, Delimiter, Span };
 
 pub rule peg_grammar() -> Grammar
@@ -15,6 +15,15 @@ pub rule peg_grammar() -> Grammar
 rule grammar_args() -> Vec<(Ident, TokenStream)>
     = "(" args:((i:IDENT() ":" t:$(rust_type()) { (i, t) })**",") ","? ")" { args }
 
+rule item() -> Item
+    = u:rust_use()     { Item::Use(u) }
+    / r:peg_rule()     { Item::Rule(r) }
+    / f:inject_var()   { Item::InjectVar(f) }
+
+rule inject_var() -> InjectVar
+     = doc:rust_doc_comment() "inject" name:IDENT() "(" input_param:IDENT() "," lpos_param:IDENT() "," rpos_param:IDENT() ")" "->" ty:$(rust_type()) body:BRACE_GROUP()
+     { InjectVar { doc, name, input_param, lpos_param, rpos_param, ty, body } }
+
 rule peg_rule() -> Rule
     = doc:rust_doc_comment() cache:cacheflag() no_eof:no_eof_flag() visibility:rust_visibility()
       span:sp() "rule"
@@ -24,8 +33,11 @@ rule peg_rule() -> Rule
       )
       ret_type:("->" t:$(rust_type()) {t})?
       where_clause:$(rust_where_clause())?
-      "=" expr:expression() ";"?
-        { Rule { span, doc, name:header.0, ty_params:header.1, params:header.2, expr, ret_type, where_clause, visibility, no_eof, cache } }
+      expr:("=" e:expression() {e})? ";"? {
+        // If expr is missing, allow macro expansion so rust-analyzer can complete the return type, but fail full compilation.
+        let expr = expr.unwrap_or_else(|| Expr::Action(vec![], Some(Group::new(Delimiter::Brace, report_error_expr(span, "missing rule body".to_owned())))).at(span));
+        Rule { span, doc, name: header.0, ty_params: header.1, params:header.2, expr, ret_type, where_clause, visibility, no_eof, cache }
+      }
 
     rule cacheflag() -> Option<Cache> = "#" "[" "cache" "]" {Some(Cache::Simple)} / "#" "[" "cache_left_rec" "]" {Some(Cache::Recursive)} / {None}
 
@@ -38,29 +50,26 @@ rule peg_rule() -> Rule
     rule rule_params() -> Vec<RuleParam>
         = "(" params:(x:(name:IDENT() ":" ty:rule_param_ty() { RuleParam { name, ty} }) ++ "," ","? {x})? ")" { params.unwrap_or_default() }
 
-rule item() -> Item
-    = u:rust_use()     { Item::Use(u) }
-    / r:peg_rule()     { Item::Rule(r) }
-
 rule rust_doc_comment() -> Option<TokenStream> = $(("#" "[" "doc" "=" LITERAL() "]")*)?
+rule rust_attribute() = "#" "[" rust_path() (DELIM_GROUP() / "=" LITERAL()) "]"
 
 rule rust_visibility() -> Option<TokenStream> = $("pub" PAREN_GROUP()?)?
 
 rule rust_use() -> TokenStream
-    = v:$("use" rust_path() (
-        "::" "*"
-        / "::" "{" ((IDENT() ("as" IDENT())?) ++ "," ","?) "}"
-        / ("as" IDENT())?
-    ) ";") { v.to_owned() }
+    = v:$(rust_attribute()* "use" rust_use_tree() ";") { v.to_owned() }
+
+rule rust_use_tree()
+    = (rust_path()? "::")? ("*" / "{" (rust_use_tree() ++ "," ","?)? "}")
+    / rust_path() ("as" (IDENT() / "_"))?
 
 rule rust_path()
-    = ("crate" "::")? IDENT() ++ "::"
+    = (("$"? "crate")? "::")? IDENT() ++ "::"
 
 rule rust_type()
     = BRACKET_GROUP()
     / "&" LIFETIME()? "mut"? rust_type()
     / "dyn" rust_ty_param_bound() ++ "+"
-    / "impl" rust_ty_param_bound() ++ "+"
+    / "impl" (rust_ty_param_bound() / "use" rust_generic_args()) ++ "+"
     / "(" (rust_type() ++ "," ","?)? ")"
     / ("<" rust_type() ("as" rust_ty_path())? ">")? rust_ty_path()
 
@@ -84,12 +93,13 @@ rule rust_for_lifetimes()
     = "for" rust_ty_params()
 
 rule rust_ty_param_bound()
-    = LIFETIME() 
+    = LIFETIME()
     / "?"? rust_for_lifetimes()? rust_ty_path()
     / "(" "?"? rust_for_lifetimes()? rust_ty_path() ")"
 
 rule rust_generic_args()
     = "<" (LIFETIME() / rust_type() / BRACE_GROUP() / LITERAL()) ++ "," ","? ">"
+    / "<" ">"
 
 rule expression() -> SpannedExpr = choice()
 
@@ -97,16 +107,16 @@ rule choice() -> SpannedExpr = sp:sp() s:sequence() ++ "/" {
     if s.len() == 1 {
         s.into_iter().next().unwrap()
     } else {
-        ChoiceExpr(s).at(sp)
+        Expr::Choice(s).at(sp)
     }
 }
 
 rule sequence() -> SpannedExpr
     = sp:sp() elements:labeled()* code:BRACE_GROUP()? {
         if let Some(code) = code {
-            ActionExpr(elements, Some(code)).at(sp)
+            Expr::Action(elements, Some(code)).at(sp)
         } else if elements.len() != 1 {
-            ActionExpr(elements, None).at(sp)
+            Expr::Action(elements, None).at(sp)
         } else {
             elements.into_iter().next().unwrap().expr
         }
@@ -117,11 +127,11 @@ rule labeled() -> TaggedExpr
         { TaggedExpr{ name: label, expr: expression } }
 
 rule suffixed() -> SpannedExpr
-    = e:prefixed() sp:sp() "?" { OptionalExpr(Box::new(e)).at(sp) }
-    / e:prefixed() sp:sp() "**" count:repeatcount() sep:primary() { Repeat { inner: Box::new(e), bound: count, sep: Some(Box::new(sep)) }.at(sp) }
-    / e:prefixed() sp:sp() "++" sep:primary() { Repeat { inner: Box::new(e), bound: BoundedRepeat::Plus, sep: Some(Box::new(sep)) }.at(sp )}
-    / e:prefixed() sp:sp() "*" count:repeatcount() { Repeat { inner: Box::new(e), bound: count, sep: None }.at(sp) }
-    / e:prefixed() sp:sp() "+" { Repeat { inner: Box::new(e), bound: BoundedRepeat::Plus, sep: None }.at(sp) }
+    = e:prefixed() sp:sp() "?" { Expr::Optional(Box::new(e)).at(sp) }
+    / e:prefixed() sp:sp() "**" count:repeatcount() sep:primary() { Expr::Repeat { inner: Box::new(e), bound: count, sep: Some(Box::new(sep)) }.at(sp) }
+    / e:prefixed() sp:sp() "++" sep:primary() { Expr::Repeat { inner: Box::new(e), bound: BoundedRepeat::Plus, sep: Some(Box::new(sep)) }.at(sp )}
+    / e:prefixed() sp:sp() "*" count:repeatcount() { Expr::Repeat { inner: Box::new(e), bound: count, sep: None }.at(sp) }
+    / e:prefixed() sp:sp() "+" { Expr::Repeat { inner: Box::new(e), bound: BoundedRepeat::Plus, sep: None }.at(sp) }
     / prefixed()
 
 rule repeatcount() -> BoundedRepeat
@@ -132,25 +142,25 @@ rule repeatcount() -> BoundedRepeat
 rule repeatnum() -> TokenStream = $(INTEGER() / BRACE_GROUP())
 
 rule prefixed() -> SpannedExpr
-    = sp:sp() "$" expression:primary() { MatchStrExpr(Box::new(expression)).at(sp) }
-    / sp:sp() "&" expression:primary() { PosAssertExpr(Box::new(expression)).at(sp) }
-    / sp:sp() "!" expression:primary() { NegAssertExpr(Box::new(expression)).at(sp) }
+    = sp:sp() "$" expression:primary() { Expr::MatchStr(Box::new(expression)).at(sp) }
+    / sp:sp() "&" expression:primary() { Expr::PosAssert(Box::new(expression)).at(sp) }
+    / sp:sp() "!" expression:primary() { Expr::NegAssert(Box::new(expression)).at(sp) }
     / primary()
 
 #[cache]
 rule primary() -> SpannedExpr
-  = sp:sp() "precedence" "!" "{" levels:precedence_level()**"--" "}" { PrecedenceExpr{ levels:levels }.at(sp) }
-  / sp:sp() "position" "!" "(" ")" { PositionExpr.at(sp) }
-  / sp:sp() "quiet" "!" "{" e:expression() "}" { QuietExpr(Box::new(e)).at(sp) }
-  / sp:sp() "expected" "!" s:PAREN_GROUP() { FailExpr(s).at(sp) }
-  / &("_" / "__" / "___") sp:sp() name:IDENT() { RuleExpr(name, None, Vec::new()).at(sp) }
-  / sp:sp() name:IDENT() generics:$("::" rust_generic_args())? "(" args:(rule_arg() ** ",") ")" { RuleExpr(name, generics, args).at(sp) }
-  / sp:sp() l:LITERAL() { LiteralExpr(l).at(sp) }
-  / sp:sp() p:BRACKET_GROUP() { PatternExpr(p).at(sp) }
-  / "(" sp:sp() "@" ")" { MarkerExpr(true).at(sp) }
-  / sp:sp() "@" { MarkerExpr(false).at(sp) }
-  / sp:sp() "##" method:IDENT() args:PAREN_GROUP() { MethodExpr(method, args.stream()).at(sp) }
-  / sp:sp() "#" code:BRACE_GROUP() { CustomExpr(code).at(sp) }
+  = sp:sp() "precedence" "!" "{" levels:precedence_level()**"--" "}" { Expr::Precedence { levels }.at(sp) }
+  / sp:sp() "position" "!" "(" ")" { Expr::Position.at(sp) }
+  / sp:sp() "quiet" "!" "{" e:expression() "}" { Expr::Quiet(Box::new(e)).at(sp) }
+  / sp:sp() "expected" "!" s:PAREN_GROUP() { Expr::Fail(s).at(sp) }
+  / &("_" / "__" / "___") sp:sp() name:IDENT() { Expr::Rule(name, None, Vec::new()).at(sp) }
+  / sp:sp() name:IDENT() generics:$("::" rust_generic_args())? "(" args:(rule_arg() ** ",") ")" { Expr::Rule(name, generics, args).at(sp) }
+  / sp:sp() l:LITERAL() { Expr::Literal(l).at(sp) }
+  / sp:sp() p:BRACKET_GROUP() { Expr::Pattern(p).at(sp) }
+  / "(" sp:sp() "@" ")" { Expr::Marker(true).at(sp) }
+  / sp:sp() "@" { Expr::Marker(false).at(sp) }
+  / sp:sp() "##" method:IDENT() args:PAREN_GROUP() { Expr::Method(method, args.stream()).at(sp) }
+  / sp:sp() "#" code:BRACE_GROUP() { Expr::Custom(code).at(sp) }
   / "(" expression:expression() ")" { expression }
 
     rule rule_arg() -> RuleArg
@@ -172,6 +182,7 @@ rule LITERAL() -> Literal = #{|input, pos| input.literal(pos)}
 rule PAREN_GROUP()   -> Group = #{|input, pos| input.group(pos, Delimiter::Parenthesis)}
 rule BRACE_GROUP()   -> Group = #{|input, pos| input.group(pos, Delimiter::Brace)}
 rule BRACKET_GROUP() -> Group = #{|input, pos| input.group(pos, Delimiter::Bracket)}
+rule DELIM_GROUP()   -> Group = PAREN_GROUP() / BRACE_GROUP() / BRACKET_GROUP()
 rule LIFETIME() = "'" IDENT()
 rule INTEGER() = LITERAL()
 
