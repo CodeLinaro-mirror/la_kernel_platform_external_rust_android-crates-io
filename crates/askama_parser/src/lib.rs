@@ -30,8 +30,8 @@ use winnow::token::{any, none_of, one_of, take, take_while};
 use winnow::{LocatingSlice, ModalParser, ModalResult, Parser, Stateful};
 
 use crate::ascii_str::{AsciiChar, AsciiStr};
-pub use crate::expr::{AssociatedItem, Expr, Filter, PathComponent, TyGenerics};
-pub use crate::node::Node;
+pub use crate::expr::{AssociatedItem, Expr, Filter, PathComponent, TyGenerics, TyGenericsKind};
+pub use crate::node::{LetValueOrBlock, Node};
 pub use crate::target::{NamedTarget, Target};
 
 mod _parsed {
@@ -1449,6 +1449,25 @@ pub enum IntKind {
     Usize,
 }
 
+impl fmt::Display for IntKind {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_str(match self {
+            Self::I8 => "i8",
+            Self::I16 => "i16",
+            Self::I32 => "i32",
+            Self::I64 => "i64",
+            Self::I128 => "i128",
+            Self::Isize => "isize",
+            Self::U8 => "u8",
+            Self::U16 => "u16",
+            Self::U32 => "u32",
+            Self::U64 => "u64",
+            Self::U128 => "u128",
+            Self::Usize => "usize",
+        })
+    }
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum FloatKind {
     F16,
@@ -1644,16 +1663,27 @@ fn cut_context_err<'a, T>(gen_err: impl FnOnce() -> ErrorContext) -> ParseResult
 
 type HashSet<T> = std::collections::hash_set::HashSet<T, FxBuildHasher>;
 
+fn deny_any_rust_token<'a: 'l, 'l>(i: &mut InputStream<'a, 'l>) -> ParseResult<'a, ()> {
+    let (token, span) = any_rust_token.with_span().parse_next(i)?;
+    cut_error!(
+        format!(
+            "the token `{}` was not expected at this point in the expression",
+            token.escape_debug(),
+        ),
+        span
+    )
+}
+
 #[cold]
 #[inline(never)]
-fn deny_any_rust_token<'a: 'l, 'l>(i: &mut InputStream<'a, 'l>) -> ParseResult<'a, ()> {
+fn any_rust_token<'a: 'l, 'l>(i: &mut InputStream<'a, 'l>) -> ParseResult<'a> {
     // https://docs.rs/syn/2.0.114/src/syn/token.rs.html#748-795
     const PUNCTUATIONS: &[&str] = &[
         "&", "&&", "&=", "@", "^", "^=", ":", ",", "$", ".", "..", "...", "..=", "=", "==", "=>",
         ">=", ">", "<-", "<=", "<", "-", "-=", "!=", "!", "|", "|=", "||", "::", "%", "%=", "+",
         "+=", "#", "?", "->", ";", "<<", "<<=", ">>", ">>=", "/", "/=", "*", "*=", "~",
         // not a punctuation per se, but a likely typo
-        "\"", "'",
+        "\"", "'", "(", ")", "[", "]", "{", "}",
     ];
 
     const ONE: &[u8] = &{
@@ -1745,42 +1775,31 @@ fn deny_any_rust_token<'a: 'l, 'l>(i: &mut InputStream<'a, 'l>) -> ParseResult<'
         "is",
     ];
 
-    fn any_rust_token<'a: 'l, 'l>(i: &mut InputStream<'a, 'l>) -> ParseResult<'a> {
-        alt((
-            take(3usize).verify(|s: &str| {
-                if let Ok(s) = s.as_bytes().try_into() {
-                    THREE.contains(&s)
-                } else {
-                    false
-                }
-            }),
-            take(2usize).verify(|s: &str| {
-                if let Ok(s) = s.as_bytes().try_into() {
-                    TWO.contains(&s)
-                } else {
-                    false
-                }
-            }),
-            take(1usize).verify(|s: &str| {
-                if let [c] = s.as_bytes() {
-                    ONE.contains(c)
-                } else {
-                    false
-                }
-            }),
-            identifier.verify(|s: &str| KEYWORDS.contains(&s)),
-        ))
-        .parse_next(i)
-    }
-
-    let (token, span) = any_rust_token.with_span().parse_next(i)?;
-    cut_error!(
-        format!(
-            "the token `{}` was not expected at this point in the expression",
-            token.escape_debug(),
-        ),
-        span
-    )
+    alt((
+        take(3usize).verify(|s: &str| {
+            if let Ok(s) = s.as_bytes().try_into() {
+                THREE.contains(&s)
+            } else {
+                false
+            }
+        }),
+        take(2usize).verify(|s: &str| {
+            if let Ok(s) = s.as_bytes().try_into() {
+                TWO.contains(&s)
+            } else {
+                false
+            }
+        }),
+        take(1usize).verify(|s: &str| {
+            if let [c] = s.as_bytes() {
+                ONE.contains(c)
+            } else {
+                false
+            }
+        }),
+        identifier.verify(|s: &str| KEYWORDS.contains(&s)),
+    ))
+    .parse_next(i)
 }
 
 #[cfg(test)]

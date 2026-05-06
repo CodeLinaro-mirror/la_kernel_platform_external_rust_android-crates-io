@@ -1,7 +1,7 @@
 //! Files containing tests for generated code.
 
 use std::fmt;
-use std::path::Path;
+use std::path::{Path, absolute};
 
 use console::style;
 use prettyplease::unparse;
@@ -17,7 +17,7 @@ use crate::{AnyTemplateArgs, derive_template};
 fn build_template(ast: &syn::DeriveInput) -> Result<TokenStream, crate::CompileError> {
     let mut buf = Buffer::new();
     let args = AnyTemplateArgs::new(ast)?;
-    crate::build_template(&mut buf, ast, args)?;
+    let _: crate::SizeHint = crate::build_template(&mut buf, ast, args)?;
     Ok(buf.into_token_stream())
 }
 
@@ -50,14 +50,11 @@ fn compare_ex(
     let expected: syn::File = syn::parse_quote! {
         #[automatically_derived]
         impl askama::Template for Foo {
-            fn render_into_with_values<AskamaW>(
+            fn render_into_with_values(
                 &self,
-                __askama_writer: &mut AskamaW,
+                __askama_writer: &mut dyn askama::helpers::core::fmt::Write,
                 __askama_values: &dyn askama::Values,
-            ) -> askama::Result<()>
-            where
-                AskamaW: askama::helpers::core::fmt::Write + ?askama::helpers::core::marker::Sized,
-            {
+            ) -> askama::Result<()> {
                 #[allow(unused_imports)]
                 use askama::{
                     filters::{AutoEscape as _, WriteWritable as _},
@@ -83,14 +80,11 @@ fn compare_ex(
         #[automatically_derived]
         impl askama::FastWritable for Foo {
             #[inline]
-            fn write_into<AskamaW>(
+            fn write_into(
                 &self,
-                dest: &mut AskamaW,
+                dest: &mut dyn askama::helpers::core::fmt::Write,
                 values: &dyn askama::Values,
-            ) -> askama::Result<()>
-            where
-                AskamaW: askama::helpers::core::fmt::Write + ?askama::helpers::core::marker::Sized,
-            {
+            ) -> askama::Result<()> {
                 askama::Template::render_into_with_values(self, dest, values)
             }
         }
@@ -344,9 +338,9 @@ fn check_if_let_chain() {
 fn check_includes_only_once() {
     // In this test we make sure that every used template gets referenced exactly once.
     let path = Path::new(env!("CARGO_MANIFEST_DIR")).join("templates");
-    let path1 = path.join("include1.html").canonicalize().unwrap();
-    let path2 = path.join("include2.html").canonicalize().unwrap();
-    let path3 = path.join("include3.html").canonicalize().unwrap();
+    let path1 = absolute(path.join("include1.html")).unwrap();
+    let path2 = absolute(path.join("include2.html")).unwrap();
+    let path3 = absolute(path.join("include3.html")).unwrap();
     compare(
         r#"{% include "include1.html" %}"#,
         &format!(
@@ -1558,7 +1552,7 @@ fn test_compound_assignment() {
             let mut prefixsum = 0;
             let __askama_iter = 0..self.limit;
             for (i, __askama_item) in askama::helpers::TemplateLoop::new(__askama_iter) {
-                let _ = prefixsum @= i;
+                prefixsum @= i;
                 match (
                     &((&&askama::filters::AutoEscaper::new(&(prefixsum), askama::filters::Text))
                         .askama_auto_escape()?),
@@ -1575,4 +1569,34 @@ fn test_compound_assignment() {
 
         compare(&jinja, &expected, &[("limit", "u32")], 6);
     }
+}
+
+#[test]
+fn check_size_hint() {
+    compare(
+        r#"{% for _ in .. %} Hello {% break %} {% endfor %}"#,
+        r#"
+            let __askama_iter = ..;
+            for (_, __askama_item) in askama::helpers::TemplateLoop::new(__askama_iter) {
+                __askama_writer.write_str(" Hello ")?;
+                break;
+                __askama_writer.write_str(" ")?;
+            }
+        "#,
+        &[],
+        12,
+    );
+    compare(
+        r#"{% for _ in .. %} Hello {% continue %} {% endfor %}"#,
+        r#"
+            let __askama_iter = ..;
+            for (_, __askama_item) in askama::helpers::TemplateLoop::new(__askama_iter) {
+                __askama_writer.write_str(" Hello ")?;
+                continue;
+                __askama_writer.write_str(" ")?;
+            }
+        "#,
+        &[],
+        12,
+    );
 }

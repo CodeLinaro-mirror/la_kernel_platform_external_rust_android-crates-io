@@ -12,8 +12,8 @@ use winnow::{ModalParser, Parser};
 use crate::expr::BinOp;
 use crate::{
     ErrorContext, Expr, Filter, HashSet, InputStream, ParseErr, ParseResult, Span, Target,
-    WithSpan, block_end, block_start, cut_error, deny_any_rust_token, expr_end, expr_start, filter,
-    identifier, is_rust_keyword, keyword, skip_ws0, str_lit_without_prefix, ws,
+    TyGenerics, WithSpan, block_end, block_start, cut_error, deny_any_rust_token, expr_end,
+    expr_start, filter, identifier, is_rust_keyword, keyword, skip_ws0, str_lit_without_prefix, ws,
 };
 
 #[derive(Debug, PartialEq)]
@@ -23,6 +23,8 @@ pub enum Node<'a> {
     Expr(Ws, WithSpan<Box<Expr<'a>>>),
     Call(WithSpan<Call<'a>>),
     Let(WithSpan<Let<'a>>),
+    /// Mutable operations like `+=`.
+    Compound(WithSpan<Compound<'a>>),
     Declare(WithSpan<Declare<'a>>),
     If(WithSpan<If<'a>>),
     Match(WithSpan<Match<'a>>),
@@ -108,7 +110,7 @@ impl<'a: 'l, 'l> Node<'a> {
             "let" | "set" => Let::parse,
             "macro" => Macro::parse,
             "match" => Match::parse,
-            "mut" => Let::compound,
+            "mut" => Compound::parse,
             "raw" => Raw::parse,
             _ => {
                 i.reset(&start);
@@ -198,6 +200,7 @@ impl<'a: 'l, 'l> Node<'a> {
             Self::Expr(_, span) => span.span,
             Self::Call(span) => span.span,
             Self::Let(span) => span.span,
+            Self::Compound(span) => span.span,
             Self::Declare(span) => span.span,
             Self::If(span) => span.span,
             Self::Match(span) => span.span,
@@ -652,6 +655,7 @@ pub struct Macro<'a> {
 #[derive(Debug, PartialEq)]
 pub struct MacroArg<'a> {
     pub name: WithSpan<&'a str>,
+    pub ty: Option<WithSpan<TyGenerics<'a>>>,
     pub default: Option<WithSpan<Box<Expr<'a>>>>,
 }
 
@@ -687,11 +691,13 @@ impl<'a: 'l, 'l> Macro<'a> {
         let macro_arg = |i: &mut _| {
             let mut p = (
                 ws(identifier.with_span()),
+                opt(preceded(':', ws(|i: &mut _| TyGenerics::parse(i)))),
                 opt(preceded('=', ws(|i: &mut _| Expr::parse(i, false)))),
             );
-            let ((name, name_span), default) = p.parse_next(i)?;
+            let ((name, name_span), ty, default) = p.parse_next(i)?;
             Ok(MacroArg {
                 name: WithSpan::new(name, name_span),
+                ty,
                 default,
             })
         };
@@ -1240,10 +1246,16 @@ impl<'a: 'l, 'l> Declare<'a> {
 }
 
 #[derive(Debug, PartialEq)]
+pub enum LetValueOrBlock<'a> {
+    Value(WithSpan<Box<Expr<'a>>>),
+    Block { nodes: Vec<Box<Node<'a>>>, ws: Ws },
+}
+
+#[derive(Debug, PartialEq)]
 pub struct Let<'a> {
     pub ws: Ws,
     pub var: Target<'a>,
-    pub val: Option<WithSpan<Box<Expr<'a>>>>,
+    pub val: LetValueOrBlock<'a>,
     pub is_mutable: bool,
 }
 
@@ -1322,18 +1334,72 @@ impl<'a: 'l, 'l> Let<'a> {
             );
         }
 
+        if let Some(val) = val {
+            return Ok(Box::new(Node::Let(WithSpan::new(
+                Let {
+                    ws: Ws(pws, nws),
+                    var,
+                    val: LetValueOrBlock::Value(val),
+                    is_mutable: is_mut.is_some(),
+                },
+                span,
+            ))));
+        }
+
+        // We do this operation
+        if block_end.parse_next(i).is_err() {
+            return Err(
+                ErrorContext::unclosed("block", i.state.syntax.block_end, Span::new(span)).cut(),
+            );
+        }
+
+        let (keyword, end_keyword) = if tag == "let" {
+            ("let", "endlet")
+        } else {
+            ("set", "endset")
+        };
+
+        let keyword_span = Span::new(span.clone());
+        let mut end = cut_node(
+            Some(keyword),
+            (
+                Node::many,
+                cut_node(
+                    Some(keyword),
+                    (
+                        |i: &mut _| check_block_start(i, keyword_span, keyword, end_keyword),
+                        opt(Whitespace::parse),
+                        end_node(keyword, end_keyword),
+                        opt(Whitespace::parse),
+                    ),
+                ),
+            ),
+        );
+        let (nodes, (_, pws2, _, nws2)) = end.parse_next(i)?;
+
         Ok(Box::new(Node::Let(WithSpan::new(
             Let {
                 ws: Ws(pws, nws),
                 var,
-                val,
+                val: LetValueOrBlock::Block {
+                    nodes,
+                    ws: Ws(pws2, nws2),
+                },
                 is_mutable: is_mut.is_some(),
             },
             span,
         ))))
     }
+}
 
-    fn compound(i: &mut InputStream<'a, 'l>) -> ParseResult<'a, Box<Node<'a>>> {
+#[derive(Debug, PartialEq)]
+pub struct Compound<'a> {
+    pub op: WithSpan<BinOp<'a>>,
+    pub ws: Ws,
+}
+
+impl<'a: 'l, 'l> Compound<'a> {
+    fn parse(i: &mut InputStream<'a, 'l>) -> ParseResult<'a, Box<Node<'a>>> {
         let (pws, span, (lhs, rhs, nws)) = (
             opt(Whitespace::parse),
             ws(keyword("mut").span()),
@@ -1363,19 +1429,10 @@ impl<'a: 'l, 'l> Let<'a> {
             );
         };
 
-        // For `a += b` this AST generates the code `let _ = a += b;`. This may look odd, but
-        // is valid rust code, because the value of any assignment (compound or not) is `()`.
-        // This way the generator does not need to know about compound assignments for them
-        // to work.
-        Ok(Box::new(Node::Let(WithSpan::new(
-            Let {
+        Ok(Box::new(Node::Compound(WithSpan::new(
+            Compound {
                 ws: Ws(pws, nws),
-                var: Target::Placeholder(WithSpan::new((), span.clone())),
-                val: Some(WithSpan::new(
-                    Box::new(Expr::BinOp(BinOp { op, lhs, rhs })),
-                    span.clone(),
-                )),
-                is_mutable: false,
+                op: WithSpan::new(BinOp { op, lhs, rhs }, span.clone()),
             },
             span,
         ))))
