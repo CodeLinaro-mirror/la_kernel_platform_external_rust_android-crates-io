@@ -53,6 +53,7 @@
 //!   - [`iter`]
 //!   - [`NonUnicodeOsStr`]
 //!   - [`OsStrBytesExt`]
+//!   - [`OsUnit`]
 //!   - [`Pattern`]
 //!   - [`RawOsStr`]
 //!   - [`RawOsStrCow`]
@@ -193,6 +194,10 @@
 //! [uniquote]: https://crates.io/crates/uniquote
 //! [windows_considerations]: https://doc.rust-lang.org/std/io/struct.Stdout.html#note-windows-portability-considerations
 
+#![cfg_attr(
+    all(target_os = "uefi", not(feature = "conversions")),
+    allow(unused_features)
+)]
 // Only require a nightly compiler when building documentation for docs.rs.
 // This is a private option that should not be used.
 // https://github.com/rust-lang/docs.rs/issues/147#issuecomment-389544407
@@ -264,6 +269,15 @@ if_conversions! {
     }
 }
 
+macro_rules! if_os_conversions {
+    ( $($item:item)+ ) => {
+    $(
+        #[cfg(any(feature = "conversions", feature = "raw_os_str"))]
+        $item
+    )+
+    };
+}
+
 macro_rules! if_raw_str {
     ( $($item:item)+ ) => {
     $(
@@ -301,10 +315,11 @@ mod util;
 
 if_raw_str! {
     mod ext;
-    pub use ext::NonUnicodeOsStr;
     pub use ext::OsStrBytesExt;
 
     pub mod iter;
+    pub use iter::item::OsUnit;
+    pub use iter::item::NonUnicodeOsStr;
 
     mod pattern;
     pub use pattern::Pattern;
