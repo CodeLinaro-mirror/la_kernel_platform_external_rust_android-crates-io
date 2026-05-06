@@ -20,16 +20,30 @@ impl Grammar {
     }
 }
 
+// Lint: The Rule variant is the common variant
+#[allow(clippy::large_enum_variant)]
 #[derive(Debug)]
 pub enum Item {
     Use(TokenStream),
+    InjectVar(InjectVar),
     Rule(Rule),
+}
+
+#[derive(Debug)]
+pub struct InjectVar {
+    pub doc: Option<TokenStream>,
+    pub name: Ident,
+    pub input_param: Ident,
+    pub lpos_param: Ident,
+    pub rpos_param: Ident,
+    pub ty: TokenStream,
+    pub body: Group,
 }
 
 #[derive(Debug)]
 pub enum Cache {
     Simple,
-    Recursive
+    Recursive,
 }
 
 #[derive(Debug)]
@@ -72,30 +86,37 @@ pub struct SpannedExpr {
 
 #[derive(Debug, Clone)]
 pub enum Expr {
-    LiteralExpr(Literal),
-    PatternExpr(Group),
-    RuleExpr(Ident, Option<TokenStream>, Vec<RuleArg>),
-    MethodExpr(Ident, TokenStream),
-    CustomExpr(Group),
-    ChoiceExpr(Vec<SpannedExpr>),
-    OptionalExpr(Box<SpannedExpr>),
-    Repeat { inner: Box<SpannedExpr>, bound: BoundedRepeat, sep: Option<Box<SpannedExpr>> },
-    PosAssertExpr(Box<SpannedExpr>),
-    NegAssertExpr(Box<SpannedExpr>),
-    ActionExpr(Vec<TaggedExpr>, Option<Group>),
-    MatchStrExpr(Box<SpannedExpr>),
-    PositionExpr,
-    QuietExpr(Box<SpannedExpr>),
-    FailExpr(Group),
-    PrecedenceExpr {
+    Literal(Literal),
+    Pattern(Group),
+    Rule(Ident, Option<TokenStream>, Vec<RuleArg>),
+    Method(Ident, TokenStream),
+    Custom(Group),
+    Choice(Vec<SpannedExpr>),
+    Optional(Box<SpannedExpr>),
+    Repeat {
+        inner: Box<SpannedExpr>,
+        bound: BoundedRepeat,
+        sep: Option<Box<SpannedExpr>>,
+    },
+    PosAssert(Box<SpannedExpr>),
+    NegAssert(Box<SpannedExpr>),
+    Action(Vec<TaggedExpr>, Option<Group>),
+    MatchStr(Box<SpannedExpr>),
+    Position,
+    Quiet(Box<SpannedExpr>),
+    Fail(Group),
+    Precedence {
         levels: Vec<PrecedenceLevel>,
     },
-    MarkerExpr(bool),
+    Marker(bool),
 }
 
 impl Expr {
     pub fn at(self, sp: Span) -> SpannedExpr {
-        SpannedExpr { expr: self, span:sp }
+        SpannedExpr {
+            expr: self,
+            span: sp,
+        }
     }
 }
 
@@ -129,14 +150,14 @@ impl BoundedRepeat {
     pub fn has_lower_bound(&self) -> bool {
         match self {
             BoundedRepeat::None | BoundedRepeat::Both(None, _) => false,
-            BoundedRepeat::Plus | BoundedRepeat::Exact(_) | BoundedRepeat::Both(Some(_), _) => true
+            BoundedRepeat::Plus | BoundedRepeat::Exact(_) | BoundedRepeat::Both(Some(_), _) => true,
         }
     }
 
     pub fn has_upper_bound(&self) -> bool {
         match self {
-            BoundedRepeat::None |  BoundedRepeat::Plus | BoundedRepeat::Both(_, None) => false,
-            BoundedRepeat::Exact(_) | BoundedRepeat::Both(_, Some(_)) => true
+            BoundedRepeat::None | BoundedRepeat::Plus | BoundedRepeat::Both(_, None) => false,
+            BoundedRepeat::Exact(_) | BoundedRepeat::Both(_, Some(_)) => true,
         }
     }
 }
