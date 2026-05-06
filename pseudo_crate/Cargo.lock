@@ -733,6 +733,7 @@ dependencies = [
  "zip",
  "zlib-rs",
  "zmij",
+ "zune-inflate",
 ]
 
 [[package]]
