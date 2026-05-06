@@ -1,0 +1,17 @@
+name: "smoltcp"
+description: "A TCP/IP stack designed for bare-metal, real-time systems without a heap."
+third_party {
+  version: "0.13.1"
+  license_type: PERMISSIVE
+  last_upgrade_date {
+    year: 2026
+    month: 5
+    day: 15
+  }
+  homepage: "https://crates.io/crates/smoltcp"
+  identifier {
+    type: "crates.io"
+    value: "smoltcp"
+    version: "0.13.1"
+  }
+}
