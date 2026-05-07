@@ -34,8 +34,7 @@ rust_library {
     ],
     apex_available: [
         "//apex_available:platform",
-        "com.android.uprobestats",
-        "com.android.virt",
+        "//apex_available:anyapex",
     ],
     product_available: true,
     recovery_available: true,
@@ -65,8 +64,7 @@ rust_library {
     ],
     apex_available: [
         "//apex_available:platform",
-        "com.android.uprobestats",
-        "com.android.virt",
+        "//apex_available:anyapex",
     ],
     product_available: true,
     recovery_available: true,

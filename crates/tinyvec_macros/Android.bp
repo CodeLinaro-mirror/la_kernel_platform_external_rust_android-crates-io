@@ -23,8 +23,7 @@ rust_library {
     edition: "2018",
     apex_available: [
         "//apex_available:platform",
-        "com.android.resolv",
-        "com.android.tethering",
+        "//apex_available:anyapex",
     ],
     product_available: true,
     vendor_available: true,
