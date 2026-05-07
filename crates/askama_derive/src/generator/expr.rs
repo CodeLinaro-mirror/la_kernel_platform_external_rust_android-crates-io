@@ -4,7 +4,7 @@ use std::str::FromStr;
 use parser::node::CondTest;
 use parser::{
     AssociatedItem, CharLit, CharPrefix, Expr, PathComponent, Span, StrLit, StrPrefix, Target,
-    TyGenerics, WithSpan,
+    TyGenerics, TyGenericsKind, WithSpan,
 };
 use proc_macro2::{Delimiter, Spacing, TokenStream, TokenTree};
 use quote::quote_spanned;
@@ -509,14 +509,17 @@ impl<'a> Generator<'a, '_> {
         buf: &mut Buffer,
         generics: &WithSpan<Vec<WithSpan<TyGenerics<'a>>>>,
     ) {
-        let mut tmp = Buffer::new();
+        if generics.is_empty() {
+            return;
+        }
+        let generics_span = ctx.span_for_node(generics.span());
+        buf.write_token(Token![<], generics_span);
         for generic in &**generics {
             let span = ctx.span_for_node(generic.span());
-            self.visit_ty_generic(ctx, &mut tmp, generic, span);
-            tmp.write_token(Token![,], span);
+            self.visit_ty_generic(ctx, buf, generic, span);
+            buf.write_token(Token![,], span);
         }
-        let tmp = tmp.into_token_stream();
-        quote_into!(buf, ctx.span_for_node(generics.span()), { <#tmp> });
+        buf.write_token(Token![>], generics_span);
     }
 
     pub(super) fn visit_ty_generic(
@@ -526,17 +529,38 @@ impl<'a> Generator<'a, '_> {
         generic: &WithSpan<TyGenerics<'a>>,
         span: proc_macro2::Span,
     ) {
-        let TyGenerics {
-            refs,
-            ref path,
-            ref args,
-        } = **generic;
+        let TyGenerics { refs, ref kind } = **generic;
         for _ in 0..refs {
             buf.write_token(Token![&], span);
         }
-        self.visit_macro_path(buf, path, span);
-        if let Some(generics) = args.as_ref() {
-            self.visit_ty_generics(ctx, buf, generics);
+        match &**kind {
+            TyGenericsKind::Path { path, args } => {
+                self.visit_macro_path(buf, path, span);
+                if let Some(generics) = args.as_ref() {
+                    self.visit_ty_generics(ctx, buf, generics);
+                }
+            }
+            TyGenericsKind::Tuple(kinds) => {
+                let mut tuple_buf = Buffer::new();
+                for (pos, kind) in kinds.iter().enumerate() {
+                    let kind_span = ctx.span_for_node(kind.span());
+                    if pos > 0 {
+                        tuple_buf.write_token(Token![,], kind_span);
+                    }
+                    self.visit_ty_generic(ctx, &mut tuple_buf, kind, kind_span);
+                }
+                quote_into!(buf, span, { (#tuple_buf) });
+            }
+            TyGenericsKind::Array { ty, nb_elems } => {
+                let mut array_buf = Buffer::new();
+                self.visit_ty_generic(ctx, &mut array_buf, ty, span);
+                if let Some(nb_elems) = nb_elems {
+                    let nb_elems: proc_macro2::Literal = nb_elems.parse().unwrap();
+                    quote_into!(buf, span, { [#array_buf; #nb_elems] });
+                } else {
+                    quote_into!(buf, span, { [#array_buf] });
+                }
+            }
         }
     }
 
@@ -746,7 +770,7 @@ impl<'a> Generator<'a, '_> {
         Ok(DisplayWrap::Unwrapped)
     }
 
-    fn visit_binop(
+    pub(super) fn visit_binop(
         &mut self,
         ctx: &Context<'_>,
         buf: &mut Buffer,
