@@ -13,7 +13,7 @@ use syn::{
 
 use crate::generator::TmplKind;
 use crate::input::{PartialTemplateArgs, TemplateArgs};
-use crate::{CompileError, Context, Print, build_template_item, field_new, quote_into};
+use crate::{CompileError, Context, Print, SizeHint, build_template_item, field_new, quote_into};
 
 /// Implement every integration for the given item
 pub(crate) fn impl_everything(ast: &DeriveInput, buf: &mut Buffer) {
@@ -70,14 +70,11 @@ fn impl_fast_writable(ast: &DeriveInput, buf: &mut Buffer) {
     quote_into!(buf, span, {
         {
             #[inline]
-            fn write_into<AskamaW>(
+            fn write_into(
                 &self,
-                dest: &mut AskamaW,
+                dest: &mut dyn askama::helpers::core::fmt::Write,
                 values: &dyn askama::Values,
-            ) -> askama::Result<()>
-            where
-                AskamaW: askama::helpers::core::fmt::Write + ?askama::helpers::core::marker::Sized,
-            {
+            ) -> askama::Result<()> {
                 askama::Template::render_into_with_values(self, dest, values)
             }
         }
@@ -296,7 +293,7 @@ pub(crate) fn build_template_enum(
     mut enum_args: Option<PartialTemplateArgs>,
     vars_args: Vec<Option<PartialTemplateArgs>>,
     has_default_impl: bool,
-) -> Result<usize, CompileError> {
+) -> Result<SizeHint, CompileError> {
     let Data::Enum(enum_data) = &enum_ast.data else {
         unreachable!();
     };
@@ -319,7 +316,7 @@ pub(crate) fn build_template_enum(
         .params
         .insert(0, GenericParam::Lifetime(LifetimeParam::new(lifetime)));
 
-    let mut biggest_size_hint = 0;
+    let mut biggest_size_hint = SizeHint::EMPTY;
     let mut render_into_arms = TokenStream::new();
     let mut size_hint_arms = TokenStream::new();
     for (var, var_args) in enum_data.variants.iter().zip(vars_args) {
@@ -396,14 +393,11 @@ pub(crate) fn build_template_enum(
     let var_writer = crate::var_writer();
     let var_values = crate::var_values();
     methods.extend(quote_spanned!(span =>
-        fn render_into_with_values<AskamaW>(
+        fn render_into_with_values(
             &self,
-            #var_writer: &mut AskamaW,
+            #var_writer: &mut dyn askama::helpers::core::fmt::Write,
             #var_values: &dyn askama::Values,
-        ) -> askama::Result<()>
-        where
-            AskamaW: askama::helpers::core::fmt::Write + ?askama::helpers::core::marker::Sized
-        {
+        ) -> askama::Result<()> {
             match *self {
                 #render_into_arms
             }
@@ -554,7 +548,7 @@ fn type_for_enum_variant(
 fn variant_as_arm(
     var_ast: &DeriveInput,
     var: &Variant,
-    size_hint: usize,
+    size_hint: SizeHint,
     render_into_arms: &mut TokenStream,
     size_hint_arms: &mut TokenStream,
 ) {

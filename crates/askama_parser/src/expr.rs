@@ -10,9 +10,9 @@ use winnow::token::{any, one_of, take, take_until};
 use crate::node::CondTest;
 use crate::{
     CharLit, ErrorContext, HashSet, InputStream, Num, ParseResult, PathOrIdentifier, StrLit,
-    StrPrefix, WithSpan, char_lit, cut_error, deny_any_rust_token, filter, identifier,
-    is_rust_keyword, keyword, not_suffix_with_hash, num_lit, path_or_identifier, skip_ws0,
-    skip_ws1, str_lit, ws,
+    StrPrefix, WithSpan, any_rust_token, char_lit, cut_error, deny_any_rust_token, filter,
+    identifier, is_rust_keyword, keyword, not_suffix_with_hash, num_lit, path_or_identifier,
+    skip_ws0, skip_ws1, str_lit, ws,
 };
 
 macro_rules! expr_prec_layer {
@@ -22,6 +22,8 @@ macro_rules! expr_prec_layer {
         }
     };
 }
+
+const MAX_REFS: usize = 20;
 
 fn expr_prec_layer<'a: 'l, 'l>(
     i: &mut InputStream<'a, 'l>,
@@ -668,70 +670,68 @@ impl<'a: 'l, 'l> Expr<'a> {
 
     fn array(i: &mut InputStream<'a, 'l>) -> ParseResult<'a, WithSpan<Box<Self>>> {
         let _level_guard = i.state.level.nest(i)?;
-        let (array, span) = preceded(
-            '[',
-            cut_err(alt((
-                // normal array [<expr>,...?]
-                Self::array_elements,
-                // array repeat [<el_expr>; <cnt_expr>]
-                Self::array_repeat,
-            ))), // cut_err
-        ) // preceded
-        .with_span()
-        .parse_next(i)?;
-        Ok(WithSpan::new(array, span))
-    }
-
-    fn array_elements(i: &mut InputStream<'a, 'l>) -> ParseResult<'a, Box<Self>> {
-        let array = terminated(
-            opt(terminated(
-                separated(1.., ws(move |i: &mut _| Self::parse(i, true)), ','),
-                ws(opt(',')),
-            )),
-            ']',
+        let (span, mut elements): (_, Vec<_>) = (
+            '['.span(),
+            separated(0.., ws(move |i: &mut _| Self::parse(i, true)), ','),
         )
-        .parse_next(i)?;
-        Ok(Box::new(Self::Array(array.unwrap_or_default())))
-    }
-
-    fn array_repeat(i: &mut InputStream<'a, 'l>) -> ParseResult<'a, Box<Self>> {
-        let (element, _, count) = terminated(
-            (
-                // element expression
-                Self::array_repeat_element,
-                ';',
-                // count expression
-                cut_err(Self::array_repeat_count),
-            ),
-            ']',
-        )
-        .parse_next(i)?;
-
-        Ok(Box::new(Self::ArrayRepeat(element, count)))
-    }
-
-    fn array_repeat_element(
-        i: &mut InputStream<'a, 'l>,
-    ) -> ParseResult<'a, WithSpan<Box<Expr<'a>>>> {
-        let (expr, span) = opt(ws(move |i: &mut _| Expr::parse(i, true)))
-            .with_span()
             .parse_next(i)?;
-        match expr {
-            Some(expr) => Ok(expr),
-            None => cut_error!("expected element expression for array repeat syntax", span),
-        }
-    }
-    fn array_repeat_count(i: &mut InputStream<'a, 'l>) -> ParseResult<'a, WithSpan<Box<Expr<'a>>>> {
-        let (expr, span) = opt(ws(move |i: &mut _| Expr::parse(i, true)))
-            .with_span()
-            .parse_next(i)?;
-        match expr {
-            Some(expr) => Ok(expr),
-            None => cut_error!(
-                "expected count expression for array repeat syntax after `;`",
+
+        let expr = if let Some(semicolon) = opt(ws(';'.span())).parse_next(i)? {
+            // array repeat [<el_expr>; <cnt_expr>]
+            let Some(elem) = elements.pop() else {
+                return cut_error!(
+                    "expected element expression for array repeat syntax",
+                    semicolon
+                );
+            };
+            if !elements.is_empty() {
+                return cut_error!("unexpected `;` after expression", semicolon);
+            }
+            let Some(count) = opt(ws(move |i: &mut _| Expr::parse(i, true))).parse_next(i)? else {
+                return cut_error!(
+                    "expected count expression for array repeat syntax after `;`",
+                    semicolon
+                );
+            };
+            if let Some((delim, span)) = ws(opt(one_of((',', ';')).with_span())).parse_next(i)? {
+                return cut_error!(
+                    format!(
+                        "unexpected delimiter `{}`.\n\
+                        Use nested syntax to write a multi-dimensional array: [[expr; N]; M]",
+                        delim.escape_debug()
+                    ),
+                    span
+                );
+            }
+            Self::ArrayRepeat(elem, count)
+        } else {
+            // normal array [<expr>,...?]
+            if !elements.is_empty() {
+                // strip optional trailing comma
+                ws(opt(',')).parse_next(i)?;
+            }
+            Self::Array(elements)
+        };
+
+        if ws(opt(']')).parse_next(i)?.is_none() {
+            let (next, span) = match opt(any_rust_token.with_span()).parse_next(i)? {
+                Some((next, span)) => (Some(next), span),
+                None => (None, span),
+            };
+            return cut_error!(
+                match next {
+                    Some(delim @ (")" | "}")) => format!(
+                        "mismatched closing delimiter `{}`, expected `]`",
+                        delim.escape_debug()
+                    ),
+                    Some(token) =>
+                        format!("unexpected token `{}`, expected `]`", token.escape_debug()),
+                    _ => "missing closing delimiter `]`".to_owned(),
+                },
                 span
-            ),
+            );
         }
+        Ok(WithSpan::new(Box::new(expr), span))
     }
 
     fn path_var_bool(i: &mut InputStream<'a, 'l>) -> ParseResult<'a, WithSpan<Box<Self>>> {
@@ -1497,12 +1497,64 @@ fn ensure_macro_name<'a>(name: &WithSpan<&'a str>) -> ParseResult<'a, ()> {
 #[derive(Clone, Debug, PartialEq)]
 pub struct TyGenerics<'a> {
     pub refs: usize,
-    pub path: Vec<WithSpan<&'a str>>,
-    pub args: Option<WithSpan<Vec<WithSpan<TyGenerics<'a>>>>>,
+    pub kind: WithSpan<TyGenericsKind<'a>>,
 }
 
 impl<'a: 'l, 'l> TyGenerics<'a> {
-    fn parse(i: &mut InputStream<'a, 'l>) -> ParseResult<'a, WithSpan<Self>> {
+    pub(crate) fn parse(i: &mut InputStream<'a, 'l>) -> ParseResult<'a, WithSpan<Self>> {
+        let p = ws((repeat(0.., ws('&')), TyGenericsKind::parse.with_span()));
+        let ((refs, (kind, kind_span)), span) = p.with_span().parse_next(i)?;
+        if refs > MAX_REFS {
+            return cut_error!(format!("too many references (> {MAX_REFS})"), span);
+        }
+
+        Ok(WithSpan::new(
+            TyGenerics {
+                refs,
+                kind: WithSpan::new(kind, kind_span),
+            },
+            span,
+        ))
+    }
+
+    fn args(
+        i: &mut InputStream<'a, 'l>,
+    ) -> ParseResult<'a, WithSpan<Vec<WithSpan<TyGenerics<'a>>>>> {
+        let mut p = cut_err(terminated(
+            opt(terminated(
+                separated(1.., TyGenerics::parse, ws(',')),
+                ws(opt(',')),
+            )),
+            '>',
+        ));
+
+        let span = ws('<'.span()).parse_next(i)?;
+        let _level_guard = i.state.level.nest(i)?;
+        let args = p.parse_next(i)?;
+        Ok(WithSpan::new(args.unwrap_or_default(), span))
+    }
+}
+
+#[derive(Clone, Debug, PartialEq)]
+pub enum TyGenericsKind<'a> {
+    Path {
+        path: Vec<WithSpan<&'a str>>,
+        args: Option<WithSpan<Vec<WithSpan<TyGenerics<'a>>>>>,
+    },
+    Tuple(Vec<WithSpan<TyGenerics<'a>>>),
+    Array {
+        ty: Box<WithSpan<TyGenerics<'a>>>,
+        nb_elems: Option<&'a str>,
+    },
+}
+
+impl<'a: 'l, 'l> TyGenericsKind<'a> {
+    fn parse(i: &mut InputStream<'a, 'l>) -> ParseResult<'a, Self> {
+        let _level_guard = i.state.level.nest(i)?;
+        alt((Self::tuple, Self::array, Self::ty_path)).parse_next(i)
+    }
+
+    fn ty_path(i: &mut InputStream<'a, 'l>) -> ParseResult<'a, TyGenericsKind<'a>> {
         let path = separated(
             1..,
             ws(identifier
@@ -1512,12 +1564,7 @@ impl<'a: 'l, 'l> TyGenerics<'a> {
         )
         .map(|v: Vec<_>| v);
 
-        let p = ws((repeat(0.., ws('&')), path, opt(Self::args)));
-        let ((refs, path, args), span) = p.with_span().parse_next(i)?;
-        let max_refs = 20;
-        if refs > max_refs {
-            return cut_error!(format!("too many references (> {max_refs})"), span);
-        }
+        let (path, args) = (path, opt(TyGenerics::args)).parse_next(i)?;
 
         if let [name] = path.as_slice() {
             if matches!(**name, "super" | "self" | "crate") {
@@ -1536,25 +1583,60 @@ impl<'a: 'l, 'l> TyGenerics<'a> {
                 }
             }
         }
-
-        Ok(WithSpan::new(TyGenerics { refs, path, args }, span))
+        Ok(TyGenericsKind::Path { path, args })
     }
 
-    fn args(
-        i: &mut InputStream<'a, 'l>,
-    ) -> ParseResult<'a, WithSpan<Vec<WithSpan<TyGenerics<'a>>>>> {
-        let mut p = cut_err(terminated(
-            opt(terminated(
-                separated(1.., TyGenerics::parse, ws(',')),
-                ws(opt(',')),
-            )),
-            '>',
-        ));
+    fn tuple(i: &mut InputStream<'a, 'l>) -> ParseResult<'a, TyGenericsKind<'a>> {
+        let start = *i;
+        // We ensure we're in the right function to get better errors later on.
+        ws('(').parse_next(i)?;
+        let Ok(tuple_elems) = separated(0.., TyGenerics::parse, ws(',')).parse_next(i) else {
+            return cut_error!("expected a list of type separated by a comma", start);
+        };
+        if (opt(ws(',')), ws(')')).parse_next(i).is_err() {
+            return cut_error!("expected a list of type separated by a comma", start);
+        }
+        Ok(TyGenericsKind::Tuple(tuple_elems))
+    }
 
-        let span = ws('<'.span()).parse_next(i)?;
-        let _level_guard = i.state.level.nest(i)?;
-        let args = p.parse_next(i)?;
-        Ok(WithSpan::new(args.unwrap_or_default(), span))
+    fn array(i: &mut InputStream<'a, 'l>) -> ParseResult<'a, TyGenericsKind<'a>> {
+        let start = *i;
+        // We ensure we're in the right function to get better errors later on.
+        ws('[').parse_next(i)?;
+
+        let ty = match TyGenerics::parse.parse_next(i) {
+            Ok(ty) => ty,
+            Err(error @ ErrMode::Cut(_)) => return Err(error),
+            Err(_) => return cut_error!("expected a type", *i),
+        };
+        let mut nb_elems = None;
+        if let Ok((_, colon_span)) = ws(';').with_span().parse_next(i) {
+            let Ok((parsed_nb, nb_span)) = num_lit.with_span().parse_next(i) else {
+                return cut_error!("expected a number after `;`", colon_span);
+            };
+            match parsed_nb {
+                Num::Int(nb, Some(crate::IntKind::Usize) | None) => nb_elems = Some(nb),
+                Num::Int(_, Some(kind)) => {
+                    return cut_error!(
+                        format!("array size should be `usize`, found `{kind}`"),
+                        nb_span,
+                    );
+                }
+                Num::Float(nb, _) => {
+                    return cut_error!(
+                        format!("expected a number after `;`, found a float (`{nb}`)"),
+                        nb_span,
+                    );
+                }
+            }
+        }
+        if ws(']').parse_next(i).is_err() {
+            return cut_error!("missing `]` to close the array", start);
+        }
+        Ok(TyGenericsKind::Array {
+            ty: Box::new(ty),
+            nb_elems,
+        })
     }
 }
 

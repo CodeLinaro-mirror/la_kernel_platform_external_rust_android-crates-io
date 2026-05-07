@@ -7,10 +7,10 @@ use std::str::FromStr;
 
 use parser::expr::BinOp;
 use parser::node::{
-    Call, Comment, Cond, CondTest, Declare, FilterBlock, If, Include, Let, Lit, Loop, Match,
-    Whitespace, Ws,
+    Call, Comment, Compound, Cond, CondTest, Declare, FilterBlock, If, Include, Let, Lit, Loop,
+    Match, Whitespace, Ws,
 };
-use parser::{Expr, Node, Span, Target, WithSpan};
+use parser::{Expr, LetValueOrBlock, Node, Span, Target, WithSpan};
 use proc_macro2::TokenStream;
 use quote::quote_spanned;
 use rustc_hash::FxBuildHasher;
@@ -22,18 +22,21 @@ use super::{
 use crate::generator::{LocalCallerMeta, Writable, helpers, logic_op};
 use crate::heritage::{Context, Heritage};
 use crate::integration::{Buffer, string_escape};
-use crate::{CompileError, FileInfo, HashMap, field_new, fmt_left, fmt_right, quote_into};
+use crate::{
+    CompileError, FileInfo, HashMap, SizeHint, field_new, fmt_left, fmt_right, quote_into,
+};
 
 impl<'a> Generator<'a, '_> {
     pub(super) fn impl_template_inner(
         &mut self,
         ctx: &Context<'a>,
         buf: &mut Buffer,
-    ) -> Result<usize, CompileError> {
+    ) -> Result<SizeHint, CompileError> {
         buf.set_discard(self.buf_writable.discard);
         let size_hint = if let Some(heritage) = self.heritage {
             // The generated output is discarded, we only need variables to be rendered.
-            self.handle(ctx, ctx.nodes, buf, AstLevel::Top, RenderFor::Extends)?;
+            let _: SizeHint =
+                self.handle(ctx, ctx.nodes, buf, AstLevel::Top, RenderFor::Extends)?;
             self.next_ws = None;
             self.handle(
                 heritage.root,
@@ -79,7 +82,7 @@ impl<'a> Generator<'a, '_> {
             heritage,
             locals,
             self.buf_writable.discard,
-            self.is_in_filter_block,
+            self.is_in_block,
         );
         child.buf_writable = buf_writable;
         let res = callback(&mut child);
@@ -100,8 +103,8 @@ impl<'a> Generator<'a, '_> {
         buf: &mut Buffer,
         level: AstLevel,
         render_for: RenderFor,
-    ) -> Result<usize, CompileError> {
-        let mut size_hint = 0;
+    ) -> Result<SizeHint, CompileError> {
+        let mut size_hint = SizeHint::EMPTY;
         for n in nodes {
             match **n {
                 Node::Lit(ref lit) => {
@@ -118,10 +121,13 @@ impl<'a> Generator<'a, '_> {
                     size_hint += self.write_expr(ctx, buf, ws, val, render_for)?;
                 }
                 Node::Let(ref l) => {
-                    self.write_let(ctx, buf, l)?;
+                    size_hint += self.write_let(ctx, buf, l)?;
+                }
+                Node::Compound(ref c) => {
+                    self.write_compound(ctx, buf, c)?;
                 }
                 Node::Declare(ref c) => {
-                    self.write_decl(ctx, buf, c)?;
+                    size_hint += self.write_decl(ctx, buf, c)?;
                 }
                 Node::If(ref i) => {
                     size_hint += self.write_if(ctx, buf, i, render_for)?;
@@ -190,14 +196,14 @@ impl<'a> Generator<'a, '_> {
                 }
                 Node::Break(ref ws) => {
                     self.handle_ws(**ws);
-                    self.write_buf_writable(ctx, buf)?;
+                    size_hint += self.write_buf_writable(ctx, buf)?;
                     quote_into!(buf, ctx.span_for_node(ws.span()), {
                         break;
                     });
                 }
                 Node::Continue(ref ws) => {
                     self.handle_ws(**ws);
-                    self.write_buf_writable(ctx, buf)?;
+                    size_hint += self.write_buf_writable(ctx, buf)?;
                     quote_into!(buf, ctx.span_for_node(ws.span()), {
                         continue;
                     });
@@ -351,8 +357,8 @@ impl<'a> Generator<'a, '_> {
         buf: &mut Buffer,
         if_: &'a If<'_>,
         render_for: RenderFor,
-    ) -> Result<usize, CompileError> {
-        let mut flushed = 0;
+    ) -> Result<SizeHint, CompileError> {
+        let mut flushed = SizeHint::EMPTY;
         let mut arm_sizes = Vec::new();
         let mut has_else = false;
 
@@ -467,7 +473,7 @@ impl<'a> Generator<'a, '_> {
         }
 
         if !has_else && !conds.conds.is_empty() {
-            arm_sizes.push(0);
+            arm_sizes.push(SizeHint::EMPTY);
         }
         Ok(flushed + median(&mut arm_sizes))
     }
@@ -479,7 +485,7 @@ impl<'a> Generator<'a, '_> {
         buf: &mut Buffer,
         m: &'a Match<'a>,
         render_for: RenderFor,
-    ) -> Result<usize, CompileError> {
+    ) -> Result<SizeHint, CompileError> {
         let Match {
             ws1,
             ref expr,
@@ -494,7 +500,7 @@ impl<'a> Generator<'a, '_> {
         let expr_code = self.visit_expr_root(ctx, expr)?;
         let span = ctx.span_for_node(expr.span());
 
-        let mut arm_size = 0;
+        let mut arm_size = SizeHint::EMPTY;
         let mut iter = arms.iter().enumerate().peekable();
         let mut arms = Buffer::new();
         while let Some((i, arm)) = iter.next() {
@@ -542,7 +548,7 @@ impl<'a> Generator<'a, '_> {
         buf: &mut Buffer,
         loop_block: &'a WithSpan<Loop<'_>>,
         render_for: RenderFor,
-    ) -> Result<usize, CompileError> {
+    ) -> Result<SizeHint, CompileError> {
         self.handle_ws(loop_block.ws1);
         let span = ctx.span_for_node(loop_block.span());
         self.push_locals(|this| {
@@ -584,7 +590,7 @@ impl<'a> Generator<'a, '_> {
                 })?;
             }
 
-            let size_hint1 = this.push_locals(|this| {
+            let mut then_size_hint = this.push_locals(|this| {
                 let mut target_buf = Buffer::new();
                 this.visit_target(ctx, &mut target_buf, true, true, &loop_block.var, span);
                 let target_buf = target_buf.into_token_stream();
@@ -611,10 +617,9 @@ impl<'a> Generator<'a, '_> {
                 Ok(size_hint1)
             })?;
 
-            let size_hint2;
-            if has_else_nodes {
+            let else_size_hint = if has_else_nodes {
                 let mut cond_buf = Buffer::new();
-                size_hint2 = this.push_locals(|this| {
+                let else_size_hint = this.push_locals(|this| {
                     let mut size_hint = this.handle(
                         ctx,
                         &loop_block.else_nodes,
@@ -632,14 +637,18 @@ impl<'a> Generator<'a, '_> {
                         #cond_buf
                     }
                 });
+                else_size_hint
             } else {
                 this.handle_ws(loop_block.ws3);
-                size_hint2 = this.write_buf_writable(ctx, &mut loop_buf)?;
-            }
+                then_size_hint += this.write_buf_writable(ctx, &mut loop_buf)?;
+                SizeHint::EMPTY
+            };
 
             buf.write_tokens(loop_buf.into_token_stream());
 
-            Ok(flushed + ((size_hint1 * 3) + size_hint2) / 2)
+            // We arbitrarily assume equal likeness that the loop is entered or not.
+            // And if the loop is entered, we arbitrarily assume that it has 3 entries.
+            Ok(flushed + (then_size_hint * 3).midpoint(else_size_hint))
         })
     }
 
@@ -649,7 +658,7 @@ impl<'a> Generator<'a, '_> {
         buf: &mut Buffer,
         call: &'a WithSpan<Call<'_>>,
         render_for: RenderFor,
-    ) -> Result<usize, CompileError> {
+    ) -> Result<SizeHint, CompileError> {
         let Call {
             ws1,
             scope,
@@ -713,20 +722,20 @@ impl<'a> Generator<'a, '_> {
         ctx: &Context<'a>,
         buf: &mut Buffer,
         filter: &'a WithSpan<FilterBlock<'_>>,
-    ) -> Result<usize, CompileError> {
+    ) -> Result<SizeHint, CompileError> {
         let var_filter_source = crate::var_filter_source();
 
-        self.write_buf_writable(ctx, buf)?;
+        let mut size_hint = self.write_buf_writable(ctx, buf)?;
         self.flush_ws(filter.ws1);
-        self.is_in_filter_block += 1;
-        self.write_buf_writable(ctx, buf)?;
+        self.is_in_block.increase("filter");
+        size_hint += self.write_buf_writable(ctx, buf)?;
         let span = ctx.span_for_node(filter.span());
 
         // build `FmtCell` that contains the inner block
         let mut filter_def_buf = Buffer::new();
-        let size_hint = self.push_locals(|this| {
+        size_hint += self.push_locals(|this| {
             this.prepare_ws(filter.ws1);
-            let size_hint = this.handle(
+            let mut size_hint = this.handle(
                 ctx,
                 &filter.nodes,
                 &mut filter_def_buf,
@@ -734,7 +743,7 @@ impl<'a> Generator<'a, '_> {
                 RenderFor::Template,
             )?;
             this.flush_ws(filter.ws2);
-            this.write_buf_writable(ctx, &mut filter_def_buf)?;
+            size_hint += this.write_buf_writable(ctx, &mut filter_def_buf)?;
             Ok(size_hint)
         })?;
         let filter_def_buf = filter_def_buf.into_token_stream();
@@ -776,7 +785,7 @@ impl<'a> Generator<'a, '_> {
             }
         } });
 
-        self.is_in_filter_block -= 1;
+        self.is_in_block.decrease();
         self.prepare_ws(filter.ws2);
         Ok(size_hint)
     }
@@ -787,9 +796,9 @@ impl<'a> Generator<'a, '_> {
         buf: &mut Buffer,
         i: &'a WithSpan<Include<'_>>,
         render_for: RenderFor,
-    ) -> Result<usize, CompileError> {
+    ) -> Result<SizeHint, CompileError> {
         self.flush_ws(i.ws);
-        self.write_buf_writable(ctx, buf)?;
+        let mut size_hint = self.write_buf_writable(ctx, buf)?;
         let file_info = ctx
             .path
             .map(|path| FileInfo::of(i.span(), path, ctx.parsed));
@@ -827,8 +836,8 @@ impl<'a> Generator<'a, '_> {
             None => child_ctx,
         };
 
-        let size_hint = self.with_child(heritage.as_ref(), |child| {
-            let mut size_hint = 0;
+        size_hint += self.with_child(heritage.as_ref(), |child| {
+            let mut size_hint = SizeHint::EMPTY;
             size_hint +=
                 child.handle(handle_ctx, handle_ctx.nodes, buf, AstLevel::Top, render_for)?;
             size_hint += child.write_buf_writable(handle_ctx, buf)?;
@@ -901,55 +910,49 @@ impl<'a> Generator<'a, '_> {
         }
     }
 
+    fn write_compound(
+        &mut self,
+        ctx: &Context<'_>,
+        buf: &mut Buffer,
+        c: &'a WithSpan<Compound<'_>>,
+    ) -> Result<(), CompileError> {
+        self.handle_ws(c.ws);
+
+        let op = &c.op;
+        self.visit_binop(ctx, buf, op.op, &op.lhs, &op.rhs, c.span())?;
+        buf.write_token(Token![;], ctx.span_for_node(c.span()));
+        Ok(())
+    }
+
     fn write_let(
+        &mut self,
+        ctx: &Context<'a>,
+        buf: &mut Buffer,
+        l: &'a WithSpan<Let<'_>>,
+    ) -> Result<SizeHint, CompileError> {
+        self.handle_ws(l.ws);
+
+        match &l.val {
+            LetValueOrBlock::Value(val) => self.write_let_value(ctx, buf, l, val),
+            LetValueOrBlock::Block { nodes, ws } => self.write_let_block(ctx, buf, l, nodes, *ws),
+        }
+    }
+
+    fn write_let_target(
         &mut self,
         ctx: &Context<'_>,
         buf: &mut Buffer,
         l: &'a WithSpan<Let<'_>>,
-    ) -> Result<(), CompileError> {
-        self.handle_ws(l.ws);
-        let span = ctx.span_for_node(l.span());
-
-        let Some(val) = &l.val else {
-            let file_info = ctx
-                .file_info_of(l.span())
-                .map(|info| format!(" {info}:"))
-                .unwrap_or_default();
-            eprintln!(
-                "⚠️{file_info} `let` tag will stop supporting declaring variables without value. \
-                 Use `create` instead for this case",
-            );
-            self.write_buf_writable(ctx, buf)?;
-            buf.write_token(Token![let], span);
-            if l.is_mutable {
-                buf.write_token(Token![mut], span);
-            }
-            self.visit_target(ctx, buf, false, true, &l.var, span);
-            buf.write_token(Token![;], span);
-            return Ok(());
-        };
-
-        // Handle when this statement creates a new alias of a caller variable (or of another alias),
-        if let Target::Name(dstvar) = l.var
-            && let Expr::Var(srcvar) = ***val
-            && let Some(caller_alias) = self.locals.get_caller(srcvar)
-        {
-            self.locals.insert(
-                Cow::Borrowed(*dstvar),
-                LocalMeta::CallerAlias(caller_alias.clone()),
-            );
-            return Ok(());
-        }
-
-        let mut expr_buf = Buffer::new();
-        self.visit_expr(ctx, &mut expr_buf, val)?;
-
+        span: proc_macro2::Span,
+    ) -> Result<SizeHint, CompileError> {
         let shadowed = self.is_shadowing_variable(ctx, &l.var, l.span())?;
-        if shadowed {
+        let size_hint = if shadowed {
             // Need to flush the buffer if the variable is being shadowed,
             // to ensure the old variable is used.
-            self.write_buf_writable(ctx, buf)?;
-        }
+            self.write_buf_writable(ctx, buf)?
+        } else {
+            SizeHint::EMPTY
+        };
         if shadowed
             || !matches!(l.var, Target::Name(_))
             || matches!(&l.var, Target::Name(name) if self.locals.get(name).is_none())
@@ -961,6 +964,182 @@ impl<'a> Generator<'a, '_> {
         }
 
         self.visit_target(ctx, buf, true, true, &l.var, span);
+        Ok(size_hint)
+    }
+
+    fn write_let_block(
+        &mut self,
+        ctx: &Context<'a>,
+        buf: &mut Buffer,
+        l: &'a WithSpan<Let<'_>>,
+        nodes: &'a [Box<Node<'a>>],
+        ws: Ws,
+    ) -> Result<SizeHint, CompileError> {
+        let var_let_source = crate::var_let_source();
+
+        let mut size_hint = self.write_buf_writable(ctx, buf)?;
+        self.flush_ws(l.ws);
+        self.is_in_block.increase("let/set");
+        size_hint += self.write_buf_writable(ctx, buf)?;
+        let span = ctx.span_for_node(l.span());
+
+        // build `FmtCell` that contains the inner block
+        let mut filter_def_buf = Buffer::new();
+        size_hint += self.push_locals(|this| {
+            this.prepare_ws(l.ws);
+            let mut size_hint = this.handle(
+                ctx,
+                nodes,
+                &mut filter_def_buf,
+                AstLevel::Nested,
+                RenderFor::Template,
+            )?;
+            this.flush_ws(ws);
+            size_hint += this.write_buf_writable(ctx, &mut filter_def_buf)?;
+            Ok(size_hint)
+        })?;
+        let filter_def_buf = filter_def_buf.into_token_stream();
+
+        size_hint += self.write_let_target(ctx, buf, l, span)?;
+        buf.write_token(Token![=], span);
+
+        let var_writer = crate::var_writer();
+        let filter_def_buf = quote_spanned!(span=>
+            let #var_let_source = askama::helpers::FmtCell::new(
+                |#var_writer: &mut askama::helpers::core::fmt::Formatter<'_>| -> askama::Result<()> {
+                    #filter_def_buf
+                    askama::Result::Ok(())
+                }
+            );
+        );
+
+        // display the `FmtCell`
+        let mut filter_buf = Buffer::new();
+        quote_into!(&mut filter_buf, span, { askama::filters::Safe(&#var_let_source) });
+        let filter_buf = filter_buf.into_token_stream();
+        let escaper = TokenStream::from_str(self.input.escaper).unwrap();
+        let filter_buf = quote_spanned!(span=>
+            (&&askama::filters::AutoEscaper::new(
+                &(#filter_buf), #escaper
+            )).askama_auto_escape()?
+        );
+        quote_into!(buf, span, { {
+            #filter_def_buf
+            let mut __askama_tmp_write = String::new();
+            if askama::helpers::core::write!(&mut __askama_tmp_write, "{}", #filter_buf).is_err() {
+                return #var_let_source.take_err();
+            }
+            __askama_tmp_write
+        }; });
+
+        self.is_in_block.decrease();
+        self.prepare_ws(ws);
+        Ok(size_hint)
+    }
+
+    fn handle_let_value_caller(
+        &mut self,
+        ctx: &Context<'a>,
+        buf: &mut Buffer,
+        l: &'a WithSpan<Let<'_>>,
+        val: &'a WithSpan<Box<Expr<'a>>>,
+    ) -> Result<Option<SizeHint>, CompileError> {
+        let Expr::Call(ref call) = ***val else {
+            return Ok(None);
+        };
+        let Expr::Var(var_name) = **call.path else {
+            return Ok(None);
+        };
+        // FIXME: Try to merge this code with `write_let_block` to avoid the duplication.
+        // build `FmtCell` that contains the inner block
+        let mut filter_def_buf = Buffer::new();
+        let mut size_hint = match self.push_locals(|this| {
+            let Some(size_hint) = this.handle_caller(
+                ctx,
+                &mut filter_def_buf,
+                l.span(),
+                call,
+                var_name,
+                Ws(None, None),
+            )?
+            else {
+                return Ok(None);
+            };
+            this.write_buf_writable(ctx, &mut filter_def_buf)
+                .map(|size| Some(size_hint + size))
+        })? {
+            Some(size_hint) => size_hint,
+            None => return Ok(None),
+        };
+        self.handle_ws(l.ws);
+        let filter_def_buf = filter_def_buf.into_token_stream();
+
+        let span = ctx.span_for_node(l.span());
+        size_hint += self.write_let_target(ctx, buf, l, span)?;
+        buf.write_token(Token![=], span);
+
+        let var_writer = crate::var_writer();
+        let var_let_caller = crate::var_let_caller();
+        let filter_def_buf = quote_spanned!(span=>
+            let #var_let_caller = askama::helpers::FmtCell::new(
+                |#var_writer: &mut askama::helpers::core::fmt::Formatter<'_>| -> askama::Result<()> {
+                    #filter_def_buf
+                    askama::Result::Ok(())
+                }
+            );
+        );
+
+        // display the `FmtCell`
+        let mut filter_buf = Buffer::new();
+        quote_into!(&mut filter_buf, span, { askama::filters::Safe(&#var_let_caller) });
+        let filter_buf = filter_buf.into_token_stream();
+        let escaper = TokenStream::from_str(self.input.escaper).unwrap();
+        let filter_buf = quote_spanned!(span=>
+            (&&askama::filters::AutoEscaper::new(
+                &(#filter_buf), #escaper
+            )).askama_auto_escape()?
+        );
+        quote_into!(buf, span, { {
+            #filter_def_buf
+            let mut __askama_tmp_write = String::new();
+            if askama::helpers::core::write!(&mut __askama_tmp_write, "{}", #filter_buf).is_err() {
+                return #var_let_caller.take_err();
+            }
+            __askama_tmp_write
+        }; });
+        self.flush_ws(l.ws);
+
+        Ok(Some(size_hint))
+    }
+
+    fn write_let_value(
+        &mut self,
+        ctx: &Context<'a>,
+        buf: &mut Buffer,
+        l: &'a WithSpan<Let<'_>>,
+        val: &'a WithSpan<Box<Expr<'a>>>,
+    ) -> Result<SizeHint, CompileError> {
+        // Handle when this statement creates a new alias of a caller variable (or of another alias),
+        if let Target::Name(dstvar) = l.var {
+            if let Expr::Var(srcvar) = ***val {
+                if let Some(caller_alias) = self.locals.get_caller(srcvar) {
+                    self.locals.insert(
+                        Cow::Borrowed(*dstvar),
+                        LocalMeta::CallerAlias(caller_alias.clone()),
+                    );
+                    return Ok(SizeHint::EMPTY);
+                }
+            } else if let Some(size_hint) = self.handle_let_value_caller(ctx, buf, l, val)? {
+                return Ok(size_hint);
+            }
+        }
+
+        let span = ctx.span_for_node(l.span());
+        let mut expr_buf = Buffer::new();
+        self.visit_expr(ctx, &mut expr_buf, val)?;
+
+        let size_hint = self.write_let_target(ctx, buf, l, span)?;
+
         // If it's not taking the ownership of a local variable or copyable, then we need to add
         // a reference.
         let borrow = !matches!(***val, Expr::Try(..))
@@ -971,7 +1150,7 @@ impl<'a> Generator<'a, '_> {
         } else {
             quote_spanned! { span => = #expr_buf; }
         });
-        Ok(())
+        Ok(size_hint)
     }
 
     fn write_decl(
@@ -979,7 +1158,7 @@ impl<'a> Generator<'a, '_> {
         ctx: &Context<'_>,
         buf: &mut Buffer,
         c: &'a WithSpan<Declare<'_>>,
-    ) -> Result<(), CompileError> {
+    ) -> Result<SizeHint, CompileError> {
         let span = ctx.span_for_node(c.span());
         if *c.var_name == "_" {
             return Err(ctx.generate_error(
@@ -989,7 +1168,7 @@ impl<'a> Generator<'a, '_> {
         }
         self.handle_ws(c.ws);
 
-        self.write_buf_writable(ctx, buf)?;
+        let size_hint = self.write_buf_writable(ctx, buf)?;
         buf.write_token(Token![let], span);
         if c.is_mutable {
             buf.write_token(Token![mut], span);
@@ -997,7 +1176,7 @@ impl<'a> Generator<'a, '_> {
         self.visit_target(ctx, buf, false, true, &Target::Name(c.var_name), span);
         buf.write_token(Token![;], span);
 
-        Ok(())
+        Ok(size_hint)
     }
 
     // If `name` is `Some`, this is a call to a block definition, and we have to find
@@ -1010,9 +1189,15 @@ impl<'a> Generator<'a, '_> {
         name: Option<WithSpan<&'a str>>,
         outer: Ws,
         node: Span,
-    ) -> Result<usize, CompileError> {
-        if self.is_in_filter_block > 0 {
-            return Err(ctx.generate_error("cannot have a block inside a filter block", node));
+    ) -> Result<SizeHint, CompileError> {
+        if self.is_in_block.level > 0 {
+            return Err(ctx.generate_error(
+                format!(
+                    "cannot have a block inside a {} block",
+                    self.is_in_block.block_name
+                ),
+                node,
+            ));
         }
         // Flush preceding whitespace according to the outer WS spec
         self.flush_ws(outer);
@@ -1040,7 +1225,7 @@ impl<'a> Generator<'a, '_> {
             }
         };
 
-        self.write_buf_writable(ctx, buf)?;
+        let mut size_hint = self.write_buf_writable(ctx, buf)?;
 
         let block_fragment_write = self.input.block.map(|(block, _)| block)
             == name.as_deref().copied()
@@ -1088,12 +1273,12 @@ impl<'a> Generator<'a, '_> {
             child_ctx.blocks.entry(name).or_insert(block);
         }
 
-        let size_hint = self.with_child(Some(heritage), |child| {
+        size_hint += self.with_child(Some(heritage), |child| {
             // Handle inner whitespace suppression spec and process block nodes
             child.prepare_ws(def.ws1);
 
             child.super_block = Some(cur);
-            let size_hint = child.handle(
+            let mut size_hint = child.handle(
                 &child_ctx,
                 &def.nodes,
                 buf,
@@ -1103,7 +1288,7 @@ impl<'a> Generator<'a, '_> {
 
             if !child.locals.is_current_empty() {
                 // Need to flush the buffer before popping the variable stack
-                child.write_buf_writable(ctx, buf)?;
+                size_hint += child.write_buf_writable(ctx, buf)?;
             }
 
             child.flush_ws(def.ws2);
@@ -1119,7 +1304,7 @@ impl<'a> Generator<'a, '_> {
         //
         // To get this block content rendered as well, we need to write to the buffer before then.
         if buf.is_discard() != prev_buf_discard {
-            self.write_buf_writable(ctx, buf)?;
+            size_hint += self.write_buf_writable(ctx, buf)?;
         }
         // Restore the original buffer discarding state
         if block_fragment_write {
@@ -1137,7 +1322,7 @@ impl<'a> Generator<'a, '_> {
         ws: Ws,
         mut expr: &'a WithSpan<Box<Expr<'a>>>,
         render_for: RenderFor,
-    ) -> Result<usize, CompileError> {
+    ) -> Result<SizeHint, CompileError> {
         while let Expr::Group(inner) = &***expr {
             expr = inner;
         }
@@ -1146,6 +1331,7 @@ impl<'a> Generator<'a, '_> {
             && let ControlFlow::Break(size_hint) =
                 self.write_expr_call(ctx, buf, ws, expr.span(), call, render_for)?
         {
+            self.handle_ws(ws);
             return Ok(size_hint);
         }
 
@@ -1153,7 +1339,7 @@ impl<'a> Generator<'a, '_> {
             self.handle_ws(ws);
             self.write_expr_item(expr);
         }
-        Ok(0)
+        Ok(SizeHint::EMPTY)
     }
 
     fn write_expr_item(&mut self, expr: &'a WithSpan<Box<Expr<'a>>>) {
@@ -1172,6 +1358,124 @@ impl<'a> Generator<'a, '_> {
         }
     }
 
+    fn handle_caller(
+        &mut self,
+        ctx: &Context<'a>,
+        buf: &mut Buffer,
+        span: Span,
+        call: &'a parser::expr::Call<'a>,
+        var_name: &str,
+        ws: Ws,
+    ) -> Result<Option<SizeHint>, CompileError> {
+        let caller_alias = self.locals.get_caller(var_name);
+
+        // attempted to use keyword `caller` - but no caller is currently in scope
+        if var_name == "caller" && caller_alias.is_none() {
+            return Err(ctx.generate_error("block is not defined for `caller`", span));
+        }
+
+        // the called variable is an alias to some macro's `caller()`.
+        // This is either `caller()` itself, or an alias created by  `{% set alias = caller %}`.
+        if let Some(LocalCallerMeta { call_ctx, def }) = caller_alias.cloned() {
+            self.handle_ws(ws);
+            let span_span = ctx.span_for_node(span);
+            let size_hint = self.push_locals(|this| {
+                // Block-out the special caller() variable from this scope onward until it is
+                // defined by a new call-block again. This prohibits a caller from calling
+                // itself.
+                this.locals.insert("caller".into(), LocalMeta::Negative);
+
+                let mut size_hint = this.write_buf_writable(&call_ctx, buf)?;
+                this.prepare_ws(def.ws1);
+                let mut value = Buffer::new();
+                let mut variable_buf = Buffer::new();
+                check_num_args(
+                    span,
+                    &call_ctx,
+                    def.caller_args.len(),
+                    call.args.len(),
+                    "caller",
+                )?;
+                for (index, arg) in def.caller_args.iter().enumerate() {
+                    match call.args.get(index) {
+                        Some(expr) => {
+                            value.clear();
+                            match &***expr {
+                                // If `expr` is already a form of variable then
+                                // don't reintroduce a new variable. This is
+                                // to avoid moving non-copyable values.
+                                &Expr::Var(name) if name != "self" => {
+                                    let var = this.locals.resolve_or_self(name);
+                                    this.locals
+                                        .insert(Cow::Borrowed(arg), LocalMeta::var_with_ref(var));
+                                }
+                                Expr::AssociatedItem(obj, associated_item) => {
+                                    let mut associated_item_buf = Buffer::new();
+                                    this.visit_associated_item(
+                                        &call_ctx,
+                                        &mut associated_item_buf,
+                                        obj,
+                                        associated_item,
+                                    )?;
+
+                                    // FIXME: Too many steps to get a string. Also,
+                                    // `visit_associated_item` returns stuff like `x.y`, how
+                                    // is this supposed to match a variable? O.o
+                                    let associated_item = associated_item_buf.to_string();
+                                    let var = this
+                                        .locals
+                                        .resolve(&associated_item)
+                                        .unwrap_or(associated_item);
+                                    this.locals
+                                        .insert(Cow::Borrowed(arg), LocalMeta::var_with_ref(var));
+                                }
+                                // Everything else still needs to become variables,
+                                // to avoid having the same logic be executed
+                                // multiple times, e.g. in the case of macro
+                                // parameters being used multiple times.
+                                _ => {
+                                    value.write_tokens(this.visit_expr_root(&call_ctx, expr)?);
+                                    // We need to normalize the arg to write it, thus we need to
+                                    // add it to locals in the normalized manner
+                                    let id = field_new(arg, span_span);
+                                    variable_buf.write_tokens(if !is_copyable(expr) {
+                                        quote_spanned! { span_span => let #id = &(#value); }
+                                    } else {
+                                        quote_spanned! { span_span => let #id = #value; }
+                                    });
+                                    this.locals.insert_with_default(Cow::Borrowed(arg));
+                                }
+                            }
+                        }
+                        None => {
+                            return Err(call_ctx.generate_error(
+                                format_args!("missing `{arg}` argument in `caller`"),
+                                span,
+                            ));
+                        }
+                    }
+                }
+                value.clear();
+                size_hint += this.handle(
+                    &call_ctx,
+                    &def.nodes,
+                    &mut value,
+                    AstLevel::Nested,
+                    RenderFor::Template,
+                )?;
+
+                this.flush_ws(def.ws2);
+                size_hint += this.write_buf_writable(&call_ctx, &mut value)?;
+                let value = value.into_token_stream();
+                let variable_buf = variable_buf.into_token_stream();
+                quote_into!(buf, span_span, { #variable_buf #value });
+                Ok(size_hint)
+            })?;
+            return Ok(Some(size_hint));
+        }
+        Ok(None)
+    }
+
     fn write_expr_call(
         &mut self,
         ctx: &Context<'a>,
@@ -1180,31 +1484,9 @@ impl<'a> Generator<'a, '_> {
         span: Span,
         call: &'a parser::expr::Call<'a>,
         render_for: RenderFor,
-    ) -> Result<ControlFlow<usize>, CompileError> {
-        fn check_num_args<'a>(
-            span: Span,
-            ctx: &Context<'a>,
-            expected: usize,
-            found: usize,
-            name: &str,
-        ) -> Result<(), CompileError> {
-            if expected != found {
-                Err(ctx.generate_error(
-                    format!(
-                        "expected {expected} argument{} in `{name}`, found {found}",
-                        if expected != 1 { "s" } else { "" }
-                    ),
-                    span,
-                ))
-            } else {
-                Ok(())
-            }
-        }
-
+    ) -> Result<ControlFlow<SizeHint>, CompileError> {
         // handle some special cases for call-expressions
         if let Expr::Var(var_name) = **call.path {
-            let caller_alias = self.locals.get_caller(var_name);
-
             // use of special keyword `super`:
             if var_name == "super" {
                 check_num_args(span, ctx, 0, call.args.len(), "super")?;
@@ -1213,9 +1495,8 @@ impl<'a> Generator<'a, '_> {
                     .map(ControlFlow::Break);
             }
 
-            // attempted to use keyword `caller` - but no caller is currently in scope
-            if var_name == "caller" && caller_alias.is_none() {
-                return Err(ctx.generate_error("block is not defined for `caller`", span));
+            if let Some(res) = self.handle_caller(ctx, buf, span, call, var_name, ws)? {
+                return Ok(ControlFlow::Break(res));
             }
 
             // short call-expression for macro invocations, like `{{ macro_name() }}`.
@@ -1231,110 +1512,6 @@ impl<'a> Generator<'a, '_> {
                 }
                 .write(buf, self, render_for)
                 .map(ControlFlow::Break);
-            }
-
-            // the called variable is an alias to some macro's `caller()`.
-            // This is either `caller()` itself, or an alias created by  `{% set alias = caller %}`.
-            if let Some(LocalCallerMeta { call_ctx, def }) = caller_alias.cloned() {
-                self.handle_ws(ws);
-                let span_span = ctx.span_for_node(span);
-                let size_hint = self.push_locals(|this| {
-                    // Block-out the special caller() variable from this scope onward until it is
-                    // defined by a new call-block again. This prohibits a caller from calling
-                    // itself.
-                    this.locals.insert("caller".into(), LocalMeta::Negative);
-
-                    this.write_buf_writable(&call_ctx, buf)?;
-                    this.prepare_ws(def.ws1);
-                    let mut value = Buffer::new();
-                    let mut variable_buf = Buffer::new();
-                    check_num_args(
-                        span,
-                        &call_ctx,
-                        def.caller_args.len(),
-                        call.args.len(),
-                        "caller",
-                    )?;
-                    for (index, arg) in def.caller_args.iter().enumerate() {
-                        match call.args.get(index) {
-                            Some(expr) => {
-                                value.clear();
-                                match &***expr {
-                                    // If `expr` is already a form of variable then
-                                    // don't reintroduce a new variable. This is
-                                    // to avoid moving non-copyable values.
-                                    &Expr::Var(name) if name != "self" => {
-                                        let var = this.locals.resolve_or_self(name);
-                                        this.locals.insert(
-                                            Cow::Borrowed(arg),
-                                            LocalMeta::var_with_ref(var),
-                                        );
-                                    }
-                                    Expr::AssociatedItem(obj, associated_item) => {
-                                        let mut associated_item_buf = Buffer::new();
-                                        this.visit_associated_item(
-                                            &call_ctx,
-                                            &mut associated_item_buf,
-                                            obj,
-                                            associated_item,
-                                        )?;
-
-                                        // FIXME: Too many steps to get a string. Also,
-                                        // `visit_associated_item` returns stuff like `x.y`, how
-                                        // is this supposed to match a variable? O.o
-                                        let associated_item = associated_item_buf.to_string();
-                                        let var = this
-                                            .locals
-                                            .resolve(&associated_item)
-                                            .unwrap_or(associated_item);
-                                        this.locals.insert(
-                                            Cow::Borrowed(arg),
-                                            LocalMeta::var_with_ref(var),
-                                        );
-                                    }
-                                    // Everything else still needs to become variables,
-                                    // to avoid having the same logic be executed
-                                    // multiple times, e.g. in the case of macro
-                                    // parameters being used multiple times.
-                                    _ => {
-                                        value.write_tokens(this.visit_expr_root(&call_ctx, expr)?);
-                                        // We need to normalize the arg to write it, thus we need to
-                                        // add it to locals in the normalized manner
-                                        let id = field_new(arg, span_span);
-                                        variable_buf.write_tokens(if !is_copyable(expr) {
-                                            quote_spanned! { span_span => let #id = &(#value); }
-                                        } else {
-                                            quote_spanned! { span_span => let #id = #value; }
-                                        });
-                                        this.locals.insert_with_default(Cow::Borrowed(arg));
-                                    }
-                                }
-                            }
-                            None => {
-                                return Err(call_ctx.generate_error(
-                                    format_args!("missing `{arg}` argument in `caller`"),
-                                    span,
-                                ));
-                            }
-                        }
-                    }
-                    value.clear();
-                    let mut size_hint = this.handle(
-                        &call_ctx,
-                        &def.nodes,
-                        &mut value,
-                        AstLevel::Nested,
-                        RenderFor::Template,
-                    )?;
-
-                    this.flush_ws(def.ws2);
-                    size_hint += this.write_buf_writable(&call_ctx, &mut value)?;
-                    let value = value.into_token_stream();
-                    let variable_buf = variable_buf.into_token_stream();
-                    quote_into!(buf, span_span, { #variable_buf #value });
-                    Ok(size_hint)
-                })?;
-                return Ok(ControlFlow::Break(size_hint));
             }
         }
 
@@ -1389,13 +1566,13 @@ impl<'a> Generator<'a, '_> {
         &mut self,
         ctx: &Context<'_>,
         buf: &mut Buffer,
-    ) -> Result<usize, CompileError> {
-        let mut size_hint = 0;
+    ) -> Result<SizeHint, CompileError> {
+        let mut size_hint = SizeHint::EMPTY;
         let items = mem::take(&mut self.buf_writable.buf);
         let mut it = items.iter().enumerate().peekable();
 
         let Some((_, start)) = it.peek() else {
-            return Ok(0);
+            return Ok(SizeHint::EMPTY);
         };
         let start_span = match start {
             Writable::Lit(v) => v.span(),
@@ -1744,9 +1921,9 @@ impl<'a> Conds<'a> {
     }
 }
 
-fn median(sizes: &mut [usize]) -> usize {
+fn median(sizes: &mut [SizeHint]) -> SizeHint {
     if sizes.is_empty() {
-        return 0;
+        return SizeHint::EMPTY;
     }
     sizes.sort_unstable();
     if sizes.len() % 2 == 1 {
@@ -1809,5 +1986,25 @@ fn is_cacheable(expr: &WithSpan<Box<Expr<'_>>>) -> bool {
         // Should never be encountered:
         Expr::FilterSource => unreachable!("FilterSource in expression?"),
         Expr::ArgumentPlaceholder => unreachable!("ExpressionPlaceholder in expression?"),
+    }
+}
+
+fn check_num_args<'a>(
+    span: Span,
+    ctx: &Context<'a>,
+    expected: usize,
+    found: usize,
+    name: &str,
+) -> Result<(), CompileError> {
+    if expected != found {
+        Err(ctx.generate_error(
+            format!(
+                "expected {expected} argument{} in `{name}`, found {found}",
+                if expected != 1 { "s" } else { "" }
+            ),
+            span,
+        ))
+    } else {
+        Ok(())
     }
 }

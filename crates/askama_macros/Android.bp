@@ -17,7 +17,7 @@ rust_proc_macro {
     name: "libaskama_macros",
     crate_name: "askama_macros",
     cargo_env_compat: true,
-    cargo_pkg_version: "0.15.6",
+    cargo_pkg_version: "0.16.0",
     crate_root: "src/lib.rs",
     edition: "2024",
     features: [
