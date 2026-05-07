@@ -13,7 +13,7 @@
 edition = "2024"
 rust-version = "1.88"
 name = "askama_macros"
-version = "0.15.6"
+version = "0.16.0"
 build = false
 autolib = false
 autobins = false
@@ -61,7 +61,7 @@ path = "src/lib.rs"
 proc-macro = true
 
 [dependencies.askama_derive]
-version = "=0.15.6"
+version = "=0.16.0"
 features = [
     "external-sources",
     "proc-macro",

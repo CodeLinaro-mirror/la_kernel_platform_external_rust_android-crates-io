@@ -20,7 +20,7 @@ use crate::heritage::{Context, Heritage};
 use crate::html::write_escaped_str;
 use crate::input::{Source, TemplateInput};
 use crate::integration::{Buffer, impl_everything, write_header};
-use crate::{CompileError, FileInfo, HashMap, field_new, quote_into};
+use crate::{CompileError, FileInfo, HashMap, SizeHint, field_new, quote_into};
 
 pub(crate) fn template_to_string(
     buf: &mut Buffer,
@@ -28,14 +28,14 @@ pub(crate) fn template_to_string(
     contexts: &HashMap<&Arc<Path>, Context<'_>>,
     heritage: Option<&Heritage<'_, '_>>,
     tmpl_kind: TmplKind<'_>,
-) -> Result<usize, CompileError> {
+) -> Result<SizeHint, CompileError> {
     let generator = Generator::new(
         input,
         contexts,
         heritage,
         MapChain::default(),
         input.block.is_some(),
-        0,
+        BlockInfo::new(),
     );
     let size_hint = match generator.impl_template(buf, tmpl_kind) {
         Err(mut err) if err.span.is_none() => {
@@ -71,6 +71,34 @@ enum RenderFor {
     Extends,
 }
 
+#[derive(Clone, Copy)]
+struct BlockInfo {
+    block_name: &'static str,
+    level: usize,
+}
+
+impl BlockInfo {
+    fn new() -> Self {
+        Self {
+            block_name: "",
+            level: 0,
+        }
+    }
+
+    // FIXME: Instead of this error-prone API, we should use something relying on `Drop` to
+    // decrement, or use a callback which would decrement on exit.
+    fn increase(&mut self, block_name: &'static str) {
+        if self.level == 0 {
+            self.block_name = block_name;
+        }
+        self.level += 1;
+    }
+
+    fn decrease(&mut self) {
+        self.level -= 1;
+    }
+}
+
 struct Generator<'a, 'h> {
     /// The template input state: original struct AST and attributes
     input: &'a TemplateInput<'a>,
@@ -91,8 +119,8 @@ struct Generator<'a, 'h> {
     super_block: Option<(&'a str, usize)>,
     /// Buffer for writable
     buf_writable: WritableBuffer<'a>,
-    /// Used in blocks to check if we are inside a filter block.
-    is_in_filter_block: usize,
+    /// Used in blocks to check if we are inside a filter/let block.
+    is_in_block: BlockInfo,
     /// Set of called macros we are currently in. Used to prevent (indirect) recursions.
     seen_callers: Vec<(&'a Macro<'a>, Option<FileInfo<'a>>)>,
     /// The directory path of the calling file.
@@ -112,7 +140,7 @@ impl<'a, 'h> Generator<'a, 'h> {
         heritage: Option<&'h Heritage<'a, 'h>>,
         locals: MapChain<'a>,
         buf_writable_discard: bool,
-        is_in_filter_block: usize,
+        is_in_block: BlockInfo,
     ) -> Self {
         Self {
             input,
@@ -126,7 +154,7 @@ impl<'a, 'h> Generator<'a, 'h> {
                 discard: buf_writable_discard,
                 ..Default::default()
             },
-            is_in_filter_block,
+            is_in_block,
             seen_callers: Vec::new(),
             caller_dir: CallerDir::Unresolved,
         }
@@ -134,7 +162,9 @@ impl<'a, 'h> Generator<'a, 'h> {
 
     fn rel_path<'p>(&mut self, path: &'p Path) -> Cow<'p, Path> {
         self.caller_dir()
-            .and_then(|caller_dir| diff_paths(path, caller_dir))
+            .and_then(|caller_dir| {
+                diff_paths(path, caller_dir, std::env::var("CARGO_MANIFEST_DIR").ok())
+            })
             .map_or(Cow::Borrowed(path), Cow::Owned)
     }
 
@@ -169,7 +199,7 @@ impl<'a, 'h> Generator<'a, 'h> {
         mut self,
         buf: &mut Buffer,
         tmpl_kind: TmplKind<'a>,
-    ) -> Result<usize, CompileError> {
+    ) -> Result<SizeHint, CompileError> {
         let ctx = &self.contexts[&self.input.path];
 
         let span = Span::call_site();
@@ -238,14 +268,11 @@ impl<'a, 'h> Generator<'a, 'h> {
         let var_writer = crate::var_writer();
         let var_values = crate::var_values();
         quote_into!(buf, span, { {
-            fn render_into_with_values<AskamaW>(
+            fn render_into_with_values(
                 &self,
-                #var_writer: &mut AskamaW,
+                #var_writer: &mut dyn askama::helpers::core::fmt::Write,
                 #var_values: &dyn askama::Values,
-            ) -> askama::Result<()>
-            where
-                AskamaW: askama::helpers::core::fmt::Write + ?askama::helpers::core::marker::Sized,
-            {
+            ) -> askama::Result<()> {
                 #[allow(unused_imports)]
                 use askama::{
                     filters::{AutoEscape as _, WriteWritable as _},
@@ -332,14 +359,11 @@ impl<'a, 'h> Generator<'a, 'h> {
                 #template_buf
 
                 pub trait #trait_id {
-                    fn render_into_with_values<AskamaW>(
+                    fn render_into_with_values(
                         &self,
-                        writer: &mut AskamaW,
+                        writer: &mut dyn askama::helpers::core::fmt::Write,
                         values: &dyn askama::Values,
-                    ) -> askama::Result<()>
-                    where
-                        AskamaW:
-                            askama::helpers::core::fmt::Write + ?askama::helpers::core::marker::Sized;
+                    ) -> askama::Result<()>;
                 }
 
                 impl #impl_generics #ident #ty_generics #where_clause {
@@ -363,14 +387,11 @@ impl<'a, 'h> Generator<'a, 'h> {
                 impl #wrapper_impl_generics askama::Template
                 for #wrapper_id #wrapper_ty_generics #wrapper_where_clause {
                     #[inline]
-                    fn render_into_with_values<AskamaW>(
+                    fn render_into_with_values(
                         &self,
-                        writer: &mut AskamaW,
+                        writer: &mut dyn askama::helpers::core::fmt::Write,
                         values: &dyn askama::Values
-                    ) -> askama::Result<()>
-                    where
-                        AskamaW: askama::helpers::core::fmt::Write + ?askama::helpers::core::marker::Sized
-                    {
+                    ) -> askama::Result<()> {
                         <_ as #trait_id>::render_into_with_values(self.this, writer, values)
                     }
 
@@ -381,14 +402,11 @@ impl<'a, 'h> Generator<'a, 'h> {
                 impl #wrapper_impl_generics askama::FastWritable
                 for #wrapper_id #wrapper_ty_generics #wrapper_where_clause {
                     #[inline]
-                    fn write_into<AskamaW>(
+                    fn write_into(
                         &self,
-                        dest: &mut AskamaW,
+                        dest: &mut dyn askama::helpers::core::fmt::Write,
                         values: &dyn askama::Values,
-                    ) -> askama::Result<()>
-                    where
-                        AskamaW: askama::helpers::core::fmt::Write + ?askama::helpers::core::marker::Sized
-                    {
+                    ) -> askama::Result<()> {
                         <_ as askama::Template>::render_into_with_values(self, dest, values)
                     }
                 }
