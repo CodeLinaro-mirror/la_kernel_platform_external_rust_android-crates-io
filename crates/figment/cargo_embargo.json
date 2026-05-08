@@ -1,6 +1,9 @@
 {
   "run_cargo": false,
   "min_sdk_version": "29",
+  "features": [
+    "yaml"
+  ],
   "package": {
     "figment": {
       "patch": "patches/Android.bp.patch"
