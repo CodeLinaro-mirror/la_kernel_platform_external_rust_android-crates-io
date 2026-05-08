@@ -689,12 +689,13 @@ dependencies = [
  "utf8_iter",
  "uuid",
  "vhost",
+ "vhost-device-vsock",
  "vhost-user-backend",
  "virtio-bindings",
  "virtio-drivers",
  "virtio-drivers-and-devices",
  "virtio-queue 0.17.0",
- "virtio-vsock",
+ "virtio-vsock 0.11.0",
  "vm-memory 0.16.2",
  "vmm-sys-util 0.15.0",
  "volatile 0.6.1",
@@ -3217,6 +3218,7 @@ checksum = "8cb01cd46b0cf372153850f4c6c272d9cbea2da513e07538405148f95bd789f3"
 dependencies = [
  "atomic",
  "serde",
+ "serde_yaml",
  "uncased",
  "version_check",
 ]
@@ -9715,6 +9717,31 @@ dependencies = [
 ]
 
 [[package]]
+name = "vhost-device-vsock"
+version = "0.3.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "52ce95d81af89ad693d067c650e42df0f217addfbc96cc4820f7c62eb4a28b13"
+dependencies = [
+ "byteorder",
+ "clap 4.6.1",
+ "env_logger 0.11.2",
+ "epoll",
+ "figment",
+ "libc 0.2.185",
+ "log",
+ "serde",
+ "thiserror 2.0.18",
+ "vhost",
+ "vhost-user-backend",
+ "virtio-bindings",
+ "virtio-queue 0.16.0",
+ "virtio-vsock 0.10.0",
+ "vm-memory 0.16.2",
+ "vmm-sys-util 0.14.0",
+ "vsock",
+]
+
+[[package]]
 name = "vhost-user-backend"
 version = "0.20.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -9787,6 +9814,17 @@ dependencies = [
  "virtio-bindings",
  "vm-memory 0.17.1",
  "vmm-sys-util 0.15.0",
+]
+
+[[package]]
+name = "virtio-vsock"
+version = "0.10.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e49ff39d455ce92f01a910cb11b01e54b61c6f3b5d308a144c86044b39955b79"
+dependencies = [
+ "virtio-bindings",
+ "virtio-queue 0.16.0",
+ "vm-memory 0.16.2",
 ]
 
 [[package]]
