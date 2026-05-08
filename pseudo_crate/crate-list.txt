@@ -158,6 +158,7 @@ evdev
 faccess
 fallible-iterator
 fallible-streaming-iterator
+fastcdc
 fastrand
 fdeflate
 filetime
