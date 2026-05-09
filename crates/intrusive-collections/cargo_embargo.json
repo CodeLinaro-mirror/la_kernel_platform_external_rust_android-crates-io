@@ -1,9 +1,4 @@
 {
-  "apex_available": [
-    "//apex_available:platform",
-    "com.android.virt",
-    "com.android.tethering"
-  ],
   "run_cargo": false,
   "min_sdk_version": "29"
 }

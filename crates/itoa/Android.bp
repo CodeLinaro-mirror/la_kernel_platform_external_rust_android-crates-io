@@ -42,10 +42,7 @@ rust_library {
     edition: "2021",
     apex_available: [
         "//apex_available:platform",
-        "com.android.uprobestats",
-        "com.android.virt",
-        "com.sdv.*",
-        "com.?.sdv.*",
+        "//apex_available:anyapex",
     ],
     product_available: true,
     recovery_available: true,
