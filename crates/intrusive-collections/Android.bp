@@ -28,8 +28,7 @@ rust_library {
     rustlibs: ["libmemoffset"],
     apex_available: [
         "//apex_available:platform",
-        "com.android.virt",
-        "com.android.tethering",
+        "//apex_available:anyapex",
     ],
     product_available: true,
     vendor_available: true,

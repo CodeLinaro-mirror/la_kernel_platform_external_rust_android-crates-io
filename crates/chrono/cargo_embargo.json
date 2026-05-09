@@ -1,5 +1,4 @@
 {
-  "apex_available": ["//apex_available:platform", "com.android.virt"],
   "features": ["now", "serde", "std"],
   "run_cargo": false,
   "tests": false,
