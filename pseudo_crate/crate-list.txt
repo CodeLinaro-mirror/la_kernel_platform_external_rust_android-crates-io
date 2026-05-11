@@ -5,6 +5,7 @@ adler2
 ahash
 aho-corasick
 alloc-no-stdlib
+alloc-stdlib
 alloca
 android-chrono-tz
 android_bp
