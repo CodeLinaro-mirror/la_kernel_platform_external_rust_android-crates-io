@@ -4,6 +4,7 @@ acpi
 adler2
 ahash
 aho-corasick
+alloc-no-stdlib
 alloca
 android-chrono-tz
 android_bp
