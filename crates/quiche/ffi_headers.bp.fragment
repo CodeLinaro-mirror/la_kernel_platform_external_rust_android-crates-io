@@ -9,3 +9,16 @@ cc_library_headers {
     ],
     min_sdk_version: "29",
 }
+
+cc_library_static {
+    name: "libcrypto_static_for_legacy_quiche",
+    host_supported: true,
+    whole_static_libs: ["libcrypto_static"],
+    apex_available: [
+        "//apex_available:platform",
+        "com.android.resolv",
+        "com.android.tethering",
+    ],
+    min_sdk_version: "29",
+    visibility: ["//external/rust/android-crates-io/extra_versions/crates/quiche"],
+}
