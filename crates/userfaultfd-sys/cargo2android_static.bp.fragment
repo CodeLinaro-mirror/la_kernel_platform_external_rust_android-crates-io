@@ -1,1 +1,0 @@
-static_libs: ["libuserfaultfd_sys_consts"]
