@@ -83,7 +83,7 @@ index b1a4f73a8..220f890bd 100644
 -                new_size,
 -            )
 -        };
-+        let new_buf = unsafe { realloc(self.buf, self.size) };
++        let new_buf = unsafe { realloc(self.buf, new_size) };
          if new_buf.is_null() {
              Err(Status::AllocFailure)
          } else {
