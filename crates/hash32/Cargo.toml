@@ -10,9 +10,17 @@
 # See Cargo.toml.orig for the original contents.
 
 [package]
+edition = "2021"
+rust-version = "1.56"
 name = "hash32"
-version = "0.3.1"
+version = "1.0.0"
 authors = ["Jorge Aparicio <jorge@japaric.io>"]
+build = false
+autolib = false
+autobins = false
+autoexamples = false
+autotests = false
+autobenches = false
 description = "32-bit hashing algorithms"
 readme = "README.md"
 keywords = [
@@ -23,8 +31,20 @@ keywords = [
 ]
 categories = ["no-std"]
 license = "MIT OR Apache-2.0"
-repository = "https://github.com/japaric/hash32"
+repository = "https://github.com/rust-embedded-community/hash32"
 
-[dependencies.byteorder]
-version = "1.2.2"
-default-features = false
+[lib]
+name = "hash32"
+path = "src/lib.rs"
+
+[[example]]
+name = "derive"
+path = "examples/derive.rs"
+
+[[test]]
+name = "fnv"
+path = "tests/fnv.rs"
+
+[[test]]
+name = "murmur3"
+path = "tests/murmur3.rs"
