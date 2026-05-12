@@ -29,7 +29,7 @@
 //!     let stream = stream.map_ok(Frame::data);
 //!     // Convert the `Stream` into a `Body`.
 //!     let body = StreamBody::new(stream);
-//!     // Erase the type because its very hard to name in the function signature.
+//!     // Erase the type because it's very hard to name in the function signature.
 //!     let body = body.boxed_unsync();
 //!     // Create response.
 //!     Ok(Response::new(body))
@@ -308,7 +308,7 @@ mod tests {
                 let mut guard = self.0.write().unwrap();
                 let should_compress = *guard % 2 != 0;
                 *guard += 1;
-                dbg!(should_compress)
+                should_compress
             }
         }
 
