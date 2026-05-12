@@ -100,7 +100,7 @@ impl SystemBuffer {
     }
     fn resize(&mut self) -> Result<()> {
         let new_size = self.size * 2;
-        let new_buf = unsafe { realloc(self.buf, self.size) };
+        let new_buf = unsafe { realloc(self.buf, new_size) };
         if new_buf.is_null() {
             Err(Status::AllocFailure)
         } else {
