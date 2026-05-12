@@ -1,27 +1,39 @@
-use core::slice;
 use core::mem::MaybeUninit;
-
-use byteorder::{ByteOrder, LE};
+use core::slice;
 
 use crate::Hasher as _;
 
-/// 32-bit MurmurHash3 hasher
-pub struct Hasher {
+/// 32-bit `MurmurHash3` hasher
+///
+/// # Examples
+///
+/// ```
+/// use core::hash::Hasher as _;
+/// use hash32::{Hasher as _, Murmur3Hasher};
+///
+/// let mut hasher: Murmur3Hasher = Default::default();
+/// hasher.write(b"Hello, World!");
+///
+/// println!("Hash is {:x}!", hasher.finish32());
+/// ```
+#[derive(Debug, Clone)]
+pub struct Murmur3Hasher {
     buf: Buffer,
     index: Index,
     processed: u32,
     state: State,
 }
 
+#[derive(Debug, Clone)]
 struct State(u32);
 
-#[derive(Clone, Copy)]
+#[derive(Debug, Clone, Copy)]
 #[repr(align(4))]
 struct Buffer {
     bytes: MaybeUninit<[u8; 4]>,
 }
 
-#[derive(Clone, Copy, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq)]
 enum Index {
     _0,
     _1,
@@ -30,12 +42,12 @@ enum Index {
 }
 
 impl Index {
-    fn usize(&self) -> usize {
-        match *self {
-            Index::_0 => 0,
-            Index::_1 => 1,
-            Index::_2 => 2,
-            Index::_3 => 3,
+    fn usize(self) -> usize {
+        match self {
+            Self::_0 => 0,
+            Self::_1 => 1,
+            Self::_2 => 2,
+            Self::_3 => 3,
         }
     }
 }
@@ -43,35 +55,43 @@ impl Index {
 impl From<usize> for Index {
     fn from(x: usize) -> Self {
         match x % 4 {
-            0 => Index::_0,
-            1 => Index::_1,
-            2 => Index::_2,
-            3 => Index::_3,
+            0 => Self::_0,
+            1 => Self::_1,
+            2 => Self::_2,
+            3 => Self::_3,
             _ => unreachable!(),
         }
     }
 }
 
-impl Hasher {
-    fn push(&mut self, buf: &[u8]) {
+impl Murmur3Hasher {
+    /// # Safety
+    ///
+    /// The caller must ensure that `self.index.usize() + buf.len() <= 4`.
+    unsafe fn push(&mut self, buf: &[u8]) {
         let start = self.index.usize();
         let len = buf.len();
         // NOTE(unsafe) avoid calling `memcpy` on a 0-3 byte copy
         // self.buf.bytes[start..start+len].copy_from(buf);
         for i in 0..len {
             unsafe {
-                *self.buf.bytes.assume_init_mut().get_unchecked_mut(start + i) = *buf.get_unchecked(i);
+                *self
+                    .buf
+                    .bytes
+                    .assume_init_mut()
+                    .get_unchecked_mut(start + i) = *buf.get_unchecked(i);
             }
         }
         self.index = Index::from(start + len);
     }
 }
 
-impl Default for Hasher {
-    #[allow(deprecated)]
+impl Default for Murmur3Hasher {
     fn default() -> Self {
-        Hasher {
-            buf: Buffer { bytes: MaybeUninit::uninit() },
+        Self {
+            buf: Buffer {
+                bytes: MaybeUninit::uninit(),
+            },
             index: Index::_0,
             processed: 0,
             state: State(0),
@@ -79,7 +99,7 @@ impl Default for Hasher {
     }
 }
 
-impl crate::Hasher for Hasher {
+impl crate::Hasher for Murmur3Hasher {
     fn finish32(&self) -> u32 {
         // tail
         let mut state = match self.index {
@@ -122,31 +142,36 @@ impl crate::Hasher for Hasher {
     }
 }
 
-impl core::hash::Hasher for Hasher {
+impl core::hash::Hasher for Murmur3Hasher {
     #[inline]
     fn write(&mut self, bytes: &[u8]) {
         let len = bytes.len();
         self.processed += len as u32;
 
         let body = if self.index == Index::_0 {
+            // CASE 1
             bytes
         } else {
             let index = self.index.usize();
             if len + index >= 4 {
+                // CASE 2
+
                 // we can complete a block using the data left in the buffer
                 // NOTE(unsafe) avoid panicking branch (`slice_index_len_fail`)
                 // let (head, body) = bytes.split_at(4 - index);
                 let mid = 4 - index;
                 let head = unsafe { slice::from_raw_parts(bytes.as_ptr(), mid) };
-                let body = unsafe {
-                    slice::from_raw_parts(bytes.as_ptr().offset(mid as isize), len - mid)
-                };
+                let body = unsafe { slice::from_raw_parts(bytes.as_ptr().add(mid), len - mid) };
 
                 // NOTE(unsafe) avoid calling `memcpy` on a 0-3 byte copy
                 // self.buf.bytes[index..].copy_from_slice(head);
                 for i in 0..4 - index {
                     unsafe {
-                        *self.buf.bytes.assume_init_mut().get_unchecked_mut(index + i) = *head.get_unchecked(i);
+                        *self
+                            .buf
+                            .bytes
+                            .assume_init_mut()
+                            .get_unchecked_mut(index + i) = *head.get_unchecked(i);
                     }
                 }
 
@@ -156,6 +181,7 @@ impl core::hash::Hasher for Hasher {
 
                 body
             } else {
+                // CASE 3
                 bytes
             }
         };
@@ -163,21 +189,16 @@ impl core::hash::Hasher for Hasher {
         for block in body.chunks(4) {
             if block.len() == 4 {
                 self.state
-                    .process_block(unsafe { &*(block.as_ptr() as *const _) });
+                    .process_block(unsafe { &*(block.as_ptr().cast()) });
             } else {
-                self.push(block);
+                // NOTE(unsafe) In this branch, `block.len() < 4`. For CASE 1 and CASE 2 above,
+                // `self.index.usize()` will be 0 here, so `self.index.usize() + block.len() < 4`.
+                // The condition for CASE 3 ensures that `self.index.usize() + bytes.len() < 4`.
+                unsafe {
+                    self.push(block);
+                }
             }
         }
-
-        // XXX is this faster?
-        // for block in body.exact_chunks(4) {
-        //     self.state
-        //         .process_block(unsafe { &*(block.as_ptr() as *const _) });
-        // }
-
-        // let tail = body.split_at(body.len() / 4 * 4).1;
-
-        // self.push(tail);
     }
 
     #[inline]
@@ -191,8 +212,9 @@ const C2: u32 = 0x1b873593;
 const R1: u32 = 15;
 
 impl State {
+    #[allow(clippy::trivially_copy_pass_by_ref)]
     fn process_block(&mut self, block: &MaybeUninit<[u8; 4]>) {
-        self.0 ^= pre_mix(LE::read_u32(unsafe { block.assume_init_ref() }));
+        self.0 ^= pre_mix(u32::from_le_bytes(unsafe { *block.assume_init_ref() }));
         self.0 = self.0.rotate_left(13);
         self.0 = 5u32.wrapping_mul(self.0).wrapping_add(0xe6546b64);
     }

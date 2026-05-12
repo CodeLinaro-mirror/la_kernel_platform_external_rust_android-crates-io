@@ -5,7 +5,23 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](http://keepachangelog.com/)
 and this project adheres to [Semantic Versioning](http://semver.org/).
 
-## [Unreleased]
+## [v1.0.0] - 2025-05-27
+
+### Added
+
+- Added `Debug` implementations to hashers.
+- Added `Clone` implementations to hashers.
+
+### Changed
+
+- Updated the edition from 2015 to 2021.
+
+### Removed
+
+- Removed the `byteorder` dependency.
+- Removed the `BuildHasherDefault` type.
+  - This type existed because `core::hash::BuildHasherDefault` did not have a const constructor.
+  - As of 1.85 `core::hash::BuildHasherDefault` has a const constructor.
 
 ## [v0.3.1] - 2022-08-09
 
@@ -56,10 +72,11 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 Initial release
 
-[Unreleased]: https://github.com/japaric/hash32/compare/v0.3.1...HEAD
-[v0.3.1]: https://github.com/japaric/hash32/compare/v0.3.0...v0.3.1
-[v0.3.0]: https://github.com/japaric/hash32/compare/v0.2.1...v0.3.0
-[v0.2.1]: https://github.com/japaric/hash32/compare/v0.2.0...v0.2.1
-[v0.2.0]: https://github.com/japaric/hash32/compare/v0.1.2...v0.2.0
-[v0.1.2]: https://github.com/japaric/hash32/compare/v0.1.1...v0.1.2
-[v0.1.1]: https://github.com/japaric/hash32/compare/v0.1.0...v0.1.1
+[Unreleased]: https://github.com/rust-embedded-community/hash32/compare/v1.0.0...HEAD
+[v1.0.0]: https://github.com/rust-embedded-community/hash32/compare/v0.3.1...v1.0.0
+[v0.3.1]: https://github.com/rust-embedded-community/hash32/compare/v0.3.0...v0.3.1
+[v0.3.0]: https://github.com/rust-embedded-community/hash32/compare/v0.2.1...v0.3.0
+[v0.2.1]: https://github.com/rust-embedded-community/hash32/compare/v0.2.0...v0.2.1
+[v0.2.0]: https://github.com/rust-embedded-community/hash32/compare/v0.1.2...v0.2.0
+[v0.1.2]: https://github.com/rust-embedded-community/hash32/compare/v0.1.1...v0.1.2
+[v0.1.1]: https://github.com/rust-embedded-community/hash32/compare/v0.1.0...v0.1.1
