@@ -21,8 +21,13 @@ rust_library {
     cargo_pkg_version: "0.10.19",
     crate_root: "src/lib.rs",
     edition: "2018",
+    features: [
+        "serde_yaml",
+        "yaml",
+    ],
     rustlibs: [
         "libserde",
+        "libserde_yaml",
         "libuncased",
     ],
     arch: {
