@@ -215,7 +215,6 @@ handlebars
 hash32
 hashbrown
 hashlink
-heapless
 heck
 hex
 home
