@@ -41,6 +41,20 @@ pub trait RegId: Sized + Debug {
     ///
     /// Returns `None` if the register is not available.
     fn from_raw_id(id: usize) -> Option<(Self, Option<NonZeroUsize>)>;
+
+    /// Map a `RegId` back to a raw GDB register number.
+    ///
+    /// Returns `None` if this mapping direction is not implemented.
+    ///
+    /// This method currently only needs to return `Some` for a register if that
+    /// register is sent with
+    /// [`GdbStubStateMachineInner::report_stop_with_regs`].
+    ///
+    /// [`GdbStubStateMachineInner::report_stop_with_regs`]:
+    ///     crate::stub::state_machine::GdbStubStateMachineInner::report_stop_with_regs
+    fn to_raw_id(&self) -> Option<usize> {
+        None
+    }
 }
 
 /// Stub implementation -- Returns `None` for all raw IDs.
