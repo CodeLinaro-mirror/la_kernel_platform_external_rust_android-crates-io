@@ -28,6 +28,7 @@ rust_library {
         "executor",
         "futures-executor",
         "std",
+        "thread-pool",
     ],
     rustlibs: [
         "libfutures_channel",
