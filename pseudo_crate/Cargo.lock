@@ -330,9 +330,10 @@ dependencies = [
  "h2",
  "half 2.7.1",
  "handlebars",
- "hash32",
+ "hash32 1.0.0",
  "hashbrown 0.17.1",
  "hashlink 0.11.0",
+ "heapless",
  "heck 0.5.0",
  "hex",
  "home",
@@ -3926,6 +3927,15 @@ dependencies = [
 
 [[package]]
 name = "hash32"
+version = "0.3.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "47d60b12902ba28e2730cd37e95b8c9223af2808df9e902d4df49588d1470606"
+dependencies = [
+ "byteorder",
+]
+
+[[package]]
+name = "hash32"
 version = "1.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "8e4e11d13d42fc8d55326b323c63978c75721fbbb695a6e6686765bcb8b33917"
@@ -3996,6 +4006,16 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "ea0b22561a9c04a7cb1a302c013e0259cd3b4bb619f145b32f72b8b4bcbed230"
 dependencies = [
  "hashbrown 0.16.1",
+]
+
+[[package]]
+name = "heapless"
+version = "0.9.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "25ba4bd83f9415b58b4ed8dc5714c76e626a105be4646c02630ad730ad3b5aa4"
+dependencies = [
+ "hash32 0.3.1",
+ "stable_deref_trait",
 ]
 
 [[package]]
