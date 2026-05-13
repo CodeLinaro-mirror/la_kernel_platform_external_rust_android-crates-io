@@ -9,13 +9,14 @@ MODULE_CRATE_NAME := aarch64_paging
 MODULE_RUST_CRATE_TYPES := rlib
 MODULE_SRCS := $(LOCAL_DIR)/src/lib.rs
 MODULE_ADD_IMPLICIT_DEPS := false
-MODULE_RUST_EDITION := 2021
+MODULE_RUST_EDITION := 2024
 MODULE_RUSTFLAGS += \
 	--cfg 'feature="alloc"' \
 	--cfg 'feature="default"'
 
 MODULE_LIBRARY_DEPS := \
 	$(call FIND_CRATE,bitflags) \
+	$(call FIND_CRATE,thiserror) \
 	trusty/user/base/lib/liballoc-rust \
 	trusty/user/base/lib/libcompiler_builtins-rust \
 	trusty/user/base/lib/libcore-rust
