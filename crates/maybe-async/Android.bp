@@ -17,7 +17,7 @@ rust_proc_macro {
     name: "libmaybe_async",
     crate_name: "maybe_async",
     cargo_env_compat: true,
-    cargo_pkg_version: "0.2.10",
+    cargo_pkg_version: "0.2.11",
     crate_root: "src/lib.rs",
     edition: "2021",
     features: ["default"],
