@@ -13,7 +13,7 @@
 edition = "2024"
 rust-version = "1.88"
 name = "selinux"
-version = "0.6.1"
+version = "0.6.2"
 authors = ["Koutheir Attouchi <koutheir@gmail.com>"]
 build = false
 autolib = false
