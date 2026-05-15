@@ -7909,9 +7909,9 @@ dependencies = [
 
 [[package]]
 name = "selinux"
-version = "0.6.1"
+version = "0.6.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "90fee6a6e1169aaaedef3a34850d69fd01e80500bc9cf6c0681c4df5968f5822"
+checksum = "1d0000fdf34c841f92ad0b4c6eade9253121d3659e82cd24c1c4a65b8dbec027"
 dependencies = [
  "bitflags 2.11.1",
  "errno",
