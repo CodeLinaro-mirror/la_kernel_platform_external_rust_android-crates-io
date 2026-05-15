@@ -361,22 +361,20 @@ where
         };
 
         if r == -1_i32 {
-            Err(Error::last_io_error("selinux_restorecon_xattr()"))
-        } else {
-            let xattr_list = ptr::NonNull::new(xattr_list_ptr).map_or(
-                ptr::null_mut(),
-                |mut xattr_list_ptr| unsafe {
-                    let xattr_list = *xattr_list_ptr.as_ref();
-
-                    // Detach the linked list from libselinux, so that we own it from now on.
-                    *xattr_list_ptr.as_mut() = ptr::null_mut();
-
-                    xattr_list
-                },
-            );
-
-            Ok(DirectoryXAttributesIter(xattr_list))
+            return Err(Error::last_io_error("selinux_restorecon_xattr()"));
         }
+
+        let Some(mut xattr_list_ptr) = ptr::NonNull::new(xattr_list_ptr) else {
+            return Ok(DirectoryXAttributesIter(None)); // Empty list.
+        };
+
+        let xattr_list = unsafe { *xattr_list_ptr.as_ref() };
+
+        // Detach the linked list from libselinux, because the returned DirectoryXAttributesIter
+        // owns it from now on.
+        unsafe { *xattr_list_ptr.as_mut() = ptr::null_mut() };
+
+        Ok(DirectoryXAttributesIter(ptr::NonNull::new(xattr_list)))
     }
 }
 
@@ -491,14 +489,25 @@ impl Drop for DirectoryXAttributes {
 
 /// Iterator producing [`DirectoryXAttributes`] elements.
 #[derive(Debug)]
-pub struct DirectoryXAttributesIter(*mut selinux_sys::dir_xattr);
+pub struct DirectoryXAttributesIter(Option<ptr::NonNull<selinux_sys::dir_xattr>>);
+
+impl Drop for DirectoryXAttributesIter {
+    fn drop(&mut self) {
+        self.for_each(drop);
+    }
+}
 
 impl Iterator for DirectoryXAttributesIter {
     type Item = DirectoryXAttributes;
 
     fn next(&mut self) -> Option<DirectoryXAttributes> {
-        ptr::NonNull::new(self.0).map(|pointer| {
-            self.0 = unsafe { pointer.as_ref().next };
+        self.0.map(|pointer| {
+            // `pointer` is the head of the linked list that we currently own.
+            // Detach the head and return it inside a `DirectoryXAttributes` which owns it.
+            // We still own the remaining tail of the linked list.
+
+            self.0 = ptr::NonNull::new(unsafe { pointer.as_ref() }.next);
+
             DirectoryXAttributes {
                 pointer,
                 _phantom_data: PhantomData,
