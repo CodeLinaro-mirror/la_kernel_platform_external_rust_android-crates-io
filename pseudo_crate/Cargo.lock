@@ -239,6 +239,7 @@ dependencies = [
  "dc_jni",
  "dc_layout",
  "dc_squoosh_animation",
+ "dc_squoosh_parser",
  "debug_tree",
  "der",
  "der_derive",
@@ -2512,6 +2513,18 @@ dependencies = [
  "log",
  "serde",
  "thiserror 1.0.49",
+]
+
+[[package]]
+name = "dc_squoosh_parser"
+version = "0.39.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "1d23bdcccded7c85d1e68b33007dedbc8896dc2cc5d2d1ef5fc210f415d5cf05"
+dependencies = [
+ "dc_squoosh_animation",
+ "log",
+ "serde",
+ "serde_json",
 ]
 
 [[package]]
