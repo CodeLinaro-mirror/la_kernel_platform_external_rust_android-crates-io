@@ -596,6 +596,7 @@ utf-8
 utf8_iter
 uuid
 vhost
+vhost-device-vsock
 vhost-user-backend
 virtio-bindings
 virtio-drivers
