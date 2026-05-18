@@ -28,6 +28,9 @@ const _PROTOBUF_VERSION_CHECK: () = ::protobuf::VERSION_3_7_2;
 // @@protoc_insertion_point(message:designcompose.definition.element.Background)
 #[derive(PartialEq,Clone,Default,Debug)]
 pub struct Background {
+    // message fields
+    // @@protoc_insertion_point(field:designcompose.definition.element.Background.opacity)
+    pub opacity: f32,
     // message oneof groups
     pub background_type: ::std::option::Option<background::Background_type>,
     // special fields
@@ -421,6 +424,9 @@ impl ::protobuf::Message for Background {
                 58 => {
                     self.background_type = ::std::option::Option::Some(background::Background_type::Clear(is.read_message()?));
                 },
+                69 => {
+                    self.opacity = is.read_float()?;
+                },
                 tag => {
                     ::protobuf::rt::read_unknown_or_skip_group(tag, is, self.special_fields.mut_unknown_fields())?;
                 },
@@ -433,6 +439,9 @@ impl ::protobuf::Message for Background {
     #[allow(unused_variables)]
     fn compute_size(&self) -> u64 {
         let mut my_size = 0;
+        if self.opacity != 0. {
+            my_size += 1 + 4;
+        }
         if let ::std::option::Option::Some(ref v) = self.background_type {
             match v {
                 &background::Background_type::None(ref v) => {
@@ -471,6 +480,9 @@ impl ::protobuf::Message for Background {
     }
 
     fn write_to_with_cached_sizes(&self, os: &mut ::protobuf::CodedOutputStream<'_>) -> ::protobuf::Result<()> {
+        if self.opacity != 0. {
+            os.write_float(8, self.opacity)?;
+        }
         if let ::std::option::Option::Some(ref v) = self.background_type {
             match v {
                 &background::Background_type::None(ref v) => {
@@ -520,11 +532,13 @@ impl ::protobuf::Message for Background {
         self.background_type = ::std::option::Option::None;
         self.background_type = ::std::option::Option::None;
         self.background_type = ::std::option::Option::None;
+        self.opacity = 0.;
         self.special_fields.clear();
     }
 
     fn default_instance() -> &'static Background {
         static instance: Background = Background {
+            opacity: 0.,
             background_type: ::std::option::Option::None,
             special_fields: ::protobuf::SpecialFields::new(),
         };

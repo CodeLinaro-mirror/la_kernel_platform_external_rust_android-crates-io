@@ -13,6 +13,32 @@ license {
     license_text: ["LICENSE"],
 }
 
+rust_binary {
+    name: "analyze_dcf",
+    host_supported: true,
+    crate_name: "analyze_dcf",
+    cargo_env_compat: true,
+    cargo_pkg_version: "0.39.2",
+    crate_root: "src/bin/analyze_dcf.rs",
+    srcs: [":copy_dc_bundle_build_out"],
+    edition: "2021",
+    rustlibs: [
+        "libdc_bundle",
+        "liblog_rust",
+        "libprotobuf",
+        "libserde",
+        "libserde_bytes",
+        "libthiserror",
+    ],
+    apex_available: [
+        "//apex_available:platform",
+        "//apex_available:anyapex",
+    ],
+    product_available: true,
+    vendor_available: true,
+    min_sdk_version: "29",
+}
+
 genrule {
     name: "copy_dc_bundle_build_out",
     srcs: ["out/*"],
@@ -58,7 +84,7 @@ rust_library {
     host_supported: true,
     crate_name: "dc_bundle",
     cargo_env_compat: true,
-    cargo_pkg_version: "0.39.1",
+    cargo_pkg_version: "0.39.2",
     crate_root: "src/lib.rs",
     srcs: [":copy_dc_bundle_build_out"],
     edition: "2021",
