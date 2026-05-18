@@ -492,6 +492,7 @@ slotmap
 smallvec
 smccc
 smol_str
+smoltcp
 socket2
 spdx
 spidev

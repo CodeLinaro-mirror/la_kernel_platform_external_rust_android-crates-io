@@ -1,0 +1,12 @@
+{
+  "min_sdk_version": "29",
+  "features": [
+    "alloc",
+    "proto-ipv4"
+  ],
+  "package": {
+    "smoltcp": {
+      "copy_out": true
+    }
+  }
+}
