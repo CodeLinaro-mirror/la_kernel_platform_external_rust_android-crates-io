@@ -6,12 +6,11 @@
 This crate provides a library to manipulate page tables conforming to the AArch64 Virtual Memory
 System Architecture.
 
-Currently it supports:
+Currently it only supports:
 
-- stage 1 and stage 2 page tables
+- stage 1 page tables
 - 4 KiB pages
 - EL3, NS-EL2, NS-EL2&0 and NS-EL1&0 translation regimes
-- 64-bit descriptors
 
 This is not an officially supported Google product.
 
