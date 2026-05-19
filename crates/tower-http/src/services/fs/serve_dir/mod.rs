@@ -321,9 +321,9 @@ impl<F> ServeDir<F> {
                         inner: future::call_fallback(fallback, req),
                     };
                 }
-            } else {
-                return ResponseFuture::method_not_allowed();
             }
+
+            return ResponseFuture::method_not_allowed();
         }
 
         // `ServeDir` doesn't care about the request body but the fallback might. So move out the
@@ -507,7 +507,6 @@ impl ServeVariant {
 /// This uses an iterator and stack array to avoid allocating. A closure is used because it
 /// iterates the characters twice. The closure must return the same iterator each time it is
 /// called.
-#[cfg(any(windows, test))]
 #[cfg(any(windows, test))]
 fn is_reserved_dos_name<F, I>(mut get_iter: F) -> bool
 where
