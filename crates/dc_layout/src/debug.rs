@@ -107,7 +107,6 @@ impl DumpAsCss for taffy::Display {
             Display::Grid => "grid",
             Display::Flex => "flex",
             Display::None => "none",
-            _ => "unknown",
         }
         .to_string()
     }
