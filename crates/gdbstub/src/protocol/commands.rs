@@ -1,6 +1,6 @@
 use crate::protocol::packet::PacketBuf;
 use crate::target::Target;
-use paste::paste;
+use pastey::paste;
 
 /// Common imports used by >50% of all packet parsers.
 ///
@@ -365,5 +365,20 @@ commands! {
         // QTDV is unimplemented.
         "qTfV" => _qTfV::qTfV,
         "qTsV" => _qTsV::qTsV,
+    }
+
+    host_info {
+        "qHostInfo" => _qHostInfo::qHostInfo,
+    }
+
+    process_info {
+        "qProcessInfo" => _qProcessInfo::qProcessInfo,
+    }
+
+    wasm use 'a {
+        "qWasmCallStack" => _qWasmCallStack::qWasmCallStack,
+        "qWasmLocal" => _qWasmLocal::qWasmLocal<'a>,
+        "qWasmGlobal" => _qWasmGlobal::qWasmGlobal<'a>,
+        "qWasmStackValue" => _qWasmStackValue::qWasmStackValue<'a>,
     }
 }
