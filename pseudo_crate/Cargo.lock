@@ -2430,9 +2430,9 @@ checksum = "a4ae5f15dda3c708c0ade84bfee31ccab44a3da4f88015ed22f63732abe300c8"
 
 [[package]]
 name = "dc_bundle"
-version = "0.39.1"
+version = "0.39.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e16cde5ddf28d5af84688bf1b568ca18f089677e9efa3f31a74316b6d1cebc59"
+checksum = "3750b602aa2707452a61203680f342afec3c8b5cbb956ce5a7721bb95713e5fc"
 dependencies = [
  "log",
  "protobuf 3.7.2",
@@ -9837,7 +9837,7 @@ dependencies = [
  "env_logger 0.11.2",
  "epoll",
  "figment",
- "libc 0.2.185",
+ "libc 0.2.186",
  "log",
  "serde",
  "thiserror 2.0.18",
