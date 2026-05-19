@@ -18,19 +18,22 @@ rust_test {
     host_supported: true,
     crate_name: "aarch64_paging",
     cargo_env_compat: true,
-    cargo_pkg_version: "0.7.0",
+    cargo_pkg_version: "0.12.1",
     crate_root: "src/lib.rs",
     test_suites: ["general-tests"],
     auto_gen_config: true,
     test_options: {
         unit_test: true,
     },
-    edition: "2021",
+    edition: "2024",
     features: [
         "alloc",
         "default",
     ],
-    rustlibs: ["libbitflags"],
+    rustlibs: [
+        "libbitflags",
+        "libthiserror",
+    ],
     enabled: false,
     arch: {
         arm64: {
@@ -49,14 +52,17 @@ rust_library_rlib {
     host_supported: true,
     crate_name: "aarch64_paging",
     cargo_env_compat: true,
-    cargo_pkg_version: "0.7.0",
+    cargo_pkg_version: "0.12.1",
     crate_root: "src/lib.rs",
-    edition: "2021",
+    edition: "2024",
     features: [
         "alloc",
         "default",
     ],
-    rustlibs: ["libbitflags"],
+    rustlibs: [
+        "libbitflags",
+        "libthiserror",
+    ],
     apex_available: [
         "//apex_available:platform",
         "com.android.virt",
