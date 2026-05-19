@@ -41,6 +41,12 @@ pub struct ConvertRequest {
     pub version: ::std::option::Option<::std::string::String>,
     // @@protoc_insertion_point(field:designcompose.live_update.ConvertRequest.image_session_json)
     pub image_session_json: ::std::option::Option<::std::vec::Vec<u8>>,
+    // @@protoc_insertion_point(field:designcompose.live_update.ConvertRequest.discover_all_top_level_nodes)
+    pub discover_all_top_level_nodes: bool,
+    // @@protoc_insertion_point(field:designcompose.live_update.ConvertRequest.incremental_threshold)
+    pub incremental_threshold: f32,
+    // @@protoc_insertion_point(field:designcompose.live_update.ConvertRequest.previous_view_hashes)
+    pub previous_view_hashes: ::std::collections::HashMap<::std::string::String, ::std::string::String>,
     // special fields
     // @@protoc_insertion_point(special_field:designcompose.live_update.ConvertRequest.special_fields)
     pub special_fields: ::protobuf::SpecialFields,
@@ -86,6 +92,27 @@ impl ::protobuf::Message for ConvertRequest {
                 50 => {
                     self.image_session_json = ::std::option::Option::Some(is.read_bytes()?);
                 },
+                56 => {
+                    self.discover_all_top_level_nodes = is.read_bool()?;
+                },
+                69 => {
+                    self.incremental_threshold = is.read_float()?;
+                },
+                74 => {
+                    let len = is.read_raw_varint32()?;
+                    let old_limit = is.push_limit(len as u64)?;
+                    let mut key = ::std::default::Default::default();
+                    let mut value = ::std::default::Default::default();
+                    while let Some(tag) = is.read_raw_tag_or_eof()? {
+                        match tag {
+                            10 => key = is.read_string()?,
+                            18 => value = is.read_string()?,
+                            _ => ::protobuf::rt::skip_field_for_tag(tag, is)?,
+                        };
+                    }
+                    is.pop_limit(old_limit);
+                    self.previous_view_hashes.insert(key, value);
+                },
                 tag => {
                     ::protobuf::rt::read_unknown_or_skip_group(tag, is, self.special_fields.mut_unknown_fields())?;
                 },
@@ -117,6 +144,18 @@ impl ::protobuf::Message for ConvertRequest {
         if let Some(v) = self.image_session_json.as_ref() {
             my_size += ::protobuf::rt::bytes_size(6, &v);
         }
+        if self.discover_all_top_level_nodes != false {
+            my_size += 1 + 1;
+        }
+        if self.incremental_threshold != 0. {
+            my_size += 1 + 4;
+        }
+        for (k, v) in &self.previous_view_hashes {
+            let mut entry_size = 0;
+            entry_size += ::protobuf::rt::string_size(1, &k);
+            entry_size += ::protobuf::rt::string_size(2, &v);
+            my_size += 1 + ::protobuf::rt::compute_raw_varint64_size(entry_size) + entry_size
+        };
         my_size += ::protobuf::rt::unknown_fields_size(self.special_fields.unknown_fields());
         self.special_fields.cached_size().set(my_size as u32);
         my_size
@@ -141,6 +180,21 @@ impl ::protobuf::Message for ConvertRequest {
         if let Some(v) = self.image_session_json.as_ref() {
             os.write_bytes(6, v)?;
         }
+        if self.discover_all_top_level_nodes != false {
+            os.write_bool(7, self.discover_all_top_level_nodes)?;
+        }
+        if self.incremental_threshold != 0. {
+            os.write_float(8, self.incremental_threshold)?;
+        }
+        for (k, v) in &self.previous_view_hashes {
+            let mut entry_size = 0;
+            entry_size += ::protobuf::rt::string_size(1, &k);
+            entry_size += ::protobuf::rt::string_size(2, &v);
+            os.write_raw_varint32(74)?; // Tag.
+            os.write_raw_varint32(entry_size as u32)?;
+            os.write_string(1, &k)?;
+            os.write_string(2, &v)?;
+        };
         os.write_unknown_fields(self.special_fields.unknown_fields())?;
         ::std::result::Result::Ok(())
     }
@@ -164,20 +218,15 @@ impl ::protobuf::Message for ConvertRequest {
         self.last_modified = ::std::option::Option::None;
         self.version = ::std::option::Option::None;
         self.image_session_json = ::std::option::Option::None;
+        self.discover_all_top_level_nodes = false;
+        self.incremental_threshold = 0.;
+        self.previous_view_hashes.clear();
         self.special_fields.clear();
     }
 
     fn default_instance() -> &'static ConvertRequest {
-        static instance: ConvertRequest = ConvertRequest {
-            figma_api_key: ::std::string::String::new(),
-            queries: ::std::vec::Vec::new(),
-            ignored_images: ::std::vec::Vec::new(),
-            last_modified: ::std::option::Option::None,
-            version: ::std::option::Option::None,
-            image_session_json: ::std::option::Option::None,
-            special_fields: ::protobuf::SpecialFields::new(),
-        };
-        &instance
+        static instance: ::protobuf::rt::Lazy<ConvertRequest> = ::protobuf::rt::Lazy::new();
+        instance.get(ConvertRequest::new)
     }
 }
 
@@ -415,6 +464,8 @@ pub mod convert_response {
         pub server_doc: ::protobuf::MessageField<super::super::figma_doc::ServerFigmaDoc>,
         // @@protoc_insertion_point(field:designcompose.live_update.ConvertResponse.Document.image_session_json)
         pub image_session_json: ::std::vec::Vec<u8>,
+        // @@protoc_insertion_point(field:designcompose.live_update.ConvertResponse.Document.view_content_hashes)
+        pub view_content_hashes: ::std::collections::HashMap<::std::string::String, ::std::string::String>,
         // special fields
         // @@protoc_insertion_point(special_field:designcompose.live_update.ConvertResponse.Document.special_fields)
         pub special_fields: ::protobuf::SpecialFields,
@@ -451,6 +502,21 @@ pub mod convert_response {
                     26 => {
                         self.image_session_json = is.read_bytes()?;
                     },
+                    34 => {
+                        let len = is.read_raw_varint32()?;
+                        let old_limit = is.push_limit(len as u64)?;
+                        let mut key = ::std::default::Default::default();
+                        let mut value = ::std::default::Default::default();
+                        while let Some(tag) = is.read_raw_tag_or_eof()? {
+                            match tag {
+                                10 => key = is.read_string()?,
+                                18 => value = is.read_string()?,
+                                _ => ::protobuf::rt::skip_field_for_tag(tag, is)?,
+                            };
+                        }
+                        is.pop_limit(old_limit);
+                        self.view_content_hashes.insert(key, value);
+                    },
                     tag => {
                         ::protobuf::rt::read_unknown_or_skip_group(tag, is, self.special_fields.mut_unknown_fields())?;
                     },
@@ -474,6 +540,12 @@ pub mod convert_response {
             if !self.image_session_json.is_empty() {
                 my_size += ::protobuf::rt::bytes_size(3, &self.image_session_json);
             }
+            for (k, v) in &self.view_content_hashes {
+                let mut entry_size = 0;
+                entry_size += ::protobuf::rt::string_size(1, &k);
+                entry_size += ::protobuf::rt::string_size(2, &v);
+                my_size += 1 + ::protobuf::rt::compute_raw_varint64_size(entry_size) + entry_size
+            };
             my_size += ::protobuf::rt::unknown_fields_size(self.special_fields.unknown_fields());
             self.special_fields.cached_size().set(my_size as u32);
             my_size
@@ -489,6 +561,15 @@ pub mod convert_response {
             if !self.image_session_json.is_empty() {
                 os.write_bytes(3, &self.image_session_json)?;
             }
+            for (k, v) in &self.view_content_hashes {
+                let mut entry_size = 0;
+                entry_size += ::protobuf::rt::string_size(1, &k);
+                entry_size += ::protobuf::rt::string_size(2, &v);
+                os.write_raw_varint32(34)?; // Tag.
+                os.write_raw_varint32(entry_size as u32)?;
+                os.write_string(1, &k)?;
+                os.write_string(2, &v)?;
+            };
             os.write_unknown_fields(self.special_fields.unknown_fields())?;
             ::std::result::Result::Ok(())
         }
@@ -509,17 +590,13 @@ pub mod convert_response {
             self.header.clear();
             self.server_doc.clear();
             self.image_session_json.clear();
+            self.view_content_hashes.clear();
             self.special_fields.clear();
         }
 
         fn default_instance() -> &'static Document {
-            static instance: Document = Document {
-                header: ::protobuf::MessageField::none(),
-                server_doc: ::protobuf::MessageField::none(),
-                image_session_json: ::std::vec::Vec::new(),
-                special_fields: ::protobuf::SpecialFields::new(),
-            };
-            &instance
+            static instance: ::protobuf::rt::Lazy<Document> = ::protobuf::rt::Lazy::new();
+            instance.get(Document::new)
         }
     }
 }
