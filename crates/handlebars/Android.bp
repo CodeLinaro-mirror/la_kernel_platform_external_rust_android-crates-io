@@ -13,51 +13,17 @@ license {
     license_text: ["LICENSE"],
 }
 
-rust_binary_host {
-    name: "handlebars_cli",
-    crate_name: "handlebars_cli",
-    cargo_env_compat: true,
-    cargo_pkg_version: "6.4.0",
-    crate_root: "src/cli.rs",
-    srcs: [
-        "src/**/*.rs",
-        "src/grammar.pest",
-    ],
-    edition: "2021",
-    features: [
-        "dir_source",
-        "heck",
-        "string_helpers",
-        "walkdir",
-    ],
-    rustlibs: [
-        "libderive_builder",
-        "libhandlebars",
-        "libheck",
-        "liblog_rust",
-        "libnum_order",
-        "libpest",
-        "libserde",
-        "libserde_json",
-        "libthiserror",
-        "libwalkdir",
-    ],
-    proc_macros: ["libpest_derive"],
-    compile_multilib: "first",
-    use_expansive_default_srcs: false,
-}
-
 rust_library_host {
     name: "libhandlebars",
     crate_name: "handlebars",
     cargo_env_compat: true,
-    cargo_pkg_version: "6.4.0",
+    cargo_pkg_version: "6.4.1",
     crate_root: "src/lib.rs",
     srcs: [
         "src/**/*.rs",
         "src/grammar.pest",
     ],
-    edition: "2021",
+    edition: "2024",
     features: [
         "dir_source",
         "heck",
