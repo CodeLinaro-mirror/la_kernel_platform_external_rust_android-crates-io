@@ -2445,14 +2445,15 @@ dependencies = [
 
 [[package]]
 name = "dc_figma_import"
-version = "0.39.1"
+version = "0.39.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0a4364887145d08786ffac3ff854d5bd4d9792d58241bc192239d0eb051e3b3a"
+checksum = "6a2943d98634d04dbab44d1412c4296dd48bc3bb24b24b4a2a4cf093ac91dd1a"
 dependencies = [
  "anyhow",
  "dc_bundle",
  "dc_layout",
  "env_logger 0.10.2",
+ "futures",
  "image 0.25.10",
  "log",
  "protobuf 3.7.2",
@@ -2464,15 +2465,16 @@ dependencies = [
  "svgtypes",
  "taffy 0.6.3",
  "thiserror 2.0.18",
+ "tokio",
  "unicode-segmentation",
  "vergen",
 ]
 
 [[package]]
 name = "dc_jni"
-version = "0.39.1"
+version = "0.39.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a097ea082126fd1ee03f004e264d1e2f5fb88c51a64e584900b9b35c07e79984"
+checksum = "b47dd7aa8957a16851bfb90c22ab6c8c1d561fea9f67b9f414e69848450ae52f"
 dependencies = [
  "android_logger 0.13.3",
  "bytes",
@@ -2506,9 +2508,9 @@ dependencies = [
 
 [[package]]
 name = "dc_squoosh_animation"
-version = "0.39.1"
+version = "0.39.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9b46ddcf79066e8f24c58cbba4b6b045f7efc5d8ea558833a733fcfd3fd2cb9b"
+checksum = "774010d616d38ec809b6e2433f00f864241b8979a4f0fc7e62fd5f6113d96c75"
 dependencies = [
  "dc_bundle",
  "log",
@@ -2518,9 +2520,9 @@ dependencies = [
 
 [[package]]
 name = "dc_squoosh_parser"
-version = "0.39.1"
+version = "0.39.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1d23bdcccded7c85d1e68b33007dedbc8896dc2cc5d2d1ef5fc210f415d5cf05"
+checksum = "2bd4e5a0d2625090cb2b512c9756e04035ed7ac16845c80788f338e75a529f94"
 dependencies = [
  "dc_squoosh_animation",
  "log",

@@ -13,7 +13,7 @@
 edition = "2021"
 rust-version = "1.80"
 name = "dc_squoosh_parser"
-version = "0.39.1"
+version = "0.39.2"
 authors = ["DesignCompose Team <aae-design-compose@google.com>"]
 build = false
 autolib = false
@@ -36,7 +36,7 @@ name = "simple_interpolation"
 path = "examples/simple_interpolation.rs"
 
 [dependencies.dc_squoosh_animation]
-version = "0.39.1"
+version = "0.39.2"
 
 [dependencies.log]
 version = "0.4"
