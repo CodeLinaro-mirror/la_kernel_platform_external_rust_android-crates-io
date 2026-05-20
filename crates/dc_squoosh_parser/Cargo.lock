@@ -31,9 +31,9 @@ checksum = "9330f8b2ff13f34540b44e946ef35111825727b38d33286ef986142615121801"
 
 [[package]]
 name = "dc_bundle"
-version = "0.39.1"
+version = "0.39.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e16cde5ddf28d5af84688bf1b568ca18f089677e9efa3f31a74316b6d1cebc59"
+checksum = "3750b602aa2707452a61203680f342afec3c8b5cbb956ce5a7721bb95713e5fc"
 dependencies = [
  "log",
  "protobuf",
@@ -45,9 +45,9 @@ dependencies = [
 
 [[package]]
 name = "dc_squoosh_animation"
-version = "0.39.1"
+version = "0.39.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9b46ddcf79066e8f24c58cbba4b6b045f7efc5d8ea558833a733fcfd3fd2cb9b"
+checksum = "774010d616d38ec809b6e2433f00f864241b8979a4f0fc7e62fd5f6113d96c75"
 dependencies = [
  "dc_bundle",
  "log",
@@ -57,7 +57,7 @@ dependencies = [
 
 [[package]]
 name = "dc_squoosh_parser"
-version = "0.39.1"
+version = "0.39.2"
 dependencies = [
  "dc_squoosh_animation",
  "env_logger",
@@ -194,7 +194,7 @@ checksum = "3640c1c38b8e4e43584d8df18be5fc6b0aa314ce6ebf51b53313d4306cca8e46"
 dependencies = [
  "hermit-abi",
  "libc",
- "windows-sys 0.59.0",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]
