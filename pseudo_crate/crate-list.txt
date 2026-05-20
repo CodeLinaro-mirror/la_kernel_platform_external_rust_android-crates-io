@@ -145,6 +145,7 @@ diplomat
 diplomat-runtime
 diplomat_core
 displaydoc
+dlmalloc
 doc-comment
 document-features
 doip-definitions
