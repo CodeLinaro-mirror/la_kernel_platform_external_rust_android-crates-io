@@ -13,7 +13,7 @@
 edition = "2018"
 rust-version = "1.54"
 name = "pastey"
-version = "0.2.2"
+version = "0.2.3"
 authors = [
     "Aditya Kumar <git@adityais.dev>",
     "David Tolnay <dtolnay@gmail.com>",
@@ -51,3 +51,8 @@ rustdoc-args = ["--generate-link-to-definition"]
 name = "pastey"
 path = "src/lib.rs"
 proc-macro = true
+
+[lints.rust.unexpected_cfgs]
+level = "warn"
+priority = 0
+check-cfg = ["cfg(coverage_nightly)"]
