@@ -18,15 +18,14 @@ rust_library {
     host_supported: true,
     crate_name: "netlink_packet_utils",
     cargo_env_compat: true,
-    cargo_pkg_version: "0.5.2",
+    cargo_pkg_version: "0.6.0",
     crate_root: "src/lib.rs",
     edition: "2018",
     rustlibs: [
-        "libanyhow",
         "libbyteorder",
         "libthiserror",
     ],
-    proc_macros: ["libpaste"],
+    proc_macros: ["libpastey"],
     apex_available: [
         "//apex_available:platform",
         "//apex_available:anyapex",
