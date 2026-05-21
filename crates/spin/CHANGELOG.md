@@ -13,6 +13,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+# [0.12.0] - 2026-05-20
+
+### Changed
+
+- Moved to Codeberg
+
+### Fixed
+
+- Unsoundness in `FairMutex` caused by an undue extension of a reference lifetime
+  outside of a critical section. Note that we do not consider this CVE-worthy since
+  there's no clear path to exploiting this and there's no clear reason for the compiler
+  to actually generate code that falls afoul of the issue. If you have found an example
+  of this issue leading to unexpected behaviour in practice, please open an issue.
+
 # [0.11.0] - 2026-05-14
 
 ### Added

@@ -1,8 +1,9 @@
 # spin-rs
 
-[![Crates.io version](https://img.shields.io/crates/v/spin.svg)](https://crates.io/crates/spin)
-[![docs.rs](https://docs.rs/spin/badge.svg)](https://docs.rs/spin/)
-[![Build Status](https://github.com/zesterer/spin-rs/actions/workflows/rust.yml/badge.svg)](https://github.com/zesterer/spin-rs/actions)
+[![crates.io](https://img.shields.io/crates/v/spin.svg)](https://crates.io/crates/spin)
+[![License](https://img.shields.io/crates/l/spin.svg)](https://codeberg.org/zesterer/spin)
+[![crates.io](https://docs.rs/spin/badge.svg)](https://docs.rs/spin)
+![actions-badge](https://codeberg.org/zesterer/spin/badges/workflows/rust.yml/badge.svg?branch=master)
 
 Spin-based synchronization primitives.
 
