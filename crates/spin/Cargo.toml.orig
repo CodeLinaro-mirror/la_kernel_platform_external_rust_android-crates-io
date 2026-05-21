@@ -1,13 +1,13 @@
 [package]
 name = "spin"
-version = "0.11.0"
+version = "0.12.0"
 authors = [
     "Mathijs van de Nes <git@mathijs.vd-nes.nl>",
     "John Ericson <git@JohnEricson.me>",
     "Joshua Barretto <joshua.s.barretto@gmail.com>",
 ]
 license = "MIT"
-repository = "https://github.com/zesterer/spin-rs.git"
+repository = "https://codeberg.org/zesterer/spin"
 keywords = ["spinlock", "mutex", "rwlock"]
 description = "Spin-based synchronization primitives"
 rust-version = "1.71"
@@ -83,3 +83,7 @@ criterion = "0.4"
 name = "mutex"
 harness = false
 required-features = ["ticket_mutex"]
+
+[[example]]
+name = "debug"
+required-features = ["mutex", "rwlock"]

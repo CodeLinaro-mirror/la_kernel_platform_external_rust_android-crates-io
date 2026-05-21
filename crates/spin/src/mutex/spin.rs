@@ -78,17 +78,19 @@ pub struct SpinMutex<T: ?Sized, R = Spin> {
 /// A guard that provides mutable data access.
 ///
 /// When the guard falls out of scope it will release the lock.
-pub struct SpinMutexGuard<'a, T: ?Sized + 'a> {
-    lock: &'a AtomicBool,
-    data: *mut T,
+pub struct SpinMutexGuard<'a, T: ?Sized + 'a, R = Spin> {
+    inner: &'a SpinMutex<T, R>,
 }
 
-// Same unsafe impls as `std::sync::Mutex`
+// SAFETY: Same unsafe impls as `std::sync::Mutex`
 unsafe impl<T: ?Sized + Send, R> Sync for SpinMutex<T, R> {}
 unsafe impl<T: ?Sized + Send, R> Send for SpinMutex<T, R> {}
 
-unsafe impl<T: ?Sized + Sync> Sync for SpinMutexGuard<'_, T> {}
-unsafe impl<T: ?Sized + Send> Send for SpinMutexGuard<'_, T> {}
+// SAFETY: Mutex guards can be thought of as mutable reference to the inner data. In fact, this
+// would be their ideal representation if it were not for the need for the critical section to end
+// *after* the reference is no longer live.
+unsafe impl<T: ?Sized, R> Sync for SpinMutexGuard<'_, T, R> where for<'a> &'a mut T: Sync {}
+unsafe impl<T: ?Sized, R> Send for SpinMutexGuard<'_, T, R> where for<'a> &'a mut T: Send {}
 
 impl<T, R> SpinMutex<T, R> {
     /// Creates a new [`SpinMutex`] wrapping the supplied data.
@@ -174,7 +176,7 @@ impl<T: ?Sized, R: RelaxStrategy> SpinMutex<T, R> {
     /// }
     /// ```
     #[inline(always)]
-    pub fn lock(&self) -> SpinMutexGuard<'_, T> {
+    pub fn lock(&self) -> SpinMutexGuard<'_, T, R> {
         // Can fail to lock even if the spinlock is not locked. May be more efficient than `try_lock`
         // when called in a loop.
         loop {
@@ -228,7 +230,7 @@ impl<T: ?Sized, R> SpinMutex<T, R> {
     /// assert!(maybe_guard2.is_none());
     /// ```
     #[inline(always)]
-    pub fn try_lock(&self) -> Option<SpinMutexGuard<'_, T>> {
+    pub fn try_lock(&self) -> Option<SpinMutexGuard<'_, T, R>> {
         // The reason for using a strong compare_exchange is explained here:
         // https://github.com/Amanieu/parking_lot/pull/207#issuecomment-575869107
         //
@@ -238,10 +240,7 @@ impl<T: ?Sized, R> SpinMutex<T, R> {
             .compare_exchange(false, true, Ordering::Acquire, Ordering::Relaxed)
             .is_ok()
         {
-            Some(SpinMutexGuard {
-                lock: &self.lock,
-                data: unsafe { &mut *self.data.get() },
-            })
+            Some(SpinMutexGuard { inner: self })
         } else {
             None
         }
@@ -252,7 +251,7 @@ impl<T: ?Sized, R> SpinMutex<T, R> {
     /// Unlike [`SpinMutex::try_lock`], this function is allowed to spuriously fail even when the mutex is unlocked,
     /// which can result in more efficient code on some platforms.
     #[inline(always)]
-    pub fn try_lock_weak(&self) -> Option<SpinMutexGuard<'_, T>> {
+    pub fn try_lock_weak(&self) -> Option<SpinMutexGuard<'_, T, R>> {
         // There's some debate about whether Ordering::Acquire is sufficient here. In one
         // interpretation of the the C++ standard, a lock operation like this could be re-ordered
         // with a prior unlock of a different mutex. In other words this...
@@ -296,10 +295,7 @@ impl<T: ?Sized, R> SpinMutex<T, R> {
             .compare_exchange_weak(false, true, Ordering::Acquire, Ordering::Relaxed)
             .is_ok()
         {
-            Some(SpinMutexGuard {
-                lock: &self.lock,
-                data: unsafe { &mut *self.data.get() },
-            })
+            Some(SpinMutexGuard { inner: self })
         } else {
             None
         }
@@ -320,9 +316,7 @@ impl<T: ?Sized, R> SpinMutex<T, R> {
     /// ```
     #[inline(always)]
     pub fn get_mut(&mut self) -> &mut T {
-        // We know statically that there are no other references to `self`, so
-        // there's no need to lock the inner mutex.
-        unsafe { &mut *self.data.get() }
+        self.data.get_mut()
     }
 }
 
@@ -330,14 +324,14 @@ impl<T: ?Sized + fmt::Debug, R> fmt::Debug for SpinMutex<T, R> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self.try_lock() {
             Some(guard) => write!(f, "Mutex {{ data: ")
-                .and_then(|()| (&*guard).fmt(f))
+                .and_then(|()| (*guard).fmt(f))
                 .and_then(|()| write!(f, " }}")),
             None => write!(f, "Mutex {{ <locked> }}"),
         }
     }
 }
 
-impl<T: ?Sized + Default, R> Default for SpinMutex<T, R> {
+impl<T: Default, R> Default for SpinMutex<T, R> {
     fn default() -> Self {
         Self::new(Default::default())
     }
@@ -349,7 +343,7 @@ impl<T, R> From<T> for SpinMutex<T, R> {
     }
 }
 
-impl<'a, T: ?Sized> SpinMutexGuard<'a, T> {
+impl<'a, T: ?Sized, R> SpinMutexGuard<'a, T, R> {
     /// Leak the lock guard, yielding a mutable reference to the underlying data.
     ///
     /// Note that this function will permanently lock the original [`SpinMutex`].
@@ -365,43 +359,43 @@ impl<'a, T: ?Sized> SpinMutexGuard<'a, T> {
     #[inline(always)]
     pub fn leak(this: Self) -> &'a mut T {
         // Use ManuallyDrop to avoid stacked-borrow invalidation
-        let mut this = ManuallyDrop::new(this);
+        let this = ManuallyDrop::new(this);
         // We know statically that only we are referencing data
-        unsafe { &mut *this.data }
+        unsafe { &mut *this.inner.data.get() }
     }
 }
 
-impl<'a, T: ?Sized + fmt::Debug> fmt::Debug for SpinMutexGuard<'a, T> {
+impl<'a, T: ?Sized + fmt::Debug, R> fmt::Debug for SpinMutexGuard<'a, T, R> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         fmt::Debug::fmt(&**self, f)
     }
 }
 
-impl<'a, T: ?Sized + fmt::Display> fmt::Display for SpinMutexGuard<'a, T> {
+impl<'a, T: ?Sized + fmt::Display, R> fmt::Display for SpinMutexGuard<'a, T, R> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         fmt::Display::fmt(&**self, f)
     }
 }
 
-impl<'a, T: ?Sized> Deref for SpinMutexGuard<'a, T> {
+impl<'a, T: ?Sized, R> Deref for SpinMutexGuard<'a, T, R> {
     type Target = T;
     fn deref(&self) -> &T {
         // We know statically that only we are referencing data
-        unsafe { &*self.data }
+        unsafe { &*self.inner.data.get() }
     }
 }
 
-impl<'a, T: ?Sized> DerefMut for SpinMutexGuard<'a, T> {
+impl<'a, T: ?Sized, R> DerefMut for SpinMutexGuard<'a, T, R> {
     fn deref_mut(&mut self) -> &mut T {
         // We know statically that only we are referencing data
-        unsafe { &mut *self.data }
+        unsafe { &mut *self.inner.data.get() }
     }
 }
 
-impl<'a, T: ?Sized> Drop for SpinMutexGuard<'a, T> {
+impl<'a, T: ?Sized, R> Drop for SpinMutexGuard<'a, T, R> {
     /// The dropping of the MutexGuard will release the lock it was created from.
     fn drop(&mut self) {
-        self.lock.store(false, Ordering::Release);
+        self.inner.lock.store(false, Ordering::Release);
     }
 }
 

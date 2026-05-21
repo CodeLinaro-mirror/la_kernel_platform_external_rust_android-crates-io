@@ -13,7 +13,7 @@
 edition = "2021"
 rust-version = "1.71"
 name = "spin"
-version = "0.11.0"
+version = "0.12.0"
 authors = [
     "Mathijs van de Nes <git@mathijs.vd-nes.nl>",
     "John Ericson <git@JohnEricson.me>",
@@ -33,7 +33,7 @@ keywords = [
     "rwlock",
 ]
 license = "MIT"
-repository = "https://github.com/zesterer/spin-rs.git"
+repository = "https://codeberg.org/zesterer/spin"
 
 [package.metadata.docs.rs]
 all-features = true
@@ -78,6 +78,10 @@ path = "src/lib.rs"
 [[example]]
 name = "debug"
 path = "examples/debug.rs"
+required-features = [
+    "mutex",
+    "rwlock",
+]
 
 [[bench]]
 name = "mutex"

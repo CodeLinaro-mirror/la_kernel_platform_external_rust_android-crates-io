@@ -267,10 +267,10 @@ impl<T, R: RelaxStrategy> Once<T, R> {
                 None => BeginInit::Retry,
             },
             Err(Status::Complete) => {
-                return BeginInit::Done(unsafe {
+                BeginInit::Done(unsafe {
                     // SAFETY: The status is Complete
                     self.force_get()
-                });
+                })
             }
             Err(Status::Incomplete) => {
                 // The compare_exchange failed, so this shouldn't ever be reached,
@@ -681,7 +681,7 @@ mod tests {
 
         assert!(INIT.get().is_none());
         INIT.call_once(|| 2);
-        assert_eq!(INIT.get().map(|r| *r), Some(2));
+        assert_eq!(INIT.get().copied(), Some(2));
     }
 
     #[test]
@@ -706,7 +706,7 @@ mod tests {
 
         assert!(INIT.poll().is_none());
         INIT.call_once(|| 3);
-        assert_eq!(INIT.poll().map(|r| *r), Some(3));
+        assert_eq!(INIT.poll().copied(), Some(3));
     }
 
     #[test]
