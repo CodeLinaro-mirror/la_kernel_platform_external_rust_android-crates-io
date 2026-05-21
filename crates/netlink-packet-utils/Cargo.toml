@@ -12,22 +12,29 @@
 [package]
 edition = "2018"
 name = "netlink-packet-utils"
-version = "0.5.2"
+version = "0.6.0"
 authors = ["Corentin Henry <corentinhenry@gmail.com>"]
+build = false
+autolib = false
+autobins = false
+autoexamples = false
+autotests = false
+autobenches = false
 description = "macros and helpers for parsing netlink messages"
 homepage = "https://github.com/rust-netlink/netlink-packet-utils"
 readme = "README.md"
 license = "MIT"
 repository = "https://github.com/rust-netlink/netlink-packet-utils"
 
-[dependencies.anyhow]
-version = "1.0.31"
+[lib]
+name = "netlink_packet_utils"
+path = "src/lib.rs"
 
 [dependencies.byteorder]
 version = "1.3.2"
 
-[dependencies.paste]
-version = "1.0"
+[dependencies.pastey]
+version = "0.1.0"
 
 [dependencies.thiserror]
-version = "1"
+version = "2"
