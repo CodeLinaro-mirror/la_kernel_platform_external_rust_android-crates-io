@@ -13,7 +13,7 @@
 edition = "2021"
 rust-version = "1.68.2"
 name = "glam"
-version = "0.32.1"
+version = "0.33.0"
 authors = ["Cameron Hart <cameron.hart@gmail.com>"]
 build = false
 autolib = false
@@ -41,18 +41,52 @@ repository = "https://github.com/bitshifter/glam-rs"
 status = "actively-developed"
 
 [features]
+all-types = [
+    "float-types",
+    "integer-types",
+    "size-types",
+]
 bytecheck = ["rkyv/bytecheck"]
 core-simd = ["bytemuck?/nightly_portable_simd"]
 cuda = []
 debug-glam-assert = []
-default = ["std"]
+default = [
+    "std",
+    "all-types",
+]
+f64 = []
 fast-math = []
+float-types = ["f64"]
 glam-assert = []
+i16 = []
+i32 = []
+i64 = []
+i8 = []
+integer-types = [
+    "i8",
+    "u8",
+    "i16",
+    "u16",
+    "i32",
+    "u32",
+    "i64",
+    "u64",
+]
+isize = []
 libm = ["dep:libm"]
 nostd-libm = ["dep:libm"]
 scalar-math = []
 serde = ["dep:serde_core"]
+size-types = [
+    "isize",
+    "usize",
+]
 std = []
+u16 = []
+u32 = []
+u64 = []
+u8 = []
+usize = []
 zerocopy = [
     "dep:zerocopy",
     "dep:zerocopy-derive",
