@@ -32,8 +32,8 @@ rust_test {
     ],
     rustlibs: ["libbitflags"],
     enabled: false,
-    arch: {
-        arm64: {
+    target: {
+        android_arm64: {
             enabled: true,
         },
     },
@@ -72,8 +72,8 @@ rust_library_rlib {
     vendor_available: true,
     min_sdk_version: "29",
     enabled: false,
-    arch: {
-        arm64: {
+    target: {
+        android_arm64: {
             enabled: true,
         },
     },
