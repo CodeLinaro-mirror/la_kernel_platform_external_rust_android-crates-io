@@ -4,9 +4,8 @@ use crate::format;
 use crate::map::Map;
 use crate::value::{Value, ValueKind};
 
-#[derive(serde::Deserialize, Debug)]
-#[serde(untagged)]
-pub enum Val {
+#[derive(Debug)]
+pub(crate) enum Val {
     Null,
     Boolean(bool),
     Integer(i64),
@@ -16,11 +15,28 @@ pub enum Val {
     Object(Map<String, Self>),
 }
 
-pub fn parse(
+impl<'de> serde_core::de::Deserialize<'de> for Val {
+    fn deserialize<D>(d: D) -> Result<Self, D::Error>
+    where
+        D: serde_core::de::Deserializer<'de>,
+    {
+        serde_untagged::UntaggedEnumVisitor::new()
+            .bool(|value| Ok(Self::Boolean(value)))
+            .i64(|value| Ok(Self::Integer(value)))
+            .f64(|value| Ok(Self::Float(value)))
+            .string(|value| Ok(Val::String(value.to_owned())))
+            .unit(|| Ok(Self::Null))
+            .seq(|value| value.deserialize().map(Val::Array))
+            .map(|value| value.deserialize().map(Val::Object))
+            .deserialize(d)
+    }
+}
+
+pub(crate) fn parse(
     uri: Option<&String>,
     text: &str,
 ) -> Result<Map<String, Value>, Box<dyn Error + Send + Sync>> {
-    let value = from_json5_value(uri, json5_rs::from_str::<Val>(text)?);
+    let value = from_json5_value(uri, json5::from_str::<Val>(text)?);
     format::extract_root_table(uri, value)
 }
 

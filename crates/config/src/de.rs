@@ -2,7 +2,7 @@ use std::collections::VecDeque;
 use std::convert::TryInto;
 use std::iter::Enumerate;
 
-use serde::de;
+use serde_core::de;
 
 use crate::config::Config;
 use crate::error::{ConfigError, Result, Unexpected};
@@ -164,7 +164,7 @@ impl<'de> de::Deserializer<'de> for Value {
         })
     }
 
-    serde::forward_to_deserialize_any! {
+    serde_core::forward_to_deserialize_any! {
         char seq
         bytes byte_buf map struct unit
         identifier ignored_any unit_struct tuple_struct tuple
@@ -173,7 +173,7 @@ impl<'de> de::Deserializer<'de> for Value {
 
 struct StrDeserializer<'a>(&'a str);
 
-impl<'de, 'a> de::Deserializer<'de> for StrDeserializer<'a> {
+impl<'de> de::Deserializer<'de> for StrDeserializer<'_> {
     type Error = ConfigError;
 
     #[inline]
@@ -181,7 +181,7 @@ impl<'de, 'a> de::Deserializer<'de> for StrDeserializer<'a> {
         visitor.visit_str(self.0)
     }
 
-    serde::forward_to_deserialize_any! {
+    serde_core::forward_to_deserialize_any! {
         bool u8 u16 u32 u64 i8 i16 i32 i64 f32 f64 char str string seq
         bytes byte_buf map struct unit enum newtype_struct
         identifier ignored_any unit_struct tuple_struct tuple option
@@ -243,7 +243,7 @@ impl<'de> de::MapAccess<'de> for MapAccess {
     where
         K: de::DeserializeSeed<'de>,
     {
-        if let Some((ref key_s, _)) = self.elements.front() {
+        if let Some((key_s, _)) = self.elements.front() {
             let key_de = Value::new(None, key_s as &str);
             let key = de::DeserializeSeed::deserialize(seed, key_de)?;
 
@@ -269,15 +269,15 @@ struct EnumAccess {
 }
 
 impl EnumAccess {
-    fn variant_deserializer(&self, name: &str) -> Result<StrDeserializer> {
+    fn variant_deserializer(&self, name: &str) -> Result<StrDeserializer<'_>> {
         self.variants
             .iter()
-            .find(|&&s| s.to_lowercase() == name.to_lowercase()) // changing to lowercase will enable deserialization of lowercase values to enums
+            .find(|&&s| s == name)
             .map(|&s| StrDeserializer(s))
             .ok_or_else(|| self.no_constructor_error(name))
     }
 
-    fn table_deserializer(&self, table: &Table) -> Result<StrDeserializer> {
+    fn table_deserializer(&self, table: &Table) -> Result<StrDeserializer<'_>> {
         if table.len() == 1 {
             self.variant_deserializer(table.iter().next().unwrap().0)
         } else {
