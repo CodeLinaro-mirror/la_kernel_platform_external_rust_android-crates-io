@@ -1,5 +1,6 @@
-use config::{Config, File, FileStoredFormat, Format, Map, Value, ValueKind};
 use std::io::{Error, ErrorKind};
+
+use config::{Config, File, FileStoredFormat, Format, Map, Value, ValueKind};
 
 /// The private and public key sources will be read into their associated variable:
 #[derive(serde::Deserialize, Clone, Debug)]
@@ -23,7 +24,8 @@ fn main() {
 
     // Deserialize the config object into your Settings struct:
     let settings: Settings = settings.try_deserialize().unwrap();
-    println!("{:#?}", settings);
+
+    println!("{settings:#?}");
 }
 
 #[derive(Debug, Clone)]
@@ -34,7 +36,7 @@ impl Format for PemFile {
         &self,
         uri: Option<&String>,
         text: &str,
-    ) -> Result<Map<String, config::Value>, Box<dyn std::error::Error + Send + Sync>> {
+    ) -> Result<Map<String, Value>, Box<dyn std::error::Error + Send + Sync>> {
         // Store any valid keys into this map, they'll be merged with other sources into the final config map:
         let mut result = Map::new();
 
@@ -51,7 +53,7 @@ impl Format for PemFile {
                 return Err(Box::new(Error::new(
                     ErrorKind::InvalidData,
                     "PEM file did not contain a Private or Public key",
-                )))
+                )));
             }
         };
 
@@ -64,8 +66,7 @@ impl Format for PemFile {
     }
 }
 
-// A slice of extensions associated to this format, when an extension
-// is omitted from a file source, these will be tried implicitly:
+// When an extension is omitted from a file source, these will be tried implicitly:
 impl FileStoredFormat for PemFile {
     fn file_extensions(&self) -> &'static [&'static str] {
         &["pem"]

@@ -1,8 +1,7 @@
 {
   "features": [
     "toml",
-    "json",
-    "yaml"
+    "json"
   ],
   "module_name_overrides": {
     "libconfig": "libconfig_rust"

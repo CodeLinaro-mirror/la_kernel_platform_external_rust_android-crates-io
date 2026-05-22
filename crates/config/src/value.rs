@@ -2,18 +2,19 @@ use std::convert::TryInto;
 use std::fmt;
 use std::fmt::Display;
 
-use serde::de::{Deserialize, Deserializer, Visitor};
+use serde_core::de::{Deserialize, Deserializer, Visitor};
 
 use crate::error::{ConfigError, Result, Unexpected};
 use crate::map::Map;
 
 /// Underlying kind of the configuration value.
 ///
-/// Standard operations on a `Value` by users of this crate do not require
-/// knowledge of `ValueKind`. Introspection of underlying kind is only required
+/// Standard operations on a [`Value`] by users of this crate do not require
+/// knowledge of [`ValueKind`]. Introspection of underlying kind is only required
 /// when the configuration values are unstructured or do not have known types.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Default)]
 pub enum ValueKind {
+    #[default]
     Nil,
     Boolean(bool),
     I64(i64),
@@ -26,14 +27,8 @@ pub enum ValueKind {
     Array(Array),
 }
 
-pub type Array = Vec<Value>;
-pub type Table = Map<String, Value>;
-
-impl Default for ValueKind {
-    fn default() -> Self {
-        Self::Nil
-    }
-}
+pub(crate) type Array = Vec<Value>;
+pub(crate) type Table = Map<String, Value>;
 
 impl<T> From<Option<T>> for ValueKind
 where
@@ -151,29 +146,29 @@ where
 }
 
 impl Display for ValueKind {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         use std::fmt::Write;
 
         match *self {
-            Self::String(ref value) => write!(f, "{}", value),
-            Self::Boolean(value) => write!(f, "{}", value),
-            Self::I64(value) => write!(f, "{}", value),
-            Self::I128(value) => write!(f, "{}", value),
-            Self::U64(value) => write!(f, "{}", value),
-            Self::U128(value) => write!(f, "{}", value),
-            Self::Float(value) => write!(f, "{}", value),
+            Self::String(ref value) => write!(f, "{value}"),
+            Self::Boolean(value) => write!(f, "{value}"),
+            Self::I64(value) => write!(f, "{value}"),
+            Self::I128(value) => write!(f, "{value}"),
+            Self::U64(value) => write!(f, "{value}"),
+            Self::U128(value) => write!(f, "{value}"),
+            Self::Float(value) => write!(f, "{value}"),
             Self::Nil => write!(f, "nil"),
             Self::Table(ref table) => {
                 let mut s = String::new();
                 for (k, v) in table.iter() {
-                    write!(s, "{} => {}, ", k, v)?
+                    write!(s, "{k} => {v}, ")?;
                 }
                 write!(f, "{{ {s} }}")
             }
             Self::Array(ref array) => {
                 let mut s = String::new();
                 for e in array.iter() {
-                    write!(s, "{}, ", e)?;
+                    write!(s, "{e}, ")?;
                 }
                 write!(f, "{s:?}")
             }
@@ -193,7 +188,7 @@ pub struct Value {
     ///
     /// A Value originating from the environment would contain:
     /// ```text
-    /// the envrionment
+    /// the environment
     /// ```
     ///
     /// A Value originating from a remote source might contain:
@@ -718,7 +713,7 @@ impl<'de> Deserialize<'de> for Value {
         impl<'de> Visitor<'de> for ValueVisitor {
             type Value = Value;
 
-            fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
+            fn expecting(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
                 formatter.write_str("any valid configuration value")
             }
 
@@ -770,10 +765,10 @@ impl<'de> Deserialize<'de> for Value {
             #[inline]
             fn visit_u64<E>(self, value: u64) -> ::std::result::Result<Value, E>
             where
-                E: ::serde::de::Error,
+                E: ::serde_core::de::Error,
             {
                 let num: i64 = value.try_into().map_err(|_| {
-                    E::invalid_type(::serde::de::Unexpected::Unsigned(value), &self)
+                    E::invalid_type(::serde_core::de::Unexpected::Unsigned(value), &self)
                 })?;
                 Ok(num.into())
             }
@@ -781,12 +776,12 @@ impl<'de> Deserialize<'de> for Value {
             #[inline]
             fn visit_u128<E>(self, value: u128) -> ::std::result::Result<Value, E>
             where
-                E: ::serde::de::Error,
+                E: ::serde_core::de::Error,
             {
                 let num: i128 = value.try_into().map_err(|_| {
                     E::invalid_type(
-                        ::serde::de::Unexpected::Other(
-                            format!("integer `{}` as u128", value).as_str(),
+                        ::serde_core::de::Unexpected::Other(
+                            format!("integer `{value}` as u128").as_str(),
                         ),
                         &self,
                     )
@@ -802,7 +797,7 @@ impl<'de> Deserialize<'de> for Value {
             #[inline]
             fn visit_str<E>(self, value: &str) -> ::std::result::Result<Value, E>
             where
-                E: ::serde::de::Error,
+                E: ::serde_core::de::Error,
             {
                 self.visit_string(String::from(value))
             }
@@ -833,7 +828,7 @@ impl<'de> Deserialize<'de> for Value {
             #[inline]
             fn visit_seq<V>(self, mut visitor: V) -> ::std::result::Result<Value, V::Error>
             where
-                V: ::serde::de::SeqAccess<'de>,
+                V: ::serde_core::de::SeqAccess<'de>,
             {
                 let mut vec = Array::new();
 
@@ -846,7 +841,7 @@ impl<'de> Deserialize<'de> for Value {
 
             fn visit_map<V>(self, mut visitor: V) -> ::std::result::Result<Value, V::Error>
             where
-                V: ::serde::de::MapAccess<'de>,
+                V: ::serde_core::de::MapAccess<'de>,
             {
                 let mut values = Table::new();
 
@@ -875,7 +870,7 @@ where
 }
 
 impl Display for Value {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "{}", self.kind)
     }
 }
@@ -888,9 +883,15 @@ mod tests {
     use crate::FileFormat;
 
     #[test]
+    #[cfg(feature = "toml")]
     fn test_i64() {
         let c = Config::builder()
-            .add_source(File::new("tests/types/i64.toml", FileFormat::Toml))
+            .add_source(File::from_str(
+                "
+value = 120
+",
+                FileFormat::Toml,
+            ))
             .build()
             .unwrap();
 
