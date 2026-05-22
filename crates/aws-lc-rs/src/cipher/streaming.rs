@@ -125,6 +125,14 @@ impl StreamingEncryptingKey {
         context: EncryptionContext,
     ) -> Result<Self, Unspecified> {
         let algorithm = key.algorithm();
+        if !algorithm.supports_mode(mode) {
+            return Err(Unspecified);
+        }
+        // The streaming path passes raw key bytes to the EVP API rather than
+        // going through `SymmetricCipherKey` construction.  Validate
+        // algorithm-specific key constraints (e.g. DES weak-key / K1!=K2
+        // checks) that would otherwise be missed.
+        key.validate_key_material()?;
         let mut cipher_ctx = LcPtr::new(unsafe { EVP_CIPHER_CTX_new() })?;
         let cipher = mode.evp_cipher(key.algorithm);
         let key_bytes = key.key_bytes.as_ref();
@@ -136,6 +144,16 @@ impl StreamingEncryptingKey {
 
         match &context {
             ctx @ EncryptionContext::Iv128(..) => {
+                let iv = <&[u8]>::try_from(ctx)?;
+                debug_assert_eq!(
+                    iv.len(),
+                    <usize>::try_from(unsafe { EVP_CIPHER_iv_length(cipher.as_const_ptr()) })
+                        .unwrap()
+                );
+                evp_encrypt_init(&mut cipher_ctx, &cipher, key_bytes, Some(iv))?;
+            }
+            #[cfg(feature = "legacy-des")]
+            ctx @ EncryptionContext::Iv64(..) => {
                 let iv = <&[u8]>::try_from(ctx)?;
                 debug_assert_eq!(
                     iv.len(),
@@ -301,7 +319,10 @@ impl StreamingEncryptingKey {
     /// The resulting ciphertext will be the same length as the plaintext.
     ///
     /// # Errors
-    /// Returns and error on an internal failure.
+    /// Returns an error on an internal failure. With `legacy-des` enabled, also
+    /// returned if `key`'s algorithm does not support CTR mode (e.g.
+    /// `DES_FOR_LEGACY_USE_ONLY`, `DES_EDE_FOR_LEGACY_USE_ONLY`,
+    /// `DES_EDE3_FOR_LEGACY_USE_ONLY`).
     pub fn ctr(key: UnboundCipherKey) -> Result<Self, Unspecified> {
         let context = key.algorithm().new_encryption_context(OperatingMode::CTR)?;
         Self::less_safe_ctr(key, context)
@@ -314,7 +335,10 @@ impl StreamingEncryptingKey {
     /// an `EncryptionContext` from a previously used initialization vector (IV).
     ///
     /// # Errors
-    /// Returns an error on an internal failure.
+    /// Returns an error on an internal failure. With `legacy-des` enabled, also
+    /// returned if `key`'s algorithm does not support CTR mode (e.g.
+    /// `DES_FOR_LEGACY_USE_ONLY`, `DES_EDE_FOR_LEGACY_USE_ONLY`,
+    /// `DES_EDE3_FOR_LEGACY_USE_ONLY`).
     pub fn less_safe_ctr(
         key: UnboundCipherKey,
         context: EncryptionContext,
@@ -328,11 +352,17 @@ impl StreamingEncryptingKey {
     /// to fill the next block of ciphertext.
     ///
     /// # Errors
-    /// Returns an error on an internal failure.
+    /// Returns an error on an internal failure. With `legacy-des` enabled, also
+    /// returned if `key` was constructed with `DES_FOR_LEGACY_USE_ONLY`,
+    /// `DES_EDE_FOR_LEGACY_USE_ONLY` or `DES_EDE3_FOR_LEGACY_USE_ONLY` and the
+    /// provided key material contains weak or semi-weak DES subkeys, or (for
+    /// Triple DES) a degenerate subkey configuration (e.g. `K1 == K2` for 2TDEA,
+    /// or any pairwise equality for 3TDEA).
     pub fn cbc_pkcs7(key: UnboundCipherKey) -> Result<Self, Unspecified> {
         let context = key.algorithm().new_encryption_context(OperatingMode::CBC)?;
         Self::less_safe_cbc_pkcs7(key, context)
     }
+
 
     /// Constructs a `StreamingEncryptingKey` for encrypting using ECB cipher mode with PKCS7 padding.
     /// The resulting plaintext will be the same length as the ciphertext.
@@ -342,11 +372,17 @@ impl StreamingEncryptingKey {
     /// very likely not what you want to use.
     ///
     /// # Errors
-    /// Returns an error on an internal failure.
+    /// Returns an error on an internal failure. With `legacy-des` enabled, also
+    /// returned if `key` was constructed with `DES_FOR_LEGACY_USE_ONLY`,
+    /// `DES_EDE_FOR_LEGACY_USE_ONLY` or `DES_EDE3_FOR_LEGACY_USE_ONLY` and the
+    /// provided key material contains weak or semi-weak DES subkeys, or (for
+    /// Triple DES) a degenerate subkey configuration (e.g. `K1 == K2` for 2TDEA,
+    /// or any pairwise equality for 3TDEA).
     pub fn ecb_pkcs7(key: UnboundCipherKey) -> Result<Self, Unspecified> {
         let context = key.algorithm().new_encryption_context(OperatingMode::ECB)?;
         Self::new(key, OperatingMode::ECB, context)
     }
+
 
     /// Constructs a `StreamingEncryptingKey` for encrypting data using the CBC cipher mode
     /// with pkcs7 padding.
@@ -357,7 +393,12 @@ impl StreamingEncryptingKey {
     /// an `EncryptionContext` from a previously used initialization vector (IV).
     ///
     /// # Errors
-    /// Returns an error on an internal failure.
+    /// Returns an error on an internal failure. With `legacy-des` enabled, also
+    /// returned if `key` was constructed with `DES_FOR_LEGACY_USE_ONLY`,
+    /// `DES_EDE_FOR_LEGACY_USE_ONLY` or `DES_EDE3_FOR_LEGACY_USE_ONLY` and the
+    /// provided key material contains weak or semi-weak DES subkeys, or (for
+    /// Triple DES) a degenerate subkey configuration (e.g. `K1 == K2` for 2TDEA,
+    /// or any pairwise equality for 3TDEA).
     pub fn less_safe_cbc_pkcs7(
         key: UnboundCipherKey,
         context: EncryptionContext,
@@ -383,8 +424,13 @@ impl StreamingDecryptingKey {
         mode: OperatingMode,
         context: DecryptionContext,
     ) -> Result<Self, Unspecified> {
-        let mut cipher_ctx = LcPtr::new(unsafe { EVP_CIPHER_CTX_new() })?;
         let algorithm = key.algorithm();
+        if !algorithm.supports_mode(mode) {
+            return Err(Unspecified);
+        }
+        // See comment in `StreamingEncryptingKey::new`.
+        key.validate_key_material()?;
+        let mut cipher_ctx = LcPtr::new(unsafe { EVP_CIPHER_CTX_new() })?;
         let cipher = mode.evp_cipher(key.algorithm);
         let key_bytes = key.key_bytes.as_ref();
         if key_bytes.len()
@@ -395,6 +441,16 @@ impl StreamingDecryptingKey {
 
         match &context {
             ctx @ DecryptionContext::Iv128(..) => {
+                let iv = <&[u8]>::try_from(ctx)?;
+                debug_assert_eq!(
+                    iv.len(),
+                    <usize>::try_from(unsafe { EVP_CIPHER_iv_length(cipher.as_const_ptr()) })
+                        .unwrap()
+                );
+                evp_decrypt_init(&mut cipher_ctx, &cipher, key_bytes, Some(iv))?;
+            }
+            #[cfg(feature = "legacy-des")]
+            ctx @ DecryptionContext::Iv64(..) => {
                 let iv = <&[u8]>::try_from(ctx)?;
                 debug_assert_eq!(
                     iv.len(),
@@ -555,7 +611,10 @@ impl StreamingDecryptingKey {
     /// The resulting plaintext will be the same length as the ciphertext.
     ///
     /// # Errors
-    /// Returns an error on an internal failure.
+    /// Returns an error on an internal failure. With `legacy-des` enabled, also
+    /// returned if `key`'s algorithm does not support CTR mode (e.g.
+    /// `DES_FOR_LEGACY_USE_ONLY`, `DES_EDE_FOR_LEGACY_USE_ONLY`,
+    /// `DES_EDE3_FOR_LEGACY_USE_ONLY`).
     pub fn ctr(key: UnboundCipherKey, context: DecryptionContext) -> Result<Self, Unspecified> {
         Self::new(key, OperatingMode::CTR, context)
     }
@@ -564,13 +623,19 @@ impl StreamingDecryptingKey {
     /// The resulting plaintext will be shorter than the ciphertext.
     ///
     /// # Errors
-    /// Returns an error on an internal failure.
+    /// Returns an error on an internal failure. With `legacy-des` enabled, also
+    /// returned if `key` was constructed with `DES_FOR_LEGACY_USE_ONLY`,
+    /// `DES_EDE_FOR_LEGACY_USE_ONLY` or `DES_EDE3_FOR_LEGACY_USE_ONLY` and the
+    /// provided key material contains weak or semi-weak DES subkeys, or (for
+    /// Triple DES) a degenerate subkey configuration (e.g. `K1 == K2` for 2TDEA,
+    /// or any pairwise equality for 3TDEA).
     pub fn cbc_pkcs7(
         key: UnboundCipherKey,
         context: DecryptionContext,
     ) -> Result<Self, Unspecified> {
         Self::new(key, OperatingMode::CBC, context)
     }
+
 
     /// Constructs a `StreamingDecryptingKey` for decrypting using the ECB cipher mode.
     /// The resulting plaintext will be the same length as the ciphertext.
@@ -580,7 +645,12 @@ impl StreamingDecryptingKey {
     /// very likely not what you want to use.
     ///
     /// # Errors
-    /// Returns an error on an internal failure.
+    /// Returns an error on an internal failure. With `legacy-des` enabled, also
+    /// returned if `key` was constructed with `DES_FOR_LEGACY_USE_ONLY`,
+    /// `DES_EDE_FOR_LEGACY_USE_ONLY` or `DES_EDE3_FOR_LEGACY_USE_ONLY` and the
+    /// provided key material contains weak or semi-weak DES subkeys, or (for
+    /// Triple DES) a degenerate subkey configuration (e.g. `K1 == K2` for 2TDEA,
+    /// or any pairwise equality for 3TDEA).
     pub fn ecb_pkcs7(
         key: UnboundCipherKey,
         context: DecryptionContext,
@@ -765,7 +835,7 @@ mod tests {
                 let min_out_len = input_len + ((block_len - (next_total % block_len)) % block_len);
                 if input_len % block_len == 0 && step % block_len == 0 {
                     // When input is provided one block at a time, no additional space should be needed.
-                    assert!(input_len == min_out_len);
+                    assert_eq!(input_len, min_out_len);
                 }
                 let out_end = out_idx + min_out_len;
                 let result = key
@@ -792,7 +862,7 @@ mod tests {
                 let min_out_len = input_len + ((block_len - (next_total % block_len)) % block_len);
                 if input_len % block_len == 0 && step % block_len == 0 {
                     // When input is provided one block at a time, no additional space should be needed.
-                    assert!(input_len == min_out_len);
+                    assert_eq!(input_len, min_out_len);
                 }
                 let out_end = out_idx + min_out_len;
                 let result = key
