@@ -1,17 +1,17 @@
 name: "http"
 description: "A set of types for representing HTTP requests and responses."
 third_party {
-  version: "1.4.0"
+  version: "1.4.1"
   license_type: NOTICE
   last_upgrade_date {
-    year: 2025
-    month: 11
-    day: 25
+    year: 2026
+    month: 5
+    day: 26
   }
   homepage: "https://crates.io/crates/http"
   identifier {
     type: "crates.io"
     value: "http"
-    version: "1.4.0"
+    version: "1.4.1"
   }
 }
