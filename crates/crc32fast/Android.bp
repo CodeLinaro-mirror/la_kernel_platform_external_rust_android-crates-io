@@ -53,6 +53,7 @@ rust_library {
     rustlibs: ["libcfg_if"],
     apex_available: [
         "//apex_available:platform",
+        "com.android.configinfrastructure",
         "com.android.virt",
     ],
     product_available: true,
