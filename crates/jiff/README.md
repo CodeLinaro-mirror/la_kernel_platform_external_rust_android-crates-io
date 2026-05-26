@@ -129,6 +129,15 @@ had optimization attention paid to them, but many still have not. It is a goal
 to improve where we can, but performance will generally come second to API
 comprehension and correctness.
 
+The submodules in Jiff, especially `jiff::fmt`, often work as an
+escape hatch for more complicated APIs that provide more control. For
+example, using the `std::fmt::Display` implementation of `Zoned` makes
+it difficult to write the data into a reusable buffer. Conversely,
+[`jiff::fmt::temporal::DateTimePrinter::print_zoned`] provides a way to write a
+`Zoned` into an existing `String` or even a `Vec<u8>`.
+
+[`jiff::fmt::temporal::DateTimePrinter::print_zoned`]: https://docs.rs/jiff/latest/jiff/fmt/temporal/struct.DateTimePrinter.html#method.print_zoned
+
 ### Platform support
 
 The question of platform support in the context of datetime libraries comes up
@@ -169,8 +178,7 @@ Jiff is very conservative. I consider there to be two primary use cases for
 adding new dependencies:
 
 1. When a dependency is _practically_ required in order to interact with a
-platform. For example, `windows-sys` for discovering the system time zone on
-Windows.
+platform.
 2. When a dependency is necessary for interoperability. For example, `serde`.
 But even here, I expect to be conservative, where I'm generally only willing
 to depend on things that have fewer breaking change releases than Jiff.
