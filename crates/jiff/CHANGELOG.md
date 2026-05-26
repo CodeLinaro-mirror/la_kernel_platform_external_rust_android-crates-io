@@ -1,5 +1,48 @@
 # CHANGELOG
 
+0.2.27 (2026-05-26)
+===================
+This is a small release with a bug fix for build errors on Windows for very old
+versions of Rust.
+
+Bug fixes:
+
+* [#566](https://github.com/BurntSushi/jiff/issues/566):
+Fix build error on Windows for very old versions of Rust (e.g., 1.71).
+
+
+0.2.26 (2026-05-25)
+===================
+This release has a couple enhancements.
+
+Firstly, Jiff now uses `windows-link` for calling FFI routines on Windows
+instead of `windows-sys`. Using `windows-link` means less churn and fewer
+duplicates in the dependency graph.
+
+Secondly, a new `jiff-sqlx 0.2.0` release has been put out to support
+`sqlx 0.9.0`.
+
+Enhancements:
+
+* [#538](https://github.com/BurntSushi/jiff/pull/538):
+Replace use of `windows-sys` with `windows-link` and inline bindings.
+* [#561](https://github.com/BurntSushi/jiff/pull/561):
+Update `jiff-sqlx` to use `sqlx 0.9.0` and release `jiff-sqlx 0.2.0`.
+
+Bug fixes:
+
+* [#548](https://github.com/BurntSushi/jiff/pull/548):
+Absolutetize incorrect relative size terms in the documentation of `RoundMode`.
+
+
+0.2.25 (2026-05-24)
+===================
+This release updates Jiff's bundled copy of the [IANA Time Zone Database]
+to `2026b`. See the [`2026b` release announcement] for more details.
+
+[`2026b` release announcement]: https://lists.iana.org//hyperkitty/list/tz-announce@iana.org/thread/VX2Z3CBO6KHTYZNBBKFFWM7ZCI6TVCXP/
+
+
 0.2.24 (2026-04-23)
 ===================
 This release primarily adds a new `memory_usage` routine for reporting
