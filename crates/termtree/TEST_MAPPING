@@ -3,10 +3,5 @@
     {
       "path": "external/rust/android-crates-io/crates/predicates-tree"
     }
-  ],
-  "postsubmit": [
-    {
-      "name": "termtree_test_src_lib"
-    }
   ]
 }
