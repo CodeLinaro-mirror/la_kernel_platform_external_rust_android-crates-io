@@ -2,6 +2,7 @@
   "apex_available": [
     "//apex_available:platform",
     "com.android.configinfrastructure",
+    "com.android.compos",
     "com.android.virt"
   ],
   "features": [
