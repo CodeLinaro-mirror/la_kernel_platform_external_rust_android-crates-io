@@ -135,6 +135,7 @@ dependencies = [
  "anes 0.2.1",
  "annotate-snippets",
  "anstyle",
+ "anstyle-parse 1.0.0",
  "anyhow",
  "arbitrary",
  "arc-swap",

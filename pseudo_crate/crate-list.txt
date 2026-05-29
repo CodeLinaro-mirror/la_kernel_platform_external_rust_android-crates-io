@@ -12,6 +12,7 @@ android_logger
 anes
 annotate-snippets
 anstyle
+anstyle-parse
 anyhow
 arbitrary
 arc-swap
