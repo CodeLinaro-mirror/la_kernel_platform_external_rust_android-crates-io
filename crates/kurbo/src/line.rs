@@ -8,9 +8,9 @@ use core::ops::{Add, Mul, Range, Sub};
 use arrayvec::ArrayVec;
 
 use crate::{
-    Affine, Nearest, ParamCurve, ParamCurveArclen, ParamCurveArea, ParamCurveCurvature,
-    ParamCurveDeriv, ParamCurveExtrema, ParamCurveNearest, PathEl, Point, Rect, Shape, Vec2,
-    DEFAULT_ACCURACY, MAX_EXTREMA,
+    Affine, DEFAULT_ACCURACY, MAX_EXTREMA, Nearest, ParamCurve, ParamCurveArclen, ParamCurveArea,
+    ParamCurveCurvature, ParamCurveDeriv, ParamCurveExtrema, ParamCurveNearest, PathEl, Point,
+    Rect, Shape, Vec2,
 };
 
 /// A single line.
@@ -38,7 +38,7 @@ impl Line {
     /// points in the opposite direction.
     #[must_use]
     #[inline(always)]
-    pub fn reversed(&self) -> Line {
+    pub const fn reversed(&self) -> Line {
         Self {
             p0: self.p1,
             p1: self.p0,
@@ -380,29 +380,35 @@ mod tests {
 
     #[test]
     fn line_is_finite() {
-        assert!((Line {
-            p0: Point { x: 0., y: 0. },
-            p1: Point { x: 1., y: 1. }
-        })
-        .is_finite());
+        assert!(
+            (Line {
+                p0: Point { x: 0., y: 0. },
+                p1: Point { x: 1., y: 1. }
+            })
+            .is_finite()
+        );
 
-        assert!(!(Line {
-            p0: Point { x: 0., y: 0. },
-            p1: Point {
-                x: f64::INFINITY,
-                y: 1.
-            }
-        })
-        .is_finite());
+        assert!(
+            !(Line {
+                p0: Point { x: 0., y: 0. },
+                p1: Point {
+                    x: f64::INFINITY,
+                    y: 1.
+                }
+            })
+            .is_finite()
+        );
 
-        assert!(!(Line {
-            p0: Point { x: 0., y: 0. },
-            p1: Point {
-                x: 0.,
-                y: f64::INFINITY
-            }
-        })
-        .is_finite());
+        assert!(
+            !(Line {
+                p0: Point { x: 0., y: 0. },
+                p1: Point {
+                    x: 0.,
+                    y: f64::INFINITY
+                }
+            })
+            .is_finite()
+        );
     }
 
     #[test]
