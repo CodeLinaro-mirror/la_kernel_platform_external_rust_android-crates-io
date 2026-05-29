@@ -502,6 +502,7 @@ dependencies = [
  "plotters-svg",
  "png 0.18.1",
  "poll_token_derive",
+ "polycool",
  "portable-atomic",
  "potential_utf",
  "ppv-lite86",
@@ -6835,6 +6836,15 @@ dependencies = [
  "proc-macro2 0.4.30",
  "quote 0.6.13",
  "syn 0.15.44",
+]
+
+[[package]]
+name = "polycool"
+version = "0.4.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "50596ddc09eb5ad5f75cacd40209568e66df71baf86e1499a0e99c4cff12a5a6"
+dependencies = [
+ "arrayvec",
 ]
 
 [[package]]

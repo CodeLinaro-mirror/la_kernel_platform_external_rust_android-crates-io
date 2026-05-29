@@ -398,6 +398,7 @@ plotters-backend
 plotters-svg
 png
 poll_token_derive
+polycool
 portable-atomic
 potential_utf
 ppv-lite86
