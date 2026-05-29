@@ -153,6 +153,7 @@ env_logger
 epoll
 equivalent
 errno
+escape8259
 etcetera
 etherparse
 euclid
