@@ -12,7 +12,7 @@
 [package]
 edition = "2024"
 name = "arm-gic"
-version = "0.7.2"
+version = "0.8.1"
 authors = [
     "Andrew Walbran <qwandor@google.com>",
     "Fritz Stracke <fritz.stracke@rwth-aachen.de>",
@@ -42,24 +42,45 @@ repository = "https://git.trustedfirmware.org/arm-firmware-crates/arm-gic.git"
 
 [package.metadata.docs.rs]
 default-target = "aarch64-unknown-none"
+features = [
+    "el2",
+    "el3",
+]
+rustdoc-args = [
+    "--cfg",
+    "docsrs",
+]
 
 [features]
-fakes = []
+el2 = ["arm-sysregs/el2"]
+el3 = [
+    "el2",
+    "arm-sysregs/el3",
+]
+fakes = ["arm-sysregs/fakes"]
 
 [lib]
 name = "arm_gic"
 path = "src/lib.rs"
 
+[dependencies.arm-sysregs]
+version = "0.2.6"
+features = ["el1"]
+
 [dependencies.bitflags]
-version = "2.10.0"
+version = "2.11.0"
 
 [dependencies.safe-mmio]
-version = "0.2.7"
+version = "0.3.0"
 
 [dependencies.thiserror]
 version = "2.0.18"
 default-features = false
 
 [dependencies.zerocopy]
-version = "0.8.38"
+version = "0.8.42"
 features = ["derive"]
+
+[dev-dependencies.arm-sysregs]
+version = "0.2.6"
+features = ["fakes"]

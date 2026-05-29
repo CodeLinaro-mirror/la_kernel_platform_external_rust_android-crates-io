@@ -2,15 +2,16 @@
 // SPDX-License-Identifier: MIT OR Apache-2.0
 
 use crate::{
-    IntId, Trigger,
+    IntId, Trigger, clear_bit,
     gicv3::{
-        GicError, Group, HIGHEST_NS_PRIORITY, SecureIntGroup, clear_bit, register_count,
+        GicError, Group, HIGHEST_NS_PRIORITY, SecureIntGroup, register_count,
         registers::{Gicd, GicdCtlr, Typer},
-        set_bit, set_regs,
+        set_regs,
     },
+    set_bit,
 };
 use core::{hint::spin_loop, ops::Range};
-use safe_mmio::{UniqueMmioPointer, field, field_shared};
+use safe_mmio::{UniqueMmioPointer, field, field_shared, fields::ReadPureWrite};
 use zerocopy::{transmute_mut, transmute_ref};
 
 /// Selects regular or extended registers based on in the `IntId`.
@@ -318,20 +319,56 @@ impl<'a> GicDistributor<'a> {
         );
 
         // Setup the default (E)SPI priorities.
-        set_regs(
-            field!(self.regs, ipriorityr),
-            SPI_START,
-            spi_count,
-            Gicd::IPRIORITY_BITS,
+
+        // For performance reasons this array of registers is initialized as words, so four
+        // priority values can be set in one iteration.
+        let ipriority_word_value = u32::from_le_bytes([
             HIGHEST_NS_PRIORITY,
-        );
+            HIGHEST_NS_PRIORITY,
+            HIGHEST_NS_PRIORITY,
+            HIGHEST_NS_PRIORITY,
+        ]);
+
+        let mut ipriorityr_bytes = field!(self.regs, ipriorityr);
+
+        // Safety: ipriorityr_bytes is a valid pointer to the ipriority register array. Section
+        // 12.1.3 GIC memory-mapped register access of the GIC specificition describes that
+        // GICD_IPRIORITYR supports both 8-bit and 32-bit accesses.
+        let ipriority_words = unsafe {
+            UniqueMmioPointer::new(
+                ipriorityr_bytes
+                    .ptr_nonnull()
+                    .cast::<[ReadPureWrite<u32>; 1024 / 4]>(),
+            )
+        };
 
         set_regs(
-            field!(self.regs, ipriorityr_e),
+            ipriority_words,
+            SPI_START / 4,
+            spi_count / 4,
+            Gicd::IPRIORITY_BITS * 4,
+            ipriority_word_value,
+        );
+
+        let mut ipriorityr_e_bytes = field!(self.regs, ipriorityr_e);
+
+        // Safety: ipriorityr_bytes is a valid pointer to the ipriority register array. Section
+        // 12.1.3 GIC memory-mapped register access of the GIC specificition describes that
+        // GICD_IPRIORITYR supports both 8-bit and 32-bit accesses.
+        let ipriority_e_words = unsafe {
+            UniqueMmioPointer::new(
+                ipriorityr_e_bytes
+                    .ptr_nonnull()
+                    .cast::<[ReadPureWrite<u32>; 1024 / 4]>(),
+            )
+        };
+
+        set_regs(
+            ipriority_e_words,
             0,
-            espi_count,
-            Gicd::IPRIORITY_BITS,
-            HIGHEST_NS_PRIORITY,
+            espi_count / 4,
+            Gicd::IPRIORITY_BITS * 4,
+            ipriority_word_value,
         );
 
         // Treat all (E)SPIs as level triggered by default.
@@ -386,9 +423,7 @@ impl<'a> GicDistributor<'a> {
 
     /// Sets or clear bits in the control register.
     pub fn modify_control(&mut self, bits: GicdCtlr, enable: bool) {
-        let mut gicd_ctlr = field_shared!(self.regs, ctlr).read();
-        gicd_ctlr.set(bits, enable);
-        field!(self.regs, ctlr).write(gicd_ctlr);
+        field!(self.regs, ctlr).modify_mut(|v| v.set(bits, enable));
 
         self.wait_for_pending_write();
     }
@@ -411,8 +446,8 @@ impl<'a> GicDistributor<'a> {
         let bit_index = index * Gicd::ICFGR_BITS + 1;
 
         match trigger {
-            Trigger::Edge => set_bit(registers.into(), bit_index),
-            Trigger::Level => clear_bit(registers.into(), bit_index),
+            Trigger::Edge => set_bit(registers, bit_index),
+            Trigger::Level => clear_bit(registers, bit_index),
         };
 
         Ok(())
@@ -450,19 +485,19 @@ impl<'a> GicDistributor<'a> {
     pub fn set_group(&mut self, intid: IntId, group: Group) -> Result<(), GicError> {
         if let Group::Secure(sg) = group {
             let (igroupr, index) = select_regs!(self.regs, igroupr, igroupr_e, intid)?;
-            clear_bit(igroupr.into(), index);
+            clear_bit(igroupr, index);
 
             let (igrpmodr, index) = select_regs!(self.regs, igrpmodr, igrpmodr_e, intid)?;
             match sg {
-                SecureIntGroup::Group1S => set_bit(igrpmodr.into(), index),
-                SecureIntGroup::Group0 => clear_bit(igrpmodr.into(), index),
+                SecureIntGroup::Group1S => set_bit(igrpmodr, index),
+                SecureIntGroup::Group0 => clear_bit(igrpmodr, index),
             }
         } else {
             let (igroupr, index) = select_regs!(self.regs, igroupr, igroupr_e, intid)?;
-            set_bit(igroupr.into(), index);
+            set_bit(igroupr, index);
 
             let (igrpmodr, index) = select_regs!(self.regs, igrpmodr, igrpmodr_e, intid)?;
-            clear_bit(igrpmodr.into(), index);
+            clear_bit(igrpmodr, index);
         }
 
         Ok(())
@@ -472,10 +507,10 @@ impl<'a> GicDistributor<'a> {
     pub fn enable_interrupt(&mut self, intid: IntId, enable: bool) -> Result<(), GicError> {
         if enable {
             let (registers, index) = select_regs!(self.regs, isenabler, isenabler_e, intid)?;
-            set_bit(registers.into(), index);
+            set_bit(registers, index);
         } else {
             let (registers, index) = select_regs!(self.regs, icenabler, icenabler_e, intid)?;
-            set_bit(registers.into(), index);
+            set_bit(registers, index);
         }
 
         Ok(())
