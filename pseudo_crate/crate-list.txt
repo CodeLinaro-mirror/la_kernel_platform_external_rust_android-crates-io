@@ -266,6 +266,7 @@ ipp
 ippusb
 iri-string
 is-terminal
+is_terminal_polyfill
 itertools
 itoa
 jiff
