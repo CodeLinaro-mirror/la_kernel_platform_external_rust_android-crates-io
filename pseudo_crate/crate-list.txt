@@ -13,6 +13,7 @@ anes
 annotate-snippets
 anstyle
 anstyle-parse
+anstyle-query
 anyhow
 arbitrary
 arc-swap
