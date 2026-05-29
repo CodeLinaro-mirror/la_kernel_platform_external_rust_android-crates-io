@@ -11,6 +11,7 @@ android_log-sys
 android_logger
 anes
 annotate-snippets
+anstream
 anstyle
 anstyle-parse
 anstyle-query
