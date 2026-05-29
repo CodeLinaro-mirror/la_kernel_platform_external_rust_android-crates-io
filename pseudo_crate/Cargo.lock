@@ -5437,13 +5437,14 @@ dependencies = [
 
 [[package]]
 name = "libtest-mimic"
-version = "0.6.1"
+version = "0.8.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6d8de370f98a6cb8a4606618e53e802f93b094ddec0f96988eaec2c27e6e9ce7"
+checksum = "14e6ba06f0ade6e504aff834d7c34298e5155c6baca353cc6a4aaff2f9fd7f33"
 dependencies = [
+ "anstream 1.0.0",
+ "anstyle",
  "clap 4.6.1",
- "termcolor",
- "threadpool",
+ "escape8259",
 ]
 
 [[package]]
