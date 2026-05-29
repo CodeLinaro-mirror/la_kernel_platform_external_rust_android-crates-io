@@ -597,6 +597,7 @@ userfaultfd
 userfaultfd-sys
 utf-8
 utf8_iter
+utf8parse
 uuid
 vhost
 vhost-device-vsock
