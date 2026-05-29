@@ -26,6 +26,7 @@ arm-ffa
 arm-gic
 arm-pl011-uart
 arm-psci
+arm-sysregs
 array-init
 arrayvec
 ash
