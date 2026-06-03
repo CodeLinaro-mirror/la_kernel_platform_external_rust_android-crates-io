@@ -11,7 +11,10 @@ android_log-sys
 android_logger
 anes
 annotate-snippets
+anstream
 anstyle
+anstyle-parse
+anstyle-query
 anyhow
 arbitrary
 arc-swap
@@ -85,6 +88,7 @@ clap_complete
 clap_derive
 clap_lex
 codespan-reporting
+colorchoice
 combine
 command-fds
 config
@@ -153,6 +157,7 @@ env_logger
 epoll
 equivalent
 errno
+escape8259
 etcetera
 etherparse
 euclid
@@ -263,6 +268,7 @@ ipp
 ippusb
 iri-string
 is-terminal
+is_terminal_polyfill
 itertools
 itoa
 jiff
@@ -597,6 +603,7 @@ userfaultfd
 userfaultfd-sys
 utf-8
 utf8_iter
+utf8parse
 uuid
 vhost
 vhost-device-vsock
