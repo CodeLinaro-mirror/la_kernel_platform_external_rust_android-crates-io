@@ -65,19 +65,26 @@
 //!   `libtest` uses internal `std` functions to temporarily redirect output.
 //!   `libtest-mimic` cannot use those. See [this issue][capture] for more
 //!   information.
-//! - `--format=json|junit`
+//! - `--format=junit`
+//! - Also see [#13](https://github.com/LukasKalbertodt/libtest-mimic/issues/13)
 //!
 //! [capture]: https://github.com/LukasKalbertodt/libtest-mimic/issues/9
 
 #![forbid(unsafe_code)]
 
-use std::{process, sync::mpsc, fmt, time::Instant};
+use std::{
+    borrow::Cow,
+    fmt,
+    process::{self, ExitCode},
+    sync::{mpsc, Mutex},
+    thread,
+    time::Instant,
+};
 
 mod args;
 mod printer;
 
 use printer::Printer;
-use threadpool::ThreadPool;
 
 pub use crate::args::{Arguments, ColorSetting, FormatSetting};
 
@@ -99,6 +106,27 @@ pub struct Trial {
     info: TestInfo,
 }
 
+/// A representation of whether a test ran to completion or was ignored during its runtime.
+pub enum Completion {
+    /// Test completed successfully.
+    Completed,
+
+    /// Test was ignored.
+    Ignored { reason: Option<String> },
+}
+
+impl Completion {
+    /// Returns `Self::Ignored` without reason.
+    pub fn ignored() -> Self {
+        Self::Ignored { reason: None }
+    }
+
+    /// Returns `Self::Ignored` with the given reason.
+    pub fn ignored_with(reason: impl ToString) -> Self {
+        Self::Ignored { reason: Some(reason.to_string()) }
+    }
+}
+
 impl Trial {
     /// Creates a (non-benchmark) test with the given name and runner.
     ///
@@ -108,10 +136,24 @@ impl Trial {
     where
         R: FnOnce() -> Result<(), Failed> + Send + 'static,
     {
+        Self::ignorable_test(name, || runner().map(|()| Completion::Completed))
+    }
+
+    /// Creates a test like [`Self::test`], but with a runner that can decide to
+    /// ignore the test.
+    ///
+    /// Like other tests, returning an `Err` is a test failure. The `Ok` variant for this test must
+    /// return a [`Completion`] to indicate whether the test successfully ran to completion, or if
+    /// it was ignored at some point during testing. If it was skipped, a reason may be provided.
+    pub fn ignorable_test<R>(name: impl Into<String>, runner: R) -> Self
+    where
+        R: FnOnce() -> Result<Completion, Failed> + Send + 'static,
+    {
         Self {
-            runner: Box::new(move |_test_mode| match runner() {
-                Ok(()) => Outcome::Passed,
-                Err(failed) => Outcome::Failed(failed),
+            runner: Box::new(|_test_mode| match runner() {
+                Ok(Completion::Completed) => Outcome::Passed,
+                Ok(Completion::Ignored { reason }) => Outcome::RuntimeIgnored { reason },
+                Err(e) => Outcome::Failed(e),
             }),
             info: TestInfo {
                 name: name.into(),
@@ -240,6 +282,16 @@ struct TestInfo {
     is_bench: bool,
 }
 
+impl TestInfo {
+    fn test_name_with_kind(&self) -> Cow<'_, str> {
+        if self.kind.is_empty() {
+            Cow::Borrowed(&self.name)
+        } else {
+            Cow::Owned(format!("[{}] {}", self.kind, self.name))
+        }
+    }
+}
+
 /// Output of a benchmark.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct Measurement {
@@ -293,6 +345,9 @@ enum Outcome {
     /// The test or benchmark was ignored.
     Ignored,
 
+    /// The test or benchmark was ignored.
+    RuntimeIgnored { reason: Option<String> },
+
     /// The benchmark was successfully run.
     Measured(Measurement),
 }
@@ -324,24 +379,38 @@ pub struct Conclusion {
 }
 
 impl Conclusion {
-    /// Exits the application with an appropriate error code (0 if all tests
-    /// have passed, 101 if there have been failures).
-    pub fn exit(&self) -> ! {
-        self.exit_if_failed();
-        process::exit(0);
-    }
-
-    /// Exits the application with error code 101 if there were any failures.
-    /// Otherwise, returns normally.
-    pub fn exit_if_failed(&self) {
+    /// Returns an exit code that can be returned from `main` to signal
+    /// success/failure to the calling process.
+    pub fn exit_code(&self) -> ExitCode {
         if self.has_failed() {
-            process::exit(101)
+            ExitCode::from(101)
+        } else {
+            ExitCode::SUCCESS
         }
     }
 
     /// Returns whether there have been any failures.
     pub fn has_failed(&self) -> bool {
         self.num_failed > 0
+    }
+
+    /// Exits the application with an appropriate error code (0 if all tests
+    /// have passed, 101 if there have been failures). This uses
+    /// [`process::exit`], meaning that destructors are not ran. Consider
+    /// using [`Self::exit_code`] instead for a proper program cleanup.
+    pub fn exit(&self) -> ! {
+        self.exit_if_failed();
+        process::exit(0);
+    }
+
+    /// Exits the application with error code 101 if there were any failures.
+    /// Otherwise, returns normally. This uses [`process::exit`], meaning that
+    /// destructors are not ran. Consider using [`Self::exit_code`] instead for
+    /// a proper program cleanup.
+    pub fn exit_if_failed(&self) {
+        if self.has_failed() {
+            process::exit(101)
+        }
     }
 
     fn empty() -> Self {
@@ -356,21 +425,35 @@ impl Conclusion {
 }
 
 impl Arguments {
-    /// Returns `true` if the given test should be ignored.
-    fn is_ignored(&self, test: &Trial) -> bool {
+    /// Returns `true` if the given trial should be ignored by these arguments.
+    ///
+    /// Ignored tests are not run, but still listed in the outcome.
+    pub fn is_ignored(&self, test: &Trial) -> bool {
         (test.info.is_ignored && !self.ignored && !self.include_ignored)
             || (test.info.is_bench && self.test)
             || (!test.info.is_bench && self.bench)
     }
 
-    fn is_filtered_out(&self, test: &Trial) -> bool {
-        let test_name = &test.info.name;
+    /// Returns `true` if the given trial should be filtered out by these
+    /// arguments.
+    pub fn is_filtered_out(&self, test: &Trial) -> bool {
+        let test_name = test.name();
+        // Match against the full test name, including the kind. This upholds the invariant that if
+        // --list prints out:
+        //
+        // <some string>: test
+        //
+        // then "--exact <some string>" runs exactly that test.
+        let test_name_with_kind = test.info.test_name_with_kind();
 
         // If a filter was specified, apply this
         if let Some(filter) = &self.filter {
             match self.exact {
-                true if test_name != filter => return true,
-                false if !test_name.contains(filter) => return true,
+                // For exact matches, we want to match against either the test name (to maintain
+                // backwards compatibility with older versions of libtest-mimic), or the test kind
+                // (technically more correct with respect to matching against the output of --list.)
+                true if test_name != filter && &test_name_with_kind != filter => return true,
+                false if !test_name_with_kind.contains(filter) => return true,
                 _ => {}
             };
         }
@@ -378,8 +461,13 @@ impl Arguments {
         // If any skip pattern were specified, test for all patterns.
         for skip_filter in &self.skip {
             match self.exact {
-                true if test_name == skip_filter => return true,
-                false if test_name.contains(skip_filter) => return true,
+                // For exact matches, we want to match against either the test name (to maintain
+                // backwards compatibility with older versions of libtest-mimic), or the test kind
+                // (technically more correct with respect to matching against the output of --list.)
+                true if test_name == skip_filter || &test_name_with_kind == skip_filter => {
+                    return true
+                }
+                false if test_name_with_kind.contains(skip_filter) => return true,
                 _ => {}
             }
         }
@@ -426,7 +514,7 @@ pub fn run(args: &Arguments, mut tests: Vec<Trial>) -> Conclusion {
 
     let mut failed_tests = Vec::new();
     let mut handle_outcome = |outcome: Outcome, test: TestInfo, printer: &mut Printer| {
-        printer.print_single_outcome(&outcome);
+        printer.print_single_outcome(&test, &outcome);
 
         // Handle outcome
         match outcome {
@@ -434,15 +522,23 @@ pub fn run(args: &Arguments, mut tests: Vec<Trial>) -> Conclusion {
             Outcome::Failed(failed) => {
                 failed_tests.push((test, failed.msg));
                 conclusion.num_failed += 1;
-            },
+            }
             Outcome::Ignored => conclusion.num_ignored += 1,
             Outcome::Measured(_) => conclusion.num_measured += 1,
+            Outcome::RuntimeIgnored { .. } => conclusion.num_ignored += 1,
         }
     };
 
     // Execute all tests.
     let test_mode = !args.bench;
-    if args.test_threads == Some(1) {
+
+    let num_threads = platform_defaults_to_one_thread()
+        .then_some(1)
+        .or(args.test_threads)
+        .or_else(|| std::thread::available_parallelism().ok().map(Into::into))
+        .unwrap_or(1);
+
+    if num_threads == 1 {
         // Run test sequentially in main thread
         for test in tests {
             // Print `test foo    ...`, run the test, then print the outcome in
@@ -457,35 +553,46 @@ pub fn run(args: &Arguments, mut tests: Vec<Trial>) -> Conclusion {
         }
     } else {
         // Run test in thread pool.
-        let pool = match args.test_threads {
-            Some(num_threads) => ThreadPool::new(num_threads),
-            None => ThreadPool::default()
-        };
         let (sender, receiver) = mpsc::channel();
 
         let num_tests = tests.len();
-        for test in tests {
-            if args.is_ignored(&test) {
-                sender.send((Outcome::Ignored, test.info)).unwrap();
-            } else {
-                let sender = sender.clone();
-                pool.execute(move || {
-                    // It's fine to ignore the result of sending. If the
-                    // receiver has hung up, everything will wind down soon
-                    // anyway.
-                    let outcome = run_single(test.runner, test_mode);
-                    let _ = sender.send((outcome, test.info));
+        // TODO: this should use a mpmc channel, once that's stabilized in std.
+        let iter = Mutex::new(tests.into_iter());
+        thread::scope(|scope| {
+            // Start worker threads
+            for _ in 0..num_threads {
+                scope.spawn(|| {
+                    loop {
+                        // Get next test to process from the iterator.
+                        let Some(trial) = iter.lock().unwrap().next() else {
+                            break;
+                        };
+
+                        let payload = if args.is_ignored(&trial) {
+                            (Outcome::Ignored, trial.info)
+                        } else {
+                            let outcome = run_single(trial.runner, test_mode);
+                            (outcome, trial.info)
+                        };
+
+                        // It's fine to ignore the result of sending. If the
+                        // receiver has hung up, everything will wind down soon
+                        // anyway.
+                        let _ = sender.send(payload);
+                    }
                 });
             }
-        }
 
-        for (outcome, test_info) in receiver.iter().take(num_tests) {
-            // In multithreaded mode, we do only print the start of the line
-            // after the test ran, as otherwise it would lead to terribly
-            // interleaved output.
-            printer.print_test(&test_info);
-            handle_outcome(outcome, test_info, &mut printer);
-        }
+            // Print results of tests that already dinished
+            for (outcome, test_info) in receiver.iter().take(num_tests) {
+                // In multithreaded mode, we do only print the start of the line
+                // after the test ran, as otherwise it would lead to terribly
+                // interleaved output.
+                printer.print_test(&test_info);
+                handle_outcome(outcome, test_info, &mut printer);
+            }
+        });
+
     }
 
     // Print failures if there were any, and the final summary.
@@ -496,6 +603,13 @@ pub fn run(args: &Arguments, mut tests: Vec<Trial>) -> Conclusion {
     printer.print_summary(&conclusion, start_instant.elapsed());
 
     conclusion
+}
+
+/// Returns whether the current host platform should use a single thread by
+/// default rather than a thread pool by default. Some platforms, such as
+/// WebAssembly, don't have native support for threading at this time.
+fn platform_defaults_to_one_thread() -> bool {
+    cfg!(target_family = "wasm")
 }
 
 /// Runs the given runner, catching any panics and treating them as a failed test.

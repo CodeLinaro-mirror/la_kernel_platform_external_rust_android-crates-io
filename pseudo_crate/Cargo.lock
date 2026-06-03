@@ -134,7 +134,10 @@ dependencies = [
  "android_logger 0.15.1",
  "anes 0.2.1",
  "annotate-snippets",
+ "anstream 1.0.0",
  "anstyle",
+ "anstyle-parse 1.0.0",
+ "anstyle-query",
  "anyhow",
  "arbitrary",
  "arc-swap",
@@ -205,6 +208,7 @@ dependencies = [
  "clap_derive",
  "clap_lex",
  "codespan-reporting",
+ "colorchoice",
  "combine",
  "command-fds",
  "config",
@@ -272,6 +276,7 @@ dependencies = [
  "epoll",
  "equivalent",
  "errno",
+ "escape8259",
  "etcetera",
  "etherparse",
  "euclid",
@@ -378,6 +383,7 @@ dependencies = [
  "ippusb",
  "iri-string",
  "is-terminal",
+ "is_terminal_polyfill",
  "itertools 0.14.0",
  "itoa",
  "jiff",
@@ -693,6 +699,7 @@ dependencies = [
  "url",
  "utf-8",
  "utf8_iter",
+ "utf8parse",
  "uuid",
  "vhost",
  "vhost-device-vsock",
@@ -881,11 +888,11 @@ dependencies = [
 
 [[package]]
 name = "anstyle-query"
-version = "1.1.1"
+version = "1.1.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6d36fc52c7f6c869915e99412912f22093507da8d9e942ceaf66fe4b7c14422a"
+checksum = "40c48f72fd53cd289104fc64099abca73db4166ad86ea0b4341abe65af83dadc"
 dependencies = [
- "windows-sys 0.52.0",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]
@@ -1933,9 +1940,9 @@ checksum = "3d7b894f5411737b7867f4827955924d7c254fc9f4d91a6aad6b097804b1018b"
 
 [[package]]
 name = "colorchoice"
-version = "1.0.2"
+version = "1.0.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d3fd119d74b830634cea2a0f58bbd0d54540518a14397557951e79340abc28c0"
+checksum = "1d07550c9036bf2ae0c684c4297d503f838287c83c53686d05370d0e139ae570"
 
 [[package]]
 name = "colored"
@@ -3168,6 +3175,12 @@ dependencies = [
  "libc 0.2.186",
  "windows-sys 0.61.2",
 ]
+
+[[package]]
+name = "escape8259"
+version = "0.5.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "5692dd7b5a1978a5aeb0ce83b7655c58ca8efdcb79d21036ea249da95afec2c6"
 
 [[package]]
 name = "etcetera"
@@ -5054,9 +5067,9 @@ dependencies = [
 
 [[package]]
 name = "is_terminal_polyfill"
-version = "1.70.1"
+version = "1.70.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7943c866cc5cd64cbc25b2e01621d07fa8eb2a1a23160ee81ce38704e97b8ecf"
+checksum = "a6cb138bb79a146c1bd460005623e142ef0181e3d0219cb493e02f7d08a35695"
 
 [[package]]
 name = "itertools"
@@ -5426,13 +5439,14 @@ dependencies = [
 
 [[package]]
 name = "libtest-mimic"
-version = "0.6.1"
+version = "0.8.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6d8de370f98a6cb8a4606618e53e802f93b094ddec0f96988eaec2c27e6e9ce7"
+checksum = "14e6ba06f0ade6e504aff834d7c34298e5155c6baca353cc6a4aaff2f9fd7f33"
 dependencies = [
+ "anstream 1.0.0",
+ "anstyle",
  "clap 4.6.1",
- "termcolor",
- "threadpool",
+ "escape8259",
 ]
 
 [[package]]
