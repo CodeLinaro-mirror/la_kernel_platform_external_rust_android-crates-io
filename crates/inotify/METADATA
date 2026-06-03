@@ -1,17 +1,17 @@
 name: "inotify"
 description: "Idiomatic wrapper for inotify"
 third_party {
-  version: "0.11.1"
+  version: "0.11.2"
   license_type: NOTICE
   last_upgrade_date {
     year: 2026
-    month: 3
-    day: 9
+    month: 6
+    day: 3
   }
   homepage: "https://crates.io/crates/inotify"
   identifier {
     type: "crates.io"
     value: "inotify"
-    version: "0.11.1"
+    version: "0.11.2"
   }
 }
