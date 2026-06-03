@@ -12,7 +12,7 @@
 [package]
 edition = "2024"
 name = "smccc"
-version = "0.2.2"
+version = "0.2.3"
 authors = ["Andrew Walbran <qwandor@google.com>"]
 build = false
 autolib = false
@@ -45,5 +45,5 @@ name = "smccc"
 path = "src/lib.rs"
 
 [dependencies.thiserror]
-version = "2.0.12"
+version = "2.0.18"
 default-features = false
