@@ -42,6 +42,7 @@ atomic-waker
 atty
 autocfg
 automotive_diag
+awaitable-error
 aws-lc-rs
 axum
 axum-core
