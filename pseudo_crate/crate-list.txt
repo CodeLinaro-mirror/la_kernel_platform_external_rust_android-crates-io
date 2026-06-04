@@ -511,6 +511,7 @@ spdx
 spidev
 spin
 spki
+ssh_format_error
 stable_deref_trait
 static_assertions
 strck
