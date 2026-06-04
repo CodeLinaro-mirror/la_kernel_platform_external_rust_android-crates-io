@@ -540,6 +540,7 @@ termcolor
 termtree
 textdistance
 textwrap
+thin-vec
 thiserror
 thiserror-impl
 thread-priority
