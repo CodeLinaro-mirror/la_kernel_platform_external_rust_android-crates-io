@@ -311,6 +311,7 @@ linkme-impl
 linux-aio-tokio
 litemap
 litrs
+little_exif
 lock_api
 log
 lru-cache
