@@ -434,6 +434,7 @@ ptr_meta
 ptr_meta_derive
 pxfm
 quiche
+quick-xml
 quickcheck
 quote
 radium
