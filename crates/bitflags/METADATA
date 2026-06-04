@@ -1,17 +1,17 @@
 name: "bitflags"
 description: "A macro to generate structures which behave like bitflags."
 third_party {
-  version: "2.11.1"
+  version: "2.12.1"
   license_type: NOTICE
   last_upgrade_date {
     year: 2026
-    month: 5
-    day: 1
+    month: 6
+    day: 3
   }
   homepage: "https://crates.io/crates/bitflags"
   identifier {
     type: "crates.io"
     value: "bitflags"
-    version: "2.11.1"
+    version: "2.12.1"
   }
 }
