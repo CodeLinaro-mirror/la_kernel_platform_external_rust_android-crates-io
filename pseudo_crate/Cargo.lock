@@ -149,6 +149,7 @@ dependencies = [
  "arm-gic",
  "arm-pl011-uart",
  "arm-psci",
+ "arm-sysregs",
  "array-init",
  "arrayvec",
  "ash",
@@ -1028,6 +1029,17 @@ dependencies = [
  "bitflags 2.12.1",
  "num_enum",
  "thiserror 2.0.18",
+]
+
+[[package]]
+name = "arm-sysregs"
+version = "0.2.9"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "27f98a99c7c6da5d54aa4d6e54504956aade8cdb0de9cd9a2363eb66b1d659a9"
+dependencies = [
+ "bitflags 2.11.1",
+ "num_enum",
+ "paste",
 ]
 
 [[package]]
