@@ -568,7 +568,7 @@ dependencies = [
  "rustls-webpki",
  "rustversion",
  "ryu",
- "safe-mmio 0.3.0",
+ "safe-mmio",
  "same-file",
  "scopeguard",
  "sec1",
@@ -996,12 +996,13 @@ dependencies = [
 
 [[package]]
 name = "arm-gic"
-version = "0.7.2"
+version = "0.8.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c044ecf8760dd8ee5aa92c49cf7534942d289fb1f0247af92b5fbab8ab18a912"
+checksum = "84372c6068152f635a04870779f0fa0d1b0273dd09dbe1c6747688693d061f06"
 dependencies = [
+ "arm-sysregs",
  "bitflags 2.12.1",
- "safe-mmio 0.2.7",
+ "safe-mmio",
  "thiserror 2.0.18",
  "zerocopy",
 ]
@@ -1015,7 +1016,7 @@ dependencies = [
  "bitflags 2.12.1",
  "embedded-hal-nb",
  "embedded-io 0.7.1",
- "safe-mmio 0.3.0",
+ "safe-mmio",
  "thiserror 2.0.18",
  "zerocopy",
 ]
@@ -1037,7 +1038,7 @@ version = "0.2.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "27f98a99c7c6da5d54aa4d6e54504956aade8cdb0de9cd9a2363eb66b1d659a9"
 dependencies = [
- "bitflags 2.11.1",
+ "bitflags 2.12.1",
  "num_enum",
  "paste",
 ]
@@ -4957,7 +4958,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "533e68a5842e734946fe159fb03fc9bbbb254f590dd0d8ad321ae5ff7beca2c1"
 dependencies = [
  "bitflags 2.12.1",
- "futures-core",
  "futures-util",
  "inotify-sys",
  "libc 0.2.186",
@@ -7930,15 +7930,6 @@ checksum = "9774ba4a74de5f7b1c1451ed6cd5285a32eddb5cccb8cc655a4e50009e06477f"
 
 [[package]]
 name = "safe-mmio"
-version = "0.2.7"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a0a69f884a1511aa811aa94e04559414a66b18ca63f50f84ca31e304f38bad0d"
-dependencies = [
- "zerocopy",
-]
-
-[[package]]
-name = "safe-mmio"
 version = "0.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "4813ee49326057f105d6d8ca3d8f9265095f26aa7b42094e487028403a594f4c"
@@ -9928,7 +9919,7 @@ dependencies = [
  "embedded-io 0.7.1",
  "enumn",
  "log",
- "safe-mmio 0.3.0",
+ "safe-mmio",
  "thiserror 2.0.18",
  "zerocopy",
 ]

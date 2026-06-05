@@ -1,5 +1,40 @@
 # Changelog
 
+## 0.8.1
+
+### Improvements
+
+- Fixed doc build on docs.rs.
+
+## 0.8.0
+
+### Breaking changes
+
+- `InterruptGroup` has been moved from `gicv3` module to crate root
+- Added `InterruptGroup` argument to `GicV2::get_and_acknowledge_interrupt` and `GicV2::end_interrupt` methods
+- Added methods for configuring groups:
+  - `GicV2::enable_group0`
+  - `GicV2::enable_group1`
+  - `GicV2::set_group` for changing a single interrupt's group
+- Removed parameter from `GicCpuInterface::enable_system_register_el1`. Calling this function will
+  always enable system register access. Disabling system register access has unpredictable results
+  so is not supported. Removed the `enable` parameter from
+  `GicCpuInterface::enable_system_register_el2` and `GicCpuInterface::enable_system_register_el3`
+  for the same reason.
+- Added `el2` and `el3` features. Methods on `GicCpuInterface` which only work in EL2 or EL3 are
+  guarded by these features.
+
+### Improvements
+
+- Improved Distributor and Redistributor `configure_default_settings()` performance.
+- Added example use of `GicV2` with QEMU's `virt` machine under `examples/`.
+- Made `IntId` `repr(transparent)` for easier use with FFI.
+- Implemented `TryFrom<u32>` for `IntId`.
+- Added `raw_value` method to `IntId`.
+- Derive zerocopy `FromZeros`, `Immutable`, `IntoBytes` and `KnownLayout` for `IntId`.
+- Added `IntId::MAX_LPI_COUNT`. `IntId::lpi` will now panic if given an LPI number greater than
+  this.
+
 ## 0.7.2
 
 ### Bugfixes

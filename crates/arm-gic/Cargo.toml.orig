@@ -1,6 +1,6 @@
 [package]
 name = "arm-gic"
-version = "0.7.2"
+version = "0.8.1"
 edition = "2024"
 license = "MIT OR Apache-2.0"
 description = "A driver for the Arm Generic Interrupt Controller version 2, 3 or 4."
@@ -13,13 +13,21 @@ keywords = ["arm", "aarch64", "driver", "gic", "interrupt-controller"]
 categories = ["embedded", "no-std", "hardware-support"]
 
 [dependencies]
-bitflags = "2.10.0"
-safe-mmio = "0.2.7"
+arm-sysregs = { version = "0.2.6", features = ["el1"] }
+bitflags = "2.11.0"
+safe-mmio = "0.3.0"
 thiserror = { version = "2.0.18", default-features = false }
-zerocopy = { version = "0.8.38", features = ["derive"] }
+zerocopy = { version = "0.8.42", features = ["derive"] }
+
+[dev-dependencies]
+arm-sysregs = { version = "0.2.6", features = ["fakes"] }
 
 [features]
-fakes = []
+el2 = ["arm-sysregs/el2"]
+el3 = ["el2", "arm-sysregs/el3"]
+fakes = ["arm-sysregs/fakes"]
 
 [package.metadata.docs.rs]
 default-target = "aarch64-unknown-none"
+features = ["el2", "el3"]
+rustdoc-args = ["--cfg", "docsrs"]

@@ -10,7 +10,7 @@ mod redistributor;
 pub mod registers;
 
 #[cfg(any(test, feature = "fakes", target_arch = "aarch64", target_arch = "arm"))]
-use crate::sysreg::write_icc_ctlr_el1;
+use crate::sysreg::{IccCtlrEl1, write_icc_ctlr_el1};
 use crate::{IntId, Trigger};
 use core::ptr::NonNull;
 #[cfg(any(test, feature = "fakes", target_arch = "aarch64", target_arch = "arm"))]
@@ -47,35 +47,6 @@ pub const HIGHEST_S_PRIORITY: u8 = 0x00;
 /// Highest priority value of Non-secure Group 1 interrupts.
 pub const HIGHEST_NS_PRIORITY: u8 = 0x80;
 
-/// Modifies `nth` bit of memory pointed by `registers`.
-fn modify_bit(mut registers: UniqueMmioPointer<[ReadPureWrite<u32>]>, nth: usize, set_bit: bool) {
-    let reg_num: usize = nth / 32;
-
-    let bit_num: usize = nth % 32;
-    let bit_mask: u32 = 1 << bit_num;
-
-    let mut reg_ptr = registers.get(reg_num).unwrap();
-    let old_value = reg_ptr.read();
-
-    let new_value: u32 = if set_bit {
-        old_value | bit_mask
-    } else {
-        old_value & !bit_mask
-    };
-
-    reg_ptr.write(new_value);
-}
-
-/// Sets `nth` bit of memory pointed by `registers`.
-fn set_bit(registers: UniqueMmioPointer<[ReadPureWrite<u32>]>, nth: usize) {
-    modify_bit(registers, nth, true);
-}
-
-/// Clears `nth` bit of memory pointed by `registers`.
-fn clear_bit(registers: UniqueMmioPointer<[ReadPureWrite<u32>]>, nth: usize) {
-    modify_bit(registers, nth, false);
-}
-
 /// Calculates the register count based on the interrupt count, bits used in the register per
 /// interrupt and the field's type.
 const fn register_count<T: ?Sized>(int_count: usize, bits_per_int: usize, field: &T) -> usize {
@@ -86,8 +57,8 @@ const fn register_count<T: ?Sized>(int_count: usize, bits_per_int: usize, field:
 ///
 /// The function iterates over a range of `regs` and writes `value` into each register. The range is
 /// determined based on `start_offset`, `int_count`, `bits_per_int` and the type of the registers.
-fn set_regs<T>(
-    mut regs: UniqueMmioPointer<[ReadPureWrite<T>]>,
+fn set_regs<T, const N: usize>(
+    mut regs: UniqueMmioPointer<[ReadPureWrite<T>; N]>,
     start_offset: usize,
     int_count: usize,
     bits_per_int: usize,
@@ -97,8 +68,9 @@ fn set_regs<T>(
 {
     let reg_start = register_count(start_offset, bits_per_int, &value);
     let reg_end = register_count(start_offset + int_count, bits_per_int, &value);
-    for i in reg_start..reg_end {
-        regs.get(i).unwrap().write(value);
+
+    for mut reg in regs.get_range(reg_start..reg_end).unwrap() {
+        reg.write(value);
     }
 }
 
@@ -181,7 +153,7 @@ impl<'a> GicV3<'a> {
     #[cfg(any(test, feature = "fakes", target_arch = "aarch64", target_arch = "arm"))]
     pub fn init_cpu(&mut self, cpu: usize) {
         // Enable system register access.
-        GicCpuInterface::enable_system_register_el1(true);
+        GicCpuInterface::enable_system_register_el1();
 
         // Ignore error in case core is already awake.
         let _ = self.redistributor_mark_core_awake(cpu);
@@ -189,7 +161,7 @@ impl<'a> GicV3<'a> {
         // Disable use of `ICC_PMR_EL1` as a hint for interrupt distribution, configure a write to
         // an EOI register to also deactivate the interrupt, and configure preemption groups for
         // group 0 and group 1 interrupts separately.
-        write_icc_ctlr_el1(0);
+        write_icc_ctlr_el1(IccCtlrEl1::empty());
     }
 
     /// Initialises the GIC and marks the given CPU core as awake.
@@ -418,21 +390,11 @@ pub enum SgiTargetGroup {
     OtherGroup1,
 }
 
-/// An interrupt group, without distinguishing between secure and non-secure.
-///
-/// This is used to select which group of interrupts to get, acknowledge and end.
-#[derive(Copy, Clone, Debug, Eq, PartialEq)]
-pub enum InterruptGroup {
-    /// Interrupt group 0.
-    Group0,
-    /// Interrupt group 1.
-    Group1,
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::sysreg::{IccIgrpenEl1, IccSreEl1, fake::SYSREGS};
+    use crate::sysreg::{IccIgrpen1El1, IccSreEl1};
+    use arm_sysregs::fake::SYSREGS;
     use zerocopy::{FromBytes, Immutable, IntoBytes, KnownLayout, transmute_mut};
 
     #[derive(Clone, Eq, FromBytes, Immutable, IntoBytes, KnownLayout, PartialEq)]
@@ -545,9 +507,9 @@ mod tests {
         }
 
         let sysregs = SYSREGS.lock().unwrap();
-        assert_eq!(0x0000_0000, sysregs.icc_ctlr_el1);
+        assert_eq!(IccCtlrEl1::empty(), sysregs.icc_ctlr_el1);
         assert_eq!(IccSreEl1::SRE, sysregs.icc_sre_el1);
-        assert_eq!(IccIgrpenEl1::EN, sysregs.icc_igrpen1_el1);
+        assert_eq!(IccIgrpen1El1::ENABLE, sysregs.icc_igrpen1_el1);
     }
 
     #[test]

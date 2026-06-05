@@ -2,15 +2,16 @@
 // SPDX-License-Identifier: MIT OR Apache-2.0
 
 use crate::{
-    IntId, Trigger,
+    IntId, Trigger, clear_bit,
     gicv3::{
-        GicError, Group, HIGHEST_NS_PRIORITY, SecureIntGroup, clear_bit, register_count,
+        GicError, Group, HIGHEST_NS_PRIORITY, SecureIntGroup, register_count,
         registers::{GicrCtlr, GicrIidr, GicrPwrr, GicrSgi, GicrTyper, Sgi, Waker},
-        set_bit, set_regs,
+        set_regs,
     },
+    set_bit,
 };
 use core::{hint::spin_loop, marker::PhantomData, ops::Range, ptr::NonNull, stringify};
-use safe_mmio::{UniqueMmioPointer, field, field_shared};
+use safe_mmio::{UniqueMmioPointer, field, field_shared, fields::ReadPureWrite};
 use zerocopy::{transmute_mut, transmute_ref};
 
 /// Reads a GICR register and stores it in a context structure.
@@ -274,12 +275,35 @@ impl<'a> GicRedistributor<'a> {
         );
 
         // Setup the default (E)PPI/SGI priorities
-        set_regs(
-            field!(sgi, ipriorityr),
-            0,
-            ppi_count,
-            Sgi::IPRIORITY_BITS,
+
+        // For performance reasons this array of registers is initialized as words, so four
+        // priority values can be set in one iteration.
+        let mut ipriorityr_bytes = field!(sgi, ipriorityr);
+
+        // Safety: ipriorityr_bytes is a valid pointer to the ipriority register array. Section
+        // 12.1.3 GIC memory-mapped register access of the GIC specificition describes that
+        // GICR_IPRIORITYR supports both 8-bit and 32-bit accesses.
+        let ipriority_words = unsafe {
+            UniqueMmioPointer::new(
+                ipriorityr_bytes
+                    .ptr_nonnull()
+                    .cast::<[ReadPureWrite<u32>; 96 / 4]>(),
+            )
+        };
+
+        let ipriority_word_value = u32::from_le_bytes([
             HIGHEST_NS_PRIORITY,
+            HIGHEST_NS_PRIORITY,
+            HIGHEST_NS_PRIORITY,
+            HIGHEST_NS_PRIORITY,
+        ]);
+
+        set_regs(
+            ipriority_words,
+            0,
+            ppi_count / 4,
+            Sgi::IPRIORITY_BITS * 4,
+            ipriority_word_value,
         );
 
         // Configure all (E)PPIs as level triggered by default
@@ -314,8 +338,8 @@ impl<'a> GicRedistributor<'a> {
         let mut sgi = field!(self.regs, sgi);
         let mut icfgr = field!(sgi, icfgr);
         let mut register = icfgr.get(reg_index).unwrap();
-        let v = register.read();
-        register.write(match trigger {
+
+        register.modify(|v| match trigger {
             Trigger::Edge => v | bit,
             Trigger::Level => v & !bit,
         });
@@ -331,15 +355,15 @@ impl<'a> GicRedistributor<'a> {
 
         let mut sgi = field!(self.regs, sgi);
         if let Group::Secure(sg) = group {
-            clear_bit(field!(sgi, igroupr).into(), index);
-            let igrpmodr = field!(sgi, igrpmodr).into();
+            clear_bit(field!(sgi, igroupr), index);
+            let igrpmodr = field!(sgi, igrpmodr);
             match sg {
                 SecureIntGroup::Group1S => set_bit(igrpmodr, index),
                 SecureIntGroup::Group0 => clear_bit(igrpmodr, index),
             }
         } else {
-            set_bit(field!(sgi, igroupr).into(), index);
-            clear_bit(field!(sgi, igrpmodr).into(), index);
+            set_bit(field!(sgi, igroupr), index);
+            clear_bit(field!(sgi, igrpmodr), index);
         }
 
         Ok(())
@@ -353,9 +377,9 @@ impl<'a> GicRedistributor<'a> {
         let mut sgi = field!(self.regs, sgi);
 
         if enable {
-            set_bit(field!(sgi, isenabler).into(), index);
+            set_bit(field!(sgi, isenabler), index);
         } else {
-            set_bit(field!(sgi, icenabler).into(), index);
+            set_bit(field!(sgi, icenabler), index);
         }
 
         Ok(())
