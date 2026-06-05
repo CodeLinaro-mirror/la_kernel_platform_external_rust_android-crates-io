@@ -192,6 +192,7 @@ rust_library {
     rustlibs: ["libzlib_rs"],
     apex_available: [
         "//apex_available:platform",
+        "com.android.compos",
         "com.android.configinfrastructure",
         "com.android.virt",
     ],
