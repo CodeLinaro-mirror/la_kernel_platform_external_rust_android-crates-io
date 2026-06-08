@@ -614,6 +614,7 @@ utf-8
 utf8_iter
 utf8parse
 uuid
+vec-strings
 vhost
 vhost-device-vsock
 vhost-user-backend

@@ -710,6 +710,7 @@ dependencies = [
  "utf8_iter",
  "utf8parse",
  "uuid",
+ "vec-strings",
  "vhost",
  "vhost-device-vsock",
  "vhost-user-backend",
@@ -9896,6 +9897,15 @@ name = "vcpkg"
 version = "0.2.15"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "accd4ea62f7bb7a82fe23066fb0957d48ef677f6eeb8215f372f52e48bb32426"
+
+[[package]]
+name = "vec-strings"
+version = "0.4.8"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "c8509489e2a7ee219522238ad45fd370bec6808811ac15ac6b07453804e77659"
+dependencies = [
+ "thin-vec",
+]
 
 [[package]]
 name = "vec_map"
