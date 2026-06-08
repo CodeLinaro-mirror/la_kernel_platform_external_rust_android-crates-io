@@ -1,7 +1,7 @@
 {
   "package": {
     "arc-swap": {
-      "device_supported": false
+      "device_supported": true
     }
   },
   "run_cargo": false,
