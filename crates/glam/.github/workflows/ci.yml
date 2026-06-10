@@ -1,13 +1,22 @@
 name: CI
-on: [push, pull_request]
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 jobs:
   lint:
     name: Lint
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
         with:
           submodules: true
+
+      - uses: Swatinem/rust-cache@v2
 
       - run: rustup update --no-self-update stable
       - run: rustup default stable
@@ -38,9 +47,10 @@ jobs:
         toolchain: [stable, beta, nightly]
     runs-on: ${{ matrix.os }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
         with:
           submodules: true
+      - uses: Swatinem/rust-cache@v2
       - run: rustup update --no-self-update ${{ matrix.toolchain }}
       - run: rustup default ${{ matrix.toolchain }}
       - run: ./build_and_test_features.sh
@@ -54,9 +64,10 @@ jobs:
         toolchain: [1.68.2]
     runs-on: ${{ matrix.os }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
         with:
           submodules: true
+      - uses: Swatinem/rust-cache@v2
       - run: rustup update --no-self-update ${{ matrix.toolchain }}
       - run: rustup default ${{ matrix.toolchain }}
       - run: ./build_all_msrv.sh
@@ -70,9 +81,10 @@ jobs:
         toolchain: [nightly]
     runs-on: ${{ matrix.os }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
         with:
           submodules: true
+      - uses: Swatinem/rust-cache@v2
       - run: rustup update --no-self-update ${{ matrix.toolchain }}
       - run: rustup default ${{ matrix.toolchain }}
       - run: cargo test --features core-simd
@@ -86,12 +98,14 @@ jobs:
         os: [ubuntu-latest]
     runs-on: ${{ matrix.os }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
         with:
           submodules: true
 
-      - name: Install
-        run: curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh
+      - uses: Swatinem/rust-cache@v2
+
+      - name: Install wasm-pack
+        uses: jetli/wasm-pack-action@v0.4.0
 
       - run: ./build_and_test_wasm32_node.sh
       - run: ./build_and_test_wasm32_firefox.sh
@@ -108,24 +122,7 @@ jobs:
       - uses: actions/checkout@v6
         with:
           submodules: true
+      - uses: Swatinem/rust-cache@v2
       - run: rustup component add rust-src --toolchain ${{ matrix.toolchain }}
       - uses: bytecodealliance/actions/wasmtime/setup@v1
       - run: ./build_and_test_wasm64.sh
-
-  # macos-latest uses aarch64 so using cross shouldn't be necessary anymore
-  # test-arm:
-  #   name: Test Arm
-  #   runs-on: ubuntu-latest
-  #   strategy:
-  #     fail-fast: false
-  #     matrix:
-  #       target:
-  #         - aarch64-unknown-linux-gnu
-  #         - arm-unknown-linux-gnueabi
-  #   steps:
-  #     - uses: actions/checkout@v4
-  #     - run: rustup update --no-self-update stable
-  #     - run: rustup default stable
-  #     - run: rustup target add --toolchain stable ${{matrix.target}}
-  #     - uses: taiki-e/install-action@cross
-  #     - run: cross test --target ${{matrix.target}}
