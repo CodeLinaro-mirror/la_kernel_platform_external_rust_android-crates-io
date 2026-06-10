@@ -1,6 +1,6 @@
 use crate::{udouble, ModularInteger, ModularUnaryOps, Reducer};
 use core::ops::*;
-#[cfg(feature = "num_traits")]
+#[cfg(feature = "num-traits")]
 use num_traits::{Inv, Pow};
 
 /// An integer in a modulo ring
@@ -112,8 +112,9 @@ macro_rules! impl_binops {
             }
         }
 
-        impl<T: PartialEq, R: Reducer<T>> $op<T> for ReducedInt<T, R> {
+        impl<T, R: Reducer<T>> $op<T> for ReducedInt<T, R> {
             type Output = Self;
+            #[inline]
             fn $method(self, rhs: T) -> Self::Output {
                 let Self { a, r } = self;
                 let rhs = r.transform(rhs);
@@ -121,11 +122,91 @@ macro_rules! impl_binops {
                 Self { a, r }
             }
         }
+
+        impl<T: PartialEq + Clone, R: Reducer<T>> $op<&T> for ReducedInt<T, R> {
+            type Output = Self;
+            #[inline]
+            fn $method(self, rhs: &T) -> Self::Output {
+                let Self { a, r } = self;
+                let rhs = r.transform(rhs.clone());
+                let a = r.$method(&a, &rhs);
+                Self { a, r }
+            }
+        }
+
+        impl<T, R: Reducer<T> + Clone> $op<T> for &ReducedInt<T, R> {
+            type Output = ReducedInt<T, R>;
+            #[inline]
+            fn $method(self, rhs: T) -> Self::Output {
+                let rhs = self.r.transform(rhs);
+                let a = self.r.$method(&self.a, &rhs);
+                ReducedInt {
+                    a,
+                    r: self.r.clone(),
+                }
+            }
+        }
+
+        impl<T: PartialEq + Clone, R: Reducer<T> + Clone> $op<&T> for &ReducedInt<T, R> {
+            type Output = ReducedInt<T, R>;
+            #[inline]
+            fn $method(self, rhs: &T) -> Self::Output {
+                let rhs = self.r.transform(rhs.clone());
+                let a = self.r.$method(&self.a, &rhs);
+                ReducedInt {
+                    a,
+                    r: self.r.clone(),
+                }
+            }
+        }
     };
 }
 impl_binops!(add, impl Add);
 impl_binops!(sub, impl Sub);
 impl_binops!(mul, impl Mul);
+
+macro_rules! impl_assign_ops {
+    ($method:ident, impl $op:ident, with $reducer_method:ident) => {
+        impl<T: PartialEq, R: Reducer<T>> $op for ReducedInt<T, R> {
+            #[inline]
+            fn $method(&mut self, rhs: Self) {
+                self.check_modulus_eq(&rhs);
+                let Self { a, r } = self;
+                r.$reducer_method(a, &rhs.a);
+            }
+        }
+
+        impl<T: PartialEq, R: Reducer<T>> $op<&Self> for ReducedInt<T, R> {
+            #[inline]
+            fn $method(&mut self, rhs: &Self) {
+                self.check_modulus_eq(rhs);
+                let Self { a, r } = self;
+                r.$reducer_method(a, &rhs.a);
+            }
+        }
+
+        impl<T, R: Reducer<T>> $op<T> for ReducedInt<T, R> {
+            #[inline]
+            fn $method(&mut self, rhs: T) {
+                let Self { a, r } = self;
+                let rhs = r.transform(rhs);
+                r.$reducer_method(a, &rhs);
+            }
+        }
+
+        impl<T: PartialEq + Clone, R: Reducer<T>> $op<&T> for ReducedInt<T, R> {
+            #[inline]
+            fn $method(&mut self, rhs: &T) {
+                let Self { a, r } = self;
+                let rhs = r.transform(rhs.clone());
+                r.$reducer_method(a, &rhs);
+            }
+        }
+    };
+}
+impl_assign_ops!(add_assign, impl AddAssign, with add_in_place);
+impl_assign_ops!(sub_assign, impl SubAssign, with sub_in_place);
+impl_assign_ops!(mul_assign, impl MulAssign, with mul_in_place);
 
 impl<T: PartialEq, R: Reducer<T>> Neg for ReducedInt<T, R> {
     type Output = Self;
@@ -150,7 +231,7 @@ impl<T: PartialEq + Clone, R: Reducer<T> + Clone> Neg for &ReducedInt<T, R> {
 
 const INV_ERR_MSG: &str = "the modular inverse doesn't exist!";
 
-#[cfg(feature = "num_traits")]
+#[cfg(feature = "num-traits")]
 impl<T: PartialEq, R: Reducer<T>> Inv for ReducedInt<T, R> {
     type Output = Self;
     #[inline]
@@ -158,7 +239,7 @@ impl<T: PartialEq, R: Reducer<T>> Inv for ReducedInt<T, R> {
         self.inv().expect(INV_ERR_MSG)
     }
 }
-#[cfg(feature = "num_traits")]
+#[cfg(feature = "num-traits")]
 impl<T: PartialEq + Clone, R: Reducer<T> + Clone> Inv for &ReducedInt<T, R> {
     type Output = ReducedInt<T, R>;
     #[inline]
@@ -212,20 +293,20 @@ impl<T: PartialEq + Clone, R: Reducer<T> + Clone> Div<&ReducedInt<T, R>> for &Re
     }
 }
 
-#[cfg(feature = "num_traits")]
+#[cfg(feature = "num-traits")]
 impl<T: PartialEq, R: Reducer<T>> Pow<T> for ReducedInt<T, R> {
     type Output = Self;
     #[inline]
     fn pow(self, rhs: T) -> Self::Output {
-        ReducedInt::pow(self, rhs)
+        ReducedInt::pow(self, &rhs)
     }
 }
-#[cfg(feature = "num_traits")]
+#[cfg(feature = "num-traits")]
 impl<T: PartialEq + Clone, R: Reducer<T> + Clone> Pow<T> for &ReducedInt<T, R> {
     type Output = ReducedInt<T, R>;
     #[inline]
     fn pow(self, rhs: T) -> Self::Output {
-        let a = self.r.pow(self.a.clone(), rhs);
+        let a = self.r.pow(self.a.clone(), &rhs);
         ReducedInt {
             a,
             r: self.r.clone(),
@@ -450,6 +531,88 @@ impl Reducer<u128> for Vanilla<u128> {
     }
 }
 
+#[cfg(all(feature = "num-bigint", feature = "num-traits"))]
+mod bigint_impl {
+    use super::*;
+    use crate::ModularCoreOps;
+    use crate::ModularPow;
+    use num_bigint::BigUint;
+    use num_traits::Zero;
+
+    impl Reducer<BigUint> for Vanilla<BigUint> {
+        #[inline]
+        fn new(m: &BigUint) -> Self {
+            assert!(!m.is_zero());
+            Self(m.clone())
+        }
+
+        #[inline]
+        fn transform(&self, target: BigUint) -> BigUint {
+            target % &self.0
+        }
+
+        #[inline]
+        fn check(&self, target: &BigUint) -> bool {
+            target < &self.0
+        }
+
+        #[inline]
+        fn modulus(&self) -> BigUint {
+            self.0.clone()
+        }
+
+        #[inline]
+        fn residue(&self, target: BigUint) -> BigUint {
+            target
+        }
+
+        #[inline]
+        fn is_zero(&self, target: &BigUint) -> bool {
+            target.is_zero()
+        }
+
+        #[inline]
+        fn add(&self, lhs: &BigUint, rhs: &BigUint) -> BigUint {
+            lhs.addm(rhs, &self.0)
+        }
+
+        #[inline]
+        fn dbl(&self, target: BigUint) -> BigUint {
+            target.dblm(&self.0)
+        }
+
+        #[inline]
+        fn sub(&self, lhs: &BigUint, rhs: &BigUint) -> BigUint {
+            lhs.subm(rhs, &self.0)
+        }
+
+        #[inline]
+        fn neg(&self, target: BigUint) -> BigUint {
+            target.negm(&self.0)
+        }
+
+        #[inline]
+        fn mul(&self, lhs: &BigUint, rhs: &BigUint) -> BigUint {
+            lhs.mulm(rhs, &self.0)
+        }
+
+        #[inline]
+        fn inv(&self, target: BigUint) -> Option<BigUint> {
+            target.invm(&self.0)
+        }
+
+        #[inline]
+        fn sqr(&self, target: BigUint) -> BigUint {
+            target.sqm(&self.0)
+        }
+
+        #[inline]
+        fn pow(&self, base: BigUint, exp: &BigUint) -> BigUint {
+            base.powm(exp, &self.0)
+        }
+    }
+}
+
 /// An integer in modulo ring based on conventional [Rem] operations
 pub type VanillaInt<T> = ReducedInt<T, Vanilla<T>>;
 
@@ -465,11 +628,17 @@ pub(crate) mod tests {
     macro_rules! impl_reduced_test_for {
         ($($T:ty)*) => {$(
             impl ReducedTester<$T> {
-                pub fn test_against_modops<R: Reducer<$T> + Copy>(odd_only: bool) {
-                    let mut m = random::<$T>().saturating_add(1);
-                    if odd_only {
-                        m |= 1;
-                    }
+                /// Range of modulus:
+                /// - random_mode = 0: [1, $T::MAX]
+                /// - random_mode = 1: [1, $T::MAX] and odd
+                /// - random_mode = 2: [$T::MAX >> $T::BITS/2, $T::MAX]
+                pub fn test_against_modops<R: Reducer<$T> + Copy>(random_mode: i32) {
+                    let m = match random_mode {
+                        0 => random::<$T>().saturating_add(1),
+                        1 => random::<$T>().saturating_add(1) | 1,
+                        2 => random::<$T>().saturating_add(1 << (<$T>::BITS / 2)),
+                        _ => unreachable!()
+                    };
 
                     let (a, b) = (random::<$T>(), random::<$T>());
                     let am = ReducedInt::<$T, R>::new(a, &m);
@@ -486,6 +655,61 @@ pub(crate) mod tests {
                     if let Some(v) = a.invm(&m) {
                         assert_eq!(am.inv().unwrap().residue(), v, "incorrect inv");
                     }
+
+                    // Test new binary operator variants
+                    // ReducedInt op &T
+                    assert_eq!((am + &b).residue(), a.addm(b, &m), "incorrect add<&T>");
+                    assert_eq!((am - &b).residue(), a.subm(b, &m), "incorrect sub<&T>");
+                    assert_eq!((am * &b).residue(), a.mulm(b, &m), "incorrect mul<&T>");
+                    // &ReducedInt op T
+                    assert_eq!((&am + a).residue(), a.addm(a, &m), "incorrect &add<T>");
+                    assert_eq!((&am - a).residue(), a.subm(a, &m), "incorrect &sub<T>");
+                    assert_eq!((&am * a).residue(), a.mulm(a, &m), "incorrect &mul<T>");
+                    // &ReducedInt op &T
+                    assert_eq!((&am + &b).residue(), a.addm(b, &m), "incorrect &add<&T>");
+                    assert_eq!((&am - &b).residue(), a.subm(b, &m), "incorrect &sub<&T>");
+                    assert_eq!((&am * &b).residue(), a.mulm(b, &m), "incorrect &mul<&T>");
+
+                    // Assign ops
+                    let mut tmp;
+                    tmp = am;
+                    tmp += bm;
+                    assert_eq!(tmp.residue(), a.addm(b, &m), "incorrect add_assign<Self>");
+                    tmp = am;
+                    tmp += &bm;
+                    assert_eq!(tmp.residue(), a.addm(b, &m), "incorrect add_assign<&Self>");
+                    tmp = am;
+                    tmp += b;
+                    assert_eq!(tmp.residue(), a.addm(b, &m), "incorrect add_assign<T>");
+                    tmp = am;
+                    tmp += &b;
+                    assert_eq!(tmp.residue(), a.addm(b, &m), "incorrect add_assign<&T>");
+
+                    tmp = am;
+                    tmp -= bm;
+                    assert_eq!(tmp.residue(), a.subm(b, &m), "incorrect sub_assign<Self>");
+                    tmp = am;
+                    tmp -= &bm;
+                    assert_eq!(tmp.residue(), a.subm(b, &m), "incorrect sub_assign<&Self>");
+                    tmp = am;
+                    tmp -= b;
+                    assert_eq!(tmp.residue(), a.subm(b, &m), "incorrect sub_assign<T>");
+                    tmp = am;
+                    tmp -= &b;
+                    assert_eq!(tmp.residue(), a.subm(b, &m), "incorrect sub_assign<&T>");
+
+                    tmp = am;
+                    tmp *= bm;
+                    assert_eq!(tmp.residue(), a.mulm(b, &m), "incorrect mul_assign<Self>");
+                    tmp = am;
+                    tmp *= &bm;
+                    assert_eq!(tmp.residue(), a.mulm(b, &m), "incorrect mul_assign<&Self>");
+                    tmp = am;
+                    tmp *= b;
+                    assert_eq!(tmp.residue(), a.mulm(b, &m), "incorrect mul_assign<T>");
+                    tmp = am;
+                    tmp *= &b;
+                    assert_eq!(tmp.residue(), a.mulm(b, &m), "incorrect mul_assign<&T>");
                 }
             }
         )*};
@@ -495,12 +719,48 @@ pub(crate) mod tests {
     #[test]
     fn test_against_modops() {
         for _ in 0..10 {
-            ReducedTester::<u8>::test_against_modops::<Vanilla<u8>>(false);
-            ReducedTester::<u16>::test_against_modops::<Vanilla<u16>>(false);
-            ReducedTester::<u32>::test_against_modops::<Vanilla<u32>>(false);
-            ReducedTester::<u64>::test_against_modops::<Vanilla<u64>>(false);
-            ReducedTester::<u128>::test_against_modops::<Vanilla<u128>>(false);
-            ReducedTester::<usize>::test_against_modops::<Vanilla<usize>>(false);
+            ReducedTester::<u8>::test_against_modops::<Vanilla<u8>>(0);
+            ReducedTester::<u16>::test_against_modops::<Vanilla<u16>>(0);
+            ReducedTester::<u32>::test_against_modops::<Vanilla<u32>>(0);
+            ReducedTester::<u64>::test_against_modops::<Vanilla<u64>>(0);
+            ReducedTester::<u128>::test_against_modops::<Vanilla<u128>>(0);
+            ReducedTester::<usize>::test_against_modops::<Vanilla<usize>>(0);
         }
+    }
+
+    #[cfg(all(feature = "num-bigint", feature = "num-traits"))]
+    #[test]
+    fn test_binops_no_copy_compiles() {
+        use num_bigint::BigUint;
+
+        let mut m = VanillaInt::<BigUint>::new(0u8.into(), &10u8.into());
+        let v: BigUint = 0u8.into();
+
+        _ = m.clone() + m.clone();
+        _ = m.clone() + &m;
+        _ = &m + m.clone();
+        _ = &m + &m;
+
+        _ = m.clone() + v.clone();
+        _ = m.clone() + &v;
+        _ = &m + v.clone();
+        _ = &m + &v;
+
+        m += m.clone();
+        m += &m.clone();
+        m += v.clone();
+        m += &v;
+
+        m -= m.clone();
+        m -= &m.clone();
+        m -= v.clone();
+        m -= &v;
+
+        m *= m.clone();
+        m *= &m.clone();
+        m *= v.clone();
+        m *= &v;
+
+        assert_eq!(m.residue(), 0u8.into());
     }
 }

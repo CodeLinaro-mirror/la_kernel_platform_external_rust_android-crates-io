@@ -3,7 +3,7 @@
 //!
 //! To achieve fast modular arithmetics, convert integers to any [ModularInteger] implementation
 //! use static `new()` or associated [ModularInteger::convert()] functions. Some builtin implementations
-//! of [ModularInteger] includes [MontgomeryInt] and [FixedMersenneInt].
+//! of [ModularInteger] includes [MontgomeryInt], [FixedMersenneInt] and [FixedSolinasInt].
 //!
 //! Example code:
 //! ```rust
@@ -22,11 +22,12 @@
 //! # Comparison of fast division / modular arithmetics
 //! Several fast division / modulo tricks are provided in these crate, the difference of them are listed below:
 //! - [PreModInv]: pre-compute modular inverse of the divisor, only applicable to exact division
-//! - Barret (to be implemented): pre-compute (rational approximation of) the reciprocal of the divisor,
-//!     applicable to fast division and modulo
+//! - Barrett (to be implemented): pre-compute (rational approximation of) the reciprocal of the divisor,
+//!   applicable to fast division and modulo
 //! - [Montgomery]: Convert the dividend into a special form by shifting and pre-compute a modular inverse,
-//!     only applicable to fast modulo, but faster than Barret reduction
+//!   only applicable to fast modulo, but faster than Barrett reduction
 //! - [FixedMersenne]: Specialization of modulo in form `2^P-K` under 2^127.
+//! - [FixedTrinomialSolinas]: Specialization of modulo in form `2^P1-2^P2+K` under 2^127.
 //!
 
 // XXX: Other fast modular arithmetic tricks
@@ -279,23 +280,25 @@ pub trait Reducer<T> {
     fn pow(&self, base: T, exp: &T) -> T;
 }
 
-mod barret;
+mod barrett;
 mod double;
 mod mersenne;
 mod monty;
 mod preinv;
 mod prim;
 mod reduced;
+mod solinas;
 mod word;
 
-pub use barret::{
+pub use barrett::{
     Normalized2by1Divisor, Normalized3by2Divisor, PreMulInv1by1, PreMulInv2by1, PreMulInv3by2,
 };
-pub use double::{udouble, umax};
-pub use mersenne::FixedMersenne;
+pub use double::{imax, udouble, umax};
+pub use mersenne::{FixedMersenne, FixedMersenne32, FixedMersenne64};
 pub use monty::Montgomery;
 pub use preinv::PreModInv;
 pub use reduced::{ReducedInt, Vanilla, VanillaInt};
+pub use solinas::{FixedTrinomialSolinas, FixedTrinomialSolinas32, FixedTrinomialSolinas64};
 
 /// An integer in modulo ring based on [Montgomery form](https://en.wikipedia.org/wiki/Montgomery_modular_multiplication#Montgomery_form)
 pub type MontgomeryInt<T> = ReducedInt<T, Montgomery<T>>;
@@ -303,7 +306,25 @@ pub type MontgomeryInt<T> = ReducedInt<T, Montgomery<T>>;
 /// An integer in modulo ring with a fixed (pseudo) Mersenne number as modulus
 pub type FixedMersenneInt<const P: u8, const K: umax> = ReducedInt<umax, FixedMersenne<P, K>>;
 
-// pub type BarretInt<T> = ReducedInt<T, BarretInt<T>>;
+/// An integer in modulo ring with a fixed (pseudo) Mersenne number as modulus (32-bit)
+pub type FixedMersenneInt32<const P: u8, const K: u32> = ReducedInt<u32, FixedMersenne32<P, K>>;
+
+/// An integer in modulo ring with a fixed (pseudo) Mersenne number as modulus (64-bit)
+pub type FixedMersenneInt64<const P: u8, const K: u64> = ReducedInt<u64, FixedMersenne64<P, K>>;
+
+/// An integer in modulo ring with a fixed Solinas number as modulus
+pub type FixedSolinasInt<const P1: u8, const P2: u8, const K: imax> =
+    ReducedInt<umax, FixedTrinomialSolinas<P1, P2, K>>;
+
+/// An integer in modulo ring with a fixed Solinas number as modulus (32-bit)
+pub type FixedSolinasInt32<const P1: u8, const P2: u8, const K: i32> =
+    ReducedInt<u32, FixedTrinomialSolinas32<P1, P2, K>>;
+
+/// An integer in modulo ring with a fixed Solinas number as modulus (64-bit)
+pub type FixedSolinasInt64<const P1: u8, const P2: u8, const K: i64> =
+    ReducedInt<u64, FixedTrinomialSolinas64<P1, P2, K>>;
+
+// pub type BarrettInt<T> = ReducedInt<T, BarrettInt<T>>;
 
 #[cfg(feature = "num-bigint")]
 mod bigint;
