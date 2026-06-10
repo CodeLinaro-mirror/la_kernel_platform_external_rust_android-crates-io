@@ -377,6 +377,7 @@ dependencies = [
  "if-addrs",
  "ignore",
  "image 0.25.10",
+ "image-compare",
  "indexmap 2.14.0",
  "inotify",
  "inotify-sys",
@@ -4385,7 +4386,7 @@ dependencies = [
  "libc 0.2.186",
  "percent-encoding",
  "pin-project-lite",
- "socket2 0.5.10",
+ "socket2 0.6.4",
  "system-configuration",
  "tokio",
  "tower-service",
@@ -4930,6 +4931,18 @@ dependencies = [
  "tiff",
  "zune-core",
  "zune-jpeg",
+]
+
+[[package]]
+name = "image-compare"
+version = "0.5.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "176623a137baf75908084aff53578d6336cbd932bffaf12fabe26b343eb13338"
+dependencies = [
+ "image 0.25.10",
+ "itertools 0.14.0",
+ "rayon",
+ "thiserror 2.0.18",
 ]
 
 [[package]]
@@ -7235,7 +7248,7 @@ dependencies = [
  "quinn-udp",
  "rustc-hash 2.1.2",
  "rustls",
- "socket2 0.5.10",
+ "socket2 0.6.4",
  "thiserror 2.0.18",
  "tokio",
  "tracing",
@@ -7273,7 +7286,7 @@ dependencies = [
  "cfg_aliases",
  "libc 0.2.186",
  "once_cell",
- "socket2 0.5.10",
+ "socket2 0.6.4",
  "tracing",
  "windows-sys 0.60.2",
 ]

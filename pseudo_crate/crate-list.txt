@@ -261,6 +261,7 @@ idna_adapter
 if-addrs
 ignore
 image
+image-compare
 indexmap
 inotify
 inotify-sys
