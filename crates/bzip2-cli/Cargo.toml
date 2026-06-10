@@ -13,7 +13,7 @@
 edition = "2021"
 rust-version = "1.82"
 name = "bzip2-cli"
-version = "0.2.2"
+version = "0.2.5"
 build = false
 include = [
     "bzip2.rs",
@@ -43,7 +43,7 @@ name = "bzip2recover"
 path = "bzip2recover.rs"
 
 [dependencies.libbz2-rs-sys]
-version = "0.2.2"
+version = "0.2.5"
 features = [
     "stdio",
     "c-allocator",
