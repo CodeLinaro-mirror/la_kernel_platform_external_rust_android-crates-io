@@ -298,7 +298,7 @@ dependencies = [
  "float_next_after 2.0.0",
  "fnv",
  "foldhash 0.2.0",
- "font-types 0.12.0",
+ "font-types",
  "foreign-types 0.3.2",
  "foreign-types-macros",
  "foreign-types-shared 0.1.1",
@@ -3483,12 +3483,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "font-types"
-version = "0.12.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "81bf886368962a7d8456f136073ed33ed1b0770c690d2063731bb6a776e99f33"
-
-[[package]]
 name = "foreign-types"
 version = "0.3.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4391,7 +4385,7 @@ dependencies = [
  "libc 0.2.186",
  "percent-encoding",
  "pin-project-lite",
- "socket2 0.6.4",
+ "socket2 0.5.10",
  "system-configuration",
  "tokio",
  "tower-service",
@@ -7241,7 +7235,7 @@ dependencies = [
  "quinn-udp",
  "rustc-hash 2.1.2",
  "rustls",
- "socket2 0.6.4",
+ "socket2 0.5.10",
  "thiserror 2.0.18",
  "tokio",
  "tracing",
@@ -7279,7 +7273,7 @@ dependencies = [
  "cfg_aliases",
  "libc 0.2.186",
  "once_cell",
- "socket2 0.6.4",
+ "socket2 0.5.10",
  "tracing",
  "windows-sys 0.60.2",
 ]
@@ -7479,7 +7473,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c4ed38b89c2c77ff968c524145ad65fb010f38af5c7a224b53b81d47ac2daa81"
 dependencies = [
  "bytemuck",
- "font-types 0.11.3",
+ "font-types",
 ]
 
 [[package]]
