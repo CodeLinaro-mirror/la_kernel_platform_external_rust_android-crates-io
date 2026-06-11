@@ -497,6 +497,7 @@ dependencies = [
  "oorandom",
  "open-enum",
  "open-enum-derive",
+ "openssh-sftp-error",
  "openssh-sftp-protocol-error",
  "openssl-macros",
  "openssl-probe 0.2.1",
@@ -6439,6 +6440,19 @@ dependencies = [
  "proc-macro2 1.0.106",
  "quote 1.0.45",
  "syn 2.0.117",
+]
+
+[[package]]
+name = "openssh-sftp-error"
+version = "0.5.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "12a702f18f0595b4578b21fd120ae7aa45f4298a8b28ddcb2397ace6f5a8251a"
+dependencies = [
+ "awaitable-error",
+ "openssh-sftp-protocol-error",
+ "ssh_format_error",
+ "thiserror 2.0.18",
+ "tokio",
 ]
 
 [[package]]
