@@ -93,6 +93,7 @@ codespan-reporting
 colorchoice
 combine
 command-fds
+concurrent_arena
 config
 configparser
 const-oid
@@ -577,6 +578,7 @@ tracing-core
 tracing-log
 tracing-subscriber
 transpose
+triomphe
 try-lock
 tryhard
 tungstenite
