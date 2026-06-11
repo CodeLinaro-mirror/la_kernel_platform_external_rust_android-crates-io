@@ -615,6 +615,7 @@ dependencies = [
  "spidev",
  "spin 0.12.0",
  "spki",
+ "ssh_format",
  "ssh_format_error",
  "stable_deref_trait",
  "static_assertions",
@@ -8565,6 +8566,16 @@ checksum = "d91ed6c858b01f942cd56b37a94b3e0a1798290327d1236e4d9cf4eaca44d29d"
 dependencies = [
  "base64ct",
  "der",
+]
+
+[[package]]
+name = "ssh_format"
+version = "0.14.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "24ab31081d1c9097c327ec23550858cb5ffb4af6b866c1ef4d728455f01f3304"
+dependencies = [
+ "serde",
+ "ssh_format_error",
 ]
 
 [[package]]
