@@ -34,6 +34,10 @@
 /// or output.** The resulting `Result` must be handled as described above to
 /// cause the test to be recorded as a failure.
 ///
+/// Note that unlike [`expect_that!`], this macro may be invoked in tests
+/// without the [`gtest`][crate::gtest] attribute and also from other threads
+/// (provided that `and_log_failure` is not called).
+///
 /// Example:
 /// ```
 /// # use googletest::prelude::*;
@@ -520,6 +524,66 @@ macro_rules! expect_true {
 }
 pub use expect_true;
 
+/// Marks the test as failed and panics if the given value is `false`.
+///
+/// This is a *fatal* assertion: the test panics
+/// in the event of assertion failure.
+///
+/// This can only be invoked inside tests with the
+/// [`gtest`][crate::gtest] attribute. The assertion must
+/// occur in the same thread as that running the test itself.
+///
+/// Example:
+///
+/// ```ignore
+/// use googletest::prelude::*;
+///
+/// #[gtest]
+/// fn should_fail() {
+///     assert_true!(false); // panic!
+/// }
+/// ```
+///
+/// One may optionally add arguments which will be formatted and appended to a
+/// failure message. For example:
+///
+/// ```ignore
+/// use googletest::prelude::*;
+///
+/// #[gtest]
+/// fn should_fail() {
+///     let extra_information = "Some additional information";
+///     assert_true!(false, "Test failed. Extra information: {extra_information}.");
+/// }
+/// ```
+///
+/// The output is as follows:
+///
+/// ```text
+/// Value of: false
+/// Expected: is equal to true
+/// Actual: false,
+///   which isn't equal to true
+/// Test failed. Extra information: Some additional information.
+/// ```
+#[macro_export]
+macro_rules! assert_true {
+    ($condition:expr) => {
+        if let Err(e) = $crate::verify_true!($condition) {
+            panic!("\n{}", e);
+        }
+    };
+    ($condition:expr, $($format_args:expr),* $(,)?) => {
+        if let Err(e) = $crate::GoogleTestSupport::with_failure_message(
+            $crate::verify_true!($condition),
+            || format!($($format_args),*))
+        {
+            panic!("\n{}", e);
+        }
+    };
+}
+pub use assert_true;
+
 /// Verify if the condition evaluates to false and returns `Result`.
 ///
 /// Evaluates to `Result::Ok(())` if the condition is false and
@@ -608,6 +672,65 @@ macro_rules! expect_false {
     }};
 }
 pub use expect_false;
+
+/// Marks the test as failed and panics if the given value is `true`.
+///
+/// This is a *fatal* assertion: the test panics
+/// in the event of assertion failure.
+///
+/// This can only be invoked inside tests with the
+/// [`gtest`][crate::gtest] attribute. The assertion must
+/// occur in the same thread as that running the test itself.
+///
+/// Example:
+/// ```ignore
+/// use googletest::prelude::*;
+///
+/// #[gtest]
+/// fn should_fail() {
+///     assert_false!(true); // panic!
+/// }
+/// ```
+///
+/// One may optionally add arguments which will be formatted and appended to a
+/// failure message. For example:
+///
+/// ``` ignore
+/// use googletest::prelude::*;
+///
+/// #[gtest]
+/// fn should_fail() {
+///     let extra_information = "Some additional information";
+///     assert_false!(true, "Test failed. Extra information: {extra_information}.");
+/// }
+/// ```
+///
+/// The output is as follows:
+///
+/// ```text
+/// Value of: true
+/// Expected: is equal to false
+/// Actual: true,
+///   which isn't equal to false
+/// Test failed. Extra information: Some additional information.
+/// ```
+#[macro_export]
+macro_rules! assert_false {
+    ($condition:expr) => {
+        if let Err(e) = $crate::verify_false!($condition) {
+            panic!("\n{}", e);
+        }
+    };
+    ($condition:expr, $($format_args:expr),* $(,)?) => {
+        if let Err(e) = $crate::GoogleTestSupport::with_failure_message(
+            $crate::verify_false!($condition),
+            || format!($($format_args),*))
+        {
+            panic!("\n{}", e);
+        }
+    };
+}
+pub use assert_false;
 
 /// Checks whether the second argument is equal to the first argument.
 ///
@@ -1361,6 +1484,9 @@ pub use expect_near;
 ///   at ...
 /// Test failed. Extra information: Some additional information.
 /// ```
+///
+/// Note that unlike [`expect_that!`], this macro may be invoked in tests
+/// without the [`gtest`][crate::gtest] attribute and also from other threads.
 ///
 /// **Note for users of [GoogleTest for C++](http://google.github.io/googletest/):**
 /// This differs from the `ASSERT_THAT` macro in that it panics rather
