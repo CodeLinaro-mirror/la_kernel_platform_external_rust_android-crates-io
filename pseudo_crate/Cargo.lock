@@ -165,6 +165,7 @@ dependencies = [
  "atomic-waker",
  "atty",
  "automotive_diag",
+ "awaitable",
  "awaitable-error",
  "aws-lc-rs",
  "axum",
@@ -1264,6 +1265,16 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "375082f007bd67184fb9c0374614b29f9aaa604ec301635f72338bb65386a53d"
 dependencies = [
  "arrayvec",
+]
+
+[[package]]
+name = "awaitable"
+version = "0.4.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "70af449c9a763cb655c6a1e5338b42d99c67190824ff90658c1e30be844c0775"
+dependencies = [
+ "awaitable-error",
+ "cfg-if",
 ]
 
 [[package]]
