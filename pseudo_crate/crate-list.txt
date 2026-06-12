@@ -379,6 +379,7 @@ oorandom
 open-enum
 open-enum-derive
 openssh-sftp-error
+openssh-sftp-protocol
 openssh-sftp-protocol-error
 openssl-macros
 openssl-probe

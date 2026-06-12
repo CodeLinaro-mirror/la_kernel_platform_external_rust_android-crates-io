@@ -498,6 +498,7 @@ dependencies = [
  "open-enum",
  "open-enum-derive",
  "openssh-sftp-error",
+ "openssh-sftp-protocol",
  "openssh-sftp-protocol-error",
  "openssl-macros",
  "openssl-probe 0.2.1",
@@ -6453,6 +6454,21 @@ dependencies = [
  "ssh_format_error",
  "thiserror 2.0.18",
  "tokio",
+ ]
+
+[[package]]
+name = "openssh-sftp-protocol"
+version = "0.24.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a9c862e0c56553146306507f55958c11ff554e02c46de287e6976e50d815b350"
+dependencies = [
+ "bitflags 2.13.0",
+ "num-derive",
+ "num-traits",
+ "openssh-sftp-protocol-error",
+ "serde",
+ "ssh_format",
+ "vec-strings",
 ]
 
 [[package]]
