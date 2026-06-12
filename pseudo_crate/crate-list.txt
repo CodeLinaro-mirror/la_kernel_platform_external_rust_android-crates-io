@@ -62,6 +62,7 @@ bit_field
 bitflags
 bitreader
 bitvec
+brotli-decompressor
 bstr
 buddy_system_allocator
 bytemuck
