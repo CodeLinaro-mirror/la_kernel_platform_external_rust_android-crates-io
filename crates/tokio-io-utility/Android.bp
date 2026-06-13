@@ -21,7 +21,14 @@ rust_library {
     cargo_pkg_version: "0.7.6",
     crate_root: "src/lib.rs",
     edition: "2021",
-    rustlibs: ["libtokio"],
+    features: [
+        "bytes",
+        "read-exact-to-bytes",
+    ],
+    rustlibs: [
+        "libbytes",
+        "libtokio",
+    ],
     apex_available: [
         "//apex_available:platform",
         "//apex_available:anyapex",

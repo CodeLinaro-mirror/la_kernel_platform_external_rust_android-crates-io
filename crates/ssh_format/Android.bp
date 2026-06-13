@@ -21,7 +21,9 @@ rust_library {
     cargo_pkg_version: "0.14.1",
     crate_root: "src/lib.rs",
     edition: "2018",
+    features: ["bytes"],
     rustlibs: [
+        "libbytes",
         "libserde",
         "libssh_format_error",
     ],

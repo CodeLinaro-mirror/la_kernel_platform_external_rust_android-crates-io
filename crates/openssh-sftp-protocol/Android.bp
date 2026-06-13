@@ -21,6 +21,7 @@ rust_library {
     cargo_pkg_version: "0.24.1",
     crate_root: "src/lib.rs",
     edition: "2018",
+    features: ["bytes"],
     rustlibs: [
         "libbitflags",
         "libnum_traits",
@@ -52,6 +53,7 @@ rust_test {
         unit_test: true,
     },
     edition: "2018",
+    features: ["bytes"],
     rustlibs: [
         "libbitflags",
         "libnum_traits",

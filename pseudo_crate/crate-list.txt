@@ -378,6 +378,7 @@ oneshot-uniffi
 oorandom
 open-enum
 open-enum-derive
+openssh-sftp-client-lowlevel
 openssh-sftp-error
 openssh-sftp-protocol
 openssh-sftp-protocol-error
