@@ -378,6 +378,7 @@ oneshot-uniffi
 oorandom
 open-enum
 open-enum-derive
+openssh-sftp-protocol-error
 openssl-macros
 openssl-probe
 os_pipe
@@ -621,6 +622,7 @@ utf-8
 utf8_iter
 utf8parse
 uuid
+vec-strings
 vhost
 vhost-device-vsock
 vhost-user-backend
