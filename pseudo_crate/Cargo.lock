@@ -497,6 +497,7 @@ dependencies = [
  "oorandom",
  "open-enum",
  "open-enum-derive",
+ "openssh-sftp-protocol-error",
  "openssl-macros",
  "openssl-probe 0.2.1",
  "os_pipe",
@@ -732,6 +733,7 @@ dependencies = [
  "utf8_iter",
  "utf8parse",
  "uuid",
+ "vec-strings",
  "vhost",
  "vhost-device-vsock",
  "vhost-user-backend",
@@ -6439,6 +6441,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "openssh-sftp-protocol-error"
+version = "0.1.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "42b54df62ccfd9a7708a83a9d60c46293837e478f9f4c0829360dcfa60ede8d2"
+dependencies = [
+ "serde",
+ "thiserror 2.0.18",
+ "vec-strings",
+]
+
+[[package]]
 name = "openssl"
 version = "0.10.68"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -9972,6 +9985,16 @@ name = "vcpkg"
 version = "0.2.15"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "accd4ea62f7bb7a82fe23066fb0957d48ef677f6eeb8215f372f52e48bb32426"
+
+[[package]]
+name = "vec-strings"
+version = "0.4.8"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "c8509489e2a7ee219522238ad45fd370bec6808811ac15ac6b07453804e77659"
+dependencies = [
+ "serde",
+ "thin-vec",
+]
 
 [[package]]
 name = "vec_map"
