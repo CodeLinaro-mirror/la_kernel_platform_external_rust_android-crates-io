@@ -34,6 +34,7 @@ rust_library {
         "process",
         "std",
         "thread",
+        "time",
         "use-libc",
         "use-libc-auxv",
     ],
