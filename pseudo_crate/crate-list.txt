@@ -533,6 +533,7 @@ slab
 slotmap
 smallvec
 smccc
+smithay
 smol_str
 smoltcp
 socket2
