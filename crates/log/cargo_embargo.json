@@ -2,6 +2,7 @@
   "run_cargo": false,
   "recovery_available": true,
   "min_sdk_version": "29",
+  "ota_recovery_ramdisk_available": true,
   "package": {
     "log": {
       "target_windows": true

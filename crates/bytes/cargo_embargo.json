@@ -9,6 +9,7 @@
     "serde"
   ],
   "min_sdk_version": "29",
+  "ota_recovery_ramdisk_available": true,
   "tests": true,
   "package": {
     "bytes": {
