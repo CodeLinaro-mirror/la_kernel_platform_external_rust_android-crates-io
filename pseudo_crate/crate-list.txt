@@ -210,6 +210,7 @@ gdbstub
 gdbstub_arch
 genco
 genco-macros
+generic-array
 getopts
 getrandom
 gherkin

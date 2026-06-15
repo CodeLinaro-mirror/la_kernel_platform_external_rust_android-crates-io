@@ -344,6 +344,7 @@ dependencies = [
  "gdbstub_arch",
  "genco",
  "genco-macros",
+ "generic-array",
  "getopts",
  "getrandom 0.4.2",
  "gherkin",
