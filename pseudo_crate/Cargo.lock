@@ -156,6 +156,7 @@ dependencies = [
  "anstyle-parse 1.0.0",
  "anstyle-query",
  "anyhow",
+ "appendlist",
  "approx",
  "arbitrary",
  "arc-swap",
@@ -971,6 +972,12 @@ name = "anyhow"
 version = "1.0.102"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7f202df86484c868dbad7eaa557ef785d5c66295e41b460ef922eca0723b842c"
+
+[[package]]
+name = "appendlist"
+version = "1.4.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e149dc73cd30538307e7ffa2acd3d2221148eaeed4871f246657b1c3eaa1cbd2"
 
 [[package]]
 name = "approx"
