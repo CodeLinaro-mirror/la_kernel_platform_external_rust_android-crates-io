@@ -18,6 +18,7 @@ anstyle
 anstyle-parse
 anstyle-query
 anyhow
+approx
 arbitrary
 arc-swap
 argh
