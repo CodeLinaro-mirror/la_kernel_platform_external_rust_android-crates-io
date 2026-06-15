@@ -43,6 +43,7 @@ async-task
 async-trait
 atomic
 atomic-waker
+atomic_float
 atty
 autocfg
 automotive_diag
