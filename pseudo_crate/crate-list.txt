@@ -125,6 +125,7 @@ crypto-common
 csv
 csv-core
 ctrlc
+cursor-icon
 darling
 darling_core
 darling_macro
