@@ -105,6 +105,7 @@ const-oid
 const_fn
 coset
 cov-mark
+cpufeatures
 crates-index
 crc
 crc-catalog
