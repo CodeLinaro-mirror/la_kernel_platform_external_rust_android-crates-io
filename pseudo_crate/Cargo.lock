@@ -253,6 +253,7 @@ dependencies = [
  "crossbeam-epoch",
  "crossbeam-queue",
  "crossbeam-utils",
+ "crypto-common",
  "csv",
  "csv-core",
  "ctrlc",
