@@ -279,6 +279,7 @@ dependencies = [
  "derive_builder_core",
  "derive_builder_macro",
  "derive_destructure2",
+ "digest",
  "diplomat",
  "diplomat-runtime",
  "diplomat_core",
