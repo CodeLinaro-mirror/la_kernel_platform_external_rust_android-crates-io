@@ -16,5 +16,6 @@
         "README.md"
       ]
     }
-  }
+  },
+  "ota_recovery_ramdisk_available": true
 }
