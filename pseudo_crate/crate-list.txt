@@ -641,6 +641,7 @@ walkdir
 want
 wayland-backend
 wayland-scanner
+wayland-server
 wayland-sys
 weak-table
 webpki
