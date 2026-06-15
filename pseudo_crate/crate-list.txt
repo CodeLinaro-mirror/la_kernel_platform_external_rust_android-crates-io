@@ -595,6 +595,7 @@ tungstenite
 twox-hash
 typed-builder
 typed-builder-macro
+typenum
 ucd-trie
 ucs2
 uefi
