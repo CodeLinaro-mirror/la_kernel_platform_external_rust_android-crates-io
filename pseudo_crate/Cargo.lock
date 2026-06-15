@@ -621,6 +621,7 @@ dependencies = [
  "serde_urlencoded",
  "serde_yaml",
  "serialport",
+ "sha2",
  "sharded-slab",
  "shared_child",
  "shared_library",
