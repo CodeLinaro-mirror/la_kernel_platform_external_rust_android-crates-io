@@ -84,6 +84,7 @@ cesu8
 cexpr
 cfg-expr
 cfg-if
+cgmath
 chrono
 chunked_transfer
 ciborium
