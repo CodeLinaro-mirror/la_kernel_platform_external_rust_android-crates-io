@@ -551,6 +551,7 @@ dependencies = [
  "proc-macro-error-attr2",
  "proc-macro-error2",
  "proc-macro2 1.0.106",
+ "profiling",
  "profiling-procmacros",
  "protobuf 3.7.2",
  "protobuf-codegen",

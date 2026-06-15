@@ -432,6 +432,7 @@ primal-check
 proc-macro-error-attr2
 proc-macro-error2
 proc-macro2
+profiling
 profiling-procmacros
 protobuf
 protobuf-codegen
