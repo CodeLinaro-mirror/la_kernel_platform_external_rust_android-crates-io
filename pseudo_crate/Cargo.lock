@@ -750,6 +750,7 @@ dependencies = [
  "vulkano",
  "walkdir",
  "want",
+ "wayland-backend",
  "wayland-scanner",
  "wayland-sys",
  "which 8.0.2",
