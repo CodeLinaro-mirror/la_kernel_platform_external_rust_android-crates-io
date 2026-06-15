@@ -750,6 +750,7 @@ dependencies = [
  "vulkano",
  "walkdir",
  "want",
+ "wayland-scanner",
  "which 8.0.2",
  "windows-link 0.2.1",
  "windows-sys 0.61.2",

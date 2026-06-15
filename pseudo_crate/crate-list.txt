@@ -639,6 +639,7 @@ vsprintf
 vulkano
 walkdir
 want
+wayland-scanner
 weak-table
 webpki
 which
