@@ -14,7 +14,7 @@ use crate::errors::{Error, Result};
 use crate::events::Event;
 use crate::name::QName;
 use crate::parser::Parser;
-use crate::reader::{BangType, ReadTextResult, Reader, Span, XmlSource};
+use crate::reader::{BangType, ReadRefResult, ReadTextResult, Reader, Span, XmlSource};
 use crate::utils::is_whitespace;
 
 /// This is an implementation for reading from a `&[u8]` as underlying byte stream.
@@ -62,7 +62,7 @@ impl<'a> Reader<&'a [u8]> {
     /// loop {
     ///     match reader.read_event().unwrap() {
     ///         Event::Start(e) => count += 1,
-    ///         Event::Text(e) => txt.push(e.unescape().unwrap().into_owned()),
+    ///         Event::Text(e) => txt.push(e.decode().unwrap().into_owned()),
     ///         Event::Eof => break,
     ///         _ => (),
     ///     }
@@ -263,23 +263,72 @@ impl<'a> XmlSource<'a, ()> for &'a [u8] {
 
     #[inline]
     fn read_text(&mut self, _buf: (), position: &mut u64) -> ReadTextResult<'a, ()> {
-        match memchr::memchr(b'<', self) {
-            Some(0) => {
-                *position += 1;
-                *self = &self[1..];
-                ReadTextResult::Markup(())
-            }
-            Some(i) => {
-                *position += i as u64 + 1;
-                let bytes = &self[..i];
-                *self = &self[i + 1..];
+        // Search for start of markup or an entity or character reference
+        match memchr::memchr2(b'<', b'&', self) {
+            Some(0) if self[0] == b'<' => ReadTextResult::Markup(()),
+            // Do not consume `&` because it may be lone and we would be need to
+            // return it as part of Text event
+            Some(0) => ReadTextResult::Ref(()),
+            Some(i) if self[i] == b'<' => {
+                let (bytes, rest) = self.split_at(i);
+                *self = rest;
+                *position += i as u64;
                 ReadTextResult::UpToMarkup(bytes)
             }
+            Some(i) => {
+                let (bytes, rest) = self.split_at(i);
+                *self = rest;
+                *position += i as u64;
+                ReadTextResult::UpToRef(bytes)
+            }
             None => {
-                *position += self.len() as u64;
                 let bytes = &self[..];
                 *self = &[];
+                *position += bytes.len() as u64;
                 ReadTextResult::UpToEof(bytes)
+            }
+        }
+    }
+
+    #[inline]
+    fn read_ref(&mut self, _buf: (), position: &mut u64) -> ReadRefResult<'a> {
+        debug_assert!(
+            self.starts_with(b"&"),
+            "`read_ref` must be called at `&`:\n{:?}",
+            crate::utils::Bytes(self)
+        );
+        // Search for the end of reference or a start of another reference or a markup
+        match memchr::memchr3(b';', b'&', b'<', &self[1..]) {
+            Some(i) if self[i + 1] == b';' => {
+                // +1 for the start `&`
+                // +1 for the end `;`
+                let end = i + 2;
+                let (bytes, rest) = self.split_at(end);
+                *self = rest;
+                *position += end as u64;
+
+                ReadRefResult::Ref(bytes)
+            }
+            // Do not consume `&` because it may be lone and we would be need to
+            // return it as part of Text event
+            Some(i) => {
+                let is_amp = self[i + 1] == b'&';
+                let (bytes, rest) = self.split_at(i + 1);
+                *self = rest;
+                *position += i as u64 + 1;
+
+                if is_amp {
+                    ReadRefResult::UpToRef(bytes)
+                } else {
+                    ReadRefResult::UpToMarkup(bytes)
+                }
+            }
+            None => {
+                let bytes = &self[..];
+                *self = &[];
+                *position += bytes.len() as u64;
+
+                ReadRefResult::UpToEof(bytes)
             }
         }
     }
@@ -290,33 +339,39 @@ impl<'a> XmlSource<'a, ()> for &'a [u8] {
         P: Parser,
     {
         if let Some(i) = parser.feed(self) {
-            // +1 for `>` which we do not include
-            *position += i as u64 + 1;
-            let bytes = &self[..i];
-            *self = &self[i + 1..];
+            let used = i + 1; // +1 for `>`
+            *position += used as u64;
+            let (bytes, rest) = self.split_at(used);
+            *self = rest;
             return Ok(bytes);
         }
 
         *position += self.len() as u64;
-        Err(Error::Syntax(P::eof_error()))
+        Err(Error::Syntax(parser.eof_error(self)))
     }
 
     #[inline]
     fn read_bang_element(&mut self, _buf: (), position: &mut u64) -> Result<(BangType, &'a [u8])> {
         // Peeked one bang ('!') before being called, so it's guaranteed to
         // start with it.
-        debug_assert_eq!(self[0], b'!');
+        debug_assert!(
+            self.starts_with(b"<!"),
+            "`read_bang_element` must be called at `<!`:\n{:?}",
+            crate::utils::Bytes(self)
+        );
 
-        let mut bang_type = BangType::new(self[1..].first().copied())?;
+        let mut bang_type = BangType::new(self.get(2).copied())?;
 
-        if let Some((bytes, i)) = bang_type.parse(&[], self) {
-            *position += i as u64;
-            *self = &self[i..];
+        if let Some(i) = bang_type.feed(&[], self) {
+            let consumed = i + 1; // +1 for `>`
+            *position += consumed as u64;
+            let (bytes, rest) = self.split_at(consumed);
+            *self = rest;
             return Ok((bang_type, bytes));
         }
 
         *position += self.len() as u64;
-        Err(bang_type.to_err().into())
+        Err(Error::Syntax(bang_type.to_err()))
     }
 
     #[inline]
@@ -332,7 +387,12 @@ impl<'a> XmlSource<'a, ()> for &'a [u8] {
 
     #[inline]
     fn peek_one(&mut self) -> io::Result<Option<u8>> {
-        Ok(self.first().copied())
+        debug_assert!(
+            self.starts_with(b"<"),
+            "markup must start from '<':\n{:?}",
+            crate::utils::Bytes(self)
+        );
+        Ok(self.get(1).copied())
     }
 }
 
@@ -351,6 +411,7 @@ mod test {
         read_event_impl,
         read_until_close,
         identity,
+        0,
         ()
     );
 }
