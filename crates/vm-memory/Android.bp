@@ -13,8 +13,9 @@ license {
     license_text: ["LICENSE"],
 }
 
-rust_library_host {
+rust_library {
     name: "libvm_memory_android",
+    host_supported: true,
     crate_name: "vm_memory",
     cargo_env_compat: true,
     cargo_pkg_version: "0.16.2",
@@ -33,6 +34,13 @@ rust_library_host {
         "libthiserror",
     ],
     compile_multilib: "first",
+    apex_available: [
+        "//apex_available:platform",
+        "//apex_available:anyapex",
+    ],
+    product_available: true,
+    vendor_available: true,
+    min_sdk_version: "29",
     arch: {
         arm64: {
             enabled: true,
