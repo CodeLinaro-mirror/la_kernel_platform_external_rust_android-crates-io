@@ -1,4 +1,3 @@
-pub(crate) mod input;
 mod interlace_info;
 mod read_decoder;
 pub(crate) mod stream;
@@ -11,6 +10,7 @@ use self::stream::{DecodeOptions, DecodingError, FormatErrorInner};
 use self::transform::{create_transform_fn, TransformFn};
 use self::unfiltering_buffer::UnfilteringBuffer;
 
+use std::io::{BufRead, Seek};
 use std::mem;
 
 use crate::adam7::Adam7Info;
@@ -20,7 +20,6 @@ use crate::common::{
 use crate::FrameControl;
 pub use zlib::{UnfilterBuf, UnfilterRegion};
 
-pub use self::input::{LimitBufRead, LimitBufReader};
 pub use interlace_info::InterlaceInfo;
 use interlace_info::InterlaceInfoIter;
 
@@ -88,7 +87,7 @@ impl Default for Limits {
 }
 
 /// PNG Decoder
-pub struct Decoder<R: LimitBufRead> {
+pub struct Decoder<R: BufRead + Seek> {
     read_decoder: ReadDecoder<R>,
     /// Output transformations
     transform: Transformations,
@@ -123,7 +122,7 @@ impl<'data> Row<'data> {
     }
 }
 
-impl<R: LimitBufRead> Decoder<R> {
+impl<R: BufRead + Seek> Decoder<R> {
     /// Create a new decoder configuration with default limits.
     pub fn new(r: R) -> Decoder<R> {
         Decoder::new_with_limits(r, Limits::default())
@@ -292,7 +291,7 @@ impl<R: LimitBufRead> Decoder<R> {
 /// PNG reader (mostly high-level interface)
 ///
 /// Provides a high level that iterates over lines or whole images.
-pub struct Reader<R: LimitBufRead> {
+pub struct Reader<R: BufRead + Seek> {
     decoder: ReadDecoder<R>,
     bpp: BytesPerPixel,
     subframe: SubframeInfo,
@@ -328,7 +327,7 @@ struct SubframeInfo {
     consumed_and_flushed: bool,
 }
 
-impl<R: LimitBufRead> Reader<R> {
+impl<R: BufRead + Seek> Reader<R> {
     /// Advances to the start of the next animation frame and
     /// returns a reference to the [`FrameControl`] info that describes it.
     /// Skips and discards the image data of the previous frame if necessary.

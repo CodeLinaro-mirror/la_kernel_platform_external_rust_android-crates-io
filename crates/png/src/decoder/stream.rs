@@ -661,32 +661,6 @@ impl StreamingDecoder {
         self.info.as_ref()
     }
 
-    /// Calculates the maximum number of bytes the streaming decoder expects to consume in its
-    /// current state before transitioning to the next state.
-    ///
-    /// This value is used by [`LimitBufReader`](crate::decoder::LimitBufReader) to limit buffer
-    /// refills, avoiding aggressive pre-fetching beyond the current chunk boundary to prevent
-    /// overshoot past the `IEND` chunk.
-    pub(crate) fn expected_read_limit(&self) -> Result<usize, DecodingError> {
-        self.state
-            .as_ref()
-            .map(|state| match state {
-                State::U32 {
-                    accumulated_count, ..
-                } => 4 - *accumulated_count,
-                State::ReadChunkData(_) | State::ImageData(_) => {
-                    if self.current_chunk.remaining == 0 {
-                        4 // For the CRC that we will transition to
-                    } else {
-                        self.current_chunk.remaining as usize
-                    }
-                }
-            })
-            .ok_or_else(|| {
-                DecodingError::Parameter(ParameterErrorKind::PolledAfterFatalError.into())
-            })
-    }
-
     pub fn set_ignore_text_chunk(&mut self, ignore_text_chunk: bool) {
         self.decode_options.set_ignore_text_chunk(ignore_text_chunk);
     }
@@ -3075,7 +3049,7 @@ mod tests {
         Decoder::new(Cursor::new(png)).read_info().unwrap()
     }
 
-    fn get_fctl_sequence_number(reader: &Reader<impl BufRead>) -> u32 {
+    fn get_fctl_sequence_number(reader: &Reader<impl BufRead + Seek>) -> u32 {
         reader
             .info()
             .frame_control
