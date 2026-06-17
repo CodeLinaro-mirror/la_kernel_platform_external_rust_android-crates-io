@@ -1,8 +1,7 @@
 {
-  "tests": false,
   "run_cargo": false,
   "min_sdk_version": "29",
   "features": [
-    "bytes"
+    "read-exact-to-bytes"
   ]
 }
