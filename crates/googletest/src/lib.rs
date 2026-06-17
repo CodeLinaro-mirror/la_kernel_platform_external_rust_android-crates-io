@@ -51,17 +51,30 @@ pub mod prelude {
     pub use super::gtest;
     pub use super::matcher::{Matcher, MatcherBase};
     pub use super::matchers::*;
+    pub use super::scoped_trace;
     pub use super::verify_current_test_outcome;
     pub use super::GoogleTestSupport;
     pub use super::OrFail;
     pub use super::Result;
     // Assert macros
     pub use super::{
-        add_failure, add_failure_at, assert_pred, assert_that, expect_eq, expect_false,
-        expect_float_eq, expect_ge, expect_gt, expect_le, expect_lt, expect_ne, expect_near,
-        expect_pred, expect_that, expect_true, fail, succeed, verify_eq, verify_false,
-        verify_float_eq, verify_ge, verify_gt, verify_le, verify_lt, verify_ne, verify_near,
-        verify_pred, verify_that, verify_true,
+        add_failure, add_failure_at, assert_false, assert_pred, assert_that, assert_true,
+        expect_eq, expect_false, expect_float_eq, expect_ge, expect_gt, expect_le, expect_lt,
+        expect_ne, expect_near, expect_pred, expect_that, expect_true, fail, succeed, verify_eq,
+        verify_false, verify_float_eq, verify_ge, verify_gt, verify_le, verify_lt, verify_ne,
+        verify_near, verify_pred, verify_that, verify_true,
+    };
+}
+
+/// Causes a trace to be included in every test failure message generated
+/// by code in the current scope.
+#[macro_export]
+macro_rules! scoped_trace {
+    ($($arg:tt)*) => {
+        #[allow(clippy::shadow_same, clippy::shadow_unrelated)]
+        let _gtest_trace_guard = $crate::internal::scoped_trace::ScopedTraceGuard::new(
+            format!($($arg)*),
+        );
     };
 }
 
@@ -91,7 +104,7 @@ use internal::test_outcome::{TestAssertionFailure, TestOutcome};
 /// of the (fatal) assertion failure which generated this result. Non-fatal
 /// assertion failures, which log the failure and report the test as having
 /// failed but allow it to continue running, are not encoded in this type.
-pub type Result<T> = std::result::Result<T, TestAssertionFailure>;
+pub type Result<T, E = TestAssertionFailure> = std::result::Result<T, E>;
 
 /// Returns a [`Result`] corresponding to the outcome of the currently running
 /// test.
@@ -321,6 +334,48 @@ impl<T> OrFail for Option<T> {
                 "called `Option::or_fail()` on a `Option::<{}>::None` value",
                 std::any::type_name::<T>()
             ))),
+        }
+    }
+}
+
+#[doc(hidden)]
+pub mod __internal_macro_support {
+    use crate::fixtures::Fixture;
+
+    pub struct FixtureTearDownOnDrop<T: Fixture> {
+        fixture: Option<T>,
+    }
+
+    impl<T: Fixture> FixtureTearDownOnDrop<T> {
+        pub fn new(fixture: T) -> Self {
+            Self { fixture: Some(fixture) }
+        }
+        pub fn tear_down(mut self) -> crate::Result<()> {
+            if let Some(fixture) = self.fixture.take() {
+                fixture.tear_down()
+            } else {
+                Ok(())
+            }
+        }
+    }
+
+    impl<T: Fixture> AsRef<T> for FixtureTearDownOnDrop<T> {
+        fn as_ref(&self) -> &T {
+            self.fixture.as_ref().unwrap()
+        }
+    }
+
+    impl<T: Fixture> AsMut<T> for FixtureTearDownOnDrop<T> {
+        fn as_mut(&mut self) -> &mut T {
+            self.fixture.as_mut().unwrap()
+        }
+    }
+
+    impl<T: Fixture> Drop for FixtureTearDownOnDrop<T> {
+        fn drop(&mut self) {
+            if let Some(fixture) = self.fixture.take() {
+                fixture.tear_down().unwrap();
+            }
         }
     }
 }
