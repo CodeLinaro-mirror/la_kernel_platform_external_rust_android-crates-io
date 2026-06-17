@@ -31,6 +31,7 @@ rust_library {
         "net",
         "param",
         "pipe",
+        "process",
         "std",
         "thread",
         "use-libc",
