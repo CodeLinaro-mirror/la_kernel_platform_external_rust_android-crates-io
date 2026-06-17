@@ -505,6 +505,7 @@ dependencies = [
  "oorandom",
  "open-enum",
  "open-enum-derive",
+ "openssh-sftp-client",
  "openssh-sftp-client-lowlevel",
  "openssh-sftp-error",
  "openssh-sftp-protocol",
@@ -6477,6 +6478,25 @@ dependencies = [
  "proc-macro2 1.0.106",
  "quote 1.0.45",
  "syn 2.0.117",
+]
+
+[[package]]
+name = "openssh-sftp-client"
+version = "0.15.7"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e7a575af2d0eaa7c8f96368924994a3ae1d484fd2b19750cc1049c1100a42e82"
+dependencies = [
+ "bytes",
+ "derive_destructure2",
+ "futures-core",
+ "once_cell",
+ "openssh-sftp-client-lowlevel",
+ "openssh-sftp-error",
+ "pin-project",
+ "scopeguard",
+ "tokio",
+ "tokio-io-utility",
+ "tokio-util",
 ]
 
 [[package]]
