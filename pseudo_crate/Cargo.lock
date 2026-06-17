@@ -788,6 +788,7 @@ dependencies = [
  "wyz",
  "x509-cert",
  "x86_64",
+ "xkbcommon",
  "xkeysym",
  "xml-rs",
  "yaml-rust",
@@ -11350,6 +11351,17 @@ checksum = "32e45ad4206f6d2479085147f02bc2ef834ac85886624a23575ae137c8aa8156"
 dependencies = [
  "libc 0.2.186",
  "rustix 1.1.4",
+]
+
+[[package]]
+name = "xkbcommon"
+version = "0.8.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "8d66ca9352cbd4eecbbc40871d8a11b4ac8107cfc528a6e14d7c19c69d0e1ac9"
+dependencies = [
+ "libc 0.2.186",
+ "memmap2",
+ "xkeysym",
 ]
 
 [[package]]
