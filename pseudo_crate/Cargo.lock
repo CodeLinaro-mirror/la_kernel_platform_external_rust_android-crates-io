@@ -156,6 +156,7 @@ dependencies = [
  "anstyle-parse 1.0.0",
  "anstyle-query",
  "anyhow",
+ "approx",
  "arbitrary",
  "arc-swap",
  "argh",
@@ -198,6 +199,7 @@ dependencies = [
  "bit_field",
  "bitflags 2.13.0",
  "bitvec",
+ "block-buffer",
  "brotli",
  "brotli-decompressor",
  "bstr",
@@ -217,6 +219,7 @@ dependencies = [
  "cexpr",
  "cfg-expr",
  "cfg-if",
+ "cgmath",
  "chrono",
  "chunked_transfer",
  "ciborium",
@@ -240,6 +243,7 @@ dependencies = [
  "const_fn",
  "coset",
  "cov-mark",
+ "cpufeatures 0.2.17",
  "crates-index",
  "crc",
  "crc-catalog",
@@ -252,6 +256,7 @@ dependencies = [
  "crossbeam-epoch",
  "crossbeam-queue",
  "crossbeam-utils",
+ "crypto-common",
  "csv",
  "csv-core",
  "ctrlc",
@@ -276,6 +281,7 @@ dependencies = [
  "derive_builder_core",
  "derive_builder_macro",
  "derive_destructure2",
+ "digest",
  "diplomat",
  "diplomat-runtime",
  "diplomat_core",
@@ -343,6 +349,7 @@ dependencies = [
  "gdbstub_arch",
  "genco",
  "genco-macros",
+ "generic-array",
  "getopts",
  "getrandom 0.4.2",
  "gherkin",
@@ -546,6 +553,8 @@ dependencies = [
  "proc-macro-error-attr2",
  "proc-macro-error2",
  "proc-macro2 1.0.106",
+ "profiling",
+ "profiling-procmacros",
  "protobuf 3.7.2",
  "protobuf-codegen",
  "protobuf-json-mapping",
@@ -616,6 +625,7 @@ dependencies = [
  "serde_urlencoded",
  "serde_yaml",
  "serialport",
+ "sha2",
  "sharded-slab",
  "shared_child",
  "shared_library",
@@ -712,6 +722,7 @@ dependencies = [
  "twox-hash",
  "typed-builder",
  "typed-builder-macro",
+ "typenum",
  "ucd-trie",
  "ucs2",
  "uefi",
@@ -949,6 +960,15 @@ name = "anyhow"
 version = "1.0.102"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7f202df86484c868dbad7eaa557ef785d5c66295e41b460ef922eca0723b842c"
+
+[[package]]
+name = "approx"
+version = "0.4.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "3f2a05fd1bd10b2527e20a2cd32d8873d115b8b39fe219ee25f42a8aca6ba278"
+dependencies = [
+ "num-traits",
+]
 
 [[package]]
 name = "arbitrary"
@@ -1850,6 +1870,16 @@ name = "cfg_aliases"
 version = "0.2.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "613afe47fcd5fac7ccf1db93babcb082c5994d996f20b8b159f2ad1658eb5724"
+
+[[package]]
+name = "cgmath"
+version = "0.18.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "1a98d30140e3296250832bbaaff83b27dcd6fa3cc70fb6f1f3e5c9c0023b5317"
+dependencies = [
+ "approx",
+ "num-traits",
+]
 
 [[package]]
 name = "chacha20"
@@ -3815,9 +3845,9 @@ dependencies = [
 
 [[package]]
 name = "generic-array"
-version = "0.14.9"
+version = "0.14.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4bb6743198531e02858aeaea5398fcc883e71851fcbcb5a2f773e2fb6cb1edf2"
+checksum = "85649ca51fd72272d7821adaf274ad91c288277713d9c18820d8499a7ff69e9a"
 dependencies = [
  "typenum",
  "version_check",
@@ -7128,18 +7158,18 @@ dependencies = [
 
 [[package]]
 name = "profiling"
-version = "1.0.18"
+version = "1.0.16"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3d595e54a326bc53c1c197b32d295e14b169e3cfeaa8dc82b529f947fba6bcf5"
+checksum = "afbdc74edc00b6f6a218ca6a5364d6226a259d4b8ea1af4a0ea063f27e179f4d"
 dependencies = [
  "profiling-procmacros",
 ]
 
 [[package]]
 name = "profiling-procmacros"
-version = "1.0.18"
+version = "1.0.16"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4488a4a36b9a4ba6b9334a32a39971f77c1436ec82c38707bce707699cc3bbcb"
+checksum = "a65f2e60fbf1063868558d69c6beacf412dc755f9fc020f514b7955fc914fe30"
 dependencies = [
  "quote 1.0.45",
  "syn 2.0.117",
@@ -8525,9 +8555,9 @@ checksum = "67b1b7a3b5fe4f1376887184045fcf45c69e92af734b7aaddc05fb777b6fbd03"
 
 [[package]]
 name = "smawk"
-version = "0.3.2"
+version = "0.3.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b7c388c1b5e93756d0c740965c41e8822f866621d41acbdf6336a6a168f8840c"
+checksum = "e8e2fb0f499abb4d162f2bedad68f5ef91a1682b5a03596ddb67efd37768d100"
 
 [[package]]
 name = "smccc"
@@ -9713,9 +9743,9 @@ checksum = "bc7d623258602320d5c55d1bc22793b57daff0ec7efc270ea7d55ce1d5f5471c"
 
 [[package]]
 name = "typenum"
-version = "1.20.1"
+version = "1.18.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b6f5e870be6c3b371b77fe0ee0bafb859fa4964b4404c27de1d380043c4dda20"
+checksum = "1dccffe3ce07af9386bfd29e80c0ab1a8205a2fc34e4bcd40364df902cfa8f3f"
 
 [[package]]
 name = "ucd-trie"
