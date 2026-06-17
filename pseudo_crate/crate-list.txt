@@ -640,6 +640,7 @@ vulkano
 walkdir
 want
 wayland-scanner
+wayland-sys
 weak-table
 webpki
 which
