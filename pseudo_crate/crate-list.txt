@@ -386,6 +386,9 @@ oneshot-uniffi
 oorandom
 open-enum
 open-enum-derive
+openssh-sftp-client-lowlevel
+openssh-sftp-error
+openssh-sftp-protocol
 openssh-sftp-protocol-error
 openssl-macros
 openssl-probe
@@ -575,6 +578,7 @@ tinyvec
 tinyvec_macros
 tokio
 tokio-io-timeout
+tokio-io-utility
 tokio-macros
 tokio-openssl
 tokio-rustls
