@@ -639,6 +639,7 @@ vsprintf
 vulkano
 walkdir
 want
+wayland-backend
 wayland-scanner
 wayland-sys
 weak-table
