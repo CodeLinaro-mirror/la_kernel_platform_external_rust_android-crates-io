@@ -18,6 +18,7 @@ anstyle
 anstyle-parse
 anstyle-query
 anyhow
+approx
 arbitrary
 arc-swap
 argh
@@ -62,6 +63,7 @@ bit_field
 bitflags
 bitreader
 bitvec
+block-buffer
 brotli
 brotli-decompressor
 bstr
@@ -82,6 +84,7 @@ cesu8
 cexpr
 cfg-expr
 cfg-if
+cgmath
 chrono
 chunked_transfer
 ciborium
@@ -105,6 +108,7 @@ const-oid
 const_fn
 coset
 cov-mark
+cpufeatures
 crates-index
 crc
 crc-catalog
@@ -117,6 +121,7 @@ crossbeam-deque
 crossbeam-epoch
 crossbeam-queue
 crossbeam-utils
+crypto-common
 csv
 csv-core
 ctrlc
@@ -141,6 +146,7 @@ derive_builder
 derive_builder_core
 derive_builder_macro
 derive_destructure2
+digest
 diplomat
 diplomat-runtime
 diplomat_core
@@ -209,6 +215,7 @@ gdbstub
 gdbstub_arch
 genco
 genco-macros
+generic-array
 getopts
 getrandom
 gherkin
@@ -427,6 +434,8 @@ primal-check
 proc-macro-error-attr2
 proc-macro-error2
 proc-macro2
+profiling
+profiling-procmacros
 protobuf
 protobuf-codegen
 protobuf-json-mapping
@@ -497,6 +506,7 @@ serde_test
 serde_urlencoded
 serde_yaml
 serialport
+sha2
 sharded-slab
 shared_child
 shared_library
@@ -594,6 +604,7 @@ tungstenite
 twox-hash
 typed-builder
 typed-builder-macro
+typenum
 ucd-trie
 ucs2
 uefi
