@@ -76,6 +76,7 @@ byteorder
 byteorder-lite
 bytes
 bzip2-cli
+calloop
 camino
 caps
 cargo-platform
