@@ -11,7 +11,8 @@
     "thread",
     "fs",
     "event",
-    "process"
+    "process",
+    "time"
   ],
   "min_sdk_version": "30",
   "extra_cfg": [

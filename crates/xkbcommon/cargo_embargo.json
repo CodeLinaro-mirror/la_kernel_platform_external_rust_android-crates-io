@@ -1,0 +1,16 @@
+{
+  "features": [
+    "wayland"
+  ],
+  "module_name_overrides": {
+    "libxkbcommon": "libxkbcommon_rs"
+  },
+  "package": {
+    "xkbcommon": {
+      "add_module_block": "Android.bp.fragment"
+    }
+  },
+  "run_cargo": false,
+  "product_available": false,
+  "min_sdk_version": "29"
+}

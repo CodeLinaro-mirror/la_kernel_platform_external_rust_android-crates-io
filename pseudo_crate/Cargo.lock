@@ -156,6 +156,7 @@ dependencies = [
  "anstyle-parse 1.0.0",
  "anstyle-query",
  "anyhow",
+ "appendlist",
  "approx",
  "arbitrary",
  "arc-swap",
@@ -181,6 +182,7 @@ dependencies = [
  "async-trait",
  "atomic",
  "atomic-waker",
+ "atomic_float",
  "atty",
  "automotive_diag",
  "awaitable",
@@ -260,6 +262,7 @@ dependencies = [
  "csv",
  "csv-core",
  "ctrlc",
+ "cursor-icon",
  "darling 0.23.0",
  "darling_core 0.23.0",
  "darling_macro 0.23.0",
@@ -768,6 +771,8 @@ dependencies = [
  "walkdir",
  "want",
  "wayland-backend",
+ "wayland-protocols",
+ "wayland-protocols-wlr",
  "wayland-scanner",
  "wayland-server",
  "wayland-sys",
@@ -788,6 +793,7 @@ dependencies = [
  "wyz",
  "x509-cert",
  "x86_64",
+ "xkbcommon",
  "xkeysym",
  "xml-rs",
  "yaml-rust",
@@ -966,6 +972,12 @@ name = "anyhow"
 version = "1.0.102"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7f202df86484c868dbad7eaa557ef785d5c66295e41b460ef922eca0723b842c"
+
+[[package]]
+name = "appendlist"
+version = "1.4.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e149dc73cd30538307e7ffa2acd3d2221148eaeed4871f246657b1c3eaa1cbd2"
 
 [[package]]
 name = "approx"
@@ -1257,6 +1269,12 @@ name = "atomic-waker"
 version = "1.1.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "1505bd5d3d116872e7271a6d4e16d81d0c8570876c8de68093a09ac269d8aac0"
+
+[[package]]
+name = "atomic_float"
+version = "1.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "628d228f918ac3b82fe590352cc719d30664a0c13ca3a60266fe02c7132d480a"
 
 [[package]]
 name = "atty"
@@ -2476,6 +2494,12 @@ dependencies = [
  "nix 0.31.3",
  "windows-sys 0.61.2",
 ]
+
+[[package]]
+name = "cursor-icon"
+version = "1.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f27ae1dd37df86211c42e150270f82743308803d90a6f6e6651cd730d5e1732f"
 
 [[package]]
 name = "darling"
@@ -10558,6 +10582,29 @@ dependencies = [
 ]
 
 [[package]]
+name = "wayland-protocols"
+version = "0.32.12"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "563a85523cade2429938e790815fd7319062103b9f4a2dc806e9b53b95982d8f"
+dependencies = [
+ "bitflags 2.13.0",
+ "wayland-backend",
+ "wayland-scanner",
+]
+
+[[package]]
+name = "wayland-protocols-wlr"
+version = "0.3.12"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "eb04e52f7836d7c7976c78ca0250d61e33873c34156a2a1fc9474828ec268234"
+dependencies = [
+ "bitflags 2.13.0",
+ "wayland-backend",
+ "wayland-protocols",
+ "wayland-scanner",
+]
+
+[[package]]
 name = "wayland-scanner"
 version = "0.31.10"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -11359,6 +11406,17 @@ checksum = "32e45ad4206f6d2479085147f02bc2ef834ac85886624a23575ae137c8aa8156"
 dependencies = [
  "libc 0.2.186",
  "rustix 1.1.4",
+]
+
+[[package]]
+name = "xkbcommon"
+version = "0.8.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "8d66ca9352cbd4eecbbc40871d8a11b4ac8107cfc528a6e14d7c19c69d0e1ac9"
+dependencies = [
+ "libc 0.2.186",
+ "memmap2",
+ "xkeysym",
 ]
 
 [[package]]

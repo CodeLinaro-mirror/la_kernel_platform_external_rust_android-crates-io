@@ -18,6 +18,7 @@ anstyle
 anstyle-parse
 anstyle-query
 anyhow
+appendlist
 approx
 arbitrary
 arc-swap
@@ -43,6 +44,7 @@ async-task
 async-trait
 atomic
 atomic-waker
+atomic_float
 atty
 autocfg
 automotive_diag
@@ -125,6 +127,7 @@ crypto-common
 csv
 csv-core
 ctrlc
+cursor-icon
 darling
 darling_core
 darling_macro
@@ -657,6 +660,8 @@ vulkano
 walkdir
 want
 wayland-backend
+wayland-protocols
+wayland-protocols-wlr
 wayland-scanner
 wayland-server
 wayland-sys
@@ -679,6 +684,7 @@ writeable
 wyz
 x509-cert
 x86_64
+xkbcommon
 xkeysym
 xml-rs
 yaml-rust
