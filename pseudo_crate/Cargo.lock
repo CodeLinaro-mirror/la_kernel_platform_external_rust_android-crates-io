@@ -170,7 +170,7 @@ dependencies = [
  "arm-sysregs",
  "array-init",
  "arrayvec",
- "ash",
+ "ash 0.38.0+1.3.281",
  "askama",
  "askama_derive",
  "askama_macros",
@@ -1139,6 +1139,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "39e9c3835d686b0a6084ab4234fcd1b07dbf6e4767dce60874b12356a25ecd4a"
 dependencies = [
  "libloading 0.7.4",
+]
+
+[[package]]
+name = "ash"
+version = "0.38.0+1.3.281"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "0bb44936d800fea8f016d7f2311c6a4f97aebd5dc86f09906139ec848cf3a46f"
+dependencies = [
+ "libloading 0.8.9",
 ]
 
 [[package]]
@@ -10355,7 +10364,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "98ab44b5fe4174d4fb3b86a8172bd4e4e1cddef8700e34276c914052667fc32c"
 dependencies = [
  "ahash",
- "ash",
+ "ash 0.37.3+1.3.251",
  "bytemuck",
  "core-graphics-types",
  "crossbeam-queue",
