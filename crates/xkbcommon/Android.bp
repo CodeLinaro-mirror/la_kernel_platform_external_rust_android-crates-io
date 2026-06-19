@@ -36,6 +36,6 @@ rust_library {
     ],
     vendor_available: true,
     min_sdk_version: "29",
-    static_libs: ["libxkbcommon"],
+    whole_static_libs: ["libxkbcommon"],
 
 }
