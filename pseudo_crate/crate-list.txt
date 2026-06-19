@@ -371,6 +371,7 @@ netlink-proto
 netlink-sys
 nix
 no-panic
+no_denormals
 nom
 normpath
 nu-ansi-term
