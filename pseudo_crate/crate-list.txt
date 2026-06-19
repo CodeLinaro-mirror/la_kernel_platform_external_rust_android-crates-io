@@ -661,6 +661,7 @@ walkdir
 want
 wayland-backend
 wayland-protocols
+wayland-protocols-misc
 wayland-protocols-wlr
 wayland-scanner
 wayland-server
