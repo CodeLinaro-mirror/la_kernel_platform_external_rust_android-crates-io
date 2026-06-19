@@ -1,1 +1,2 @@
-static_libs: ["libxkbcommon"]
+whole_static_libs: ["libxkbcommon"]
+
