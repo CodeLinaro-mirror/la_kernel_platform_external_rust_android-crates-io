@@ -212,6 +212,7 @@ dependencies = [
  "byteorder-lite",
  "bytes",
  "bzip2-cli",
+ "calloop",
  "camino",
  "cargo-platform",
  "cargo_metadata",
@@ -1807,6 +1808,19 @@ checksum = "5abbd6eeda6885048d357edc66748eea6e0268e3dd11f326fff5bd248d779c26"
 dependencies = [
  "core_maths",
  "displaydoc",
+]
+
+[[package]]
+name = "calloop"
+version = "0.14.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "4dbf9978365bac10f54d1d4b04f7ce4427e51f71d61f2fe15e3fed5166474df7"
+dependencies = [
+ "bitflags 2.13.0",
+ "polling",
+ "rustix 1.1.4",
+ "slab",
+ "tracing",
 ]
 
 [[package]]

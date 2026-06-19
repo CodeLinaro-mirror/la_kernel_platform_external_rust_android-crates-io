@@ -1,4 +1,9 @@
 {
   "run_cargo": false,
-  "min_sdk_version": "29"
+  "min_sdk_version": "29",
+  "module_visibility": {
+    "libpolling": [
+      "//external/rust/android-crates-io/crates/calloop"
+    ]
+  }
 }
