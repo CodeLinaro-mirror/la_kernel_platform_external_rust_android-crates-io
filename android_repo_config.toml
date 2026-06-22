@@ -12,6 +12,9 @@ crate_denylist = [
   "uniffi_macros",
   "uniffi_meta",
 
+  # Prevents issuing raw syscalls
+  "linux-raw-sys",             # rustix has local patch to remove this dependency.
+
   # From go/android-restricted-rust-crates
   "ctor",                      # Runs before main, can cause linking errors
   "inventory",                 # Depends on ctor
