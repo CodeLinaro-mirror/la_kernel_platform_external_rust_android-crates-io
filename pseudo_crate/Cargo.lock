@@ -497,6 +497,7 @@ dependencies = [
  "libfuzzer-sys",
  "libloading 0.8.9",
  "libm",
+ "libsmpte2094-50",
  "libsqlite3-sys",
  "libtest-mimic",
  "libusb1-sys",
@@ -5997,6 +5998,12 @@ checksum = "e8a484fa48be5f62a8d3ffed767779d0ab808cfead91de98ef4362d469097dfb"
 dependencies = [
  "pkg-config",
 ]
+
+[[package]]
+name = "libsmpte2094-50"
+version = "0.1.9"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "93dbf94c89c4dc2622bc52dbda5c92f74427cb368014f0989c98001a7215b547"
 
 [[package]]
 name = "libsqlite3-sys"

@@ -321,6 +321,7 @@ libc
 libfuzzer-sys
 libloading
 libm
+libsmpte2094-50
 libsqlite3-sys
 libtest-mimic
 libusb1-sys
