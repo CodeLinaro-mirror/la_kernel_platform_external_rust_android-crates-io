@@ -28,7 +28,7 @@ pub struct FakeTransport<C> {
     pub state: Arc<Mutex<State<C>>>,
 }
 
-impl<C: FromBytes + Immutable + IntoBytes> DeviceTransport for FakeTransport<C> {
+impl<C: FromBytes + Immutable + IntoBytes + Send> DeviceTransport for FakeTransport<C> {
     fn get_client_id(&self) -> u16 {
         0
     }
@@ -47,14 +47,14 @@ impl<C: FromBytes + Immutable + IntoBytes> DeviceTransport for FakeTransport<C> 
         [addrs.descriptors, addrs.driver_area, addrs.device_area]
     }
 
-    fn notify(&mut self, queue: u16) {
+    fn notify(&self, queue: u16) {
         self.state.lock().unwrap().queues[queue as usize]
             .device_notified
             .store(true, Ordering::SeqCst);
     }
 }
 
-impl<C: FromBytes + Immutable + IntoBytes> Transport for FakeTransport<C> {
+impl<C: FromBytes + Immutable + IntoBytes + Send> Transport for FakeTransport<C> {
     fn device_type(&self) -> DeviceType {
         self.device_type
     }
@@ -71,7 +71,7 @@ impl<C: FromBytes + Immutable + IntoBytes> Transport for FakeTransport<C> {
         self.max_queue_size
     }
 
-    fn notify(&mut self, queue: u16) {
+    fn notify(&self, queue: u16) {
         self.state.lock().unwrap().queues[queue as usize]
             .notified
             .store(true, Ordering::SeqCst);
