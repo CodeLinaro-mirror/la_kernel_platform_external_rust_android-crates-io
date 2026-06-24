@@ -21,6 +21,7 @@ MODULE_LIBRARY_DEPS := \
 	$(call FIND_CRATE,thiserror) \
 	$(call FIND_CRATE,zerocopy) \
 	trusty/user/base/lib/libcompiler_builtins-rust \
-	trusty/user/base/lib/libcore-rust
+	trusty/user/base/lib/libcore-rust \
+	external/trusty/lk/lib/rust_support \
 
 include make/library.mk
