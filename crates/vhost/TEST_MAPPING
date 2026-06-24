@@ -4,7 +4,7 @@
       "path": "external/rust/android-crates-io/crates/vhost-user-backend"
     },
     {
-      "path": "external/rust/crates/vhost-device-vsock"
+      "path": "external/rust/android-crates-io/crates/vhost-device-vsock"
     }
   ]
 }

@@ -19,8 +19,9 @@ license {
     ],
 }
 
-rust_library_host {
+rust_library {
     name: "libvirtio_queue",
+    host_supported: true,
     crate_name: "virtio_queue",
     cargo_env_compat: true,
     cargo_pkg_version: "0.17.0",
@@ -33,4 +34,11 @@ rust_library_host {
         "libvmm_sys_util",
     ],
     compile_multilib: "first",
+    apex_available: [
+        "//apex_available:platform",
+        "//apex_available:anyapex",
+    ],
+    product_available: true,
+    vendor_available: true,
+    min_sdk_version: "29",
 }
