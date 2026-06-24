@@ -293,6 +293,7 @@ is-terminal
 is_terminal_polyfill
 itertools
 itoa
+java-locator
 jiff
 jni
 jni-macros
