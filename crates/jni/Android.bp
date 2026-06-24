@@ -26,7 +26,7 @@ rust_test {
         unit_test: true,
     },
     edition: "2024",
-    features: ["default"],
+    features: ["invocation"],
     cfgs: ["use_tls_attach_guard"],
     rustlibs: [
         "libcfg_if",
@@ -40,6 +40,14 @@ rust_test {
         "libthiserror",
     ],
     proc_macros: ["libjni_macros"],
+    target: {
+        host: {
+            rustlibs: [
+                "libjava_locator",
+                "liblibloading",
+            ],
+        },
+    },
 }
 
 rust_library {
@@ -50,7 +58,7 @@ rust_library {
     cargo_pkg_version: "0.22.4",
     crate_root: "src/lib.rs",
     edition: "2024",
-    features: ["default"],
+    features: ["invocation"],
     cfgs: ["use_tls_attach_guard"],
     rustlibs: [
         "libcfg_if",
@@ -68,4 +76,12 @@ rust_library {
     product_available: true,
     vendor_available: true,
     min_sdk_version: "29",
+    target: {
+        host: {
+            rustlibs: [
+                "libjava_locator",
+                "liblibloading",
+            ],
+        },
+    },
 }
