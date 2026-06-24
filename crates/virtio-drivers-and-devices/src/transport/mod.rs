@@ -16,7 +16,7 @@ pub use some::SomeTransport;
 use zerocopy::{FromBytes, Immutable, IntoBytes};
 
 /// A VirtIO device-side transport layer.
-pub trait DeviceTransport {
+pub trait DeviceTransport: Send + Sync {
     /// Gets the client VM ID
     fn get_client_id(&self) -> u16;
 
@@ -32,11 +32,11 @@ pub trait DeviceTransport {
     fn queue_get(&mut self, queue: u16) -> [PhysAddr; 3];
 
     /// Notifies the given queue on the device.
-    fn notify(&mut self, queue: u16);
+    fn notify(&self, queue: u16);
 }
 
 /// A VirtIO transport layer.
-pub trait Transport {
+pub trait Transport: Send + Sync {
     /// Gets the device type.
     fn device_type(&self) -> DeviceType;
 
@@ -50,7 +50,7 @@ pub trait Transport {
     fn max_queue_size(&mut self, queue: u16) -> u32;
 
     /// Notifies the given queue on the device.
-    fn notify(&mut self, queue: u16);
+    fn notify(&self, queue: u16);
 
     /// Gets the device status.
     fn get_status(&self) -> DeviceStatus;
