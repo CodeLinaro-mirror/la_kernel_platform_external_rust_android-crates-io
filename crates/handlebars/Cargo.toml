@@ -13,7 +13,7 @@
 edition = "2024"
 rust-version = "1.85"
 name = "handlebars"
-version = "6.4.1"
+version = "6.4.2"
 authors = ["Ning Sun <sunng@pm.me>"]
 build = false
 autolib = false
@@ -132,6 +132,10 @@ name = "helper_with_space"
 path = "tests/helper_with_space.rs"
 
 [[test]]
+name = "issue_756"
+path = "tests/issue_756.rs"
+
+[[test]]
 name = "root_var"
 path = "tests/root_var.rs"
 
@@ -193,6 +197,7 @@ version = "1.0.0"
 
 [dependencies.serde_json]
 version = "1.0.39"
+features = ["preserve_order"]
 
 [dependencies.thiserror]
 version = "2"

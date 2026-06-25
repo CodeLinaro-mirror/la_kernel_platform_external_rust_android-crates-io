@@ -1,17 +1,17 @@
 name: "handlebars"
 description: "Handlebars templating implemented in Rust."
 third_party {
-  version: "6.4.1"
+  version: "6.4.2"
   license_type: NOTICE
   last_upgrade_date {
     year: 2026
-    month: 5
-    day: 18
+    month: 6
+    day: 25
   }
   homepage: "https://crates.io/crates/handlebars"
   identifier {
     type: "crates.io"
     value: "handlebars"
-    version: "6.4.1"
+    version: "6.4.2"
   }
 }
