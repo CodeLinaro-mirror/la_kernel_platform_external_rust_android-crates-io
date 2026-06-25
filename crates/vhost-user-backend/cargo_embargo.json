@@ -5,7 +5,7 @@
   },
   "package": {
     "vhost-user-backend": {
-      "device_supported": false,
+      "device_supported": true,
       "host_first_multilib": true
     }
   },
