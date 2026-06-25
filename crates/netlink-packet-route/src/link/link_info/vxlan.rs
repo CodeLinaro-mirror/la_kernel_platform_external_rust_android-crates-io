@@ -1,10 +1,13 @@
 // SPDX-License-Identifier: MIT
 
-use std::net::{Ipv4Addr, Ipv6Addr};
+use std::{
+    fmt,
+    net::{Ipv4Addr, Ipv6Addr},
+};
 
 use netlink_packet_core::{
-    emit_u16_be, emit_u32, parse_u16_be, parse_u32, parse_u8, DecodeError,
-    DefaultNla, ErrorContext, Nla, NlaBuffer, Parseable,
+    emit_u16_be, emit_u32, emit_u64_be, parse_u16_be, parse_u32, parse_u64_be,
+    parse_u8, DecodeError, DefaultNla, ErrorContext, Nla, NlaBuffer, Parseable,
 };
 
 const IFLA_VXLAN_ID: u16 = 1;
@@ -36,8 +39,61 @@ const IFLA_VXLAN_LABEL: u16 = 26;
 const IFLA_VXLAN_GPE: u16 = 27;
 const IFLA_VXLAN_TTL_INHERIT: u16 = 28;
 const IFLA_VXLAN_DF: u16 = 29;
+
+const VXLAN_DF_UNSET: u8 = 0;
+const VXLAN_DF_SET: u8 = 1;
+const VXLAN_DF_INHERIT: u8 = 2;
+
+/// VxLAN Don't Fragment flag
+#[derive(Debug, PartialEq, Eq, Clone, Copy)]
+#[non_exhaustive]
+pub enum VxlanDf {
+    /// Set to 0
+    Unset,
+    /// Set to 1
+    Set,
+    /// Copy from original IP header
+    Inherit,
+    Other(u8),
+}
+
+impl From<u8> for VxlanDf {
+    fn from(d: u8) -> Self {
+        match d {
+            VXLAN_DF_UNSET => Self::Unset,
+            VXLAN_DF_SET => Self::Set,
+            VXLAN_DF_INHERIT => Self::Inherit,
+            _ => Self::Other(d),
+        }
+    }
+}
+
+impl fmt::Display for VxlanDf {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            VxlanDf::Unset => write!(f, "unset"),
+            VxlanDf::Set => write!(f, "set"),
+            VxlanDf::Inherit => write!(f, "inherit"),
+            VxlanDf::Other(v) => write!(f, "{v}"),
+        }
+    }
+}
+
+impl From<VxlanDf> for u8 {
+    fn from(d: VxlanDf) -> Self {
+        match d {
+            VxlanDf::Unset => VXLAN_DF_UNSET,
+            VxlanDf::Set => VXLAN_DF_SET,
+            VxlanDf::Inherit => VXLAN_DF_INHERIT,
+            VxlanDf::Other(value) => value,
+        }
+    }
+}
 const IFLA_VXLAN_VNIFILTER: u16 = 30;
 const IFLA_VXLAN_LOCALBYPASS: u16 = 31;
+const IFLA_VXLAN_LABEL_POLICY: u16 = 32;
+const IFLA_VXLAN_RESERVED_BITS: u16 = 33;
+const IFLA_VXLAN_MC_ROUTE: u16 = 34;
 
 #[derive(Debug, PartialEq, Eq, Clone)]
 #[non_exhaustive]
@@ -70,9 +126,17 @@ pub enum InfoVxlan {
     Gpe(bool),
     RemCsumNoPartial(bool),
     TtlInherit(bool),
-    Df(u8),
+    Df(VxlanDf),
     Vnifilter(bool),
     Localbypass(bool),
+    LabelPolicy(u32),
+    /// Tolerated reserved bits in VxLAN header
+    ///
+    /// When set to 1 on certain reserved bit, linux kernel will not
+    /// reject(drop and count as error) the VxLAN packet with that reserved
+    /// bits set to 1.
+    ReservedBits(u64),
+    McRoute(bool),
     Other(DefaultNla),
 }
 
@@ -95,11 +159,13 @@ impl Nla for InfoVxlan {
             | Self::TtlInherit(_)
             | Self::Df(_)
             | Self::Vnifilter(_)
-            | Self::Localbypass(_) => 1,
+            | Self::Localbypass(_)
+            | Self::McRoute(_) => 1,
             Self::Gbp(_) | Self::Gpe(_) | Self::RemCsumNoPartial(_) => 0,
             Self::Port(_) => 2,
             Self::Id(_)
             | Self::Label(_)
+            | Self::LabelPolicy(_)
             | Self::Link(_)
             | Self::Ageing(_)
             | Self::Limit(_)
@@ -107,6 +173,7 @@ impl Nla for InfoVxlan {
             | Self::Group(_)
             | Self::Local(_) => 4,
             Self::Group6(_) | Self::Local6(_) => 16,
+            Self::ReservedBits(_) => 8,
             Self::Other(nla) => nla.value_len(),
         }
     }
@@ -115,15 +182,15 @@ impl Nla for InfoVxlan {
         match self {
             Self::Id(value)
             | Self::Label(value)
+            | Self::LabelPolicy(value)
             | Self::Link(value)
             | Self::Ageing(value)
             | Self::Limit(value) => emit_u32(buffer, *value).unwrap(),
             Self::Gbp(_value)
             | Self::Gpe(_value)
             | Self::RemCsumNoPartial(_value) => (),
-            Self::Tos(value) | Self::Ttl(value) | Self::Df(value) => {
-                buffer[0] = *value
-            }
+            Self::Tos(value) | Self::Ttl(value) => buffer[0] = *value,
+            Self::Df(value) => buffer[0] = u8::from(*value),
             Self::Vnifilter(value)
             | Self::Localbypass(value)
             | Self::Learning(value)
@@ -137,7 +204,8 @@ impl Nla for InfoVxlan {
             | Self::UDPZeroCsumRX(value)
             | Self::RemCsumTX(value)
             | Self::RemCsumRX(value)
-            | Self::TtlInherit(value) => buffer[0] = *value as u8,
+            | Self::TtlInherit(value)
+            | Self::McRoute(value) => buffer[0] = *value as u8,
             Self::Group(value) | Self::Local(value) => {
                 buffer.copy_from_slice(&value.octets())
             }
@@ -149,6 +217,7 @@ impl Nla for InfoVxlan {
                 emit_u16_be(buffer, range.0).unwrap();
                 emit_u16_be(&mut buffer[2..], range.1).unwrap()
             }
+            Self::ReservedBits(value) => emit_u64_be(buffer, *value).unwrap(),
             Self::Other(nla) => nla.emit_value(buffer),
         }
     }
@@ -186,6 +255,9 @@ impl Nla for InfoVxlan {
             Self::Df(_) => IFLA_VXLAN_DF,
             Self::Vnifilter(_) => IFLA_VXLAN_VNIFILTER,
             Self::Localbypass(_) => IFLA_VXLAN_LOCALBYPASS,
+            Self::LabelPolicy(_) => IFLA_VXLAN_LABEL_POLICY,
+            Self::ReservedBits(_) => IFLA_VXLAN_RESERVED_BITS,
+            Self::McRoute(_) => IFLA_VXLAN_MC_ROUTE,
             Self::Other(nla) => nla.kind(),
         }
     }
@@ -328,9 +400,9 @@ impl<'a, T: AsRef<[u8]> + ?Sized> Parseable<NlaBuffer<&'a T>> for InfoVxlan {
                     .context("invalid IFLA_VXLAN_REMCSUM_RX value")?
                     > 0,
             ),
-            IFLA_VXLAN_DF => Self::Df(
+            IFLA_VXLAN_DF => Self::Df(VxlanDf::from(
                 parse_u8(payload).context("invalid IFLA_VXLAN_DF value")?,
-            ),
+            )),
             IFLA_VXLAN_GBP => Self::Gbp(true),
             IFLA_VXLAN_GPE => Self::Gpe(true),
             IFLA_VXLAN_REMCSUM_NOPARTIAL => Self::RemCsumNoPartial(true),
@@ -347,6 +419,19 @@ impl<'a, T: AsRef<[u8]> + ?Sized> Parseable<NlaBuffer<&'a T>> for InfoVxlan {
             IFLA_VXLAN_LOCALBYPASS => Self::Localbypass(
                 parse_u8(payload)
                     .context("invalid IFLA_VXLAN_LOCALBYPASS value")?
+                    > 0,
+            ),
+            IFLA_VXLAN_LABEL_POLICY => Self::LabelPolicy(
+                parse_u32(payload)
+                    .context("invalid IFLA_VXLAN_LABEL_POLICY value")?,
+            ),
+            IFLA_VXLAN_RESERVED_BITS => Self::ReservedBits(
+                parse_u64_be(payload)
+                    .context("invalid IFLA_VXLAN_RESERVED_BITS value")?,
+            ),
+            IFLA_VXLAN_MC_ROUTE => Self::McRoute(
+                parse_u8(payload)
+                    .context("invalid IFLA_VXLAN_MC_ROUTE value")?
                     > 0,
             ),
             unknown_kind => {

@@ -48,6 +48,8 @@ const IFLA_BOND_PEER_NOTIF_DELAY: u16 = 28;
 const IFLA_BOND_AD_LACP_ACTIVE: u16 = 29;
 const IFLA_BOND_MISSED_MAX: u16 = 30;
 const IFLA_BOND_NS_IP6_TARGET: u16 = 31;
+const IFLA_BOND_COUPLED_CONTROL: u16 = 32;
+const IFLA_BOND_BROADCAST_NEIGH: u16 = 33;
 
 const BOND_MODE_ROUNDROBIN: u8 = 0;
 const BOND_MODE_ACTIVEBACKUP: u8 = 1;
@@ -222,6 +224,27 @@ impl std::fmt::Display for BondMode {
     }
 }
 
+impl std::str::FromStr for BondMode {
+    type Err = DecodeError;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        Ok(match s {
+            "balance-rr" => Self::BalanceRr,
+            "active-backup" => Self::ActiveBackup,
+            "balance-xor" => Self::BalanceXor,
+            "broadcast" => Self::Broadcast,
+            "802.3ad" => Self::Ieee8023Ad,
+            "balance-tlb" => Self::BalanceTlb,
+            "balance-alb" => Self::BalanceAlb,
+            _ => {
+                return Err(DecodeError::from(format!(
+                    "unknown bond mode: {s}"
+                )))
+            }
+        })
+    }
+}
+
 #[derive(Debug, Clone, Copy, Eq, PartialEq, Default)]
 #[non_exhaustive]
 pub enum BondArpValidate {
@@ -284,6 +307,27 @@ impl std::fmt::Display for BondArpValidate {
     }
 }
 
+impl std::str::FromStr for BondArpValidate {
+    type Err = DecodeError;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        Ok(match s {
+            "none" => Self::None,
+            "active" => Self::Active,
+            "backup" => Self::Backup,
+            "all" => Self::All,
+            "filter" => Self::Filter,
+            "filter_active" => Self::FilterActive,
+            "filter_backup" => Self::FilterBackup,
+            _ => {
+                return Err(DecodeError::from(format!(
+                    "unknown bond arp validate: {s}"
+                )))
+            }
+        })
+    }
+}
+
 #[derive(Debug, Clone, Copy, Eq, PartialEq, Default)]
 #[non_exhaustive]
 pub enum BondPrimaryReselect {
@@ -327,6 +371,23 @@ impl std::fmt::Display for BondPrimaryReselect {
             }
         };
         f.write_str(kernel_name)
+    }
+}
+
+impl std::str::FromStr for BondPrimaryReselect {
+    type Err = DecodeError;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        Ok(match s {
+            "always" => Self::Always,
+            "better" => Self::Better,
+            "failure" => Self::Failure,
+            _ => {
+                return Err(DecodeError::from(format!(
+                    "unknown bond primary reselect: {s}"
+                )))
+            }
+        })
     }
 }
 
@@ -375,16 +436,36 @@ impl std::fmt::Display for BondXmitHashPolicy {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let kernel_name = match self {
             BondXmitHashPolicy::Layer2 => "layer2",
-            BondXmitHashPolicy::Layer34 => "layer34",
-            BondXmitHashPolicy::Layer23 => "layer23",
-            BondXmitHashPolicy::Encap23 => "encap23",
-            BondXmitHashPolicy::Encap34 => "encap34",
-            BondXmitHashPolicy::VlanSrcMac => "vlan-src-mac",
+            BondXmitHashPolicy::Layer34 => "layer3+4",
+            BondXmitHashPolicy::Layer23 => "layer2+3",
+            BondXmitHashPolicy::Encap23 => "encap2+3",
+            BondXmitHashPolicy::Encap34 => "encap3+4",
+            BondXmitHashPolicy::VlanSrcMac => "vlan+srcmac",
             BondXmitHashPolicy::Other(d) => {
                 return write!(f, "unknown-variant ({d})")
             }
         };
         f.write_str(kernel_name)
+    }
+}
+
+impl std::str::FromStr for BondXmitHashPolicy {
+    type Err = DecodeError;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        Ok(match s {
+            "layer2" => Self::Layer2,
+            "layer3+4" => Self::Layer34,
+            "layer2+3" => Self::Layer23,
+            "encap2+3" => Self::Encap23,
+            "encap3+4" => Self::Encap34,
+            "vlan+srcmac" => Self::VlanSrcMac,
+            _ => {
+                return Err(DecodeError::from(format!(
+                    "unknown bond xmit hash policy: {s}"
+                )))
+            }
+        })
     }
 }
 
@@ -427,6 +508,22 @@ impl std::fmt::Display for BondArpAllTargets {
             }
         };
         f.write_str(kernel_name)
+    }
+}
+
+impl std::str::FromStr for BondArpAllTargets {
+    type Err = DecodeError;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        Ok(match s {
+            "any" => Self::Any,
+            "all" => Self::All,
+            _ => {
+                return Err(DecodeError::from(format!(
+                    "unknown bond arp all targets: {s}"
+                )))
+            }
+        })
     }
 }
 
@@ -473,6 +570,23 @@ impl std::fmt::Display for BondFailOverMac {
             }
         };
         f.write_str(kernel_name)
+    }
+}
+
+impl std::str::FromStr for BondFailOverMac {
+    type Err = DecodeError;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        Ok(match s {
+            "none" => Self::None,
+            "active" => Self::Active,
+            "follow" => Self::Follow,
+            _ => {
+                return Err(DecodeError::from(format!(
+                    "unknown bond fail over mac: {s}"
+                )))
+            }
+        })
     }
 }
 
@@ -574,6 +688,34 @@ impl From<BondAllPortActive> for u8 {
     }
 }
 
+impl std::fmt::Display for BondAllPortActive {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            BondAllPortActive::Dropped => f.write_str("dropped"),
+            BondAllPortActive::Delivered => f.write_str("delivered"),
+            BondAllPortActive::Other(v) => write!(f, "{v}"),
+        }
+    }
+}
+
+impl std::str::FromStr for BondAllPortActive {
+    type Err = DecodeError;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        Ok(match s {
+            "dropped" => Self::Dropped,
+            "delivered" => Self::Delivered,
+            "0" => Self::Dropped,
+            "1" => Self::Delivered,
+            _ => {
+                return Err(DecodeError::from(format!(
+                    "unknown bond all ports active: {s}"
+                )))
+            }
+        })
+    }
+}
+
 const AD_LACP_SLOW: u8 = 0;
 const AD_LACP_FAST: u8 = 1;
 
@@ -606,9 +748,36 @@ impl From<BondLacpRate> for u8 {
     }
 }
 
+impl std::fmt::Display for BondLacpRate {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            BondLacpRate::Slow => f.write_str("slow"),
+            BondLacpRate::Fast => f.write_str("fast"),
+            BondLacpRate::Other(v) => write!(f, "{v}"),
+        }
+    }
+}
+
+impl std::str::FromStr for BondLacpRate {
+    type Err = DecodeError;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        Ok(match s {
+            "slow" => Self::Slow,
+            "fast" => Self::Fast,
+            _ => {
+                return Err(DecodeError::from(format!(
+                    "unknown bond lacp rate: {s}"
+                )))
+            }
+        })
+    }
+}
+
 const BOND_AD_STABLE: u8 = 0;
 const BOND_AD_BANDWIDTH: u8 = 1;
 const BOND_AD_COUNT: u8 = 2;
+const BOND_AD_ACTOR_PORT_PRIO: u8 = 3;
 
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
 #[non_exhaustive]
@@ -616,6 +785,7 @@ pub enum BondAdSelect {
     Stable,
     Bandwidth,
     Count,
+    ActorPortPrio,
     Other(u8),
 }
 
@@ -625,6 +795,7 @@ impl From<u8> for BondAdSelect {
             BOND_AD_STABLE => Self::Stable,
             BOND_AD_BANDWIDTH => Self::Bandwidth,
             BOND_AD_COUNT => Self::Count,
+            BOND_AD_ACTOR_PORT_PRIO => Self::ActorPortPrio,
             _ => Self::Other(d),
         }
     }
@@ -636,8 +807,42 @@ impl From<BondAdSelect> for u8 {
             BondAdSelect::Stable => BOND_AD_STABLE,
             BondAdSelect::Bandwidth => BOND_AD_BANDWIDTH,
             BondAdSelect::Count => BOND_AD_COUNT,
+            BondAdSelect::ActorPortPrio => BOND_AD_ACTOR_PORT_PRIO,
             BondAdSelect::Other(d) => d,
         }
+    }
+}
+
+impl std::fmt::Display for BondAdSelect {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let kernel_name = match self {
+            BondAdSelect::Stable => "stable",
+            BondAdSelect::Bandwidth => "bandwidth",
+            BondAdSelect::Count => "count",
+            BondAdSelect::ActorPortPrio => "actor_port_prio",
+            BondAdSelect::Other(d) => {
+                return write!(f, "unknown-variant ({d})")
+            }
+        };
+        f.write_str(kernel_name)
+    }
+}
+
+impl std::str::FromStr for BondAdSelect {
+    type Err = DecodeError;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        Ok(match s {
+            "stable" => Self::Stable,
+            "bandwidth" => Self::Bandwidth,
+            "count" => Self::Count,
+            "actor_port_prio" => Self::ActorPortPrio,
+            _ => {
+                return Err(DecodeError::from(format!(
+                    "unknown bond ad select: {s}"
+                )))
+            }
+        })
     }
 }
 
@@ -684,6 +889,8 @@ pub enum InfoBond {
     AdLacpActive(bool),
     MissedMax(u8),
     NsIp6Target(Vec<Ipv6Addr>),
+    CoupledControl(bool),
+    BroadcastNeigh(bool),
     Other(DefaultNla),
 }
 
@@ -701,7 +908,9 @@ impl Nla for InfoBond {
             | Self::AdLacpRate(_)
             | Self::AdSelect(_)
             | Self::TlbDynamicLb(_)
-            | Self::MissedMax(_) => 1,
+            | Self::MissedMax(_)
+            | Self::CoupledControl(_)
+            | Self::BroadcastNeigh(_) => 1,
             Self::AdActorSysPrio(_) | Self::AdUserPortKey(_) => 2,
             Self::ActivePort(_)
             | Self::MiiMon(_)
@@ -739,7 +948,9 @@ impl Nla for InfoBond {
             }
             Self::UseCarrier(value)
             | Self::AdLacpActive(value)
-            | Self::TlbDynamicLb(value) => buffer[0] = (*value).into(),
+            | Self::TlbDynamicLb(value)
+            | Self::CoupledControl(value)
+            | Self::BroadcastNeigh(value) => buffer[0] = (*value).into(),
             Self::AdLacpRate(value) => buffer[0] = (*value).into(),
             Self::AllPortsActive(value) => buffer[0] = (*value).into(),
             Self::FailOverMac(value) => buffer[0] = (*value).into(),
@@ -808,6 +1019,8 @@ impl Nla for InfoBond {
             Self::AdLacpActive(_) => IFLA_BOND_AD_LACP_ACTIVE,
             Self::MissedMax(_) => IFLA_BOND_MISSED_MAX,
             Self::NsIp6Target(_) => IFLA_BOND_NS_IP6_TARGET,
+            Self::CoupledControl(_) => IFLA_BOND_COUPLED_CONTROL,
+            Self::BroadcastNeigh(_) => IFLA_BOND_BROADCAST_NEIGH,
             Self::Other(v) => v.kind(),
         }
     }
@@ -972,6 +1185,16 @@ impl<'a, T: AsRef<[u8]> + ?Sized> Parseable<NlaBuffer<&'a T>> for InfoBond {
                 }
                 Self::NsIp6Target(addrs)
             }
+            IFLA_BOND_COUPLED_CONTROL => Self::CoupledControl(
+                parse_u8(payload)
+                    .context("invalid IFLA_BOND_COUPLED_CONTROL value")?
+                    > 0,
+            ),
+            IFLA_BOND_BROADCAST_NEIGH => Self::BroadcastNeigh(
+                parse_u8(payload)
+                    .context("invalid IFLA_BOND_BROADCAST_NEIGH value")?
+                    > 0,
+            ),
             _ => Self::Other(DefaultNla::parse(buf).context(format!(
                 "invalid NLA for {}: {payload:?}",
                 buf.kind()
