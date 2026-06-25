@@ -1,6 +1,6 @@
 [package]
-version = "0.22.3"
-edition = "2021"
+version = "1.0.0"
+edition = "2024"
 name = "cargo_toml"
 authors = ["Kornel <kornel@geekhood.net>"]
 description = "`Cargo.toml` struct definitions for parsing with Serde"
@@ -11,7 +11,7 @@ repository = "https://gitlab.com/lib.rs/cargo_toml"
 documentation = "https://docs.rs/cargo_toml"
 license = "Apache-2.0 OR MIT"
 include = ["src/*.rs", "Cargo.toml", "README.md", "LICENSE"]
-rust-version = "1.71"
+rust-version = "1.85"
 
 [lib]
 name = "cargo_toml"
@@ -22,8 +22,9 @@ path = "src/cargo_toml.rs"
 features = []
 
 [dependencies]
-serde = { version = "1.0.219", features = ["derive"] }
-toml = "0.9.2"
+semver = { version = "1.0.26", default-features = false, features = ["serde", "std"] }
+serde = { version = "1.0.228", features = ["derive"] }
+toml = "1.0.1"
 
 [badges]
 maintenance = { status = "actively-developed" }
