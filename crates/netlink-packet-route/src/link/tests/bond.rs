@@ -18,13 +18,13 @@ use crate::{
 fn test_bond_link_info() {
     let raw: Vec<u8> = vec![
         0x00, 0x00, 0x01, 0x00, 0x18, 0x00, 0x00, 0x00, 0x43, 0x14, 0x01, 0x00,
-        0x00, 0x00, 0x00, 0x00, 0xcc, 0x00, // length 204
+        0x00, 0x00, 0x00, 0x00, 0xdc, 0x00, // length 220
         0x12, 0x00, // IFLA_LINKINFO 18
         0x09, 0x00, // length 9
         0x01, 0x00, // IFLA_INFO_KIND 1
         0x62, 0x6f, 0x6e, 0x64, 0x00, // 'bond\0'
         0x00, 0x00, 0x00, // padding
-        0xbc, 0x00, // length 188
+        0xcc, 0x00, // length 204
         0x02, 0x00, // IFLA_INFO_DATA
         0x05, 0x00, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x08, 0x00, 0x03, 0x00,
         0x00, 0x00, 0x00, 0x00, 0x08, 0x00, 0x04, 0x00, 0x00, 0x00, 0x00, 0x00,
@@ -41,7 +41,8 @@ fn test_bond_link_info() {
         0x05, 0x00, 0x1d, 0x00, 0x01, 0x00, 0x00, 0x00, 0x05, 0x00, 0x15, 0x00,
         0x00, 0x00, 0x00, 0x00, 0x05, 0x00, 0x16, 0x00, 0x00, 0x00, 0x00, 0x00,
         0x05, 0x00, 0x1b, 0x00, 0x01, 0x00, 0x00, 0x00, 0x05, 0x00, 0x1e, 0x00,
-        0x02, 0x00, 0x00, 0x00,
+        0x02, 0x00, 0x00, 0x00, 0x05, 0x00, 0x20, 0x00, 0x01, 0x00, 0x00, 0x00,
+        0x05, 0x00, 0x21, 0x00, 0x01, 0x00, 0x00, 0x00,
     ];
 
     let expected = LinkMessage {
@@ -83,6 +84,8 @@ fn test_bond_link_info() {
                 InfoBond::AdSelect(BondAdSelect::Stable),
                 InfoBond::TlbDynamicLb(true),
                 InfoBond::MissedMax(2),
+                InfoBond::CoupledControl(true),
+                InfoBond::BroadcastNeigh(true),
             ])),
         ])],
     };
@@ -226,4 +229,115 @@ fn test_bond_arp_validate() {
     packet.emit(&mut buf);
 
     assert_eq!(raw, buf);
+}
+
+#[test]
+fn test_bond_mode_from_str() {
+    use std::str::FromStr;
+    assert_eq!(BondMode::BalanceRr, "balance-rr".parse().unwrap());
+    assert_eq!(BondMode::ActiveBackup, "active-backup".parse().unwrap());
+    assert_eq!(BondMode::BalanceXor, "balance-xor".parse().unwrap());
+    assert_eq!(BondMode::Broadcast, "broadcast".parse().unwrap());
+    assert_eq!(BondMode::Ieee8023Ad, "802.3ad".parse().unwrap());
+    assert_eq!(BondMode::BalanceTlb, "balance-tlb".parse().unwrap());
+    assert_eq!(BondMode::BalanceAlb, "balance-alb".parse().unwrap());
+    assert!(BondMode::from_str("bogus").is_err());
+}
+
+#[test]
+fn test_bond_arp_validate_from_str() {
+    use std::str::FromStr;
+    assert_eq!(BondArpValidate::None, "none".parse().unwrap());
+    assert_eq!(BondArpValidate::Active, "active".parse().unwrap());
+    assert_eq!(BondArpValidate::Backup, "backup".parse().unwrap());
+    assert_eq!(BondArpValidate::All, "all".parse().unwrap());
+    assert_eq!(BondArpValidate::Filter, "filter".parse().unwrap());
+    assert_eq!(
+        BondArpValidate::FilterActive,
+        "filter_active".parse().unwrap()
+    );
+    assert_eq!(
+        BondArpValidate::FilterBackup,
+        "filter_backup".parse().unwrap()
+    );
+    assert!(BondArpValidate::from_str("bogus").is_err());
+}
+
+#[test]
+fn test_bond_primary_reselect_from_str() {
+    use std::str::FromStr;
+    assert_eq!(BondPrimaryReselect::Always, "always".parse().unwrap());
+    assert_eq!(BondPrimaryReselect::Better, "better".parse().unwrap());
+    assert_eq!(BondPrimaryReselect::Failure, "failure".parse().unwrap());
+    assert!(BondPrimaryReselect::from_str("bogus").is_err());
+}
+
+#[test]
+fn test_bond_xmit_hash_policy_from_str() {
+    use std::str::FromStr;
+    assert_eq!(BondXmitHashPolicy::Layer2, "layer2".parse().unwrap());
+    assert_eq!(BondXmitHashPolicy::Layer34, "layer3+4".parse().unwrap());
+    assert_eq!(BondXmitHashPolicy::Layer23, "layer2+3".parse().unwrap());
+    assert_eq!(BondXmitHashPolicy::Encap23, "encap2+3".parse().unwrap());
+    assert_eq!(BondXmitHashPolicy::Encap34, "encap3+4".parse().unwrap());
+    assert_eq!(
+        BondXmitHashPolicy::VlanSrcMac,
+        "vlan+srcmac".parse().unwrap()
+    );
+    assert!(BondXmitHashPolicy::from_str("bogus").is_err());
+}
+
+#[test]
+fn test_bond_arp_all_targets_from_str() {
+    use std::str::FromStr;
+    assert_eq!(BondArpAllTargets::Any, "any".parse().unwrap());
+    assert_eq!(BondArpAllTargets::All, "all".parse().unwrap());
+    assert!(BondArpAllTargets::from_str("bogus").is_err());
+}
+
+#[test]
+fn test_bond_fail_over_mac_from_str() {
+    use std::str::FromStr;
+    assert_eq!(BondFailOverMac::None, "none".parse().unwrap());
+    assert_eq!(BondFailOverMac::Active, "active".parse().unwrap());
+    assert_eq!(BondFailOverMac::Follow, "follow".parse().unwrap());
+    assert!(BondFailOverMac::from_str("bogus").is_err());
+}
+
+#[test]
+fn test_bond_ad_select_from_str() {
+    use std::str::FromStr;
+    assert_eq!(BondAdSelect::Stable, "stable".parse().unwrap());
+    assert_eq!(BondAdSelect::Bandwidth, "bandwidth".parse().unwrap());
+    assert_eq!(BondAdSelect::Count, "count".parse().unwrap());
+    assert_eq!(
+        BondAdSelect::ActorPortPrio,
+        "actor_port_prio".parse().unwrap()
+    );
+    assert!(BondAdSelect::from_str("bogus").is_err());
+}
+
+#[test]
+fn test_bond_lacp_rate_from_str() {
+    use std::str::FromStr;
+    assert_eq!(BondLacpRate::Slow, "slow".parse().unwrap());
+    assert_eq!(BondLacpRate::Fast, "fast".parse().unwrap());
+    assert!(BondLacpRate::from_str("bogus").is_err());
+}
+
+#[test]
+fn test_bond_all_ports_active_from_str() {
+    use std::str::FromStr;
+    assert_eq!(BondAllPortActive::Dropped, "dropped".parse().unwrap());
+    assert_eq!(BondAllPortActive::Delivered, "delivered".parse().unwrap());
+    assert_eq!(BondAllPortActive::Dropped, "0".parse().unwrap());
+    assert_eq!(BondAllPortActive::Delivered, "1".parse().unwrap());
+    assert!(BondAllPortActive::from_str("bogus").is_err());
+}
+
+#[test]
+fn test_bond_all_ports_active_display() {
+    assert_eq!("dropped", BondAllPortActive::Dropped.to_string());
+    assert_eq!("delivered", BondAllPortActive::Delivered.to_string());
+    assert_eq!("255", BondAllPortActive::Other(255).to_string());
 }
