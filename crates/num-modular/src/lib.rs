@@ -103,7 +103,7 @@ pub trait ModularSymbols<Modulus = Self> {
     /// Only if n is not prime
     #[inline]
     fn legendre(&self, n: Modulus) -> i8 {
-        self.checked_legendre(n).expect("n shoud be a prime")
+        self.checked_legendre(n).expect("n should be a prime")
     }
 
     /// Calculate Legendre Symbol (a|n), where a is `self`. Returns [None] only if n is
@@ -189,14 +189,17 @@ pub trait ModularInteger:
 
     /// Convert an normal integer into the same ring.
     ///
-    /// This method should be perferred over the static
+    /// This method should be preferred over the static
     /// constructor to prevent unnecessary overhead of pre-computation.
+    #[must_use]
     fn convert(&self, n: Self::Base) -> Self;
 
     /// Calculate the value of self + self
+    #[must_use]
     fn double(self) -> Self;
 
     /// Calculate the value of self * self
+    #[must_use]
     fn square(self) -> Self;
 }
 
@@ -258,7 +261,7 @@ pub trait Reducer<T> {
         *lhs = self.sub(lhs, rhs);
     }
 
-    /// Calculate -monty mod m in reduced form
+    /// Calculate `-target` mod m in reduced form
     fn neg(&self, target: T) -> T;
 
     /// Calculate (lhs * rhs) mod m in reduced form
@@ -286,6 +289,7 @@ mod mersenne;
 mod monty;
 mod preinv;
 mod prim;
+mod proth;
 mod reduced;
 mod solinas;
 mod word;
@@ -295,13 +299,21 @@ pub use barrett::{
 };
 pub use double::{imax, udouble, umax};
 pub use mersenne::{FixedMersenne, FixedMersenne32, FixedMersenne64};
-pub use monty::Montgomery;
+pub use monty::{FixedMontgomery32, FixedMontgomery64, Montgomery};
 pub use preinv::PreModInv;
+pub(crate) use prim::{powm_u32, powm_u64};
+pub use proth::{FixedProth, FixedProth32, FixedProth64};
 pub use reduced::{ReducedInt, Vanilla, VanillaInt};
 pub use solinas::{FixedTrinomialSolinas, FixedTrinomialSolinas32, FixedTrinomialSolinas64};
 
 /// An integer in modulo ring based on [Montgomery form](https://en.wikipedia.org/wiki/Montgomery_modular_multiplication#Montgomery_form)
 pub type MontgomeryInt<T> = ReducedInt<T, Montgomery<T>>;
+
+/// An integer in modulo ring based on Montgomery form with a fixed 32-bit modulus
+pub type FixedMontgomeryInt32<const P: u32> = ReducedInt<u32, FixedMontgomery32<P>>;
+
+/// An integer in modulo ring based on Montgomery form with a fixed 64-bit modulus
+pub type FixedMontgomeryInt64<const P: u64> = ReducedInt<u64, FixedMontgomery64<P>>;
 
 /// An integer in modulo ring with a fixed (pseudo) Mersenne number as modulus
 pub type FixedMersenneInt<const P: u8, const K: umax> = ReducedInt<umax, FixedMersenne<P, K>>;
@@ -323,6 +335,15 @@ pub type FixedSolinasInt32<const P1: u8, const P2: u8, const K: i32> =
 /// An integer in modulo ring with a fixed Solinas number as modulus (64-bit)
 pub type FixedSolinasInt64<const P1: u8, const P2: u8, const K: i64> =
     ReducedInt<u64, FixedTrinomialSolinas64<P1, P2, K>>;
+
+/// An integer in modulo ring with a fixed Proth number as modulus
+pub type FixedProthInt<const N: u8, const K: u8> = ReducedInt<umax, FixedProth<N, K>>;
+
+/// An integer in modulo ring with a fixed Proth number as modulus (32-bit)
+pub type FixedProthInt32<const N: u8, const K: u8> = ReducedInt<u32, FixedProth32<N, K>>;
+
+/// An integer in modulo ring with a fixed Proth number as modulus (64-bit)
+pub type FixedProthInt64<const N: u8, const K: u8> = ReducedInt<u64, FixedProth64<N, K>>;
 
 // pub type BarrettInt<T> = ReducedInt<T, BarrettInt<T>>;
 
