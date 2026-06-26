@@ -456,6 +456,7 @@ dependencies = [
  "if-addrs",
  "ignore",
  "image 0.25.10",
+ "image-compare",
  "indexmap 2.14.0",
  "inotify",
  "inotify-sys",
@@ -5239,6 +5240,18 @@ dependencies = [
  "tiff",
  "zune-core",
  "zune-jpeg",
+]
+
+[[package]]
+name = "image-compare"
+version = "0.5.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "176623a137baf75908084aff53578d6336cbd932bffaf12fabe26b343eb13338"
+dependencies = [
+ "image 0.25.10",
+ "itertools 0.14.0",
+ "rayon",
+ "thiserror 2.0.18",
 ]
 
 [[package]]
