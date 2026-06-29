@@ -31,13 +31,22 @@ rust_library {
     edition: "2024",
     features: [
         "alloc",
+        "log",
+        "medium-ethernet",
         "proto-ipv4",
+        "socket",
+        "socket-icmp",
+        "socket-raw",
+        "socket-tcp",
+        "socket-udp",
+        "std",
     ],
     rustlibs: [
         "libbitflags",
         "libbyteorder",
         "libcfg_if",
         "libheapless",
+        "liblog_rust",
         "libmanaged",
     ],
     apex_available: [
