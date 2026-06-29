@@ -11,9 +11,9 @@
 
 [package]
 edition = "2018"
-rust-version = "1.48.0"
+rust-version = "1.58.1"
 name = "xkeysym"
-version = "0.2.0"
+version = "0.2.1"
 authors = ["John Nunley <jtnunley01@gmail.com>"]
 description = "A library for working with X11 keysyms"
 readme = "README.md"
@@ -41,4 +41,4 @@ default-features = false
 version = "1.12.3"
 
 [dev-dependencies.x11rb]
-version = "0.11.0"
+version = "0.12.0"
