@@ -27,6 +27,7 @@ rust_library {
     cargo_pkg_version: "0.17.0",
     crate_root: "src/lib.rs",
     edition: "2021",
+    features: ["test-utils"],
     rustlibs: [
         "liblog_rust",
         "libvirtio_bindings",
