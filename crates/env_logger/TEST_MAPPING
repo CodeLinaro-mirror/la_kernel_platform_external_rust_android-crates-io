@@ -19,7 +19,7 @@
       "path": "external/rust/crates/v4l2r/lib"
     },
     {
-      "path": "external/rust/crates/vhost-device-vsock"
+      "path": "external/rust/android-crates-io/crates/vhost-device-vsock"
     },
     {
       "path": "external/rust/pica"
