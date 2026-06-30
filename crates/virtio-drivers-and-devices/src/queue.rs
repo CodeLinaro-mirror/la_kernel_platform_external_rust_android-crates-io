@@ -14,7 +14,7 @@ use bitflags::bitflags;
 #[cfg(test)]
 use core::cmp::min;
 use core::convert::TryInto;
-#[cfg(test)]
+#[cfg(any(test, not(feature = "trusty_sleep")))]
 use core::hint::spin_loop;
 use core::mem::{forget, size_of, take};
 #[cfg(test)]
@@ -325,7 +325,11 @@ impl<H: Hal, const SIZE: usize> VirtQueue<H, SIZE> {
         // Wait until there is at least one element in the used ring.
         while !self.can_pop() {
             // SAFETY: Trusty kernel booted and we're on a valid trusty thread.
+            #[cfg(feature = "trusty_sleep")]
             unsafe { sleep(core::time::Duration::from_millis(10)); }
+
+            #[cfg(not(feature = "trusty_sleep"))]
+            spin_loop();
         }
 
         // SAFETY: These are the same buffers as we passed to `add` above and they are still valid.
@@ -679,7 +683,11 @@ impl<H: DeviceHal, const SIZE: usize> DeviceVirtQueue<H, SIZE> {
         {
             while !self.can_pop() {
                 // SAFETY: Trusty kernel booted and we're on a valid trusty thread.
+                #[cfg(feature = "trusty_sleep")]
                 unsafe { sleep(core::time::Duration::from_millis(10)); }
+
+                #[cfg(not(feature = "trusty_sleep"))]
+                spin_loop();
             }
             // SAFETY: inputs is copied into the first write buffer then they are returned to the
             // used vring and not accessed again. This function waits until it can pop the avail

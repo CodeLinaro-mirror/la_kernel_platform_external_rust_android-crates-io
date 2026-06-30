@@ -44,6 +44,7 @@ default = [
 ]
 embedded-io = ["dep:embedded-io"]
 spin = ["dep:spin"]
+trusty_sleep = []
 
 [lib]
 name = "virtio_drivers_and_devices"
