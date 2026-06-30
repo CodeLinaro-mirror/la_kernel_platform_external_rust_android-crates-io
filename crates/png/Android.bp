@@ -28,6 +28,11 @@ rust_library {
         "libflate2",
         "libminiz_oxide",
     ],
+    target: {
+        windows: {
+            enabled: true,
+        },
+    },
     apex_available: [
         "//apex_available:platform",
         "//apex_available:anyapex",
