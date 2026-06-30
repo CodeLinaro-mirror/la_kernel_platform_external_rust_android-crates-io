@@ -26,6 +26,11 @@ rust_library {
         "with-alloc",
     ],
     rustlibs: ["libadler2"],
+    target: {
+        windows: {
+            enabled: true,
+        },
+    },
     apex_available: [
         "//apex_available:platform",
         "//apex_available:anyapex",

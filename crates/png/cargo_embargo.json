@@ -2,5 +2,10 @@
     "module_name_overrides": {
         "libpng": "libpng_rust"
     },
-    "min_sdk_version": "29"
+    "min_sdk_version": "29",
+    "package": {
+        "png": {
+            "target_windows": true
+        }
+    }
 }

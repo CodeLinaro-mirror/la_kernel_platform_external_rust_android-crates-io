@@ -25,6 +25,11 @@ rust_library {
         "default",
         "std",
     ],
+    target: {
+        windows: {
+            enabled: true,
+        },
+    },
     apex_available: [
         "//apex_available:platform",
         "//apex_available:anyapex",

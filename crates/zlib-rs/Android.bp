@@ -34,6 +34,11 @@ rust_library {
         "rust-allocator",
         "std",
     ],
+    target: {
+        windows: {
+            enabled: true,
+        },
+    },
     apex_available: [
         "//apex_available:platform",
         "//apex_available:anyapex",
@@ -77,5 +82,10 @@ rust_test {
         "libmemoffset",
         "libquickcheck",
     ],
+    target: {
+        windows: {
+            enabled: true,
+        },
+    },
     use_expansive_default_srcs: false,
 }
