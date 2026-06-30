@@ -152,7 +152,7 @@ use crate::{
 /// }
 /// # Ok::<(), Box<dyn std::error::Error>>(())
 /// ```
-#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
+#[derive(Clone, Copy, Eq, Hash, PartialEq)]
 pub struct ISOWeekDate {
     year: i16,
     week: i8,
@@ -729,6 +729,12 @@ impl Default for ISOWeekDate {
     }
 }
 
+impl core::fmt::Debug for ISOWeekDate {
+    fn fmt(&self, f: &mut core::fmt::Formatter) -> core::fmt::Result {
+        core::fmt::Display::fmt(self, f)
+    }
+}
+
 impl core::fmt::Display for ISOWeekDate {
     fn fmt(&self, f: &mut core::fmt::Formatter) -> core::fmt::Result {
         use crate::fmt::StdFmtWrite;
@@ -792,6 +798,17 @@ impl<'a> From<&'a Zoned> for ISOWeekDate {
     #[inline]
     fn from(zdt: &'a Zoned) -> ISOWeekDate {
         ISOWeekDate::from(zdt.date())
+    }
+}
+
+#[cfg(feature = "defmt")]
+impl defmt::Format for ISOWeekDate {
+    fn format(&self, f: defmt::Formatter) {
+        use crate::fmt::DefmtWrite;
+
+        defmt::unwrap!(
+            DEFAULT_DATETIME_PRINTER.print_iso_week_date(self, DefmtWrite(f))
+        );
     }
 }
 

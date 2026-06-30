@@ -1,5 +1,31 @@
 # CHANGELOG
 
+0.2.29 (2026-06-20)
+===================
+This release adds support for [`defmt`], which is a highly efficient logging
+framework that targets resource-constrained devices, like microcontrollers.
+
+Enhancements:
+
+* [#505](https://github.com/BurntSushi/jiff/issues/505):
+Add support for the `defmt` crate by implementing `defmt::Format` on the
+principle public types in Jiff.
+* [#584](https://github.com/BurntSushi/jiff/pull/584):
+Add `Zoned::UNIX_EPOCH` as a constant.
+* [#587](https://github.com/BurntSushi/jiff/pull/587):
+Change the `Debug` output for `civil::ISOWeekDate` to match the `Debug` output
+style of other primitive datetime types.
+
+Bug fixes:
+
+* [#525](https://github.com/BurntSushi/jiff/issues/525):
+Fix a bug that prevented time zone lookups when using an on-disk time zone
+database on Windows.
+* [#539](https://github.com/BurntSushi/jiff/issues/539):
+Fix a bug where rendering a datetime in an error message would omit a `T`
+separator.
+
+
 0.2.28 (2026-05-28)
 ===================
 This is a small release with a fix for test failures on 32-bit targets in
@@ -1550,3 +1576,4 @@ The initial release of Jiff.
 [SQLx]: https://github.com/launchbadge/sqlx
 [Diesel]: https://github.com/diesel-rs/diesel
 [Discussions on GitHub]: https://github.com/BurntSushi/jiff/discussions
+[`defmt`]: https://github.com/BurntSushi/jiff/issues/587
