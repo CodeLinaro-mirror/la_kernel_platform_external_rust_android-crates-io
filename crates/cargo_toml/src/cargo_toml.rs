@@ -24,9 +24,6 @@ use std::fmt::Display;
 use std::mem::take;
 use std::path::{Path, PathBuf};
 use std::{fs, io};
-
-pub use semver::Version as SemVer;
-pub use semver::VersionReq;
 pub use toml::Value;
 
 /// Dependencies. The keys in this map are not always crate names, this can be overriden by the `package` field, and there may be multiple copies of the same crate.
@@ -248,7 +245,7 @@ pub struct PackageTemplate {
 
     /// Package version semver
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub version: Option<SemVer>,
+    pub version: Option<String>,
 }
 
 fn default_true() -> bool {
@@ -317,7 +314,7 @@ impl<Metadata: for<'a> Deserialize<'a>> Manifest<Metadata> {
             // This is a clumsy implementation of Cargo's rule that missing version defaults publish to false.
             // Serde just doesn't support such relationship for default field values, so this will be incorrect
             // for explicit `version = "0.0.0"` and `publish = true`.
-            if package.version.get().is_ok_and(|v| *v == SemVer::new(0, 0, 0)) && package.publish.get().is_ok_and(|p| p.is_default()) {
+            if package.version.get().is_ok_and(|v| v == "0.0.0") && package.publish.get().is_ok_and(|p| p.is_default()) {
                 package.publish = Inheritable::Set(Publish::Flag(false));
             }
         }
@@ -1070,10 +1067,10 @@ pub struct Target {
 ///
 /// It can be simple version number, or detailed settings, or inherited.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-#[serde(untagged, expecting = "for some reason, a dependency requirement could not be parsed. Make sure that it uses valid semver range")]
+#[serde(untagged)]
 pub enum Dependency {
     /// Version requirement (e.g. `^1.5`)
-    Simple(VersionReq),
+    Simple(String),
     /// Incomplete data
     Inherited(InheritedDependencyDetail), // order is important for serde
     /// `{ version = "^1.5", features = ["a", "b"] }` etc.
@@ -1126,7 +1123,7 @@ impl Dependency {
     #[inline]
     #[track_caller]
     #[must_use]
-    pub fn req(&self) -> &VersionReq {
+    pub fn req(&self) -> &str {
         self.try_req().unwrap()
     }
 
@@ -1135,12 +1132,11 @@ impl Dependency {
     /// Returns Error if inherited value is not available
     #[inline]
     #[track_caller]
-    pub fn try_req(&self) -> Result<&VersionReq, Error> {
-        static STAR: VersionReq = VersionReq::STAR;
+    pub fn try_req(&self) -> Result<&str, Error> {
         match self {
-            Dependency::Simple(v) => Ok(v),
-            Dependency::Detailed(d) => Ok(d.version.as_ref().unwrap_or(&STAR)),
-            Dependency::Inherited(_) =>  Err(Error::InheritedUnknownValue),
+            Self::Simple(v) => Ok(v),
+            Self::Detailed(d) => Ok(d.version.as_deref().unwrap_or("*")),
+            Self::Inherited(_) => Err(Error::InheritedUnknownValue),
         }
     }
 
@@ -1220,7 +1216,7 @@ impl Dependency {
 pub struct DependencyDetail {
     /// Semver requirement. Note that a plain version number implies this version *or newer* compatible one.
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub version: Option<VersionReq>,
+    pub version: Option<String>,
 
     /// If `Some`, use this as the crate name instead of `[dependencies]`'s table key.
     ///
@@ -1343,7 +1339,7 @@ pub struct Package<Metadata = Value> {
     /// This field may have unknown value when using workspace inheritance,
     /// and when the `Manifest` has been loaded without its workspace.
     #[serde(default = "default_version")]
-    pub version: Inheritable<SemVer>,
+    pub version: Inheritable<String>,
 
     /// Package's edition opt-in. Use [`Package::edition()`] to read it.
     #[serde(default)]
@@ -1465,11 +1461,11 @@ pub struct Package<Metadata = Value> {
 
 #[allow(deprecated)]
 impl<Metadata> Package<Metadata> {
-    /// Not recommended. Prefer creating it by parsing a [`Manifest`] instead.
-    pub fn new(name: impl Into<String>, version: SemVer) -> Self {
+    /// Prefer creating it by parsing a [`Manifest`] instead.
+    pub fn new(name: impl Into<String>, version: impl Into<String>) -> Self {
         Self {
             name: name.into(),
-            version: Inheritable::Set(version),
+            version: Inheritable::Set(version.into()),
             edition: Inheritable::Set(Edition::E2021),
             rust_version: None,
             build: None,
@@ -1514,7 +1510,7 @@ impl<Metadata> Package<Metadata> {
     /// The version will default to `0.0.0` if the `version` field was absent in the manifest.
     #[track_caller]
     #[inline]
-    pub fn version(&self) -> &SemVer {
+    pub fn version(&self) -> &str {
         self.version.as_ref().unwrap()
     }
 
@@ -1725,7 +1721,7 @@ impl<Metadata> Package<Metadata> {
 }
 
 impl<Metadata: Default> Default for Package<Metadata> {
-    fn default() -> Self { Self::new("", SemVer::new(0, 0, 0)) }
+    fn default() -> Self { Self::new("", "") }
 }
 
 /// A way specify or disable README or `build.rs`.
@@ -1851,8 +1847,8 @@ where
     Ok(Deserialize::deserialize(deserializer).unwrap_or_default())
 }
 
-fn default_version() -> Inheritable<SemVer> {
-    Inheritable::Set(SemVer::new(0, 0, 0))
+fn default_version() -> Inheritable<String> {
+    Inheritable::Set("0.0.0".into())
 }
 
 /// `[badges]` section of `Cargo.toml`, deprecated by crates-io except `maintenance`.
