@@ -341,52 +341,6 @@ impl<ABBREV: AsRef<str> + Debug> PosixTimeZone<ABBREV> {
     }
 }
 
-impl<ABBREV: AsRef<str>> core::fmt::Display for PosixTimeZone<ABBREV> {
-    fn fmt(&self, f: &mut core::fmt::Formatter) -> core::fmt::Result {
-        core::fmt::Display::fmt(
-            &AbbreviationDisplay(self.std_abbrev.as_ref()),
-            f,
-        )?;
-        core::fmt::Display::fmt(&self.std_offset, f)?;
-        if let Some(ref dst) = self.dst {
-            dst.display(&self.std_offset, f)?;
-        }
-        Ok(())
-    }
-}
-
-impl<ABBREV: AsRef<str>> PosixDst<ABBREV> {
-    fn display(
-        &self,
-        std_offset: &PosixOffset,
-        f: &mut core::fmt::Formatter,
-    ) -> core::fmt::Result {
-        core::fmt::Display::fmt(
-            &AbbreviationDisplay(self.abbrev.as_ref()),
-            f,
-        )?;
-        // The overwhelming common case is that DST is exactly one hour ahead
-        // of standard time. So common that this is the default. So don't write
-        // the offset if we don't need to.
-        let default = PosixOffset { second: std_offset.second + 3600 };
-        if self.offset != default {
-            core::fmt::Display::fmt(&self.offset, f)?;
-        }
-        f.write_str(",")?;
-        core::fmt::Display::fmt(&self.rule, f)?;
-        Ok(())
-    }
-}
-
-impl core::fmt::Display for PosixRule {
-    fn fmt(&self, f: &mut core::fmt::Formatter) -> core::fmt::Result {
-        core::fmt::Display::fmt(&self.start, f)?;
-        f.write_str(",")?;
-        core::fmt::Display::fmt(&self.end, f)?;
-        Ok(())
-    }
-}
-
 impl PosixDayTime {
     /// Turns this POSIX datetime spec into a civil datetime in the year given
     /// with the given offset. The datetimes returned are offset by the given
@@ -429,19 +383,6 @@ impl PosixDayTime {
             let time = ITimeSecond { second }.to_time();
             IDateTime { date, time }
         }
-    }
-}
-
-impl core::fmt::Display for PosixDayTime {
-    fn fmt(&self, f: &mut core::fmt::Formatter) -> core::fmt::Result {
-        core::fmt::Display::fmt(&self.date, f)?;
-        // This is the default time, so don't write it if we
-        // don't need to.
-        if self.time != PosixTime::DEFAULT {
-            f.write_str("/")?;
-            core::fmt::Display::fmt(&self.time, f)?;
-        }
-        Ok(())
     }
 }
 
@@ -504,99 +445,13 @@ impl PosixDay {
     }
 }
 
-impl core::fmt::Display for PosixDay {
-    fn fmt(&self, f: &mut core::fmt::Formatter) -> core::fmt::Result {
-        match *self {
-            PosixDay::JulianOne(n) => {
-                f.write_str("J")?;
-                core::fmt::Display::fmt(&n, f)
-            }
-            PosixDay::JulianZero(n) => core::fmt::Display::fmt(&n, f),
-            PosixDay::WeekdayOfMonth { month, week, weekday } => {
-                f.write_str("M")?;
-                core::fmt::Display::fmt(&month, f)?;
-                f.write_str(".")?;
-                core::fmt::Display::fmt(&week, f)?;
-                f.write_str(".")?;
-                core::fmt::Display::fmt(&weekday, f)?;
-                Ok(())
-            }
-        }
-    }
-}
-
 impl PosixTime {
-    const DEFAULT: PosixTime = PosixTime { second: 2 * 60 * 60 };
-}
-
-impl core::fmt::Display for PosixTime {
-    fn fmt(&self, f: &mut core::fmt::Formatter) -> core::fmt::Result {
-        if self.second.is_negative() {
-            f.write_str("-")?;
-            // The default is positive, so when
-            // positive, we write nothing.
-        }
-        let second = self.second.unsigned_abs();
-        let h = second / 3600;
-        let m = (second / 60) % 60;
-        let s = second % 60;
-        core::fmt::Display::fmt(&h, f)?;
-        if m != 0 || s != 0 {
-            write!(f, ":{m:02}")?;
-            if s != 0 {
-                write!(f, ":{s:02}")?;
-            }
-        }
-        Ok(())
-    }
+    pub(crate) const DEFAULT: PosixTime = PosixTime { second: 2 * 60 * 60 };
 }
 
 impl PosixOffset {
     fn to_ioffset(&self) -> IOffset {
         IOffset { second: self.second }
-    }
-}
-
-impl core::fmt::Display for PosixOffset {
-    fn fmt(&self, f: &mut core::fmt::Formatter) -> core::fmt::Result {
-        // Yes, this is backwards. Blame POSIX.
-        // N.B. `+` is the default, so we don't
-        // need to write that out.
-        if self.second > 0 {
-            f.write_str("-")?;
-        }
-        let second = self.second.unsigned_abs();
-        let h = second / 3600;
-        let m = (second / 60) % 60;
-        let s = second % 60;
-        core::fmt::Display::fmt(&h, f)?;
-        if m != 0 || s != 0 {
-            write!(f, ":{m:02}")?;
-            if s != 0 {
-                write!(f, ":{s:02}")?;
-            }
-        }
-        Ok(())
-    }
-}
-
-/// A helper type for formatting a time zone abbreviation.
-///
-/// Basically, this will write the `<` and `>` quotes if necessary, and
-/// otherwise write out the abbreviation in its unquoted form.
-#[derive(Debug)]
-struct AbbreviationDisplay<S>(S);
-
-impl<S: AsRef<str>> core::fmt::Display for AbbreviationDisplay<S> {
-    fn fmt(&self, f: &mut core::fmt::Formatter) -> core::fmt::Result {
-        let s = self.0.as_ref();
-        if s.chars().any(|ch| ch == '+' || ch == '-') {
-            f.write_str("<")?;
-            core::fmt::Display::fmt(&s, f)?;
-            f.write_str(">")
-        } else {
-            core::fmt::Display::fmt(&s, f)
-        }
     }
 }
 
@@ -1415,11 +1270,13 @@ impl<'s> Parser<'s> {
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
+#[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub struct PosixTimeZoneError {
     kind: ErrorKind,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
+#[cfg_attr(feature = "defmt", derive(defmt::Format))]
 enum ErrorKind {
     AbbreviationDst(AbbreviationError),
     AbbreviationStd(AbbreviationError),
@@ -1497,6 +1354,7 @@ impl From<ErrorKind> for PosixTimeZoneError {
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
+#[cfg_attr(feature = "defmt", derive(defmt::Format))]
 enum PosixOffsetError {
     HourPosix(HourPosixError),
     IncompleteMinutes,
@@ -1557,6 +1415,7 @@ impl From<SecondError> for PosixOffsetError {
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
+#[cfg_attr(feature = "defmt", derive(defmt::Format))]
 enum PosixRuleError {
     DateTimeEnd(PosixDateTimeError),
     DateTimeStart(PosixDateTimeError),
@@ -1584,6 +1443,7 @@ impl core::fmt::Display for PosixRuleError {
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
+#[cfg_attr(feature = "defmt", derive(defmt::Format))]
 enum PosixDateTimeError {
     Date(PosixDateError),
     ExpectedTime,
@@ -1617,6 +1477,7 @@ impl From<PosixTimeError> for PosixDateTimeError {
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
+#[cfg_attr(feature = "defmt", derive(defmt::Format))]
 enum PosixDateError {
     ExpectedJulianNoLeap,
     ExpectedMonthWeekWeekday,
@@ -1670,6 +1531,7 @@ impl From<WeekdayOfMonthError> for PosixDateError {
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
+#[cfg_attr(feature = "defmt", derive(defmt::Format))]
 enum PosixJulianNoLeapError {
     Parse(NumberError),
     Range,
@@ -1692,6 +1554,7 @@ impl core::fmt::Display for PosixJulianNoLeapError {
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
+#[cfg_attr(feature = "defmt", derive(defmt::Format))]
 enum PosixJulianLeapError {
     Parse(NumberError),
     Range,
@@ -1714,6 +1577,7 @@ impl core::fmt::Display for PosixJulianLeapError {
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
+#[cfg_attr(feature = "defmt", derive(defmt::Format))]
 enum AbbreviationError {
     Quoted(QuotedAbbreviationError),
     Unquoted(UnquotedAbbreviationError),
@@ -1730,6 +1594,7 @@ impl core::fmt::Display for AbbreviationError {
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
+#[cfg_attr(feature = "defmt", derive(defmt::Format))]
 enum UnquotedAbbreviationError {
     InvalidUtf8,
     TooLong,
@@ -1758,6 +1623,7 @@ impl core::fmt::Display for UnquotedAbbreviationError {
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
+#[cfg_attr(feature = "defmt", derive(defmt::Format))]
 enum QuotedAbbreviationError {
     InvalidUtf8,
     TooLong,
@@ -1804,6 +1670,7 @@ impl core::fmt::Display for QuotedAbbreviationError {
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
+#[cfg_attr(feature = "defmt", derive(defmt::Format))]
 enum WeekdayOfMonthError {
     ExpectedDayOfWeekAfterWeek,
     ExpectedDotAfterMonth,
@@ -1856,6 +1723,7 @@ impl From<WeekdayError> for WeekdayOfMonthError {
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
+#[cfg_attr(feature = "defmt", derive(defmt::Format))]
 enum PosixTimeError {
     HourIana(HourIanaError),
     HourPosix(HourPosixError),
@@ -1923,6 +1791,7 @@ impl From<SecondError> for PosixTimeError {
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
+#[cfg_attr(feature = "defmt", derive(defmt::Format))]
 enum MonthError {
     Parse(NumberError),
     Range,
@@ -1945,6 +1814,7 @@ impl core::fmt::Display for MonthError {
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
+#[cfg_attr(feature = "defmt", derive(defmt::Format))]
 enum WeekOfMonthError {
     Parse(NumberError),
     Range,
@@ -1967,6 +1837,7 @@ impl core::fmt::Display for WeekOfMonthError {
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
+#[cfg_attr(feature = "defmt", derive(defmt::Format))]
 enum WeekdayError {
     Parse(NumberError),
     Range,
@@ -1989,6 +1860,7 @@ impl core::fmt::Display for WeekdayError {
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
+#[cfg_attr(feature = "defmt", derive(defmt::Format))]
 enum HourIanaError {
     Parse(NumberError),
     Range,
@@ -2011,6 +1883,7 @@ impl core::fmt::Display for HourIanaError {
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
+#[cfg_attr(feature = "defmt", derive(defmt::Format))]
 enum HourPosixError {
     Parse(NumberError),
     Range,
@@ -2033,6 +1906,7 @@ impl core::fmt::Display for HourPosixError {
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
+#[cfg_attr(feature = "defmt", derive(defmt::Format))]
 enum MinuteError {
     Parse(NumberError),
     Range,
@@ -2055,6 +1929,7 @@ impl core::fmt::Display for MinuteError {
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
+#[cfg_attr(feature = "defmt", derive(defmt::Format))]
 enum SecondError {
     Parse(NumberError),
     Range,
@@ -2077,6 +1952,7 @@ impl core::fmt::Display for SecondError {
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
+#[cfg_attr(feature = "defmt", derive(defmt::Format))]
 enum NumberError {
     Empty,
     ExpectedLength,
@@ -2102,6 +1978,7 @@ impl core::fmt::Display for NumberError {
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
+#[cfg_attr(feature = "defmt", derive(defmt::Format))]
 enum OptionalSignError {
     ExpectedDigitAfterMinus,
     ExpectedDigitAfterPlus,
@@ -2132,9 +2009,18 @@ mod tests {
     ) -> PosixTimeZone<Abbreviation> {
         let input = input.as_ref();
         let tz = PosixTimeZone::parse(input).unwrap();
+        // only-jiff-start
         #[cfg(feature = "alloc")]
         {
-            use alloc::string::ToString;
+            use alloc::string::String;
+
+            fn to_string(tz: &PosixTimeZone<Abbreviation>) -> String {
+                let mut buf = String::new();
+                crate::fmt::temporal::DateTimePrinter::new()
+                    .print_posix_time_zone(&tz, &mut buf)
+                    .unwrap();
+                buf
+            }
 
             // While we're here, assert that converting the TZ back
             // to a string matches what we got. In the original version
@@ -2148,10 +2034,11 @@ mod tests {
             // So to account for this, we serialize to a string and
             // then parse it back. We should get what we started with.
             let reparsed =
-                PosixTimeZone::parse(tz.to_string().as_bytes()).unwrap();
+                PosixTimeZone::parse(to_string(&tz).as_bytes()).unwrap();
             assert_eq!(tz, reparsed);
-            assert_eq!(tz.to_string(), reparsed.to_string());
+            assert_eq!(to_string(&tz), to_string(&reparsed));
         }
+        // only-jiff-end
         tz
     }
 

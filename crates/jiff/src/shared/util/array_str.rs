@@ -48,7 +48,7 @@ impl<const N: usize> ArrayStr<N> {
     }
 
     /// Returns the capacity of this array string.
-    pub(crate) fn capacity() -> usize {
+    pub(crate) const fn capacity() -> usize {
         N
     }
 
@@ -134,6 +134,13 @@ impl<const N: usize> core::fmt::Write for ArrayStr<N> {
         } else {
             Err(core::fmt::Error)
         }
+    }
+}
+
+#[cfg(feature = "defmt")]
+impl<const N: usize> defmt::Format for ArrayStr<N> {
+    fn format(&self, f: defmt::Formatter) {
+        defmt::write!(f, "{=str}", self.as_str())
     }
 }
 

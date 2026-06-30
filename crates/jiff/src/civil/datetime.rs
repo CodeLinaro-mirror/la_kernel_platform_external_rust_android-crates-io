@@ -1565,7 +1565,7 @@ impl DateTime {
                 (offset, ts, dt)
             }
         };
-        Ok(Zoned::from_parts(ts, tz, offset, dt))
+        Ok(Zoned::from_parts(ts, dt, offset, tz))
     }
 
     /// Add the given span of time to this datetime. If the sum would overflow
@@ -2757,6 +2757,17 @@ impl core::ops::SubAssign<UnsignedDuration> for DateTime {
     #[inline]
     fn sub_assign(&mut self, rhs: UnsignedDuration) {
         *self = *self - rhs
+    }
+}
+
+#[cfg(feature = "defmt")]
+impl defmt::Format for DateTime {
+    fn format(&self, f: defmt::Formatter) {
+        use crate::fmt::{temporal::DEFAULT_DATETIME_PRINTER, DefmtWrite};
+
+        defmt::unwrap!(
+            DEFAULT_DATETIME_PRINTER.print_datetime(self, DefmtWrite(f))
+        );
     }
 }
 
