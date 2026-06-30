@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: BSD-2-Clause OR Apache-2.0 OR MIT
+//
 // Copyright 2023 The Fuchsia Authors
 //
 // Licensed under a BSD-style license <LICENSE-BSD>, Apache License, Version 2.0
@@ -1268,10 +1270,17 @@ mod _project {
     {
         /// Iteratively projects the elements `Ptr<T>` from `Ptr<[T]>`.
         #[inline]
-        pub fn iter(&self) -> impl Iterator<Item = Ptr<'a, T, I>> {
+        pub fn iter(self) -> impl Iterator<Item = Ptr<'a, T, I>> {
             // SAFETY:
-            // 0. `elem` conforms to the aliasing invariant of `I::Aliasing`
-            //    because projection does not impact the aliasing invariant.
+            // 0. `elem` conforms to the aliasing invariant of `I::Aliasing`:
+            //    - `Exclusive`: `self` is consumed by value, and therefore
+            //      cannot be used to access the slice while any yielded
+            //      element `Ptr` is live. Each non-zero-sized element is a
+            //      disjoint byte range within the slice, and zero-sized
+            //      elements address no bytes, so distinct yielded element
+            //      `Ptr`s do not alias each other.
+            //    - `Shared`: It is sound for multiple shared `Ptr`s to exist
+            //      simultaneously which reference the same memory.
             // 1. `elem`, conditionally, conforms to the validity invariant of
             //    `I::Alignment`. If `elem` is projected from data well-aligned
             //    for `[T]`, `elem` will be valid for `T`.
@@ -1556,5 +1565,22 @@ mod tests {
             }
             Err(e) => panic!("wrong error type: {:?}", e),
         }
+    }
+
+    #[test]
+    fn test_iter_exclusive_yields_disjoint_ptrs() {
+        let mut arr = [0u8, 1, 2, 3];
+
+        {
+            let mut iter = Ptr::from_mut(&mut arr[..]).iter();
+            let first = iter.next().unwrap().as_mut();
+            let second = iter.next().unwrap().as_mut();
+
+            *first = 10;
+            *second = 20;
+            *first = 30;
+        }
+
+        assert_eq!(arr, [30, 20, 2, 3]);
     }
 }
