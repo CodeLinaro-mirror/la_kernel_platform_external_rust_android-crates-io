@@ -1,4 +1,4 @@
-use crate::reduced::impl_reduced_binary_pow;
+use crate::reduced::{impl_reduced_binary_pow, impl_reduced_ops};
 use crate::{udouble, umax, ModularUnaryOps, Reducer};
 
 macro_rules! impl_fixed_mersenne {
@@ -36,7 +36,11 @@ macro_rules! impl_fixed_mersenne {
                 folds_ceil + 1
             };
 
-            const fn reduce_single(v: $T) -> $T {
+            /// Reduces a single-width value `v` modulo `2^P - K`.
+            ///
+            /// For the result of a widening multiplication or square, use
+            /// [`reduce_double`](Self::reduce_double) instead.
+            pub const fn reduce_single(v: $T) -> $T {
                 let mut lo = v & Self::BITMASK;
                 let mut hi = match v.checked_shr(P as u32) {
                     Some(s) => s,
@@ -70,11 +74,11 @@ macro_rules! impl_fixed_mersenne {
                 debug_assert!(P <= $max_P);
                 debug_assert!(K > 0 && K < (2 as $T).pow(P as u32 - 1) && K % 2 == 1);
                 debug_assert!(
-                    Self::MODULUS % 3 != 0
-                        && Self::MODULUS % 5 != 0
-                        && Self::MODULUS % 7 != 0
-                        && Self::MODULUS % 11 != 0
-                        && Self::MODULUS % 13 != 0
+                    (Self::MODULUS == 3 || Self::MODULUS % 3 != 0)
+                        && (Self::MODULUS == 5 || Self::MODULUS % 5 != 0)
+                        && (Self::MODULUS == 7 || Self::MODULUS % 7 != 0)
+                        && (Self::MODULUS == 11 || Self::MODULUS % 11 != 0)
+                        && (Self::MODULUS == 13 || Self::MODULUS % 13 != 0)
                 ); // error on easy composites
                 Self {}
             }
@@ -83,50 +87,12 @@ macro_rules! impl_fixed_mersenne {
                 Self::reduce_single(target)
             }
             #[inline]
-            fn check(&self, target: &$T) -> bool {
-                *target < Self::MODULUS
-            }
-            #[inline]
             fn residue(&self, target: $T) -> $T {
                 target
             }
-            #[inline]
-            fn modulus(&self) -> $T {
-                Self::MODULUS
-            }
-            #[inline]
-            fn is_zero(&self, target: &$T) -> bool {
-                target == &0
-            }
 
-            #[inline]
-            fn add(&self, lhs: &$T, rhs: &$T) -> $T {
-                let mut sum = lhs + rhs;
-                if sum >= Self::MODULUS {
-                    sum -= Self::MODULUS
-                }
-                sum
-            }
-            #[inline]
-            fn sub(&self, lhs: &$T, rhs: &$T) -> $T {
-                if lhs >= rhs {
-                    lhs - rhs
-                } else {
-                    Self::MODULUS - (rhs - lhs)
-                }
-            }
-            #[inline]
-            fn dbl(&self, target: $T) -> $T {
-                self.add(&target, &target)
-            }
-            #[inline]
-            fn neg(&self, target: $T) -> $T {
-                if target == 0 {
-                    0
-                } else {
-                    Self::MODULUS - target
-                }
-            }
+            impl_reduced_ops!($T);
+
             #[inline]
             fn mul(&self, lhs: &$T, rhs: &$T) -> $T {
                 if (P as u32) < $half_bits {
@@ -164,7 +130,11 @@ macro_rules! impl_fixed_mersenne {
     // Unrolling replaces the data-dependent while loop with straight-line folds.
     // Extra folds past the true count are no-ops (hi reaches 0).
     (@reduce_double, primitive, $T:ty, $D:ty) => {
-        fn reduce_double(v: $D) -> $T {
+        /// Reduces a double-width value `v` modulo `2^P - K`.
+        ///
+        /// This handles widening-multiplication or widening-square results.
+        /// For single-width values, use [`reduce_single`](Self::reduce_single).
+        pub fn reduce_double(v: $D) -> $T {
             let mut lo = (v as $T) & Self::BITMASK;
             let mut hi = v >> P;
             macro_rules! mersenne_fold {
@@ -202,7 +172,11 @@ macro_rules! impl_fixed_mersenne {
     // hi = v >> P < 2^P ≤ 2^128 always fits in one word. Phase 2 uses u128
     // arithmetic and is unrolled when FOLDS ≤ 3 (all practical pseudo-Mersennes).
     (@reduce_double, udouble, $T:ty, $D:ty) => {
-        fn reduce_double(v: $D) -> $T {
+        /// Reduces a double-width value `v` modulo `2^P - K`.
+        ///
+        /// This handles widening-multiplication or widening-square results.
+        /// For single-width values, use [`reduce_single`](Self::reduce_single).
+        pub fn reduce_double(v: $D) -> $T {
             let mut lo = v.lo & Self::BITMASK;
             let mut hi = v >> P;
             while hi.hi > 0 {
@@ -278,6 +252,7 @@ macro_rules! impl_fixed_mersenne {
 /// let b = reducer.transform(200);
 /// assert_eq!(reducer.residue(reducer.add(&a, &b)), 300 % modulus);
 /// ```
+#[must_use]
 #[derive(Debug, Clone, Copy)]
 pub struct FixedMersenne32<const P: u8, const K: u32>();
 
@@ -302,6 +277,7 @@ impl_fixed_mersenne!(FixedMersenne32, u32, u64, 16, 32, primitive);
 /// let b = reducer.transform(2000);
 /// assert_eq!(reducer.residue(reducer.mul(&a, &b)), (1000u64 * 2000) % modulus);
 /// ```
+#[must_use]
 #[derive(Debug, Clone, Copy)]
 pub struct FixedMersenne64<const P: u8, const K: u64>();
 
@@ -327,6 +303,7 @@ impl_fixed_mersenne!(FixedMersenne64, u64, u128, 32, 64, primitive);
 /// let b = reducer.transform(2000);
 /// assert_eq!(reducer.residue(reducer.mul(&a, &b)), (1000 * 2000) % modulus);
 /// ```
+#[must_use]
 #[derive(Debug, Clone, Copy)]
 pub struct FixedMersenne<const P: u8, const K: umax>();
 
@@ -512,5 +489,35 @@ mod tests {
             let e = random::<u8>() as u32;
             tests_for!(a, b, e; M32_1 M32_2 M32_3);
         }
+    }
+
+    #[test]
+    fn small_prime_moduli() {
+        // Small primes that are themselves 3, 5, 7, 11, or 13 should not
+        // trigger the composite check debug_assert.
+        // 2^2 - 1 = 3, 2^3 - 1 = 7, 2^4 - 1 = 15 (not prime, skip)
+        // 2^5 - 1 = 31 (Mersenne prime)
+        type M3 = FixedMersenne<2, 1>; // modulus = 3
+        type M7 = FixedMersenne<3, 1>; // modulus = 7
+
+        const M3_MOD: umax = M3::MODULUS;
+        let r3 = M3::new(&M3_MOD);
+        assert_eq!(r3.residue(r3.transform(5 % M3_MOD)), 5 % M3_MOD);
+
+        const M7_MOD: umax = M7::MODULUS;
+        let r7 = M7::new(&M7_MOD);
+        assert_eq!(r7.residue(r7.transform(10 % M7_MOD)), 10 % M7_MOD);
+
+        // 32-bit variants
+        type M32_3 = FixedMersenne32<2, 1>; // modulus = 3
+        type M32_7 = FixedMersenne32<3, 1>; // modulus = 7
+
+        const P3: u32 = M32_3::MODULUS;
+        let r3 = M32_3::new(&P3);
+        assert_eq!(r3.residue(r3.transform(5 % P3)), 5 % P3);
+
+        const P7: u32 = M32_7::MODULUS;
+        let r7 = M32_7::new(&P7);
+        assert_eq!(r7.residue(r7.transform(10 % P7)), 10 % P7);
     }
 }

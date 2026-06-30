@@ -4,6 +4,7 @@ use core::ops::*;
 use num_traits::{Inv, Pow};
 
 /// An integer in a modulo ring
+#[must_use]
 #[derive(Debug, Clone, Copy)]
 pub struct ReducedInt<T, R: Reducer<T>> {
     /// The reduced representation of the integer in a modulo ring.
@@ -28,9 +29,10 @@ impl<T, R: Reducer<T>> ReducedInt<T, R> {
         T: PartialEq,
     {
         // we don't directly compare m because m could be empty in case of Mersenne modular integer
-        if cfg!(debug_assertions) && self.r.modulus() != rhs.r.modulus() {
-            panic!("The modulus of two operators should be the same!");
-        }
+        debug_assert!(
+            self.r.modulus() == rhs.r.modulus(),
+            "The modulus of two operators should be the same!"
+        );
     }
 
     #[inline(always)]
@@ -359,6 +361,7 @@ impl<T: PartialEq + Clone, R: Reducer<T> + Clone> ModularInteger for ReducedInt<
 // An vanilla reducer is also provided here
 /// A plain reducer that just use normal [Rem] operators. It will keep the integer
 /// in range [0, modulus) after each operation.
+#[must_use]
 #[derive(Debug, Clone, Copy)]
 pub struct Vanilla<T>(T);
 
@@ -404,6 +407,44 @@ macro_rules! impl_uprim_vanilla_core_const {
     )*};
 }
 impl_uprim_vanilla_core_const!(u8 u16 u32 u64 u128 usize);
+
+/// Generate the seven trivial `Reducer` trait methods that are identical
+/// across all fixed reducer types (check, modulus, is_zero, add, sub, dbl, neg).
+macro_rules! impl_reduced_ops {
+    ($T:ty) => {
+        #[inline]
+        fn check(&self, target: &$T) -> bool {
+            *target < Self::MODULUS
+        }
+        #[inline]
+        fn modulus(&self) -> $T {
+            Self::MODULUS
+        }
+        #[inline]
+        fn is_zero(&self, target: &$T) -> bool {
+            target == &0
+        }
+
+        #[inline]
+        fn add(&self, lhs: &$T, rhs: &$T) -> $T {
+            $crate::Vanilla::<$T>::add(&Self::MODULUS, *lhs, *rhs)
+        }
+        #[inline]
+        fn sub(&self, lhs: &$T, rhs: &$T) -> $T {
+            $crate::Vanilla::<$T>::sub(&Self::MODULUS, *lhs, *rhs)
+        }
+        #[inline]
+        fn dbl(&self, target: $T) -> $T {
+            $crate::Vanilla::<$T>::dbl(&Self::MODULUS, target)
+        }
+        #[inline]
+        fn neg(&self, target: $T) -> $T {
+            $crate::Vanilla::<$T>::neg(&Self::MODULUS, target)
+        }
+    };
+}
+
+pub(crate) use impl_reduced_ops;
 
 macro_rules! impl_reduced_binary_pow {
     ($T:ty) => {
