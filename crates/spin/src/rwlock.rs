@@ -870,7 +870,11 @@ unsafe impl<R: RelaxStrategy> lock_api_crate::RawRwLockUpgrade for RwLock<(), R>
     #[inline(always)]
     unsafe fn try_upgrade(&self) -> bool {
         let tmp_guard = RwLockUpgradableGuard { inner: self };
-        tmp_guard.try_upgrade().map(core::mem::forget).is_ok()
+        let res = tmp_guard.try_upgrade();
+        let success = res.is_ok();
+        // We act 'as if' the guards still exist to maintain the lock state
+        core::mem::forget(res);
+        success
     }
 }
 
@@ -1118,5 +1122,39 @@ mod tests {
         }
 
         assert!(m.try_upgradeable_read().unwrap().try_upgrade().is_ok());
+    }
+
+    #[test]
+    fn no_premature_upgrade_drop_on_failure() {
+        type RwLock<T> = lock_api_crate::RwLock<crate::rwlock::RwLock<()>, T>;
+
+        let lock = Arc::new(RwLock::new(42));
+        std::thread::scope(|s| {
+            let shared = lock.try_read().expect("shared read should succeed");
+            let upgradable = lock.upgradable_read();
+
+            // Previously, UB occurred here: `try_upgrade` failure resulted in a temporary guard
+            // being dropped, resulting in the UPGRADED bit being unset, leaving the lock unguarded.
+            // This is not correct because upgrade failure shouldn't leave the lock open for writers
+            let upgradable =
+                match lock_api_crate::RwLockUpgradableReadGuard::try_upgrade(upgradable) {
+                    Ok(_) => panic!("upgrade unexpectedly succeeded"),
+                    Err(g) => g,
+                };
+
+            drop(shared);
+
+            s.spawn(|| {
+                if lock.try_write().is_some() {
+                    panic!("try_write should not succeed because lock is held");
+                }
+            })
+            .join()
+            .unwrap();
+
+            std::hint::black_box(*upgradable);
+
+            core::mem::forget(upgradable);
+        });
     }
 }

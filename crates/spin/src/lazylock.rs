@@ -60,7 +60,7 @@ impl<T: fmt::Debug, F, R> fmt::Debug for LazyLock<T, F, R> {
 // we do create a `&mut Option<F>` in `force`, but this is
 // properly synchronized, so it only happens once
 // so it also does not contribute to this impl.
-unsafe impl<T, F: Send> Sync for LazyLock<T, F> where Once<T>: Sync {}
+unsafe impl<T, F: Send, R> Sync for LazyLock<T, F, R> where Once<T>: Sync {}
 // auto-derived `Send` impl is OK.
 
 impl<T, F, R> LazyLock<T, F, R> {
