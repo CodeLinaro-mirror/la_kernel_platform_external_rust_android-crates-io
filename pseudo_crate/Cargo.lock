@@ -469,6 +469,7 @@ dependencies = [
  "is_terminal_polyfill",
  "itertools 0.15.0",
  "itoa",
+ "java-locator",
  "jiff",
  "jni 0.22.4",
  "jni-macros",
@@ -5486,6 +5487,15 @@ name = "ixdtf"
 version = "0.6.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "2ceaf4c6c48465bead8cb6a0b7c4ee0c86ecbb31239032b9c66ab9a08d2f3ee1"
+
+[[package]]
+name = "java-locator"
+version = "0.1.9"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "09c46c1fe465c59b1474e665e85e1256c3893dd00927b8d55f63b09044c1e64f"
+dependencies = [
+ "glob",
+]
 
 [[package]]
 name = "jiff"
