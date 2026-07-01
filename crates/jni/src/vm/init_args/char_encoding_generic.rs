@@ -89,7 +89,7 @@ pub(super) fn utf8_to_cstr<'a>(s: Cow<'a, str>) -> Result<Cow<'a, CStr>, JvmErro
 
 #[test]
 fn test() {
-    use assert_matches::assert_matches;
+    use std::assert_matches;
 
     {
         let result = utf8_to_cstr("Hello, world 😎".into()).unwrap();
@@ -111,7 +111,6 @@ fn test() {
 
     {
         let result = utf8_to_cstr("Hello,\0world".into()).unwrap_err();
-        let error_string = assert_matches!(result, JvmError::NullOptString(string) => string);
-        assert_eq!(error_string, "Hello,\0world");
+        assert_matches!(result, JvmError::NullOptString(string) if string == "Hello,\0world");
     }
 }

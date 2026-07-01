@@ -3,6 +3,7 @@
 // TODO: https://github.com/jni-rs/jni-rs/issues/348
 #![allow(clippy::not_unsafe_ptr_arg_deref)]
 #![deny(missing_debug_implementations)]
+#![feature(assert_matches)]
 
 //! # Safe JNI Bindings in Rust
 //!
