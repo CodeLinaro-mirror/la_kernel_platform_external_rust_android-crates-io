@@ -1,5 +1,33 @@
 # CHANGELOG
 
+0.2.31 (2026-06-29)
+===================
+This release fixes a minor bug in tests that prevents the crate from running
+through standard build processes in Linux distributions downstream.
+
+* [#594](https://github.com/BurntSushi/jiff/pull/591):
+Fix imports in recently added tests.
+
+
+0.2.30 (2026-06-29)
+===================
+This release fixes a safety soundness bug in Jiff's lower level printing
+APIs. There is also a nice performance improvement to `civil::Date::weekday`,
+which also improves downstread routines like `civil::Date::nth_weekday` and
+datetime<-->timestamp conversions in some cases.
+
+Enhancements:
+
+* [#591](https://github.com/BurntSushi/jiff/pull/591):
+Improve the performance of weekday calculations from Gregorian dates by 30-50%.
+
+Bug fixes:
+
+* [#592](https://github.com/BurntSushi/jiff/issues/592):
+Fix safety soundness bug when using a non-empty `String` destination buffer
+with lower level printing APIs inside of `jiff::fmt`.
+
+
 0.2.29 (2026-06-20)
 ===================
 This release adds support for [`defmt`], which is a highly efficient logging
