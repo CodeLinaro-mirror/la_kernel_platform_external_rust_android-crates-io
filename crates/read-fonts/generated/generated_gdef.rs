@@ -135,43 +135,62 @@ impl<'a> Gdef<'a> {
 
     pub fn version_byte_range(&self) -> Range<usize> {
         let start = 0;
-        start..start + MajorMinor::RAW_BYTE_LEN
+        let end = start + MajorMinor::RAW_BYTE_LEN;
+        start..end
     }
 
     pub fn glyph_class_def_offset_byte_range(&self) -> Range<usize> {
         let start = self.version_byte_range().end;
-        start..start + Offset16::RAW_BYTE_LEN
+        let end = start + Offset16::RAW_BYTE_LEN;
+        start..end
     }
 
     pub fn attach_list_offset_byte_range(&self) -> Range<usize> {
         let start = self.glyph_class_def_offset_byte_range().end;
-        start..start + Offset16::RAW_BYTE_LEN
+        let end = start + Offset16::RAW_BYTE_LEN;
+        start..end
     }
 
     pub fn lig_caret_list_offset_byte_range(&self) -> Range<usize> {
         let start = self.attach_list_offset_byte_range().end;
-        start..start + Offset16::RAW_BYTE_LEN
+        let end = start + Offset16::RAW_BYTE_LEN;
+        start..end
     }
 
     pub fn mark_attach_class_def_offset_byte_range(&self) -> Range<usize> {
         let start = self.lig_caret_list_offset_byte_range().end;
-        start..start + Offset16::RAW_BYTE_LEN
+        let end = start + Offset16::RAW_BYTE_LEN;
+        start..end
     }
 
     pub fn mark_glyph_sets_def_offset_byte_range(&self) -> Range<usize> {
         let start = self.mark_attach_class_def_offset_byte_range().end;
-        start
-            ..(self.version().compatible((1u16, 2u16)))
-                .then(|| start + Offset16::RAW_BYTE_LEN)
-                .unwrap_or(start)
+        let end = if self.version().compatible((1u16, 2u16)) {
+            start + Offset16::RAW_BYTE_LEN
+        } else {
+            start
+        };
+        start..end
     }
 
     pub fn item_var_store_offset_byte_range(&self) -> Range<usize> {
         let start = self.mark_glyph_sets_def_offset_byte_range().end;
-        start
-            ..(self.version().compatible((1u16, 3u16)))
-                .then(|| start + Offset32::RAW_BYTE_LEN)
-                .unwrap_or(start)
+        let end = if self.version().compatible((1u16, 3u16)) {
+            start + Offset32::RAW_BYTE_LEN
+        } else {
+            start
+        };
+        start..end
+    }
+}
+
+const _: () = assert!(FontData::default_data_long_enough(Gdef::MIN_SIZE));
+
+impl Default for Gdef<'_> {
+    fn default() -> Self {
+        Self {
+            data: FontData::default_table_data(),
+        }
     }
 }
 
@@ -340,18 +359,32 @@ impl<'a> AttachList<'a> {
 
     pub fn coverage_offset_byte_range(&self) -> Range<usize> {
         let start = 0;
-        start..start + Offset16::RAW_BYTE_LEN
+        let end = start + Offset16::RAW_BYTE_LEN;
+        start..end
     }
 
     pub fn glyph_count_byte_range(&self) -> Range<usize> {
         let start = self.coverage_offset_byte_range().end;
-        start..start + u16::RAW_BYTE_LEN
+        let end = start + u16::RAW_BYTE_LEN;
+        start..end
     }
 
     pub fn attach_point_offsets_byte_range(&self) -> Range<usize> {
         let glyph_count = self.glyph_count();
         let start = self.glyph_count_byte_range().end;
-        start..start + (glyph_count as usize).saturating_mul(Offset16::RAW_BYTE_LEN)
+        let end =
+            start + (transforms::to_usize(glyph_count)).saturating_mul(Offset16::RAW_BYTE_LEN);
+        start..end
+    }
+}
+
+const _: () = assert!(FontData::default_data_long_enough(AttachList::MIN_SIZE));
+
+impl Default for AttachList<'_> {
+    fn default() -> Self {
+        Self {
+            data: FontData::default_table_data(),
+        }
     }
 }
 
@@ -367,20 +400,10 @@ impl<'a> SomeTable<'a> for AttachList<'a> {
                 FieldType::offset(self.coverage_offset(), self.coverage()),
             )),
             1usize => Some(Field::new("glyph_count", self.glyph_count())),
-            2usize => Some({
-                let data = self.data;
-                Field::new(
-                    "attach_point_offsets",
-                    FieldType::array_of_offsets(
-                        better_type_name::<AttachPoint>(),
-                        self.attach_point_offsets(),
-                        move |off| {
-                            let target = off.get().resolve::<AttachPoint>(data);
-                            FieldType::offset(off.get(), target)
-                        },
-                    ),
-                )
-            }),
+            2usize => Some(Field::new(
+                "attach_point_offsets",
+                FieldType::from(self.attach_points()),
+            )),
             _ => None,
         }
     }
@@ -439,13 +462,25 @@ impl<'a> AttachPoint<'a> {
 
     pub fn point_count_byte_range(&self) -> Range<usize> {
         let start = 0;
-        start..start + u16::RAW_BYTE_LEN
+        let end = start + u16::RAW_BYTE_LEN;
+        start..end
     }
 
     pub fn point_indices_byte_range(&self) -> Range<usize> {
         let point_count = self.point_count();
         let start = self.point_count_byte_range().end;
-        start..start + (point_count as usize).saturating_mul(u16::RAW_BYTE_LEN)
+        let end = start + (transforms::to_usize(point_count)).saturating_mul(u16::RAW_BYTE_LEN);
+        start..end
+    }
+}
+
+const _: () = assert!(FontData::default_data_long_enough(AttachPoint::MIN_SIZE));
+
+impl Default for AttachPoint<'_> {
+    fn default() -> Self {
+        Self {
+            data: FontData::default_table_data(),
+        }
     }
 }
 
@@ -536,18 +571,32 @@ impl<'a> LigCaretList<'a> {
 
     pub fn coverage_offset_byte_range(&self) -> Range<usize> {
         let start = 0;
-        start..start + Offset16::RAW_BYTE_LEN
+        let end = start + Offset16::RAW_BYTE_LEN;
+        start..end
     }
 
     pub fn lig_glyph_count_byte_range(&self) -> Range<usize> {
         let start = self.coverage_offset_byte_range().end;
-        start..start + u16::RAW_BYTE_LEN
+        let end = start + u16::RAW_BYTE_LEN;
+        start..end
     }
 
     pub fn lig_glyph_offsets_byte_range(&self) -> Range<usize> {
         let lig_glyph_count = self.lig_glyph_count();
         let start = self.lig_glyph_count_byte_range().end;
-        start..start + (lig_glyph_count as usize).saturating_mul(Offset16::RAW_BYTE_LEN)
+        let end =
+            start + (transforms::to_usize(lig_glyph_count)).saturating_mul(Offset16::RAW_BYTE_LEN);
+        start..end
+    }
+}
+
+const _: () = assert!(FontData::default_data_long_enough(LigCaretList::MIN_SIZE));
+
+impl Default for LigCaretList<'_> {
+    fn default() -> Self {
+        Self {
+            data: FontData::default_table_data(),
+        }
     }
 }
 
@@ -563,20 +612,10 @@ impl<'a> SomeTable<'a> for LigCaretList<'a> {
                 FieldType::offset(self.coverage_offset(), self.coverage()),
             )),
             1usize => Some(Field::new("lig_glyph_count", self.lig_glyph_count())),
-            2usize => Some({
-                let data = self.data;
-                Field::new(
-                    "lig_glyph_offsets",
-                    FieldType::array_of_offsets(
-                        better_type_name::<LigGlyph>(),
-                        self.lig_glyph_offsets(),
-                        move |off| {
-                            let target = off.get().resolve::<LigGlyph>(data);
-                            FieldType::offset(off.get(), target)
-                        },
-                    ),
-                )
-            }),
+            2usize => Some(Field::new(
+                "lig_glyph_offsets",
+                FieldType::from(self.lig_glyphs()),
+            )),
             _ => None,
         }
     }
@@ -643,13 +682,26 @@ impl<'a> LigGlyph<'a> {
 
     pub fn caret_count_byte_range(&self) -> Range<usize> {
         let start = 0;
-        start..start + u16::RAW_BYTE_LEN
+        let end = start + u16::RAW_BYTE_LEN;
+        start..end
     }
 
     pub fn caret_value_offsets_byte_range(&self) -> Range<usize> {
         let caret_count = self.caret_count();
         let start = self.caret_count_byte_range().end;
-        start..start + (caret_count as usize).saturating_mul(Offset16::RAW_BYTE_LEN)
+        let end =
+            start + (transforms::to_usize(caret_count)).saturating_mul(Offset16::RAW_BYTE_LEN);
+        start..end
+    }
+}
+
+const _: () = assert!(FontData::default_data_long_enough(LigGlyph::MIN_SIZE));
+
+impl Default for LigGlyph<'_> {
+    fn default() -> Self {
+        Self {
+            data: FontData::default_table_data(),
+        }
     }
 }
 
@@ -661,20 +713,10 @@ impl<'a> SomeTable<'a> for LigGlyph<'a> {
     fn get_field(&self, idx: usize) -> Option<Field<'a>> {
         match idx {
             0usize => Some(Field::new("caret_count", self.caret_count())),
-            1usize => Some({
-                let data = self.data;
-                Field::new(
-                    "caret_value_offsets",
-                    FieldType::array_of_offsets(
-                        better_type_name::<CaretValue>(),
-                        self.caret_value_offsets(),
-                        move |off| {
-                            let target = off.get().resolve::<CaretValue>(data);
-                            FieldType::offset(off.get(), target)
-                        },
-                    ),
-                )
-            }),
+            1usize => Some(Field::new(
+                "caret_value_offsets",
+                FieldType::from(self.caret_values()),
+            )),
             _ => None,
         }
     }
@@ -694,6 +736,12 @@ pub enum CaretValue<'a> {
     Format1(CaretValueFormat1<'a>),
     Format2(CaretValueFormat2<'a>),
     Format3(CaretValueFormat3<'a>),
+}
+
+impl Default for CaretValue<'_> {
+    fn default() -> Self {
+        Self::Format1(Default::default())
+    }
 }
 
 impl<'a> CaretValue<'a> {
@@ -822,12 +870,26 @@ impl<'a> CaretValueFormat1<'a> {
 
     pub fn caret_value_format_byte_range(&self) -> Range<usize> {
         let start = 0;
-        start..start + u16::RAW_BYTE_LEN
+        let end = start + u16::RAW_BYTE_LEN;
+        start..end
     }
 
     pub fn coordinate_byte_range(&self) -> Range<usize> {
         let start = self.caret_value_format_byte_range().end;
-        start..start + i16::RAW_BYTE_LEN
+        let end = start + i16::RAW_BYTE_LEN;
+        start..end
+    }
+}
+
+const _: () = assert!(FontData::default_data_long_enough(
+    CaretValueFormat1::MIN_SIZE
+));
+
+impl Default for CaretValueFormat1<'_> {
+    fn default() -> Self {
+        Self {
+            data: FontData::default_format_1_u16_table_data(),
+        }
     }
 }
 
@@ -902,12 +964,14 @@ impl<'a> CaretValueFormat2<'a> {
 
     pub fn caret_value_format_byte_range(&self) -> Range<usize> {
         let start = 0;
-        start..start + u16::RAW_BYTE_LEN
+        let end = start + u16::RAW_BYTE_LEN;
+        start..end
     }
 
     pub fn caret_value_point_index_byte_range(&self) -> Range<usize> {
         let start = self.caret_value_format_byte_range().end;
-        start..start + u16::RAW_BYTE_LEN
+        let end = start + u16::RAW_BYTE_LEN;
+        start..end
     }
 }
 
@@ -999,17 +1063,20 @@ impl<'a> CaretValueFormat3<'a> {
 
     pub fn caret_value_format_byte_range(&self) -> Range<usize> {
         let start = 0;
-        start..start + u16::RAW_BYTE_LEN
+        let end = start + u16::RAW_BYTE_LEN;
+        start..end
     }
 
     pub fn coordinate_byte_range(&self) -> Range<usize> {
         let start = self.caret_value_format_byte_range().end;
-        start..start + i16::RAW_BYTE_LEN
+        let end = start + i16::RAW_BYTE_LEN;
+        start..end
     }
 
     pub fn device_offset_byte_range(&self) -> Range<usize> {
         let start = self.coordinate_byte_range().end;
-        start..start + Offset16::RAW_BYTE_LEN
+        let end = start + Offset16::RAW_BYTE_LEN;
+        start..end
     }
 }
 
@@ -1102,18 +1169,32 @@ impl<'a> MarkGlyphSets<'a> {
 
     pub fn format_byte_range(&self) -> Range<usize> {
         let start = 0;
-        start..start + u16::RAW_BYTE_LEN
+        let end = start + u16::RAW_BYTE_LEN;
+        start..end
     }
 
     pub fn mark_glyph_set_count_byte_range(&self) -> Range<usize> {
         let start = self.format_byte_range().end;
-        start..start + u16::RAW_BYTE_LEN
+        let end = start + u16::RAW_BYTE_LEN;
+        start..end
     }
 
     pub fn coverage_offsets_byte_range(&self) -> Range<usize> {
         let mark_glyph_set_count = self.mark_glyph_set_count();
         let start = self.mark_glyph_set_count_byte_range().end;
-        start..start + (mark_glyph_set_count as usize).saturating_mul(Offset32::RAW_BYTE_LEN)
+        let end = start
+            + (transforms::to_usize(mark_glyph_set_count)).saturating_mul(Offset32::RAW_BYTE_LEN);
+        start..end
+    }
+}
+
+const _: () = assert!(FontData::default_data_long_enough(MarkGlyphSets::MIN_SIZE));
+
+impl Default for MarkGlyphSets<'_> {
+    fn default() -> Self {
+        Self {
+            data: FontData::default_format_1_u16_table_data(),
+        }
     }
 }
 
@@ -1129,20 +1210,10 @@ impl<'a> SomeTable<'a> for MarkGlyphSets<'a> {
                 "mark_glyph_set_count",
                 self.mark_glyph_set_count(),
             )),
-            2usize => Some({
-                let data = self.data;
-                Field::new(
-                    "coverage_offsets",
-                    FieldType::array_of_offsets(
-                        better_type_name::<CoverageTable>(),
-                        self.coverage_offsets(),
-                        move |off| {
-                            let target = off.get().resolve::<CoverageTable>(data);
-                            FieldType::offset(off.get(), target)
-                        },
-                    ),
-                )
-            }),
+            2usize => Some(Field::new(
+                "coverage_offsets",
+                FieldType::from(self.coverages()),
+            )),
             _ => None,
         }
     }

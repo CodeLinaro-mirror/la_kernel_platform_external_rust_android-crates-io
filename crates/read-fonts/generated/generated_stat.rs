@@ -118,40 +118,58 @@ impl<'a> Stat<'a> {
 
     pub fn version_byte_range(&self) -> Range<usize> {
         let start = 0;
-        start..start + MajorMinor::RAW_BYTE_LEN
+        let end = start + MajorMinor::RAW_BYTE_LEN;
+        start..end
     }
 
     pub fn design_axis_size_byte_range(&self) -> Range<usize> {
         let start = self.version_byte_range().end;
-        start..start + u16::RAW_BYTE_LEN
+        let end = start + u16::RAW_BYTE_LEN;
+        start..end
     }
 
     pub fn design_axis_count_byte_range(&self) -> Range<usize> {
         let start = self.design_axis_size_byte_range().end;
-        start..start + u16::RAW_BYTE_LEN
+        let end = start + u16::RAW_BYTE_LEN;
+        start..end
     }
 
     pub fn design_axes_offset_byte_range(&self) -> Range<usize> {
         let start = self.design_axis_count_byte_range().end;
-        start..start + Offset32::RAW_BYTE_LEN
+        let end = start + Offset32::RAW_BYTE_LEN;
+        start..end
     }
 
     pub fn axis_value_count_byte_range(&self) -> Range<usize> {
         let start = self.design_axes_offset_byte_range().end;
-        start..start + u16::RAW_BYTE_LEN
+        let end = start + u16::RAW_BYTE_LEN;
+        start..end
     }
 
     pub fn offset_to_axis_value_offsets_byte_range(&self) -> Range<usize> {
         let start = self.axis_value_count_byte_range().end;
-        start..start + Offset32::RAW_BYTE_LEN
+        let end = start + Offset32::RAW_BYTE_LEN;
+        start..end
     }
 
     pub fn elided_fallback_name_id_byte_range(&self) -> Range<usize> {
         let start = self.offset_to_axis_value_offsets_byte_range().end;
-        start
-            ..(self.version().compatible((1u16, 1u16)))
-                .then(|| start + NameId::RAW_BYTE_LEN)
-                .unwrap_or(start)
+        let end = if self.version().compatible((1u16, 1u16)) {
+            start + NameId::RAW_BYTE_LEN
+        } else {
+            start
+        };
+        start..end
+    }
+}
+
+const _: () = assert!(FontData::default_data_long_enough(Stat::MIN_SIZE));
+
+impl Default for Stat<'_> {
+    fn default() -> Self {
+        Self {
+            data: FontData::default_table_data(),
+        }
     }
 }
 
@@ -328,7 +346,21 @@ impl<'a> AxisValueArray<'a> {
     pub fn axis_value_offsets_byte_range(&self) -> Range<usize> {
         let axis_value_count = self.axis_value_count();
         let start = 0;
-        start..start + (axis_value_count as usize).saturating_mul(Offset16::RAW_BYTE_LEN)
+        let end =
+            start + (transforms::to_usize(axis_value_count)).saturating_mul(Offset16::RAW_BYTE_LEN);
+        start..end
+    }
+}
+
+#[allow(clippy::absurd_extreme_comparisons)]
+const _: () = assert!(FontData::default_data_long_enough(AxisValueArray::MIN_SIZE));
+
+impl Default for AxisValueArray<'_> {
+    fn default() -> Self {
+        Self {
+            data: FontData::default_table_data(),
+            axis_value_count: Default::default(),
+        }
     }
 }
 
@@ -339,20 +371,10 @@ impl<'a> SomeTable<'a> for AxisValueArray<'a> {
     }
     fn get_field(&self, idx: usize) -> Option<Field<'a>> {
         match idx {
-            0usize => Some({
-                let data = self.data;
-                Field::new(
-                    "axis_value_offsets",
-                    FieldType::array_of_offsets(
-                        better_type_name::<AxisValue>(),
-                        self.axis_value_offsets(),
-                        move |off| {
-                            let target = off.get().resolve::<AxisValue>(data);
-                            FieldType::offset(off.get(), target)
-                        },
-                    ),
-                )
-            }),
+            0usize => Some(Field::new(
+                "axis_value_offsets",
+                FieldType::from(self.axis_values()),
+            )),
             _ => None,
         }
     }
@@ -373,6 +395,12 @@ pub enum AxisValue<'a> {
     Format2(AxisValueFormat2<'a>),
     Format3(AxisValueFormat3<'a>),
     Format4(AxisValueFormat4<'a>),
+}
+
+impl Default for AxisValue<'_> {
+    fn default() -> Self {
+        Self::Format1(Default::default())
+    }
 }
 
 impl<'a> AxisValue<'a> {
@@ -553,27 +581,44 @@ impl<'a> AxisValueFormat1<'a> {
 
     pub fn format_byte_range(&self) -> Range<usize> {
         let start = 0;
-        start..start + u16::RAW_BYTE_LEN
+        let end = start + u16::RAW_BYTE_LEN;
+        start..end
     }
 
     pub fn axis_index_byte_range(&self) -> Range<usize> {
         let start = self.format_byte_range().end;
-        start..start + u16::RAW_BYTE_LEN
+        let end = start + u16::RAW_BYTE_LEN;
+        start..end
     }
 
     pub fn flags_byte_range(&self) -> Range<usize> {
         let start = self.axis_index_byte_range().end;
-        start..start + AxisValueTableFlags::RAW_BYTE_LEN
+        let end = start + AxisValueTableFlags::RAW_BYTE_LEN;
+        start..end
     }
 
     pub fn value_name_id_byte_range(&self) -> Range<usize> {
         let start = self.flags_byte_range().end;
-        start..start + NameId::RAW_BYTE_LEN
+        let end = start + NameId::RAW_BYTE_LEN;
+        start..end
     }
 
     pub fn value_byte_range(&self) -> Range<usize> {
         let start = self.value_name_id_byte_range().end;
-        start..start + Fixed::RAW_BYTE_LEN
+        let end = start + Fixed::RAW_BYTE_LEN;
+        start..end
+    }
+}
+
+const _: () = assert!(FontData::default_data_long_enough(
+    AxisValueFormat1::MIN_SIZE
+));
+
+impl Default for AxisValueFormat1<'_> {
+    fn default() -> Self {
+        Self {
+            data: FontData::default_format_1_u16_table_data(),
+        }
     }
 }
 
@@ -692,37 +737,44 @@ impl<'a> AxisValueFormat2<'a> {
 
     pub fn format_byte_range(&self) -> Range<usize> {
         let start = 0;
-        start..start + u16::RAW_BYTE_LEN
+        let end = start + u16::RAW_BYTE_LEN;
+        start..end
     }
 
     pub fn axis_index_byte_range(&self) -> Range<usize> {
         let start = self.format_byte_range().end;
-        start..start + u16::RAW_BYTE_LEN
+        let end = start + u16::RAW_BYTE_LEN;
+        start..end
     }
 
     pub fn flags_byte_range(&self) -> Range<usize> {
         let start = self.axis_index_byte_range().end;
-        start..start + AxisValueTableFlags::RAW_BYTE_LEN
+        let end = start + AxisValueTableFlags::RAW_BYTE_LEN;
+        start..end
     }
 
     pub fn value_name_id_byte_range(&self) -> Range<usize> {
         let start = self.flags_byte_range().end;
-        start..start + NameId::RAW_BYTE_LEN
+        let end = start + NameId::RAW_BYTE_LEN;
+        start..end
     }
 
     pub fn nominal_value_byte_range(&self) -> Range<usize> {
         let start = self.value_name_id_byte_range().end;
-        start..start + Fixed::RAW_BYTE_LEN
+        let end = start + Fixed::RAW_BYTE_LEN;
+        start..end
     }
 
     pub fn range_min_value_byte_range(&self) -> Range<usize> {
         let start = self.nominal_value_byte_range().end;
-        start..start + Fixed::RAW_BYTE_LEN
+        let end = start + Fixed::RAW_BYTE_LEN;
+        start..end
     }
 
     pub fn range_max_value_byte_range(&self) -> Range<usize> {
         let start = self.range_min_value_byte_range().end;
-        start..start + Fixed::RAW_BYTE_LEN
+        let end = start + Fixed::RAW_BYTE_LEN;
+        start..end
     }
 }
 
@@ -834,32 +886,38 @@ impl<'a> AxisValueFormat3<'a> {
 
     pub fn format_byte_range(&self) -> Range<usize> {
         let start = 0;
-        start..start + u16::RAW_BYTE_LEN
+        let end = start + u16::RAW_BYTE_LEN;
+        start..end
     }
 
     pub fn axis_index_byte_range(&self) -> Range<usize> {
         let start = self.format_byte_range().end;
-        start..start + u16::RAW_BYTE_LEN
+        let end = start + u16::RAW_BYTE_LEN;
+        start..end
     }
 
     pub fn flags_byte_range(&self) -> Range<usize> {
         let start = self.axis_index_byte_range().end;
-        start..start + AxisValueTableFlags::RAW_BYTE_LEN
+        let end = start + AxisValueTableFlags::RAW_BYTE_LEN;
+        start..end
     }
 
     pub fn value_name_id_byte_range(&self) -> Range<usize> {
         let start = self.flags_byte_range().end;
-        start..start + NameId::RAW_BYTE_LEN
+        let end = start + NameId::RAW_BYTE_LEN;
+        start..end
     }
 
     pub fn value_byte_range(&self) -> Range<usize> {
         let start = self.value_name_id_byte_range().end;
-        start..start + Fixed::RAW_BYTE_LEN
+        let end = start + Fixed::RAW_BYTE_LEN;
+        start..end
     }
 
     pub fn linked_value_byte_range(&self) -> Range<usize> {
         let start = self.value_byte_range().end;
-        start..start + Fixed::RAW_BYTE_LEN
+        let end = start + Fixed::RAW_BYTE_LEN;
+        start..end
     }
 }
 
@@ -962,28 +1020,34 @@ impl<'a> AxisValueFormat4<'a> {
 
     pub fn format_byte_range(&self) -> Range<usize> {
         let start = 0;
-        start..start + u16::RAW_BYTE_LEN
+        let end = start + u16::RAW_BYTE_LEN;
+        start..end
     }
 
     pub fn axis_count_byte_range(&self) -> Range<usize> {
         let start = self.format_byte_range().end;
-        start..start + u16::RAW_BYTE_LEN
+        let end = start + u16::RAW_BYTE_LEN;
+        start..end
     }
 
     pub fn flags_byte_range(&self) -> Range<usize> {
         let start = self.axis_count_byte_range().end;
-        start..start + AxisValueTableFlags::RAW_BYTE_LEN
+        let end = start + AxisValueTableFlags::RAW_BYTE_LEN;
+        start..end
     }
 
     pub fn value_name_id_byte_range(&self) -> Range<usize> {
         let start = self.flags_byte_range().end;
-        start..start + NameId::RAW_BYTE_LEN
+        let end = start + NameId::RAW_BYTE_LEN;
+        start..end
     }
 
     pub fn axis_values_byte_range(&self) -> Range<usize> {
         let axis_count = self.axis_count();
         let start = self.value_name_id_byte_range().end;
-        start..start + (axis_count as usize).saturating_mul(AxisValueRecord::RAW_BYTE_LEN)
+        let end = start
+            + (transforms::to_usize(axis_count)).saturating_mul(AxisValueRecord::RAW_BYTE_LEN);
+        start..end
     }
 }
 
