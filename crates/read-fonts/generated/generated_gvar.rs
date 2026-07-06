@@ -115,47 +115,63 @@ impl<'a> Gvar<'a> {
 
     pub fn version_byte_range(&self) -> Range<usize> {
         let start = 0;
-        start..start + MajorMinor::RAW_BYTE_LEN
+        let end = start + MajorMinor::RAW_BYTE_LEN;
+        start..end
     }
 
     pub fn axis_count_byte_range(&self) -> Range<usize> {
         let start = self.version_byte_range().end;
-        start..start + u16::RAW_BYTE_LEN
+        let end = start + u16::RAW_BYTE_LEN;
+        start..end
     }
 
     pub fn shared_tuple_count_byte_range(&self) -> Range<usize> {
         let start = self.axis_count_byte_range().end;
-        start..start + u16::RAW_BYTE_LEN
+        let end = start + u16::RAW_BYTE_LEN;
+        start..end
     }
 
     pub fn shared_tuples_offset_byte_range(&self) -> Range<usize> {
         let start = self.shared_tuple_count_byte_range().end;
-        start..start + Offset32::RAW_BYTE_LEN
+        let end = start + Offset32::RAW_BYTE_LEN;
+        start..end
     }
 
     pub fn glyph_count_byte_range(&self) -> Range<usize> {
         let start = self.shared_tuples_offset_byte_range().end;
-        start..start + u16::RAW_BYTE_LEN
+        let end = start + u16::RAW_BYTE_LEN;
+        start..end
     }
 
     pub fn flags_byte_range(&self) -> Range<usize> {
         let start = self.glyph_count_byte_range().end;
-        start..start + GvarFlags::RAW_BYTE_LEN
+        let end = start + GvarFlags::RAW_BYTE_LEN;
+        start..end
     }
 
     pub fn glyph_variation_data_array_offset_byte_range(&self) -> Range<usize> {
         let start = self.flags_byte_range().end;
-        start..start + u32::RAW_BYTE_LEN
+        let end = start + u32::RAW_BYTE_LEN;
+        start..end
     }
 
     pub fn glyph_variation_data_offsets_byte_range(&self) -> Range<usize> {
         let glyph_count = self.glyph_count();
         let start = self.glyph_variation_data_array_offset_byte_range().end;
-        start
-            ..start
-                + (transforms::add(glyph_count, 1_usize)).saturating_mul(
-                    <U16Or32 as ComputeSize>::compute_size(&self.flags()).unwrap_or(0),
-                )
+        let end = start
+            + (transforms::add(glyph_count, 1_usize))
+                .saturating_mul(<U16Or32 as ComputeSize>::compute_size(&self.flags()).unwrap_or(0));
+        start..end
+    }
+}
+
+const _: () = assert!(FontData::default_data_long_enough(Gvar::MIN_SIZE));
+
+impl Default for Gvar<'_> {
+    fn default() -> Self {
+        Self {
+            data: FontData::default_table_data(),
+        }
     }
 }
 
@@ -573,11 +589,24 @@ impl<'a> SharedTuples<'a> {
     pub fn tuples_byte_range(&self) -> Range<usize> {
         let shared_tuple_count = self.shared_tuple_count();
         let start = 0;
-        start
-            ..start
-                + (shared_tuple_count as usize).saturating_mul(
-                    <Tuple as ComputeSize>::compute_size(&self.axis_count()).unwrap_or(0),
-                )
+        let end = start
+            + (transforms::to_usize(shared_tuple_count)).saturating_mul(
+                <Tuple as ComputeSize>::compute_size(&self.axis_count()).unwrap_or(0),
+            );
+        start..end
+    }
+}
+
+#[allow(clippy::absurd_extreme_comparisons)]
+const _: () = assert!(FontData::default_data_long_enough(SharedTuples::MIN_SIZE));
+
+impl Default for SharedTuples<'_> {
+    fn default() -> Self {
+        Self {
+            data: FontData::default_table_data(),
+            shared_tuple_count: Default::default(),
+            axis_count: Default::default(),
+        }
     }
 }
 
@@ -669,17 +698,32 @@ impl<'a> GlyphVariationDataHeader<'a> {
 
     pub fn tuple_variation_count_byte_range(&self) -> Range<usize> {
         let start = 0;
-        start..start + TupleVariationCount::RAW_BYTE_LEN
+        let end = start + TupleVariationCount::RAW_BYTE_LEN;
+        start..end
     }
 
     pub fn serialized_data_offset_byte_range(&self) -> Range<usize> {
         let start = self.tuple_variation_count_byte_range().end;
-        start..start + Offset16::RAW_BYTE_LEN
+        let end = start + Offset16::RAW_BYTE_LEN;
+        start..end
     }
 
     pub fn tuple_variation_headers_byte_range(&self) -> Range<usize> {
         let start = self.serialized_data_offset_byte_range().end;
-        start..start + self.data.len().saturating_sub(start)
+        let end = start + self.data.len().saturating_sub(start);
+        start..end
+    }
+}
+
+const _: () = assert!(FontData::default_data_long_enough(
+    GlyphVariationDataHeader::MIN_SIZE
+));
+
+impl Default for GlyphVariationDataHeader<'_> {
+    fn default() -> Self {
+        Self {
+            data: FontData::default_table_data(),
+        }
     }
 }
 
