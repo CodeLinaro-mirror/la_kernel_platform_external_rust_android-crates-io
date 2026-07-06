@@ -527,7 +527,7 @@ dependencies = [
  "miniz_oxide 0.9.1",
  "mio",
  "mockall",
- "mockall_derive",
+ "mockall_derive 0.15.0",
  "mockall_double",
  "moxcms",
  "named-lock",
@@ -6301,7 +6301,7 @@ dependencies = [
  "cfg-if",
  "downcast",
  "fragile",
- "mockall_derive",
+ "mockall_derive 0.14.0",
  "predicates",
  "predicates-tree",
 ]
@@ -6311,6 +6311,18 @@ name = "mockall_derive"
 version = "0.14.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "ca41ce716dda6a9be188b385aa78ee5260fc25cd3802cb2a8afdc6afbe6b6dbf"
+dependencies = [
+ "cfg-if",
+ "proc-macro2 1.0.106",
+ "quote 1.0.46",
+ "syn 2.0.118",
+]
+
+[[package]]
+name = "mockall_derive"
+version = "0.15.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "9cfe16fbe8a314aeec0b861ac24e60b1e123e97634bab045475b9d6a18416fd8"
 dependencies = [
  "cfg-if",
  "proc-macro2 1.0.106",
