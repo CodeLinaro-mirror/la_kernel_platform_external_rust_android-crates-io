@@ -981,6 +981,41 @@ macro_rules! impl_vec3_signed_tests {
             );
         });
 
+        glam_test!(test_is_negative_mask, {
+            assert_eq!(
+                $vec3::ZERO.is_negative_mask(),
+                $mask::new(false, false, false)
+            );
+            assert_eq!(
+                $vec3::ONE.is_negative_mask(),
+                $mask::new(false, false, false)
+            );
+            assert_eq!(
+                (-$vec3::ONE).is_negative_mask(),
+                $mask::new(true, true, true)
+            );
+            assert_eq!(
+                $vec3::new(-1 as $t, 2 as $t, 3 as $t).is_negative_mask(),
+                $mask::new(true, false, false)
+            );
+            assert_eq!(
+                $vec3::new(8 as $t, 3 as $t, 1 as $t).is_negative_mask(),
+                $mask::new(false, false, false)
+            );
+            assert_eq!(
+                $vec3::new(1 as $t, 5 as $t, -3 as $t).is_negative_mask(),
+                $mask::new(false, false, true)
+            );
+            assert_eq!(
+                $vec3::new(3 as $t, -4 as $t, 1 as $t).is_negative_mask(),
+                $mask::new(false, true, false)
+            );
+            assert_eq!(
+                $vec3::new(-2 as $t, 6 as $t, -5 as $t).is_negative_mask(),
+                $mask::new(true, false, true)
+            );
+        });
+
         glam_test!(test_abs, {
             assert_eq!($vec3::ZERO.abs(), $vec3::ZERO);
             assert_eq!($vec3::ONE.abs(), $vec3::ONE);
@@ -1490,6 +1525,45 @@ macro_rules! impl_vec3_float_tests {
             assert_eq!($vec3::new(-2.0, 6.0, -5.0).is_negative_bitmask(), 0b101);
         });
 
+        glam_test!(test_float_is_negative_mask, {
+            assert_eq!(
+                $vec3::ZERO.is_negative_mask(),
+                $mask::new(false, false, false)
+            );
+            assert_eq!(
+                (-$vec3::ZERO).is_negative_mask(),
+                $mask::new(true, true, true)
+            );
+            assert_eq!(
+                $vec3::ONE.is_negative_mask(),
+                $mask::new(false, false, false)
+            );
+            assert_eq!(
+                (-$vec3::ONE).is_negative_mask(),
+                $mask::new(true, true, true)
+            );
+            assert_eq!(
+                $vec3::new(-1.0, 2.0, 3.0).is_negative_mask(),
+                $mask::new(true, false, false)
+            );
+            assert_eq!(
+                $vec3::new(8.0, 3.0, 1.0).is_negative_mask(),
+                $mask::new(false, false, false)
+            );
+            assert_eq!(
+                $vec3::new(1.0, 5.0, -3.0).is_negative_mask(),
+                $mask::new(false, false, true)
+            );
+            assert_eq!(
+                $vec3::new(3.0, -4.0, 1.0).is_negative_mask(),
+                $mask::new(false, true, false)
+            );
+            assert_eq!(
+                $vec3::new(-2.0, 6.0, -5.0).is_negative_mask(),
+                $mask::new(true, false, true)
+            );
+        });
+
         glam_test!(test_round, {
             assert_eq!($vec3::new(1.35, 0.0, 0.0).round().x, 1.0);
             assert_eq!($vec3::new(0.0, 1.5, 0.0).round().y, 2.0);
@@ -1753,6 +1827,8 @@ macro_rules! impl_vec3_float_tests {
             assert!(!$vec3::NAN.is_finite());
             assert!(!$vec3::INFINITY.is_finite());
             assert!(!$vec3::NEG_INFINITY.is_finite());
+            assert!($vec3::new(-1.0, 2.0, 3.0).is_finite_mask().all());
+            assert!(!$vec3::new($t::INFINITY, 1.0, 2.0).is_finite_mask().all());
         });
 
         glam_test!(test_powf, {
