@@ -17,7 +17,7 @@ rust_library_host {
     name: "libconfig_rust",
     crate_name: "config",
     cargo_env_compat: true,
-    cargo_pkg_version: "0.15.24",
+    cargo_pkg_version: "0.15.25",
     crate_root: "src/lib.rs",
     edition: "2024",
     features: [
