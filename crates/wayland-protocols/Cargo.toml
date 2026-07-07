@@ -10,10 +10,10 @@
 # See Cargo.toml.orig for the original contents.
 
 [package]
-edition = "2021"
-rust-version = "1.71"
+edition = "2024"
+rust-version = "1.86"
 name = "wayland-protocols"
-version = "0.32.12"
+version = "0.32.13"
 authors = ["Elinor Berger <elinor@safaradeg.net>"]
 build = false
 include = [
@@ -51,6 +51,7 @@ categories = [
 ]
 license = "MIT"
 repository = "https://github.com/smithay/wayland-rs"
+resolver = "2"
 
 [package.metadata.docs.rs]
 all-features = true
