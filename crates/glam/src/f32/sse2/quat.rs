@@ -416,9 +416,14 @@ impl Quat {
     /// # Panics
     ///
     /// Will panic if `up` is not normalized when `glam_assert` is enabled.
+    #[deprecated(
+        since = "0.33.1",
+        note = "use the `glam::camera::lh::view::look_to_quat` function instead"
+    )]
     #[inline]
     #[must_use]
     pub fn look_to_lh(dir: Vec3, up: Vec3) -> Self {
+        #[allow(deprecated)]
         Self::look_to_rh(-dir, up)
     }
 
@@ -429,6 +434,10 @@ impl Quat {
     /// # Panics
     ///
     /// Will panic if `dir` and `up` are not normalized when `glam_assert` is enabled.
+    #[deprecated(
+        since = "0.33.1",
+        note = "use the `glam::camera::rh::view::look_to_quat` function instead"
+    )]
     #[inline]
     #[must_use]
     pub fn look_to_rh(dir: Vec3, up: Vec3) -> Self {
@@ -445,7 +454,7 @@ impl Quat {
         )
     }
 
-    /// Creates a left-handed view matrix using a camera position, a focal point, and an up
+    /// Creates a quaternion rotation from a camera position, a focal point, and an up
     /// direction.
     ///
     /// For a left-handed view coordinate system with `+X=right`, `+Y=up` and `+Z=forward`.
@@ -453,13 +462,18 @@ impl Quat {
     /// # Panics
     ///
     /// Will panic if `up` is not normalized when `glam_assert` is enabled.
+    #[deprecated(
+        since = "0.33.1",
+        note = "use the `glam::camera::lh::view::look_at_quat` function instead"
+    )]
     #[inline]
     #[must_use]
     pub fn look_at_lh(eye: Vec3, center: Vec3, up: Vec3) -> Self {
+        #[allow(deprecated)]
         Self::look_to_lh(center.sub(eye).normalize(), up)
     }
 
-    /// Creates a right-handed view matrix using a camera position, an up direction, and a focal
+    /// Creates a quaternion rotation using a camera position, an up direction, and a focal
     /// point.
     ///
     /// For a right-handed view coordinate system with `+X=right`, `+Y=up` and `+Z=back`.
@@ -467,9 +481,14 @@ impl Quat {
     /// # Panics
     ///
     /// Will panic if `up` is not normalized when `glam_assert` is enabled.
+    #[deprecated(
+        since = "0.33.1",
+        note = "use the `glam::camera::rh::view::look_at_quat` function instead"
+    )]
     #[inline]
     #[must_use]
     pub fn look_at_rh(eye: Vec3, center: Vec3, up: Vec3) -> Self {
+        #[allow(deprecated)]
         Self::look_to_rh(center.sub(eye).normalize(), up)
     }
 
@@ -726,6 +745,30 @@ impl Quat {
         }
     }
 
+    #[inline(always)]
+    #[must_use]
+    fn slerp_impl(self, end: Self, dot: f32, s: f32) -> Self {
+        let theta = math::acos_approx(dot);
+
+        let x = 1.0 - s;
+        let y = s;
+        let z = 1.0;
+
+        unsafe {
+            let tmp = _mm_mul_ps(_mm_set_ps1(theta), _mm_set_ps(0.0, z, y, x));
+            let tmp = m128_sin(tmp);
+
+            let scale1 = _mm_shuffle_ps(tmp, tmp, 0b00_00_00_00);
+            let scale2 = _mm_shuffle_ps(tmp, tmp, 0b01_01_01_01);
+            let theta_sin = _mm_shuffle_ps(tmp, tmp, 0b10_10_10_10);
+
+            Self(_mm_div_ps(
+                _mm_add_ps(_mm_mul_ps(self.0, scale1), _mm_mul_ps(end.0, scale2)),
+                theta_sin,
+            ))
+        }
+    }
+
     /// Performs a spherical linear interpolation between `self` and `end`
     /// based on the value `s`.
     ///
@@ -759,25 +802,37 @@ impl Quat {
             // if above threshold perform linear interpolation to avoid divide by zero
             self.lerp_impl(end, s)
         } else {
-            let theta = math::acos_approx(dot);
+            self.slerp_impl(end, dot, s)
+        }
+    }
 
-            let x = 1.0 - s;
-            let y = s;
-            let z = 1.0;
+    /// Performs a spherical linear interpolation between `self` and `end` based on the value `s`,
+    /// preserving the rotation direction.
+    ///
+    /// When `s` is `0.0`, the result will be equal to `self`.  When `s` is `1.0`, the result will
+    /// be equal to `end`.
+    ///
+    /// When the dot product of `self` and `end` is negative, the standard [`slerp`](Self::slerp)
+    /// will flip the end quaternion to take the shortest path, while this method will take the
+    /// longer arc. This is useful when the intended rotation direction must be preserved.
+    ///
+    /// # Panics
+    ///
+    /// Will panic if `self` or `end` are not normalized when `glam_assert` is enabled.
+    #[inline]
+    #[must_use]
+    pub fn slerp_long(self, end: Self, s: f32) -> Self {
+        glam_assert!(self.is_normalized());
+        glam_assert!(end.is_normalized());
 
-            unsafe {
-                let tmp = _mm_mul_ps(_mm_set_ps1(theta), _mm_set_ps(0.0, z, y, x));
-                let tmp = m128_sin(tmp);
+        let dot = self.dot(end);
 
-                let scale1 = _mm_shuffle_ps(tmp, tmp, 0b00_00_00_00);
-                let scale2 = _mm_shuffle_ps(tmp, tmp, 0b01_01_01_01);
-                let theta_sin = _mm_shuffle_ps(tmp, tmp, 0b10_10_10_10);
-
-                Self(_mm_div_ps(
-                    _mm_add_ps(_mm_mul_ps(self.0, scale1), _mm_mul_ps(end.0, scale2)),
-                    theta_sin,
-                ))
-            }
+        const DOT_THRESHOLD: f32 = 1.0 - f32::EPSILON;
+        if dot.abs() > DOT_THRESHOLD {
+            // if above threshold perform linear interpolation to avoid divide by zero
+            self.lerp_impl(end, s)
+        } else {
+            self.slerp_impl(end, dot, s)
         }
     }
 

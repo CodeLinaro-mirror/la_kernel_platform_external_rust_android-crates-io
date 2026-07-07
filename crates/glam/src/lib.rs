@@ -10,11 +10,13 @@
   * square matrices: [`Mat2`], [`Mat3`], [`Mat3A`] and [`Mat4`]
   * a quaternion type: [`Quat`]
   * affine transformation types: [`Affine2`], [`Affine3`] and [`Affine3A`]
+  * camera: [`camera`] module with view and projection constructors
 * [`f64`](mod@f64) types
   * vectors: [`DVec2`], [`DVec3`] and [`DVec4`]
   * square matrices: [`DMat2`], [`DMat3`] and [`DMat4`]
   * a quaternion type: [`DQuat`]
   * affine transformation types: [`DAffine2`] and [`DAffine3`]
+  * camera: [`dcamera`] module with view and projection constructors
 * [`i8`](mod@i8) types
   * vectors: [`I8Vec2`], [`I8Vec3`] and [`I8Vec4`]
 * [`u8`](mod@u8) types
@@ -49,12 +51,12 @@ and/or implementation. The use of SIMD generally enables better performance than
 numeric types such as `f32`.
 
 Some `glam` types use SIMD for storage meaning they are 16 byte aligned, these types include
-`Mat2`, `Mat3A`, `Mat4`, `Quat`, `Vec3A`, `Vec4`, `Affine2` an `Affine3A`. Types
+`Mat2`, `Mat3A`, `Mat4`, `Quat`, `Vec3A`, `Vec4`, `Affine2` and `Affine3A`. Types
 with an `A` suffix are a SIMD alternative to a scalar type, e.g. `Vec3` uses `f32` storage and
 `Vec3A` uses SIMD storage.
 
 When SIMD is not available on the target the types will maintain 16 byte alignment and internal
-padding so that object sizes and layouts will not change between architectures. There are scalar
+padding so that object sizes and layouts will not change between architectures. Scalar
 math fallback implementations exist when SIMD is not available. It is intended to add support for
 other SIMD architectures once they appear in stable Rust.
 
@@ -107,7 +109,7 @@ assert_eq!(Vec3A::new(1.0, 2.0, 3.0), v3a);
 translation. The represent 2D and 3D affine transformations which are commonly used in games.
 
 `Affine3` is composed from `Vec3` and `Mat3` whereas `Affine3A` is composed from `Mat3A` and
-`Vec3A`. `Affine3A` will generally be faster but is 16 byte aligned and 64 btyes verses `Affine3`
+`Vec3A`. `Affine3A` will generally be faster but is 16 byte aligned and 64 bytes versus `Affine3`
 which is 48 bytes.
 
 The table below shows the performance advantage of `Affine2` over `Mat3A` and `Mat3A` over `Mat3`.
@@ -150,6 +152,18 @@ Matrices are stored in memory in column-major order.
 
 All angles are in radians. Rust provides the `f32::to_radians()` and `f64::to_radians()` methods to
 convert from degrees.
+
+## Camera
+
+`glam` provides a [`camera`] module with view matrix (`look_at`, `look_to`) and
+projection matrix (`perspective`, `orthographic`, `frustum`) constructors.
+
+View functions transform world space points into Y-up view space. Choose [`camera::rh`] or
+[`camera::lh`] based on your world space handedness.
+
+Projection functions expect Y-up view space input with matching handedness. Within
+each sub-module, constructors are available for common graphics API conventions,
+including OpenGL, DirectX, Vulkan, and WebGPU.
 
 ## Direct element access
 
@@ -280,7 +294,7 @@ and benchmarks.
 The minimum supported Rust version is `1.68.2`.
 
 */
-#![doc(html_root_url = "https://docs.rs/glam/0.33.1")]
+#![doc(html_root_url = "https://docs.rs/glam/0.33.2")]
 #![cfg_attr(not(feature = "std"), no_std)]
 #![cfg_attr(target_arch = "spirv", feature(repr_simd))]
 #![cfg_attr(target_arch = "wasm64", feature(simd_wasm64))]
@@ -347,6 +361,11 @@ use align16::Align16;
 /** `bool` vector mask types. */
 pub mod bool;
 pub use self::bool::*;
+
+pub mod camera;
+
+#[cfg(feature = "f64")]
+pub mod dcamera;
 
 /** `f32` vector, quaternion and matrix types. */
 pub mod f32;
@@ -417,6 +436,9 @@ pub use self::usize::*;
 pub mod isize;
 #[cfg(feature = "isize")]
 pub use self::isize::*;
+
+/** The glam prelude, including all common types but excluding camera modules. */
+pub mod prelude;
 
 /** Traits adding swizzle methods to all vector types. */
 pub mod swizzles;
