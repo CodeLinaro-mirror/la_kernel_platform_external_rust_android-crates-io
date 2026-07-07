@@ -292,7 +292,7 @@ dependencies = [
  "const_fn",
  "coset",
  "cov-mark",
- "cpufeatures 0.2.17",
+ "cpufeatures 0.3.0",
  "crates-index",
  "crc",
  "crc-catalog",
