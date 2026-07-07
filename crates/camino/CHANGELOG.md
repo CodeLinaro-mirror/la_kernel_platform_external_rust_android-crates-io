@@ -6,6 +6,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 <!-- next-header -->
 ## Unreleased - ReleaseDate
 
+## [1.2.4] - 2026-06-27
+
+### Added
+
+Methods to convert between `Box<Utf8Path>` and `Box<Path>`:
+
+- `From<Box<Utf8Path>> for Box<Path>` (as of release, not documented due to [rust-lang/rust#158466](https://github.com/rust-lang/rust/pull/158466)).
+- `Utf8Path::into_std_boxed_path(self: Box<Self>)`
+- `Utf8Path::from_boxed_path(path: Box<Path>)`
+- `TryFrom<Box<Path>> for Box<Utf8Path>`
+
+Thanks [nicopap](https://github.com/nicopap) for your first contribution!
+
 ## [1.2.3] - 2026-06-18
 
 ### Performance improvements
@@ -205,6 +218,7 @@ Thanks to [BenjaminBrienen](https://github.com/BenjaminBrienen) for your first c
 Initial release.
 
 <!-- next-url -->
+[1.2.4]: https://github.com/camino-rs/camino/releases/tag/camino-1.2.4
 [1.2.3]: https://github.com/camino-rs/camino/releases/tag/camino-1.2.3
 [1.2.2]: https://github.com/camino-rs/camino/releases/tag/camino-1.2.2
 [1.2.1]: https://github.com/camino-rs/camino/releases/tag/camino-1.2.1
