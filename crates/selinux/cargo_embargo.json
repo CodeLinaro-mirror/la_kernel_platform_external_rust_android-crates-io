@@ -7,6 +7,6 @@
        "force_rlib": true
     }
   },
-  "run_cargo": true,
+  "run_cargo": false,
   "min_sdk_version": "29"
 }
