@@ -12,7 +12,7 @@
 [package]
 edition = "2024"
 name = "ignore"
-version = "0.4.26"
+version = "0.4.27"
 authors = ["Andrew Gallant <jamslam@gmail.com>"]
 build = false
 autolib = false
