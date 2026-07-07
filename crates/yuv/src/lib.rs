@@ -110,6 +110,7 @@ mod numerics;
 #[cfg(feature = "rdp")]
 #[cfg_attr(docsrs, doc(cfg(feature = "rdp")))]
 mod rdp;
+mod rgb16_to_y_p16;
 mod rgb16_to_yuv_p16;
 mod rgb_ar30;
 mod rgb_to_nv_p16;
@@ -299,10 +300,10 @@ pub use yuv_p10_rgba::{
 
 pub use rgb_to_ycgco::{
     bgr_to_ycgco420, bgr_to_ycgco422, bgr_to_ycgco444, bgra_to_ycgco420, bgra_to_ycgco422,
-    bgra_to_ycgco444, rgb10_to_icgc010, rgb10_to_icgc210, rgb10_to_icgc410, rgb_to_ycgco420,
-    rgb_to_ycgco422, rgb_to_ycgco444, rgba10_to_icgc010, rgba10_to_icgc210, rgba10_to_icgc410,
-    rgba12_to_icgc012, rgba12_to_icgc212, rgba12_to_icgc412, rgba_to_ycgco420, rgba_to_ycgco422,
-    rgba_to_ycgco444,
+    bgra_to_ycgco444, rgb10_to_icgc010, rgb10_to_icgc210, rgb10_to_icgc410, rgb12_to_icgc012,
+    rgb12_to_icgc212, rgb12_to_icgc412, rgb_to_ycgco420, rgb_to_ycgco422, rgb_to_ycgco444,
+    rgba10_to_icgc010, rgba10_to_icgc210, rgba10_to_icgc410, rgba12_to_icgc012, rgba12_to_icgc212,
+    rgba12_to_icgc412, rgba_to_ycgco420, rgba_to_ycgco422, rgba_to_ycgco444,
 };
 
 pub use ycgco_to_rgb::{
@@ -624,6 +625,7 @@ pub use yuv_to_rgba_bilinear::{
     yuv422_to_rgb_bilinear, yuv422_to_rgba_bilinear,
 };
 
+pub use rgb16_to_y_p16::{rgb10_to_y010, rgb12_to_y012, rgba10_to_y010, rgba12_to_y012};
 pub use yuv_p16_to_rgba16_bilinear::{
     i010_to_rgb10_bilinear, i010_to_rgba10_bilinear, i012_to_rgb12_bilinear,
     i012_to_rgba12_bilinear, i014_to_rgb14_bilinear, i014_to_rgba14_bilinear,
