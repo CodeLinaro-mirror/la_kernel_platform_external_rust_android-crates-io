@@ -13,7 +13,7 @@
 edition = "2018"
 rust-version = "1.51"
 name = "arrayvec"
-version = "0.7.7"
+version = "0.7.8"
 authors = ["bluss"]
 build = false
 autolib = false
