@@ -12,7 +12,9 @@ use alloc::vec::Vec;
 use core::ffi::c_void;
 use core::ptr;
 use uefi_macros::unsafe_protocol;
-use uefi_raw::protocol::pci::root_bridge::{PciRootBridgeIoAccess, PciRootBridgeIoProtocol};
+use uefi_raw::protocol::pci::root_bridge::{
+    PciRootBridgeIoAccess, PciRootBridgeIoProtocol, PciRootBridgeIoProtocolAttributes,
+};
 
 #[cfg(doc)]
 use crate::Status;
@@ -34,11 +36,30 @@ impl PciRootBridgeIo {
         self.0.segment_number
     }
 
-    /// Access PCI I/O operations on this root bridge.
-    pub const fn pci(&mut self) -> PciIoAccessPci<'_> {
-        PciIoAccessPci {
+    /// Access PCI controller registers in the configuration space on this root bridge.
+    pub const fn pci(&mut self) -> PciIoAccess<'_, PciConfigurationSpace> {
+        PciIoAccess {
             proto: &mut self.0,
             io_access: &mut self.0.pci,
+            _address_space: PciConfigurationSpace,
+        }
+    }
+
+    /// Access PCI controller registers in the memory space on this root bridge.
+    pub const fn memory(&mut self) -> PciIoAccess<'_, PciMemorySpace> {
+        PciIoAccess {
+            proto: &mut self.0,
+            io_access: &mut self.0.mem,
+            _address_space: PciMemorySpace,
+        }
+    }
+
+    /// Access PCI controller registers in the I/O space on this root bridge.
+    pub const fn io(&mut self) -> PciIoAccess<'_, PciIoSpace> {
+        PciIoAccess {
+            proto: &mut self.0,
+            io_access: &mut self.0.io,
+            _address_space: PciIoSpace,
         }
     }
 
@@ -51,12 +72,72 @@ impl PciRootBridgeIo {
         unsafe { (self.0.flush)(&mut self.0).to_result() }
     }
 
+    /// Returns the set of [`PciRootBridgeIoProtocolAttributes`] that this PCI root bridge
+    /// supports.
+    pub fn supported_attributes(&self) -> crate::Result<PciRootBridgeIoProtocolAttributes> {
+        let mut supported = 0;
+
+        unsafe {
+            (self.0.get_attributes)(&self.0, &mut supported, ptr::null_mut()).to_result_with_val(
+                || PciRootBridgeIoProtocolAttributes::from_bits_retain(supported),
+            )
+        }
+    }
+
+    /// Returns the [`PciRootBridgeIoProtocolAttributes`] that this PCI root bridge is currently using.
+    pub fn attributes(&self) -> crate::Result<PciRootBridgeIoProtocolAttributes> {
+        let mut current = 0;
+
+        unsafe {
+            (self.0.get_attributes)(&self.0, ptr::null_mut(), &mut current)
+                .to_result_with_val(|| PciRootBridgeIoProtocolAttributes::from_bits_retain(current))
+        }
+    }
+
+    /// Sets [`PciRootBridgeIoProtocolAttributes`] for this PCI root bridge.
+    ///
+    /// # Safety
+    ///
+    /// The new [`PciRootBridgeIoProtocolAttributes`] must be valid for the current system
+    /// configuration.
+    pub unsafe fn set_attributes(
+        &mut self,
+        attributes: PciRootBridgeIoProtocolAttributes,
+    ) -> crate::Result {
+        unsafe {
+            (self.0.set_attributes)(
+                &mut self.0,
+                attributes.bits(),
+                ptr::null_mut(),
+                ptr::null_mut(),
+            )
+            .to_result()
+        }
+    }
+
+    /// Sets [`PciRootBridgeIoProtocolAttributes`] for this PCI root bridge (supporting attributes
+    /// that require a resource range). For instance, modifying the cache settings of a PCI
+    /// memory range requires the use of this function.
+    ///
+    /// The provided base and length are set to the actual base and length of the region whose
+    /// attributes were changed (due to granularity or other requirements).
+    ///
+    /// # Safety
+    ///
+    /// The new [`PciRootBridgeIoProtocolAttributes`] must be valid for the current system
+    /// configuration.
+    pub unsafe fn set_attributes_with_range(
+        &mut self,
+        attributes: PciRootBridgeIoProtocolAttributes,
+        base: &mut u64,
+        length: &mut u64,
+    ) -> crate::Result {
+        unsafe { (self.0.set_attributes)(&mut self.0, attributes.bits(), base, length).to_result() }
+    }
+
     // TODO: poll I/O
-    // TODO: mem I/O access
-    // TODO: io I/O access
     // TODO: map & unmap & copy memory
     // TODO: buffer management
-    // TODO: get/set attributes
 
     /// Retrieves the current resource settings of this PCI root bridge in the form of a set of ACPI resource descriptors.
     ///
@@ -90,7 +171,7 @@ impl PciRootBridgeIo {
     /// An ordered list of addresses containing all present devices below this RootBridge.
     ///
     /// # Errors
-    /// This can basically fail with all the IO errors found in [`PciIoAccessPci`] methods.
+    /// This can basically fail with all the IO errors found in [`PciIoAccess`] methods.
     #[cfg(feature = "alloc")]
     pub fn enumerate(&mut self) -> crate::Result<super::enumeration::PciTree> {
         use super::enumeration::{self, PciTree};
@@ -118,12 +199,13 @@ impl PciRootBridgeIo {
 
 /// Struct for performing PCI I/O operations on a root bridge.
 #[derive(Debug)]
-pub struct PciIoAccessPci<'a> {
+pub struct PciIoAccess<'a, S: PciIoAddressSpace> {
     proto: *mut PciRootBridgeIoProtocol,
     io_access: &'a mut PciRootBridgeIoAccess,
+    _address_space: S,
 }
 
-impl PciIoAccessPci<'_> {
+impl<S: PciIoAddressSpace> PciIoAccess<'_, S> {
     /// Reads a single value of type `U` from the specified PCI address.
     ///
     /// # Arguments
@@ -135,7 +217,7 @@ impl PciIoAccessPci<'_> {
     /// # Errors
     /// - [`Status::INVALID_PARAMETER`] The requested width is invalid for this PCI root bridge.
     /// - [`Status::OUT_OF_RESOURCES`] The read request could not be completed due to a lack of resources.
-    pub fn read_one<U: PciIoUnit>(&self, addr: PciIoAddress) -> crate::Result<U> {
+    pub fn read_one<U: PciIoUnit>(&self, addr: S::Address) -> crate::Result<U> {
         let width_mode = encode_io_mode_and_unit::<U>(super::PciIoMode::Normal);
         let mut result = U::default();
         unsafe {
@@ -159,7 +241,7 @@ impl PciIoAccessPci<'_> {
     /// # Errors
     /// - [`Status::INVALID_PARAMETER`] The requested width is invalid for this PCI root bridge.
     /// - [`Status::OUT_OF_RESOURCES`] The write request could not be completed due to a lack of resources.
-    pub fn write_one<U: PciIoUnit>(&self, addr: PciIoAddress, data: U) -> crate::Result<()> {
+    pub fn write_one<U: PciIoUnit>(&self, addr: S::Address, data: U) -> crate::Result<()> {
         let width_mode = encode_io_mode_and_unit::<U>(super::PciIoMode::Normal);
         unsafe {
             (self.io_access.write)(
@@ -182,7 +264,7 @@ impl PciIoAccessPci<'_> {
     /// # Errors
     /// - [`Status::INVALID_PARAMETER`] The requested width is invalid for this PCI root bridge.
     /// - [`Status::OUT_OF_RESOURCES`] The read operation could not be completed due to a lack of resources.
-    pub fn read<U: PciIoUnit>(&self, addr: PciIoAddress, data: &mut [U]) -> crate::Result<()> {
+    pub fn read<U: PciIoUnit>(&self, addr: S::Address, data: &mut [U]) -> crate::Result<()> {
         let width_mode = encode_io_mode_and_unit::<U>(super::PciIoMode::Normal);
         unsafe {
             (self.io_access.read)(
@@ -205,7 +287,7 @@ impl PciIoAccessPci<'_> {
     /// # Errors
     /// - [`Status::INVALID_PARAMETER`] The requested width is invalid for this PCI root bridge.
     /// - [`Status::OUT_OF_RESOURCES`] The write operation could not be completed due to a lack of resources.
-    pub fn write<U: PciIoUnit>(&self, addr: PciIoAddress, data: &[U]) -> crate::Result<()> {
+    pub fn write<U: PciIoUnit>(&self, addr: S::Address, data: &[U]) -> crate::Result<()> {
         let width_mode = encode_io_mode_and_unit::<U>(super::PciIoMode::Normal);
         unsafe {
             (self.io_access.write)(
@@ -231,7 +313,7 @@ impl PciIoAccessPci<'_> {
     /// - [`Status::OUT_OF_RESOURCES`] The operation could not be completed due to a lack of resources.
     pub fn fill_write<U: PciIoUnit>(
         &self,
-        addr: PciIoAddress,
+        addr: S::Address,
         count: usize,
         data: U,
     ) -> crate::Result<()> {
@@ -261,7 +343,7 @@ impl PciIoAccessPci<'_> {
     /// # Errors
     /// - [`Status::INVALID_PARAMETER`] The requested width is invalid for this PCI root bridge.
     /// - [`Status::OUT_OF_RESOURCES`] The read operation could not be completed due to a lack of resources.
-    pub fn fifo_read<U: PciIoUnit>(&self, addr: PciIoAddress, data: &mut [U]) -> crate::Result<()> {
+    pub fn fifo_read<U: PciIoUnit>(&self, addr: S::Address, data: &mut [U]) -> crate::Result<()> {
         let width_mode = encode_io_mode_and_unit::<U>(super::PciIoMode::Fifo);
         unsafe {
             (self.io_access.read)(
@@ -288,7 +370,7 @@ impl PciIoAccessPci<'_> {
     /// # Errors
     /// - [`Status::INVALID_PARAMETER`] The requested width is invalid for this PCI root bridge.
     /// - [`Status::OUT_OF_RESOURCES`] The write operation could not be completed due to a lack of resources.
-    pub fn fifo_write<U: PciIoUnit>(&self, addr: PciIoAddress, data: &[U]) -> crate::Result<()> {
+    pub fn fifo_write<U: PciIoUnit>(&self, addr: S::Address, data: &[U]) -> crate::Result<()> {
         let width_mode = encode_io_mode_and_unit::<U>(super::PciIoMode::Fifo);
         unsafe {
             (self.io_access.write)(
@@ -301,4 +383,42 @@ impl PciIoAccessPci<'_> {
             .to_result()
         }
     }
+}
+
+/// Marker struct for the PCI memory space.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
+pub struct PciMemorySpace;
+
+impl private::Sealed for PciMemorySpace {}
+impl PciIoAddressSpace for PciMemorySpace {
+    type Address = u64;
+}
+
+/// Marker struct for the PCI I/O space.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
+pub struct PciIoSpace;
+
+impl private::Sealed for PciIoSpace {}
+impl PciIoAddressSpace for PciIoSpace {
+    type Address = u32;
+}
+
+/// Marker struct for the PCI configuration space.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
+pub struct PciConfigurationSpace;
+
+impl private::Sealed for PciConfigurationSpace {}
+impl PciIoAddressSpace for PciConfigurationSpace {
+    type Address = PciIoAddress;
+}
+
+/// Trait representing how to convert from the address type expected for the address space and the
+/// raw address space.
+pub trait PciIoAddressSpace: private::Sealed {
+    /// Specifies the type of the address space addresses.
+    type Address: Into<u64>;
+}
+
+mod private {
+    pub trait Sealed {}
 }

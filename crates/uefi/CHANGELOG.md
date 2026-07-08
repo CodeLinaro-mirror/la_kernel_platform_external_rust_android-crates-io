@@ -2,8 +2,46 @@
 
 ## Added
 
+
 ## Changed
 
+
+## Removed
+
+
+# uefi - v0.38.0 (2026-06-21)
+
+## Added
+- Added `proto::console::text::InputEx`.
+- Added `proto::pci::PciRootBridgeIo::{supported_attributes(), attributes(),
+  set_attributes(), set_attributes_with_range()}`
+- Added `memory()` and `io()` address space access to `PciRootBridgeIo`
+  protocol.
+
+## Changed
+- MSRV increased from 1.88 to 1.91.
+- **Breaking:** The variants of `TimerTrigger` now hold a `Duration`
+- **Breaking:** The `driver_image` parameter of `boot::connect_controller` is
+  now a `None`-terminated slice. Callers that previously passed `None` for this
+  argument should pass in `&[]` instead.
+- **Breaking:** Corrected function signature of `boot::exit` to enable handling
+  errors during exit.
+- **Breaking:** Renamed `PciIoAccessPci` to `PciIoAccess` and added a generic
+  parameter to handle the PCI configuration, IO port, and MMIO address spaces.
+- **Breaking:** Replace `ArpEntry`, `DhcpV4Flags`, `DhcpV4Packet`,
+  `DhcpV6Packet`, `IcmpError`, `IcmpErrorEcho`, `IcmpErrorUnion`, `IpFilter`,
+  `MtftpInfo`, `Packet`, `RouteEntry`, `Server`, and `TftpError` with re-exports
+  from `uefi-raw`.
+- **Breaking:** Changed `ArpEntry` and `RouteEntry` to fix incorrect slicing in
+  `proto::network::pxe::Mode::{arp_cache(), route_table()}`.
+- **Breaking:** Changed `Server::ty` to `Server::server_type`.
+- **Breaking:** Changed `TftpError::error_string` from `[u8; 127]` to `[Char8; 127]`.
+
+## Removed
+- **Breaking:** Removed the deprecated `table::cfg::*_GUID` constants. Use
+  the matching `ConfigTableEntry::*_GUID` constants instead.
+- **Breaking:** Removed the deprecated `VariableKey::name()` method. Use the
+  public `VariableKey::name` field instead.
 
 # uefi - v0.37.0 (2026-03-22)
 
@@ -29,6 +67,12 @@
 - Added `Serial::read_exact()` and `Serial::write_exact()`
 - `CStr16::from_bytes_with_nul()`: This is especially useful to transform the
   retrieved value from a UEFI variable into a UCS2 (CStr16) string.
+- Integration of `Time` with `time` crate
+  - `TryFrom`: `time::PrimitiveDateTime <--> Time` (without timezone)
+  - `TryFrom`: `time::OffsetDateTime <--> Time` (with timezone)
+- Integration of `Time` with `jiff` crate
+  - `TryFrom`: `jiff::DateTime <--> Time` (without timezone)
+  - `TryFrom`: `jiff::Zoned <--> Time` (with timezone)
 
 ## Changed
 - export all `text::{input, output}::*` types

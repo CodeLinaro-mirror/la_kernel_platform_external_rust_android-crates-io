@@ -593,10 +593,11 @@ pub fn set_timer(event: &Event, trigger_time: TimerTrigger) -> Result {
     let bt = boot_services_raw_panicking();
     let bt = unsafe { bt.as_ref() };
 
-    let (ty, time) = match trigger_time {
-        TimerTrigger::Cancel => (TimerDelay::CANCEL, 0),
-        TimerTrigger::Periodic(period) => (TimerDelay::PERIODIC, period),
-        TimerTrigger::Relative(delay) => (TimerDelay::RELATIVE, delay),
+    let time = trigger_time.to_100ns_steps();
+    let ty = match trigger_time {
+        TimerTrigger::Cancel => TimerDelay::CANCEL,
+        TimerTrigger::Periodic(_) => TimerDelay::PERIODIC,
+        TimerTrigger::Relative(_) => TimerDelay::RELATIVE,
     };
     unsafe { (bt.set_timer)(event.as_ptr(), ty, time) }.to_result()
 }
@@ -660,6 +661,11 @@ pub fn wait_for_event(events: &mut [Event]) -> Result<usize, Option<usize>> {
 /// to make them rescan some state that changed, e.g. reconnecting
 /// a block handle after your app modified disk partitions.
 ///
+/// The `driver_image` argument is usually an empty slice. Otherwise, it
+/// contains an ordered list of candidates for the driver binding protocols that
+/// will manage the `controller`. If non-empty, the slice must be terminated
+/// with `None`.
+///
 /// # Errors
 ///
 /// * [`Status::NOT_FOUND`]: there are no driver-binding protocol instances
@@ -668,17 +674,27 @@ pub fn wait_for_event(events: &mut [Event]) -> Result<usize, Option<usize>> {
 ///   start drivers associated with `controller`.
 pub fn connect_controller(
     controller: Handle,
-    driver_image: Option<Handle>,
+    driver_image: &[Option<Handle>],
     remaining_device_path: Option<&DevicePath>,
     recursive: bool,
 ) -> Result {
     let bt = boot_services_raw_panicking();
     let bt = unsafe { bt.as_ref() };
 
+    let driver_image: *const uefi_raw::Handle = if let Some(last) = driver_image.last() {
+        assert!(
+            last.is_none(),
+            "driver_image parameter must be terminated with None"
+        );
+        driver_image.as_ptr().cast()
+    } else {
+        ptr::null()
+    };
+
     unsafe {
         (bt.connect_controller)(
             controller.as_ptr(),
-            Handle::opt_to_ptr(driver_image),
+            driver_image,
             remaining_device_path
                 .map(|dp| dp.as_ffi_ptr())
                 .unwrap_or(ptr::null())
@@ -1290,18 +1306,20 @@ pub unsafe fn exit(
     exit_status: Status,
     exit_data_size: usize,
     exit_data: *mut Char16,
-) -> ! {
+) -> Result {
     let bt = boot_services_raw_panicking();
     let bt = unsafe { bt.as_ref() };
 
-    unsafe {
+    let result = unsafe {
         (bt.exit)(
             image_handle.as_ptr(),
             exit_status,
             exit_data_size,
             exit_data.cast(),
         )
-    }
+    };
+
+    result.to_result()
 }
 
 /// Get the current memory map and exit boot services.
@@ -1937,24 +1955,46 @@ pub type EventNotifyFn = unsafe extern "efiapi" fn(event: Event, context: Option
 /// See [`set_timer`].
 ///
 /// [`TIMER`]: EventType::TIMER
-#[derive(Debug)]
+#[derive(Copy, Clone, Debug)]
 pub enum TimerTrigger {
     /// Remove the event's timer setting.
     Cancel,
 
     /// Trigger the event periodically.
     Periodic(
-        /// Duration between event signaling in units of 100ns. If set to zero,
-        /// the event will be signaled on every timer tick.
-        u64,
+        /// Duration to wait before the next event is fired.
+        ///
+        /// If set to zero, the event will be signaled on every timer tick.
+        Duration,
     ),
 
     /// Trigger the event one time.
     Relative(
-        /// Duration to wait before signaling the event in units of 100ns. If
-        /// set to zero, the event will be signaled on the next timer tick.
-        u64,
+        /// Duration to wait before the next event is fired.
+        ///
+        /// If set to zero, the event will be signaled on every timer tick.
+        Duration,
     ),
+}
+
+impl TimerTrigger {
+    /// Transforms the underlying value to 100ns steps, a format widely used
+    /// in EFI APIs.
+    #[must_use]
+    pub fn to_100ns_steps(self) -> u64 {
+        const NANOS_PER_STEP: u128 = 100;
+        match self {
+            Self::Cancel => 0,
+            Self::Periodic(dur) => {
+                let ns100_steps = dur.as_nanos().div_ceil(NANOS_PER_STEP);
+                u64::try_from(ns100_steps).expect("should be representable as u64")
+            }
+            Self::Relative(dur) => {
+                let ns100_steps = dur.as_nanos().div_ceil(NANOS_PER_STEP);
+                u64::try_from(ns100_steps).expect("should be representable as u64")
+            }
+        }
+    }
 }
 
 /// Opaque pointer returned by [`register_protocol_notify`] to be used
@@ -1962,3 +2002,27 @@ pub enum TimerTrigger {
 #[derive(Debug, Clone, Copy)]
 #[repr(transparent)]
 pub struct ProtocolSearchKey(pub(crate) NonNull<c_void>);
+
+#[cfg(test)]
+mod tests {
+    use core::time::Duration;
+    use uefi::boot::TimerTrigger;
+
+    #[test]
+    fn test_timer_trigger_100ns_steps() {
+        let trigger = TimerTrigger::Periodic(Duration::from_nanos(0));
+        assert_eq!(trigger.to_100ns_steps(), 0);
+        let trigger = TimerTrigger::Relative(Duration::from_nanos(0));
+        assert_eq!(trigger.to_100ns_steps(), 0);
+
+        let trigger = TimerTrigger::Periodic(Duration::from_nanos(12_300));
+        assert_eq!(trigger.to_100ns_steps(), 123);
+        let trigger = TimerTrigger::Relative(Duration::from_nanos(12_300));
+        assert_eq!(trigger.to_100ns_steps(), 123);
+
+        let trigger = TimerTrigger::Periodic(Duration::from_secs(42));
+        assert_eq!(trigger.to_100ns_steps(), 420000000);
+        let trigger = TimerTrigger::Relative(Duration::from_secs(42));
+        assert_eq!(trigger.to_100ns_steps(), 420000000);
+    }
+}
