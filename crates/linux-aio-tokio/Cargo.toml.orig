@@ -1,6 +1,6 @@
 [package]
 name = "linux-aio-tokio"
-version = "0.4.0"
+version = "0.4.1"
 authors = ["Gleb Pomykalov <glebpom@gmail.com>", "Hans-Martin Will <hwill@acm.org>"]
 description = "Tokio bindings for Linux kernel AIO"
 documentation = "https://docs.rs/linux-aio-tokio/"
@@ -20,7 +20,7 @@ parking_lot = "0.12"
 intrusive-collections = "0.9.0"
 lock_api = "0.4"
 thiserror = "2"
-memmap = "0.7.0"
+memmap2 = "0.9"
 region = "3"
 bitflags = "2"
 
