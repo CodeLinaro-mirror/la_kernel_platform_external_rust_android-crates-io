@@ -21,7 +21,7 @@ rust_binary {
     host_supported: true,
     crate_name: "brotli",
     cargo_env_compat: true,
-    cargo_pkg_version: "8.0.2",
+    cargo_pkg_version: "8.0.4",
     crate_root: "src/bin/brotli.rs",
     edition: "2015",
     features: [
@@ -49,7 +49,7 @@ rust_binary {
     host_supported: true,
     crate_name: "catbrotli",
     cargo_env_compat: true,
-    cargo_pkg_version: "8.0.2",
+    cargo_pkg_version: "8.0.4",
     crate_root: "src/bin/catbrotli.rs",
     edition: "2015",
     features: [
@@ -77,7 +77,7 @@ rust_library {
     host_supported: true,
     crate_name: "brotli",
     cargo_env_compat: true,
-    cargo_pkg_version: "8.0.2",
+    cargo_pkg_version: "8.0.4",
     crate_root: "src/lib.rs",
     edition: "2015",
     features: [
