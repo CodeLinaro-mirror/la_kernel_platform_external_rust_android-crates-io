@@ -2,7 +2,7 @@
 
 #![crate_type = "proc-macro"]
 #![forbid(unsafe_code)]
-#![warn(rust_2018_idioms, trivial_casts, unused_qualifications)]
+#![warn(trivial_casts, unused_qualifications)]
 extern crate proc_macro;
 
 use proc_macro2::{Ident, TokenStream};
@@ -202,7 +202,7 @@ impl ZeroizeAttrs {
                     }
                 }
             }
-            Data::Union(union_) => panic!("Unsupported untagged union {:?}", union_),
+            Data::Union(union_) => panic!("Unsupported untagged union {union_:?}"),
         }
 
         result.auto_params = bound_accumulator.params;
@@ -224,7 +224,7 @@ impl ZeroizeAttrs {
 
         for meta in attr
             .parse_args_with(Punctuated::<Meta, Comma>::parse_terminated)
-            .unwrap_or_else(|e| panic!("error parsing attribute: {:?} ({})", attr, e))
+            .unwrap_or_else(|e| panic!("error parsing attribute: {attr:?} ({e})"))
         {
             self.parse_meta(&meta, variant, binding);
         }
@@ -290,7 +290,7 @@ impl ZeroizeAttrs {
                                 self.bound = Some(Bounds(Punctuated::new()));
                             } else {
                                 self.bound = Some(lit.parse().unwrap_or_else(|e| {
-                                    panic!("error parsing bounds: {:?} ({})", lit, e)
+                                    panic!("error parsing bounds: {lit:?} ({e})")
                                 }));
                             }
 
@@ -305,12 +305,13 @@ impl ZeroizeAttrs {
                 }
             }
         } else if meta.path().is_ident("skip") {
-            if variant.is_none() && binding.is_none() {
-                panic!(concat!(
+            assert!(
+                !(variant.is_none() && binding.is_none()),
+                concat!(
                     "The #[zeroize(skip)] attribute is not allowed on a `struct` or `enum`. ",
                     "Use it on a field or variant instead.",
-                ))
-            }
+                )
+            );
         } else {
             panic!("unknown #[zeroize] attribute type: {:?}", meta.path());
         }
@@ -333,9 +334,10 @@ fn generate_fields(input: &DeriveInput, method: TokenStream) -> TokenStream {
             .iter()
             .filter_map(|variant| {
                 if attr_skip(&variant.attrs) {
-                    if variant.fields.iter().any(|field| attr_skip(&field.attrs)) {
-                        panic!("duplicate #[zeroize] skip flags")
-                    }
+                    assert!(
+                        !variant.fields.iter().any(|field| attr_skip(&field.attrs)),
+                        "duplicate #[zeroize] skip flags"
+                    );
                     None
                 } else {
                     let variant_id = &variant.ident;
@@ -344,7 +346,7 @@ fn generate_fields(input: &DeriveInput, method: TokenStream) -> TokenStream {
             })
             .collect(),
         Data::Struct(ref struct_) => vec![(quote! { #input_id }, &struct_.fields)],
-        Data::Union(ref union_) => panic!("Cannot generate fields for untagged union {:?}", union_),
+        Data::Union(ref union_) => panic!("Cannot generate fields for untagged union {union_:?}"),
     };
 
     let arms = fields.into_iter().map(|(name, fields)| {
@@ -397,7 +399,7 @@ fn attr_skip(attrs: &[Attribute]) -> bool {
             if list.path.is_ident(ZEROIZE_ATTR) {
                 for meta in list
                     .parse_args_with(Punctuated::<Meta, Comma>::parse_terminated)
-                    .unwrap_or_else(|e| panic!("error parsing attribute: {:?} ({})", list, e))
+                    .unwrap_or_else(|e| panic!("error parsing attribute: {list:?} ({e})"))
                 {
                     if let Meta::Path(path) = meta {
                         if path.is_ident("skip") {
@@ -466,7 +468,7 @@ mod tests {
                     }
                 }
             },
-        )
+        );
     }
 
     #[test]
@@ -502,7 +504,7 @@ mod tests {
                     }
                 }
             },
-        )
+        );
     }
 
     #[test]
@@ -531,7 +533,7 @@ mod tests {
                     }
                 }
             },
-        )
+        );
     }
 
     #[test]
@@ -555,7 +557,7 @@ mod tests {
                     }
                 }
             },
-        )
+        );
     }
 
     #[test]
@@ -588,7 +590,7 @@ mod tests {
                 #[doc(hidden)]
                 impl ::zeroize::ZeroizeOnDrop for Z {}
             },
-        )
+        );
     }
 
     #[test]
