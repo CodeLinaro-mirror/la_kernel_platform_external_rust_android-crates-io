@@ -1,7 +1,7 @@
 [package]
 name = "fs-err"
 description = "A drop-in replacement for std::fs with more helpful error messages."
-version = "3.3.0"
+version = "3.3.1"
 authors = ["Andrew Hickman <andrew.hickman1@sky.com>"]
 edition = "2018"
 repository = "https://github.com/andrewhickman/fs-err"
@@ -26,7 +26,7 @@ serde_json = "=1.0.64"
 # Note: Requires Rust 1.79+ due to path_facts dependency
 debug = ["path_facts"]
 
-debug_tokio = ["path_facts", "tokio/rt-multi-thread"]
+debug_tokio = ["debug", "tokio/rt-multi-thread"]
 
 # Allow custom formatting of the error source
 #
