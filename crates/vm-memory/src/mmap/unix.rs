@@ -15,9 +15,8 @@ use std::os::unix::io::AsRawFd;
 use std::ptr::null_mut;
 use std::result;
 
-use crate::bitmap::{Bitmap, BS};
+use crate::bitmap::{Bitmap, NewBitmap, BS};
 use crate::guest_memory::FileOffset;
-use crate::mmap::{check_file_offset, NewBitmap};
 use crate::volatile_memory::{self, VolatileMemory, VolatileSlice};
 
 /// Error conditions that may arise when creating a new `MmapRegion` object.
@@ -41,12 +40,6 @@ pub enum Error {
     /// The `mmap` call returned an error.
     #[error("{0}")]
     Mmap(io::Error),
-    /// Seeking the end of the file returned an error.
-    #[error("Error seeking the end of the file: {0}")]
-    SeekEnd(io::Error),
-    /// Seeking the start of the file returned an error.
-    #[error("Error seeking the start of the file: {0}")]
-    SeekStart(io::Error),
 }
 
 pub type Result<T> = result::Result<T, Error>;
@@ -137,7 +130,6 @@ impl<B: Bitmap> MmapRegionBuilder<B> {
         }
 
         let (fd, offset) = if let Some(ref f_off) = self.file_offset {
-            check_file_offset(f_off, self.size)?;
             (f_off.file().as_raw_fd(), f_off.start())
         } else {
             (-1, 0)
@@ -255,7 +247,7 @@ impl<B: NewBitmap> MmapRegion<B> {
     ///
     /// # Arguments
     /// * `file_offset` - The mapping will be created at offset `file_offset.start` in the file
-    ///                   referred to by `file_offset.file`.
+    ///   referred to by `file_offset.file`.
     /// * `size` - The size of the memory region in bytes.
     pub fn from_file(file_offset: FileOffset, size: usize) -> Result<Self> {
         MmapRegionBuilder::new_with_bitmap(size, B::with_len(size))
@@ -269,12 +261,12 @@ impl<B: NewBitmap> MmapRegion<B> {
     ///
     /// # Arguments
     /// * `file_offset` - if provided, the method will create a file mapping at offset
-    ///                   `file_offset.start` in the file referred to by `file_offset.file`.
+    ///   `file_offset.start` in the file referred to by `file_offset.file`.
     /// * `size` - The size of the memory region in bytes.
     /// * `prot` - The desired memory protection of the mapping.
     /// * `flags` - This argument determines whether updates to the mapping are visible to other
-    ///             processes mapping the same region, and whether updates are carried through to
-    ///             the underlying file.
+    ///   processes mapping the same region, and whether updates are carried through to
+    ///   the underlying file.
     pub fn build(
         file_offset: Option<FileOffset>,
         size: usize,
@@ -301,7 +293,7 @@ impl<B: NewBitmap> MmapRegion<B> {
     /// * `size` - The size of the memory region in bytes.
     /// * `prot` - Must correspond to the memory protection attributes of the existing mapping.
     /// * `flags` - Must correspond to the flags that were passed to `mmap` for the creation of
-    ///             the existing mapping.
+    ///   the existing mapping.
     ///
     /// # Safety
     ///
@@ -446,12 +438,14 @@ mod tests {
     use super::*;
 
     use std::io::Write;
-    use std::num::NonZeroUsize;
     use std::slice;
     use std::sync::Arc;
     use vmm_sys_util::tempfile::TempFile;
 
+    #[cfg(feature = "backend-bitmap")]
     use crate::bitmap::AtomicBitmap;
+
+    use matches::assert_matches;
 
     type MmapRegion = super::MmapRegion<()>;
 
@@ -543,6 +537,7 @@ mod tests {
 
     #[test]
     #[cfg(not(miri))] // Miri cannot mmap files
+    #[cfg(feature = "backend-bitmap")]
     fn test_mmap_region_build() {
         let a = Arc::new(TempFile::new().unwrap().into_file());
 
@@ -558,16 +553,7 @@ mod tests {
             prot,
             flags,
         );
-        assert_eq!(format!("{:?}", r.unwrap_err()), "InvalidOffsetLength");
-
-        // Offset + size is greater than the size of the file (which is 0 at this point).
-        let r = MmapRegion::build(
-            Some(FileOffset::from_arc(a.clone(), offset)),
-            size,
-            prot,
-            flags,
-        );
-        assert_eq!(format!("{:?}", r.unwrap_err()), "MappingPastEof");
+        assert_matches!(r.unwrap_err(), Error::Mmap(err) if err.raw_os_error() == Some(libc::EINVAL));
 
         // MAP_FIXED was specified among the flags.
         let r = MmapRegion::build(
@@ -576,7 +562,7 @@ mod tests {
             prot,
             flags | libc::MAP_FIXED,
         );
-        assert_eq!(format!("{:?}", r.unwrap_err()), "MapFixed");
+        assert_matches!(r.unwrap_err(), Error::MapFixed);
 
         // Let's resize the file.
         assert_eq!(unsafe { libc::ftruncate(a.as_raw_fd(), 1024 * 10) }, 0);
@@ -601,7 +587,7 @@ mod tests {
         assert!(r.owned());
 
         let region_size = 0x10_0000;
-        let bitmap = AtomicBitmap::new(region_size, unsafe { NonZeroUsize::new_unchecked(0x1000) });
+        let bitmap = AtomicBitmap::new(region_size, std::num::NonZeroUsize::new(0x1000).unwrap());
         let builder = MmapRegionBuilder::new_with_bitmap(region_size, bitmap)
             .with_hugetlbfs(true)
             .with_mmap_prot(libc::PROT_READ | libc::PROT_WRITE);
@@ -621,7 +607,7 @@ mod tests {
         let flags = libc::MAP_NORESERVE | libc::MAP_PRIVATE;
 
         let r = unsafe { MmapRegion::build_raw((addr + 1) as *mut u8, size, prot, flags) };
-        assert_eq!(format!("{:?}", r.unwrap_err()), "InvalidPointer");
+        assert_matches!(r.unwrap_err(), Error::InvalidPointer);
 
         let r = unsafe { MmapRegion::build_raw(addr as *mut u8, size, prot, flags).unwrap() };
 
@@ -663,6 +649,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg(feature = "backend-bitmap")]
     fn test_dirty_tracking() {
         // Using the `crate` prefix because we aliased `MmapRegion` to `MmapRegion<()>` for
         // the rest of the unit tests above.

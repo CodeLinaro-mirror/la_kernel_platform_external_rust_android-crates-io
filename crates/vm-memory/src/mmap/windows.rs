@@ -12,9 +12,8 @@ use libc::{c_void, size_t};
 
 use winapi::um::errhandlingapi::GetLastError;
 
-use crate::bitmap::{Bitmap, BS};
+use crate::bitmap::{Bitmap, NewBitmap, BS};
 use crate::guest_memory::FileOffset;
-use crate::mmap::NewBitmap;
 use crate::volatile_memory::{self, compute_offset, VolatileMemory, VolatileSlice};
 
 #[allow(non_snake_case)]
@@ -246,9 +245,10 @@ impl<B> Drop for MmapRegion<B> {
 mod tests {
     use std::os::windows::io::FromRawHandle;
 
+    #[cfg(feature = "backend-bitmap")]
     use crate::bitmap::AtomicBitmap;
     use crate::guest_memory::FileOffset;
-    use crate::mmap_windows::INVALID_HANDLE_VALUE;
+    use crate::mmap::windows::INVALID_HANDLE_VALUE;
 
     type MmapRegion = super::MmapRegion<()>;
 
@@ -261,6 +261,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg(feature = "backend-bitmap")]
     fn test_dirty_tracking() {
         // Using the `crate` prefix because we aliased `MmapRegion` to `MmapRegion<()>` for
         // the rest of the unit tests above.

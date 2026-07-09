@@ -18,6 +18,9 @@ use vm_memory::{
     FileOffset, GuestAddress, GuestAddressSpace, GuestMemory, GuestMemoryAtomic, GuestMemoryMmap,
 };
 use vmm_sys_util::epoll::EventSet;
+use vmm_sys_util::event::{
+    new_event_consumer_and_notifier, EventConsumer, EventFlag, EventNotifier,
+};
 use vmm_sys_util::eventfd::EventFd;
 
 struct MockVhostBackend {
@@ -105,10 +108,11 @@ impl VhostUserBackendMut for MockVhostBackend {
         vec![1, 1]
     }
 
-    fn exit_event(&self, _thread_index: usize) -> Option<EventFd> {
-        let event_fd = EventFd::new(0).unwrap();
-
-        Some(event_fd)
+    fn exit_event(&self, _thread_index: usize) -> Option<(EventConsumer, EventNotifier)> {
+        Some(
+            new_event_consumer_and_notifier(EventFlag::empty())
+                .expect("Failed to create EventConsumer and EventNotifier"),
+        )
     }
 
     fn handle_event(
@@ -256,9 +260,9 @@ fn vhost_user_server_with_fn<F: FnOnce(Arc<Mutex<MockVhostBackend>>, Arc<Barrier
     let path1 = path.clone();
     let thread = thread::spawn(move || cb(&path1, barrier2));
 
-    let listener = Listener::new(&path, false).unwrap();
+    let mut listener = Listener::new(&path, false).unwrap();
     barrier.wait();
-    daemon.start(listener).unwrap();
+    daemon.start(&mut listener).unwrap();
     barrier.wait();
 
     server_fn(backend, barrier);
