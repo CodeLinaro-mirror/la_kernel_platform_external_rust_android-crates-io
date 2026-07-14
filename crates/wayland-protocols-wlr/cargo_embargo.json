@@ -1,4 +1,12 @@
 {
+  "package": {
+    "wayland-protocols-wlr": {
+      "srcs": [
+        "src/*.rs",
+        "wlr-protocols/**/*.xml"
+      ]
+    }
+  },
   "features": [
     "server"
   ],
