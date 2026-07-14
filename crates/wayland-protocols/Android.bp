@@ -20,6 +20,10 @@ rust_library {
     cargo_env_compat: true,
     cargo_pkg_version: "0.32.13",
     crate_root: "src/lib.rs",
+    srcs: [
+        "src/*.rs",
+        "protocols/**/*.xml",
+    ],
     edition: "2024",
     features: [
         "server",
@@ -40,4 +44,5 @@ rust_library {
     product_available: true,
     vendor_available: true,
     min_sdk_version: "29",
+    use_expansive_default_srcs: false,
 }
