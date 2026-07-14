@@ -7,5 +7,6 @@
         "png": {
             "target_windows": true
         }
-    }
+    },
+    "ota_recovery_ramdisk_available": true
 }
