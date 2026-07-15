@@ -2713,9 +2713,9 @@ dependencies = [
 
 [[package]]
 name = "dc_figma_import"
-version = "0.39.2"
+version = "0.39.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6a2943d98634d04dbab44d1412c4296dd48bc3bb24b24b4a2a4cf093ac91dd1a"
+checksum = "aa2e0225f3ea6dcc8dd9bf3702151354e736e900f0b7c2997146f8ae18d17a4e"
 dependencies = [
  "anyhow",
  "dc_bundle",
@@ -2740,9 +2740,9 @@ dependencies = [
 
 [[package]]
 name = "dc_jni"
-version = "0.39.2"
+version = "0.39.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b47dd7aa8957a16851bfb90c22ab6c8c1d561fea9f67b9f414e69848450ae52f"
+checksum = "fc4f7f53dccc89f376301798e0c74b49bbbd9f9eedbfd75008be177c44eabd94"
 dependencies = [
  "android_logger 0.13.3",
  "bytes",
@@ -2761,9 +2761,9 @@ dependencies = [
 
 [[package]]
 name = "dc_layout"
-version = "0.39.2"
+version = "0.39.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "604f2f768a12d3691ce03629fa0ad3b27af4cbf9b0809589bc25c584d8b126eb"
+checksum = "d2948f8f05601638c16945f377ec8b4e12f68d5a8ded43865a10a440ce706965"
 dependencies = [
  "android_logger 0.13.3",
  "dc_bundle",
@@ -2776,9 +2776,9 @@ dependencies = [
 
 [[package]]
 name = "dc_squoosh_animation"
-version = "0.39.2"
+version = "0.39.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "774010d616d38ec809b6e2433f00f864241b8979a4f0fc7e62fd5f6113d96c75"
+checksum = "1f1cf885ab96ddc32ec3bef11dc7b7ea787ebe4012f1a83b339131ce98ed3218"
 dependencies = [
  "dc_bundle",
  "log",
@@ -2788,9 +2788,9 @@ dependencies = [
 
 [[package]]
 name = "dc_squoosh_parser"
-version = "0.39.2"
+version = "0.39.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "2bd4e5a0d2625090cb2b512c9756e04035ed7ac16845c80788f338e75a529f94"
+checksum = "a59a579321e2fc862bd6d80279b29d8ba18e6a9f0dc8fee97ff188fc264501e5"
 dependencies = [
  "dc_squoosh_animation",
  "log",

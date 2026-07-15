@@ -13,9 +13,9 @@ dependencies = [
 
 [[package]]
 name = "anyhow"
-version = "1.0.102"
+version = "1.0.103"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7f202df86484c868dbad7eaa557ef785d5c66295e41b460ef922eca0723b842c"
+checksum = "2a4385e2e34eb35d6b3efe798b9eb88096925d87726c0798709bf56d9ed84af3"
 
 [[package]]
 name = "bitflags"
@@ -31,9 +31,9 @@ checksum = "9330f8b2ff13f34540b44e946ef35111825727b38d33286ef986142615121801"
 
 [[package]]
 name = "dc_bundle"
-version = "0.39.2"
+version = "0.39.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3750b602aa2707452a61203680f342afec3c8b5cbb956ce5a7721bb95713e5fc"
+checksum = "fbb67662bde5b8a0b4a9cf3c592abb26e630e3d6390432255c173c696da62559"
 dependencies = [
  "log",
  "protobuf",
@@ -45,7 +45,7 @@ dependencies = [
 
 [[package]]
 name = "dc_squoosh_animation"
-version = "0.39.2"
+version = "0.39.4"
 dependencies = [
  "dc_bundle",
  "log",

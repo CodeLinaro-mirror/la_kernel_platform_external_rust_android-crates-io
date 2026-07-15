@@ -37,9 +37,9 @@ dependencies = [
 
 [[package]]
 name = "anyhow"
-version = "1.0.102"
+version = "1.0.103"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7f202df86484c868dbad7eaa557ef785d5c66295e41b460ef922eca0723b842c"
+checksum = "2a4385e2e34eb35d6b3efe798b9eb88096925d87726c0798709bf56d9ed84af3"
 
 [[package]]
 name = "arrayvec"
@@ -154,9 +154,9 @@ dependencies = [
 
 [[package]]
 name = "dc_bundle"
-version = "0.39.2"
+version = "0.39.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3750b602aa2707452a61203680f342afec3c8b5cbb956ce5a7721bb95713e5fc"
+checksum = "fbb67662bde5b8a0b4a9cf3c592abb26e630e3d6390432255c173c696da62559"
 dependencies = [
  "log",
  "protobuf",
@@ -168,9 +168,9 @@ dependencies = [
 
 [[package]]
 name = "dc_figma_import"
-version = "0.39.2"
+version = "0.39.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6a2943d98634d04dbab44d1412c4296dd48bc3bb24b24b4a2a4cf093ac91dd1a"
+checksum = "aa2e0225f3ea6dcc8dd9bf3702151354e736e900f0b7c2997146f8ae18d17a4e"
 dependencies = [
  "anyhow",
  "dc_bundle",
@@ -195,7 +195,7 @@ dependencies = [
 
 [[package]]
 name = "dc_jni"
-version = "0.39.2"
+version = "0.39.4"
 dependencies = [
  "android_logger",
  "bytes",
@@ -214,9 +214,9 @@ dependencies = [
 
 [[package]]
 name = "dc_layout"
-version = "0.39.2"
+version = "0.39.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "604f2f768a12d3691ce03629fa0ad3b27af4cbf9b0809589bc25c584d8b126eb"
+checksum = "d2948f8f05601638c16945f377ec8b4e12f68d5a8ded43865a10a440ce706965"
 dependencies = [
  "android_logger",
  "dc_bundle",
