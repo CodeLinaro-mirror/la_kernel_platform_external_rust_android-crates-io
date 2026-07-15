@@ -343,7 +343,7 @@ dependencies = [
  "downcast",
  "downcast-rs 2.0.2",
  "drm 0.15.0",
- "drm-ffi 0.9.0",
+ "drm-ffi",
  "drm-fourcc",
  "either",
  "elf",
@@ -395,7 +395,7 @@ dependencies = [
  "futures-test",
  "futures-util",
  "fxhash",
- "gbm 0.15.0",
+ "gbm 0.16.0",
  "gdbstub",
  "gdbstub_arch",
  "genco",
@@ -527,7 +527,7 @@ dependencies = [
  "miniz_oxide 0.9.1",
  "mio",
  "mockall",
- "mockall_derive 0.15.0",
+ "mockall_derive",
  "mockall_double",
  "moxcms",
  "named-lock",
@@ -623,7 +623,7 @@ dependencies = [
  "ptr_meta_derive",
  "pxfm",
  "quiche",
- "quick-xml 0.39.4",
+ "quick-xml 0.40.0",
  "quickcheck",
  "quote 1.0.46",
  "radium",
@@ -3143,26 +3143,13 @@ checksum = "d8b14ccef22fc6f5a8f4d7d768562a182c04ce9a3b3157b91390b52ddfdf1a76"
 
 [[package]]
 name = "drm"
-version = "0.12.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "98888c4bbd601524c11a7ed63f814b8825f420514f78e96f752c437ae9cbb5d1"
-dependencies = [
- "bitflags 2.13.0",
- "bytemuck",
- "drm-ffi 0.8.0",
- "drm-fourcc",
- "rustix 0.38.44",
-]
-
-[[package]]
-name = "drm"
 version = "0.14.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "80bc8c5c6c2941f70a55c15f8d9f00f9710ebda3ffda98075f996a0e6c92756f"
 dependencies = [
  "bitflags 2.13.0",
  "bytemuck",
- "drm-ffi 0.9.0",
+ "drm-ffi",
  "drm-fourcc",
  "libc 0.2.186",
  "rustix 0.38.44",
@@ -3177,20 +3164,10 @@ dependencies = [
  "bitflags 2.13.0",
  "bytemuck",
  "bytemuck_derive",
- "drm-ffi 0.9.0",
+ "drm-ffi",
  "drm-fourcc",
  "libc 0.2.186",
  "rustix 1.1.4",
-]
-
-[[package]]
-name = "drm-ffi"
-version = "0.8.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "97c98727e48b7ccb4f4aea8cfe881e5b07f702d17b7875991881b41af7278d53"
-dependencies = [
- "drm-sys 0.7.0",
- "rustix 0.38.44",
 ]
 
 [[package]]
@@ -3199,7 +3176,7 @@ version = "0.9.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d8e41459d99a9b529845f6d2c909eb9adf3b6d2f82635ae40be8de0601726e8b"
 dependencies = [
- "drm-sys 0.8.1",
+ "drm-sys",
  "rustix 0.38.44",
 ]
 
@@ -3208,16 +3185,6 @@ name = "drm-fourcc"
 version = "2.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "0aafbcdb8afc29c1a7ee5fbe53b5d62f4565b35a042a662ca9fecd0b54dae6f4"
-
-[[package]]
-name = "drm-sys"
-version = "0.7.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "fd39dde40b6e196c2e8763f23d119ddb1a8714534bf7d77fa97a65b0feda3986"
-dependencies = [
- "libc 0.2.186",
- "linux-raw-sys 0.6.5",
-]
 
 [[package]]
 name = "drm-sys"
@@ -3952,12 +3919,12 @@ dependencies = [
 
 [[package]]
 name = "gbm"
-version = "0.15.0"
+version = "0.16.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "45bf55ba6dd53ad0ac115046ff999c5324c283444ee6e0be82454c4e8eb2f36a"
+checksum = "c724107aa10444b1d2709aae4727c18a33c16b3e15ea8a46cc4ae226c084c88a"
 dependencies = [
  "bitflags 2.13.0",
- "drm 0.12.0",
+ "drm 0.14.1",
  "drm-fourcc",
  "gbm-sys 0.3.1",
  "libc 0.2.186",
@@ -5958,12 +5925,6 @@ checksum = "d26c52dbd32dccf2d10cac7725f8eae5296885fb5703b261f7d0a0739ec807ab"
 
 [[package]]
 name = "linux-raw-sys"
-version = "0.6.5"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "2a385b1be4e5c3e362ad2ffa73c392e53f031eaa5b7d648e64cd87f27f6063d7"
-
-[[package]]
-name = "linux-raw-sys"
 version = "0.9.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "cd945864f07fe9f5371a27ad7b52a172b4b499999f1d97574c9fa68373937e12"
@@ -6269,28 +6230,16 @@ dependencies = [
 
 [[package]]
 name = "mockall"
-version = "0.14.0"
+version = "0.15.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f58d964098a5f9c6b63d0798e5372fd04708193510a7af313c22e9f29b7b620b"
+checksum = "1a6ceddfe3ce334925e96bf420fdb2dcee5bed6c632a168ece622676dadeaf8a"
 dependencies = [
  "cfg-if",
  "downcast",
  "fragile",
- "mockall_derive 0.14.0",
+ "mockall_derive",
  "predicates",
  "predicates-tree",
-]
-
-[[package]]
-name = "mockall_derive"
-version = "0.14.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ca41ce716dda6a9be188b385aa78ee5260fc25cd3802cb2a8afdc6afbe6b6dbf"
-dependencies = [
- "cfg-if",
- "proc-macro2 1.0.106",
- "quote 1.0.46",
- "syn 2.0.118",
 ]
 
 [[package]]
@@ -7992,6 +7941,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "quick-xml"
+version = "0.40.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "0b7315c86b26aaef0321fba33c9dcc160da659c6a9d278f0f6a5656d6561c03b"
+dependencies = [
+ "memchr",
+]
+
+[[package]]
 name = "quickcheck"
 version = "1.0.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -9290,7 +9248,7 @@ dependencies = [
  "cursor-icon",
  "downcast-rs 1.2.1",
  "drm 0.14.1",
- "drm-ffi 0.9.0",
+ "drm-ffi",
  "drm-fourcc",
  "encoding_rs",
  "errno",
