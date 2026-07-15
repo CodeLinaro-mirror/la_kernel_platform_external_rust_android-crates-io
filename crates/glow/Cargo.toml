@@ -12,7 +12,7 @@
 [package]
 edition = "2021"
 name = "glow"
-version = "0.17.0"
+version = "0.18.0"
 authors = [
     "Joshua Groves <josh@joshgroves.com>",
     "Dzmitry Malyshau <kvarkus@gmail.com>",
@@ -52,16 +52,26 @@ path = "src/lib.rs"
 version = "0.4.16"
 optional = true
 
-[target.'cfg(target_arch = "wasm32")'.dependencies.js-sys]
+[target.'cfg(all(target_arch = "wasm64", not(target_os = "emscripten")))'.dependencies.js-sys]
+version = "~0.3.100"
+
+[target.'cfg(all(target_arch = "wasm64", not(target_os = "emscripten")))'.dependencies.wasm-bindgen]
+version = "~0.2.123"
+
+[target.'cfg(all(target_arch = "wasm64", not(target_os = "emscripten")))'.dependencies.web_sys]
+version = "~0.3.100"
+package = "web-sys"
+
+[target.'cfg(all(target_family = "wasm", not(target_os = "emscripten")))'.dependencies.js-sys]
 version = "~0.3"
 
-[target.'cfg(target_arch = "wasm32")'.dependencies.slotmap]
+[target.'cfg(all(target_family = "wasm", not(target_os = "emscripten")))'.dependencies.slotmap]
 version = "1"
 
-[target.'cfg(target_arch = "wasm32")'.dependencies.wasm-bindgen]
+[target.'cfg(all(target_family = "wasm", not(target_os = "emscripten")))'.dependencies.wasm-bindgen]
 version = "~0.2"
 
-[target.'cfg(target_arch = "wasm32")'.dependencies.web_sys]
+[target.'cfg(all(target_family = "wasm", not(target_os = "emscripten")))'.dependencies.web_sys]
 version = "~0.3.60"
 features = [
     "Document",

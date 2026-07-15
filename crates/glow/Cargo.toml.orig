@@ -1,6 +1,6 @@
 [package]
 name = "glow"
-version = "0.17.0"
+version = "0.18.0"
 description = "GL on Whatever: a set of bindings to run GL (Open GL, OpenGL ES, and WebGL) anywhere, and avoid target-specific code."
 authors = [
   "Joshua Groves <josh@joshgroves.com>",
@@ -19,7 +19,7 @@ targets = [
   "x86_64-pc-windows-msvc",
   "i686-unknown-linux-gnu",
   "i686-pc-windows-msvc",
-  "wasm32-unknown-unknown"
+  "wasm32-unknown-unknown",
 ]
 
 [lib]
@@ -33,12 +33,12 @@ log = { version = "0.4.16", optional = true }
 debug_trace_calls = []
 debug_automatic_glGetError = []
 
-[target.'cfg(target_arch = "wasm32")'.dependencies]
+[target.'cfg(all(target_family = "wasm", not(target_os = "emscripten")))'.dependencies]
 js-sys = "~0.3"
 wasm-bindgen = "~0.2"
 slotmap = "1"
 
-[target.'cfg(target_arch = "wasm32")'.dependencies.web_sys]
+[target.'cfg(all(target_family = "wasm", not(target_os = "emscripten")))'.dependencies.web_sys]
 version = "~0.3.60"
 package = "web-sys"
 features = [
@@ -99,8 +99,11 @@ features = [
   "OvrMultiview2",
 ]
 
+# Wasm64 support requires a more recent version of the wasm-bindgen ecosystem
+[target.'cfg(all(target_arch = "wasm64", not(target_os = "emscripten")))'.dependencies]
+js-sys = "~0.3.100"
+wasm-bindgen = "~0.2.123"
+web_sys = { version = "~0.3.100", package = "web-sys" }
+
 [workspace]
-members = [
-  "examples/hello",
-  "examples/howto",
-]
+members = ["examples/hello", "examples/howto"]
