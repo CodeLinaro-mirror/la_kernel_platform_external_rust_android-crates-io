@@ -18,17 +18,14 @@ rust_library {
     defaults: ["rust_baremetal_defaults"],
     crate_name: "x86_64",
     cargo_env_compat: true,
-    cargo_pkg_version: "0.15.4",
+    cargo_pkg_version: "0.15.5",
     crate_root: "src/lib.rs",
     edition: "2018",
     features: [
         "abi_x86_interrupt",
         "asm_const",
         "const_fn",
-        "default",
         "instructions",
-        "nightly",
-        "step_trait",
     ],
     rustlibs: [
         "libbit_field_nostd",
