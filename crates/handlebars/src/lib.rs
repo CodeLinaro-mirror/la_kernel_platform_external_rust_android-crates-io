@@ -1,4 +1,4 @@
-#![doc(html_root_url = "https://docs.rs/handlebars/6.4.2")]
+#![doc(html_root_url = "https://docs.rs/handlebars/6.4.3")]
 #![cfg_attr(docsrs, feature(doc_cfg))]
 //! # Handlebars
 //!
@@ -98,6 +98,27 @@
 //! ```
 //!
 //! You will get a `RenderError` when accessing fields that do not exist.
+//!
+//! ### Preserving JSON object key order
+//!
+//! Internally handlebars uses `serde_json::Map` to represent JSON objects.
+//! By default `serde_json` sorts object keys alphabetically, which means
+//! iterating over an object with `{{#each}}` would yield keys in sorted
+//! order rather than the order they appear in your data.
+//!
+//! The `preserve_json_order` feature (enabled by default) turns on
+//! `serde_json`'s `preserve_order` feature, so that object keys keep their
+//! insertion order. This is particularly useful when iterating over objects
+//! with `{{#each}}`, where you usually expect keys to follow the order
+//! defined in the input data.
+//!
+//! If you prefer the alphabetical ordering behaviour, disable this feature
+//! by turning off default features:
+//!
+//! ```toml
+//! [dependencies]
+//! handlebars = { version = "6.4.2", default-features = false }
+//! ```
 //!
 //! ## Limitations
 //!
