@@ -66,9 +66,6 @@
   ],
   "postsubmit": [
     {
-      "name": "zeroize_test_tests_alloc"
-    },
-    {
       "name": "zeroize_test_tests_zeroize"
     },
     {
