@@ -19,9 +19,9 @@ rust_library {
     host_supported: true,
     crate_name: "zeroize",
     cargo_env_compat: true,
-    cargo_pkg_version: "1.9.0",
+    cargo_pkg_version: "1.8.2",
     crate_root: "src/lib.rs",
-    edition: "2024",
+    edition: "2021",
     features: [
         "alloc",
         "zeroize_derive",
@@ -40,39 +40,18 @@ rust_library {
 }
 
 rust_test {
-    name: "zeroize_test_tests_alloc",
-    host_supported: true,
-    crate_name: "alloc",
-    cargo_env_compat: true,
-    cargo_pkg_version: "1.9.0",
-    crate_root: "tests/alloc.rs",
-    test_suites: ["general-tests"],
-    auto_gen_config: true,
-    test_options: {
-        unit_test: true,
-    },
-    edition: "2024",
-    features: [
-        "alloc",
-        "zeroize_derive",
-    ],
-    rustlibs: ["libzeroize"],
-    proc_macros: ["libzeroize_derive"],
-}
-
-rust_test {
     name: "zeroize_test_tests_zeroize",
     host_supported: true,
     crate_name: "zeroize",
     cargo_env_compat: true,
-    cargo_pkg_version: "1.9.0",
+    cargo_pkg_version: "1.8.2",
     crate_root: "tests/zeroize.rs",
     test_suites: ["general-tests"],
     auto_gen_config: true,
     test_options: {
         unit_test: true,
     },
-    edition: "2024",
+    edition: "2021",
     features: [
         "alloc",
         "zeroize_derive",
@@ -86,14 +65,14 @@ rust_test {
     host_supported: true,
     crate_name: "zeroize_derive",
     cargo_env_compat: true,
-    cargo_pkg_version: "1.9.0",
+    cargo_pkg_version: "1.8.2",
     crate_root: "tests/zeroize_derive.rs",
     test_suites: ["general-tests"],
     auto_gen_config: true,
     test_options: {
         unit_test: true,
     },
-    edition: "2024",
+    edition: "2021",
     features: [
         "alloc",
         "zeroize_derive",
