@@ -1,6 +1,6 @@
 {
   "features": [
-    "modern_sqlite",
+    "fallible_uint",
     "trace"
   ],
   "min_sdk_version": "29",
