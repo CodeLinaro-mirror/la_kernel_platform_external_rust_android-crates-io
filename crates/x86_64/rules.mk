@@ -14,10 +14,7 @@ MODULE_RUSTFLAGS += \
 	--cfg 'feature="abi_x86_interrupt"' \
 	--cfg 'feature="asm_const"' \
 	--cfg 'feature="const_fn"' \
-	--cfg 'feature="default"' \
-	--cfg 'feature="instructions"' \
-	--cfg 'feature="nightly"' \
-	--cfg 'feature="step_trait"'
+	--cfg 'feature="instructions"'
 
 MODULE_LIBRARY_DEPS := \
 	$(call FIND_CRATE,bit_field) \
