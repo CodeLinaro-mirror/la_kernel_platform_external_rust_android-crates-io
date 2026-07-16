@@ -17,7 +17,7 @@ rust_library_host {
     name: "libhandlebars",
     crate_name: "handlebars",
     cargo_env_compat: true,
-    cargo_pkg_version: "6.4.2",
+    cargo_pkg_version: "6.4.3",
     crate_root: "src/lib.rs",
     srcs: [
         "src/**/*.rs",

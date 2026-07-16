@@ -13,7 +13,7 @@
 edition = "2024"
 rust-version = "1.85"
 name = "handlebars"
-version = "6.4.2"
+version = "6.4.3"
 authors = ["Ning Sun <sunng@pm.me>"]
 build = false
 autolib = false
@@ -52,9 +52,10 @@ rustdoc-args = [
 status = "actively-developed"
 
 [features]
-default = []
+default = ["preserve_json_order"]
 dir_source = ["walkdir"]
 no_logging = []
+preserve_json_order = ["serde_json/preserve_order"]
 script_helper = ["rhai"]
 string_helpers = ["heck"]
 
@@ -197,7 +198,6 @@ version = "1.0.0"
 
 [dependencies.serde_json]
 version = "1.0.39"
-features = ["preserve_order"]
 
 [dependencies.thiserror]
 version = "2"
@@ -228,10 +228,3 @@ features = [
 
 [dev-dependencies.tiny_http]
 version = "0.12"
-
-[target."cfg(unix)".dev-dependencies.pprof]
-version = "0.15"
-features = [
-    "flamegraph",
-    "prost-codec",
-]
