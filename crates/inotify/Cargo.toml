@@ -13,7 +13,7 @@
 edition = "2018"
 rust-version = "1.70"
 name = "inotify"
-version = "0.11.3"
+version = "0.11.4"
 build = false
 exclude = ["/inotify-rs.sublime-project"]
 autolib = false
@@ -67,7 +67,7 @@ version = "0.3.30"
 optional = true
 
 [dependencies.inotify-sys]
-version = "0.1.7"
+version = "0.1.8"
 
 [dependencies.libc]
 version = "0.2"
