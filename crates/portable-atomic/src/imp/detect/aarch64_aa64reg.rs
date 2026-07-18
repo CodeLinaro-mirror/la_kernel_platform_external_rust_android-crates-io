@@ -3,14 +3,14 @@
 /*
 Run-time CPU feature detection on AArch64 Linux/Android/FreeBSD/NetBSD/OpenBSD by parsing system registers.
 
-As of nightly-2024-09-07, is_aarch64_feature_detected doesn't support run-time detection on NetBSD.
-https://github.com/rust-lang/stdarch/blob/d9466edb4c53cece8686ee6e17b028436ddf4151/crates/std_detect/src/detect/mod.rs
+As of Rust 1.94, is_aarch64_feature_detected doesn't support run-time detection on NetBSD.
+https://github.com/rust-lang/rust/blob/1.94.0/library/std_detect/src/detect/mod.rs
 Run-time detection on OpenBSD by is_aarch64_feature_detected is supported on Rust 1.70+.
 https://github.com/rust-lang/stdarch/pull/1374
 
 Refs:
 - https://developer.arm.com/documentation/ddi0601/2025-06/AArch64-Registers
-- https://github.com/torvalds/linux/blob/v6.16/Documentation/arch/arm64/cpu-feature-registers.rst
+- https://github.com/torvalds/linux/blob/v6.19/Documentation/arch/arm64/cpu-feature-registers.rst
 - https://github.com/rust-lang/stdarch/blob/a0c30f3e3c75adcd6ee7efc94014ebcead61c507/crates/std_detect/src/detect/os/aarch64.rs
 
 Supported platforms:
@@ -51,7 +51,8 @@ struct AA64Reg {
 }
 
 #[cold]
-fn _detect(info: &mut CpuInfo) {
+#[must_use]
+fn _detect(mut info: CpuInfo) -> CpuInfo {
     let AA64Reg {
         aa64isar0,
         aa64isar1,
@@ -92,6 +93,15 @@ fn _detect(info: &mut CpuInfo) {
             info.set(CpuInfoFlag::rcpc2);
         }
     }
+    // LS64, bits [63:60]
+    // > FEAT_LS64 implements the functionality identified by 0b0001.
+    // > FEAT_LS64_V implements the functionality identified by 0b0010.
+    // > FEAT_LS64_ACCDATA implements the functionality identified by 0b0011.
+    // > FEAT_LS64WB implements the functionality identified by 0b0100.
+    #[cfg(test)]
+    if extract(aa64isar1, 63, 60) >= 0b0100 {
+        info.set(CpuInfoFlag::ls64wb);
+    }
     // ID_AA64ISAR3_EL1, AArch64 Instruction Set Attribute Register 3
     // https://developer.arm.com/documentation/ddi0601/2025-06/AArch64-Registers/ID-AA64ISAR3-EL1--AArch64-Instruction-Set-Attribute-Register-3
     // LSFE, bits [19:16]
@@ -108,6 +118,7 @@ fn _detect(info: &mut CpuInfo) {
     if extract(aa64mmfr2, 35, 32) >= 0b0001 {
         info.set(CpuInfoFlag::lse2);
     }
+    info
 }
 
 fn extract(x: u64, high: usize, low: usize) -> u64 {
@@ -423,6 +434,12 @@ mod tests {
         } else {
             assert_eq!(lrcpc, 0b0000);
         }
+        let ls64 = extract(aa64isar1, 63, 60);
+        if detect().ls64wb() {
+            assert_eq!(ls64, 0b0100);
+        } else {
+            assert!(ls64 < 0b0100, "{}", ls64);
+        }
         let lsfe = extract(aa64isar3, 19, 16);
         if detect().lsfe() {
             assert_eq!(lsfe, 0b0001);
@@ -458,7 +475,7 @@ mod tests {
         fn sysctl_cpu_id_no_libc(name: &[&[u8]]) -> Result<AA64Reg, c_int> {
             // Refs:
             // - https://github.com/NetBSD/src/blob/c3bf19e1d461f8b4d8812b91b48116a1e45c9d04/lib/libc/arch/aarch64/SYS.h
-            // - https://github.com/golang/go/blob/go1.25.0/src/syscall/asm_netbsd_arm64.s
+            // - https://github.com/golang/go/blob/go1.26.0/src/syscall/asm_netbsd_arm64.s
             #[inline]
             unsafe fn sysctl(
                 name: *const c_int,

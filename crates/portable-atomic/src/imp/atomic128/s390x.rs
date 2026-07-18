@@ -33,6 +33,8 @@ include!("macros.rs");
 
 use core::{arch::asm, sync::atomic::Ordering};
 
+#[cfg(portable_atomic_no_strict_provenance)]
+use crate::utils::ptr::PtrExt as _;
 use crate::utils::{Pair, U128};
 
 // bcr 14,0 requires fast-BCR-serialization facility added in arch9 (z196).
@@ -105,7 +107,7 @@ fn extract_cc(r: i64) -> bool {
 
 #[inline]
 unsafe fn atomic_load(src: *mut u128, _order: Ordering) -> u128 {
-    debug_assert!(src as usize % 16 == 0);
+    debug_assert!(src.addr() % 16 == 0);
     let (out_hi, out_lo);
 
     // SAFETY: the caller must uphold the safety contract.
@@ -125,7 +127,7 @@ unsafe fn atomic_load(src: *mut u128, _order: Ordering) -> u128 {
 
 #[inline]
 unsafe fn atomic_store(dst: *mut u128, val: u128, order: Ordering) {
-    debug_assert!(dst as usize % 16 == 0);
+    debug_assert!(dst.addr() % 16 == 0);
     let val = U128 { whole: val };
 
     // SAFETY: the caller must uphold the safety contract.
@@ -160,7 +162,7 @@ unsafe fn atomic_compare_exchange(
     _success: Ordering,
     _failure: Ordering,
 ) -> Result<u128, u128> {
-    debug_assert!(dst as usize % 16 == 0);
+    debug_assert!(dst.addr() % 16 == 0);
     let old = U128 { whole: old };
     let new = U128 { whole: new };
     let (prev_hi, prev_lo);
@@ -201,11 +203,11 @@ unsafe fn byte_wise_atomic_load(src: *const u128) -> u128 {
     unsafe {
         let (out_hi, out_lo);
         asm!(
-            "lg {out_hi}, 8({src})", // atomic { out_hi = *src.byte_add(8) }
-            "lg {out_lo}, 0({src})", // atomic { out_lo = *src }
-            src = in(reg) src,
-            out_hi = out(reg) out_hi,
-            out_lo = out(reg) out_lo,
+            "lg %r1, 8({src})", // atomic { r1 = *src.byte_add(8) }
+            "lg %r0, 0({src})", // atomic { r0 = *src }
+            src = in(reg) ptr_reg!(src),
+            out("r0") out_hi,
+            out("r1") out_lo,
             options(pure, nostack, preserves_flags, readonly),
         );
         U128 { pair: Pair { hi: out_hi, lo: out_lo } }.whole
@@ -243,7 +245,7 @@ where
 
 #[inline]
 unsafe fn atomic_swap(dst: *mut u128, val: u128, _order: Ordering) -> u128 {
-    debug_assert!(dst as usize % 16 == 0);
+    debug_assert!(dst.addr() % 16 == 0);
     let val = U128 { whole: val };
     let (mut prev_hi, mut prev_lo);
 
@@ -256,8 +258,8 @@ unsafe fn atomic_swap(dst: *mut u128, val: u128, _order: Ordering) -> u128 {
     unsafe {
         // atomic swap is always SeqCst.
         asm!(
-            "lg %r0, 8({dst})",             // atomic { r0 = *dst.byte_add(8) }
-            "lg %r1, 0({dst})",             // atomic { r1 = *dst }
+            "lg %r1, 8({dst})",             // atomic { r1 = *dst.byte_add(8) }
+            "lg %r0, 0({dst})",             // atomic { r0 = *dst }
             "2:", // 'retry:
                 "cdsg %r0, %r12, 0({dst})", // atomic { if *dst == r0:r1 { cc = 0; *dst = r12:r13 } else { cc = 1; r0:r1 = *dst } }
                 "jl 2b",                    // if cc == 1 { jump 'retry }
@@ -287,7 +289,7 @@ macro_rules! atomic_rmw_cas_3 {
     ($name:ident, [$($reg:tt)*], $($op:tt)*) => {
         #[inline]
         unsafe fn $name(dst: *mut u128, val: u128, _order: Ordering) -> u128 {
-            debug_assert!(dst as usize % 16 == 0);
+            debug_assert!(dst.addr() % 16 == 0);
             let val = U128 { whole: val };
             let (mut prev_hi, mut prev_lo);
 
@@ -295,8 +297,8 @@ macro_rules! atomic_rmw_cas_3 {
             unsafe {
                 // atomic RMW is always SeqCst.
                 asm!(
-                    "lg %r0, 8({dst})",             // atomic { r0 = *dst.byte_add(8) }
-                    "lg %r1, 0({dst})",             // atomic { r1 = *dst }
+                    "lg %r1, 8({dst})",             // atomic { r1 = *dst.byte_add(8) }
+                    "lg %r0, 0({dst})",             // atomic { r0 = *dst }
                     "2:", // 'retry:
                         $($op)*
                         "cdsg %r0, %r12, 0({dst})", // atomic { if *dst == r0:r1 { cc = 0; *dst = r12:r13 } else { cc = 1; r0:r1 = *dst } }
@@ -330,15 +332,15 @@ macro_rules! atomic_rmw_cas_2 {
     ($name:ident, [$($reg:tt)*], $($op:tt)*) => {
         #[inline]
         unsafe fn $name(dst: *mut u128, _order: Ordering) -> u128 {
-            debug_assert!(dst as usize % 16 == 0);
+            debug_assert!(dst.addr() % 16 == 0);
             let (mut prev_hi, mut prev_lo);
 
             // SAFETY: the caller must uphold the safety contract.
             unsafe {
                 // atomic RMW is always SeqCst.
                 asm!(
-                    "lg %r0, 8({dst})",             // atomic { r0 = *dst.byte_add(8) }
-                    "lg %r1, 0({dst})",             // atomic { r1 = *dst }
+                    "lg %r1, 8({dst})",             // atomic { r1 = *dst.byte_add(8) }
+                    "lg %r0, 0({dst})",             // atomic { r0 = *dst }
                     "2:", // 'retry:
                         $($op)*
                         "cdsg %r0, %r12, 0({dst})", // atomic { if *dst == r0:r1 { cc = 0; *dst = r12:r13 } else { cc = 1; r0:r1 = *dst } }
