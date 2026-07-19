@@ -1,10 +1,9 @@
 //! Locks that have the same behaviour as a mutex.
 //!
-//! The [`Mutex`] in the root of the crate, can be configured using the `ticket_mutex` feature.
-//! If it's enabled, [`TicketMutex`] and [`TicketMutexGuard`] will be re-exported as [`Mutex`]
-//! and [`MutexGuard`], otherwise the [`SpinMutex`] and guard will be re-exported.
-//!
-//! `ticket_mutex` is disabled by default.
+//! The [`Mutex`] in the root of the crate can be configured using the `use_ticket_mutex` feature.
+//! If enabled, its implementation will be swapped out for [`TicketMutex`] and [`TicketMutexGuard`].
+//! This may be desirable on some platforms of workloads where regular spin mutexes have
+//! particularly poor behaviour and regularly starve threads. `ticket_mutex` is disabled by default.
 //!
 //! [`Mutex`]: ./struct.Mutex.html
 //! [`MutexGuard`]: ./struct.MutexGuard.html
@@ -118,10 +117,7 @@ pub struct Mutex<T: ?Sized, R = Spin> {
 /// uses either a ticket lock or a normal spin mutex.
 ///
 /// For more info see [`TicketMutexGuard`] or [`SpinMutexGuard`].
-///
-/// [`TicketMutexGuard`]: ./struct.TicketMutexGuard.html
-/// [`SpinMutexGuard`]: ./struct.SpinMutexGuard.html
-pub struct MutexGuard<'a, T: 'a + ?Sized, R> {
+pub struct MutexGuard<'a, T: 'a + ?Sized, R = Spin> {
     inner: InnerMutexGuard<'a, T, R>,
 }
 
