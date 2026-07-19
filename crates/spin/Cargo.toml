@@ -13,7 +13,7 @@
 edition = "2021"
 rust-version = "1.71"
 name = "spin"
-version = "0.12.1"
+version = "0.12.2"
 authors = [
     "Mathijs van de Nes <git@mathijs.vd-nes.nl>",
     "John Ericson <git@JohnEricson.me>",
