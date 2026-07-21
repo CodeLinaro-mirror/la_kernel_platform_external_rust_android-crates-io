@@ -38,6 +38,7 @@ askama
 askama_derive
 askama_macros
 askama_parser
+async-nats
 async-stream
 async-stream-impl
 async-task
