@@ -37,6 +37,7 @@ rust_library {
     vendor_ramdisk_available: true,
     ramdisk_available: true,
     min_sdk_version: "S",
+    native_coverage: false,
     no_std: {
         enabled: true,
     },
