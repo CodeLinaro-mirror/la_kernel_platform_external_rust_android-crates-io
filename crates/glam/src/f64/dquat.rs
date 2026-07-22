@@ -393,9 +393,14 @@ impl DQuat {
     /// # Panics
     ///
     /// Will panic if `up` is not normalized when `glam_assert` is enabled.
+    #[deprecated(
+        since = "0.33.1",
+        note = "use the `glam::dcamera::lh::view::look_to_quat` function instead"
+    )]
     #[inline]
     #[must_use]
     pub fn look_to_lh(dir: DVec3, up: DVec3) -> Self {
+        #[allow(deprecated)]
         Self::look_to_rh(-dir, up)
     }
 
@@ -406,6 +411,10 @@ impl DQuat {
     /// # Panics
     ///
     /// Will panic if `dir` and `up` are not normalized when `glam_assert` is enabled.
+    #[deprecated(
+        since = "0.33.1",
+        note = "use the `glam::dcamera::rh::view::look_to_quat` function instead"
+    )]
     #[inline]
     #[must_use]
     pub fn look_to_rh(dir: DVec3, up: DVec3) -> Self {
@@ -422,7 +431,7 @@ impl DQuat {
         )
     }
 
-    /// Creates a left-handed view matrix using a camera position, a focal point, and an up
+    /// Creates a quaternion rotation from a camera position, a focal point, and an up
     /// direction.
     ///
     /// For a left-handed view coordinate system with `+X=right`, `+Y=up` and `+Z=forward`.
@@ -430,13 +439,18 @@ impl DQuat {
     /// # Panics
     ///
     /// Will panic if `up` is not normalized when `glam_assert` is enabled.
+    #[deprecated(
+        since = "0.33.1",
+        note = "use the `glam::dcamera::lh::view::look_at_quat` function instead"
+    )]
     #[inline]
     #[must_use]
     pub fn look_at_lh(eye: DVec3, center: DVec3, up: DVec3) -> Self {
+        #[allow(deprecated)]
         Self::look_to_lh(center.sub(eye).normalize(), up)
     }
 
-    /// Creates a right-handed view matrix using a camera position, an up direction, and a focal
+    /// Creates a quaternion rotation using a camera position, an up direction, and a focal
     /// point.
     ///
     /// For a right-handed view coordinate system with `+X=right`, `+Y=up` and `+Z=back`.
@@ -444,9 +458,14 @@ impl DQuat {
     /// # Panics
     ///
     /// Will panic if `up` is not normalized when `glam_assert` is enabled.
+    #[deprecated(
+        since = "0.33.1",
+        note = "use the `glam::dcamera::rh::view::look_at_quat` function instead"
+    )]
     #[inline]
     #[must_use]
     pub fn look_at_rh(eye: DVec3, center: DVec3, up: DVec3) -> Self {
+        #[allow(deprecated)]
         Self::look_to_rh(center.sub(eye).normalize(), up)
     }
 
@@ -702,6 +721,17 @@ impl DQuat {
         self.lerp_impl(end * bias, s)
     }
 
+    #[inline(always)]
+    #[must_use]
+    fn slerp_impl(self, end: Self, dot: f64, s: f64) -> Self {
+        let theta = math::acos_approx(dot);
+
+        let scale1 = math::sin(theta * (1.0 - s));
+        let scale2 = math::sin(theta * s);
+        let theta_sin = math::sin(theta);
+        ((self * scale1) + (end * scale2)) * (1.0 / theta_sin)
+    }
+
     /// Performs a spherical linear interpolation between `self` and `end`
     /// based on the value `s`.
     ///
@@ -735,12 +765,37 @@ impl DQuat {
             // if above threshold perform linear interpolation to avoid divide by zero
             self.lerp_impl(end, s)
         } else {
-            let theta = math::acos_approx(dot);
+            self.slerp_impl(end, dot, s)
+        }
+    }
 
-            let scale1 = math::sin(theta * (1.0 - s));
-            let scale2 = math::sin(theta * s);
-            let theta_sin = math::sin(theta);
-            ((self * scale1) + (end * scale2)) * (1.0 / theta_sin)
+    /// Performs a spherical linear interpolation between `self` and `end` based on the value `s`,
+    /// preserving the rotation direction.
+    ///
+    /// When `s` is `0.0`, the result will be equal to `self`.  When `s` is `1.0`, the result will
+    /// be equal to `end`.
+    ///
+    /// When the dot product of `self` and `end` is negative, the standard [`slerp`](Self::slerp)
+    /// will flip the end quaternion to take the shortest path, while this method will take the
+    /// longer arc. This is useful when the intended rotation direction must be preserved.
+    ///
+    /// # Panics
+    ///
+    /// Will panic if `self` or `end` are not normalized when `glam_assert` is enabled.
+    #[inline]
+    #[must_use]
+    pub fn slerp_long(self, end: Self, s: f64) -> Self {
+        glam_assert!(self.is_normalized());
+        glam_assert!(end.is_normalized());
+
+        let dot = self.dot(end);
+
+        const DOT_THRESHOLD: f64 = 1.0 - f64::EPSILON;
+        if dot.abs() > DOT_THRESHOLD {
+            // if above threshold perform linear interpolation to avoid divide by zero
+            self.lerp_impl(end, s)
+        } else {
+            self.slerp_impl(end, dot, s)
         }
     }
 

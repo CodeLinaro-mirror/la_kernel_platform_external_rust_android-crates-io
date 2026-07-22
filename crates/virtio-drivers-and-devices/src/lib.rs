@@ -118,6 +118,62 @@ impl From<alloc::string::FromUtf8Error> for Error {
     }
 }
 
+/// A generic lock trait which protects a value of type `T`.
+pub trait Lock<T>: Send + Sync {
+    /// A guard which releases the lock when dropped.
+    type Guard<'a>: core::ops::DerefMut<Target = T>
+    where
+        Self: 'a,
+        T: 'a;
+
+    /// Wraps the given value in a new lock.
+    fn new(data: T) -> Self;
+
+    /// Locks the value and returns a mutable guard to it.
+    fn lock(&self) -> Self::Guard<'_>;
+}
+
+/// A generic factory trait allowing one lock type parameter to wrap multiple distinct inner types.
+pub trait LockFactory {
+    /// The lock type used to protect values of type `T`.
+    type Lock<T>: Lock<T>
+    where
+        T: Send;
+}
+
+/// A [`Lock`] backed by a [`spin::mutex::SpinMutex`].
+#[cfg(feature = "spin")]
+pub struct SpinLock<T>(spin::mutex::SpinMutex<T>);
+
+#[cfg(feature = "spin")]
+impl<T: Send> Lock<T> for SpinLock<T> {
+    type Guard<'a>
+        = spin::mutex::SpinMutexGuard<'a, T>
+    where
+        Self: 'a,
+        T: 'a;
+
+    fn new(data: T) -> Self {
+        Self(spin::mutex::SpinMutex::new(data))
+    }
+
+    fn lock(&self) -> Self::Guard<'_> {
+        self.0.lock()
+    }
+}
+
+/// A [`LockFactory`] which produces [`SpinLock`]s.
+#[cfg(feature = "spin")]
+pub struct SpinLockFactory;
+
+#[cfg(feature = "spin")]
+impl LockFactory for SpinLockFactory {
+    type Lock<T>
+        = SpinLock<T>
+    where
+        T: Send;
+}
+
 /// Align `size` up to a page.
 fn align_up(size: usize) -> usize {
     (size + PAGE_SIZE) & !(PAGE_SIZE - 1)

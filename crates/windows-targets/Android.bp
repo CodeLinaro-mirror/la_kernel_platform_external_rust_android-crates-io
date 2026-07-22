@@ -20,15 +20,21 @@ rust_library_host {
     cargo_pkg_version: "0.53.5",
     crate_root: "src/lib.rs",
     edition: "2021",
-    rustlibs: [
-        "libwindows_aarch64_gnullvm",
-        "libwindows_i686_gnullvm",
-        "libwindows_x86_64_gnullvm",
-    ],
+    enabled: false,
     target: {
         windows: {
             enabled: true,
         },
+        windows_x86: {
+            rustlibs: [
+                "libwindows_i686_gnullvm",
+            ],
+        },
+        windows_x86_64: {
+            rustlibs: [
+                "libwindows_x86_64_gnullvm",
+            ],
+        },
     },
-    enabled: false,
+
 }

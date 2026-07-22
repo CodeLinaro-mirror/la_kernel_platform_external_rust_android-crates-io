@@ -12,7 +12,7 @@
 [package]
 edition = "2021"
 name = "virtio-drivers-and-devices"
-version = "0.2.7"
+version = "0.3.0"
 authors = [
     "Jiajie Chen <noc@jiegec.ac.cn>",
     "Runji Wang <wangrunji0408@163.com>",
@@ -43,6 +43,8 @@ default = [
     "embedded-io",
 ]
 embedded-io = ["dep:embedded-io"]
+spin = ["dep:spin"]
+trusty_sleep = []
 
 [lib]
 name = "virtio_drivers_and_devices"
@@ -60,6 +62,15 @@ version = "0.1.14"
 
 [dependencies.log]
 version = "0.4.25"
+
+[dependencies.spin]
+version = "0.9.8"
+features = [
+    "mutex",
+    "spin_mutex",
+]
+optional = true
+default-features = false
 
 [dependencies.thiserror]
 version = "2.0.11"

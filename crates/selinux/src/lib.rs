@@ -1,6 +1,6 @@
 #![cfg(any(target_os = "linux", target_os = "android"))]
 #![doc = include_str!("../README.md")]
-#![doc(html_root_url = "https://docs.rs/selinux/0.6.2")]
+#![doc(html_root_url = "https://docs.rs/selinux/0.6.3")]
 //
 // https://rust-lang.github.io/api-guidelines/checklist.html
 //

@@ -1,5 +1,32 @@
 # Change Log
 
+## [6.4.3] - 2026-07-12
+
+* [Fixed] Panic when using whitespace omission (`~`) on an `else if`
+  chain tag, e.g. `{{~else if cond}}`. The leading tilde is now handled
+  consistently with `{{~else}}` [#766]
+* [Added] `preserve_json_order` feature flag that gates `serde_json`'s
+  `preserve_order` feature. Enabled by default to keep insertion-order key
+  iteration; disable with `default-features = false` to restore alphabetical
+  JSON object key ordering. [#767]
+* [Changed] Drop the `pprof` dev-dependency (and its `inferno` /
+  `quick-xml` transitive deps) from benchmarks. This removes the vulnerable
+  `quick-xml` 0.26 transitive dependency ([#764], [#765]); the upgrade was
+  blocked upstream because `pprof` pins `inferno` 0.11. Benchmarks now use
+  plain criterion without in-repo flamegraph generation.
+
+## [6.4.2](https://github.com/sunng87/handlebars-rust/compare/6.4.1...6.4.2) - 2026-06-24
+
+* [Fixed] Access to local variables like `@key`, `@index`, etc. in `#with` and
+  partial block [#758]
+* [Fixed] Preserve ordering when iterating an array context inside a partial
+  that receives hash parameters [#760]
+* [Changed] Enable serde_json `preserve_order` feature. JSON objects are now
+  iterated in insertion order (matching Handlebars.js semantics) instead of
+  alphabetical key order. This fixes index-key ordering for array contexts
+  converted into objects by partial hash parameters (e.g. `"10"` no longer
+  sorts before `"2"`).
+
 ## [6.4.1](https://github.com/sunng87/handlebars-rust/compare/6.4.0...6.4.1) - 2026-05-16
 
 * [Fixed] Allow using `@partial-block` with block include and fallback template [#752]

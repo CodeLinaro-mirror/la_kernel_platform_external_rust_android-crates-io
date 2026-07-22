@@ -18,10 +18,9 @@ rust_library {
     host_supported: true,
     crate_name: "cpufeatures",
     cargo_env_compat: true,
-    cargo_pkg_version: "0.2.17",
+    cargo_pkg_version: "0.3.0",
     crate_root: "src/lib.rs",
-    edition: "2018",
-    rustlibs: ["liblibc"],
+    edition: "2024",
     apex_available: [
         "//apex_available:platform",
         "//apex_available:anyapex",
@@ -29,4 +28,16 @@ rust_library {
     product_available: true,
     vendor_available: true,
     min_sdk_version: "29",
+    target: {
+        android_arm64: {
+            rustlibs: ["liblibc"],
+        },
+        linux_arm64: {
+            rustlibs: ["liblibc"],
+        },
+        darwin_arm64: {
+            rustlibs: ["liblibc"],
+        },
+    },
+
 }

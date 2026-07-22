@@ -279,6 +279,7 @@ idna_adapter
 if-addrs
 ignore
 image
+image-compare
 indexmap
 inotify
 inotify-sys
@@ -292,6 +293,7 @@ is-terminal
 is_terminal_polyfill
 itertools
 itoa
+java-locator
 jiff
 jni
 jni-macros

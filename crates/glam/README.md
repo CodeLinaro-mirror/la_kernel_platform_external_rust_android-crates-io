@@ -13,11 +13,13 @@ A simple and fast 3D math library for games and graphics.
   * square matrices: `Mat2`, `Mat3`, `Mat3A` and `Mat4`
   * a quaternion type: `Quat`
   * affine transformation types: `Affine2`, `Affine3` and `Affine3A`
+  * camera view and projection constructors: `camera` module
 * `f64` types
   * vectors: `DVec2`, `DVec3` and `DVec4`
   * square matrices: `DMat2`, `DMat3` and `DMat4`
   * a quaternion type: `DQuat`
   * affine transformation types: `DAffine2` and `DAffine3`
+  * camera view and projection constructors: `dcamera` module
 * `i8` types
   * vectors: `I8Vec2`, `I8Vec3` and `I8Vec4`
 * `u8` types
@@ -66,10 +68,8 @@ SIMD is supported on `x86`, `x86_64`, `wasm32` and `wasm64` targets.
 
 * `SSE2` is enabled by default on `x86_64` targets.
 * To enable `SSE2` on `x86` targets add `-C target-feature=+sse2` to
-  `RUSTCFLAGS`.
-* `NEON` is enabled by default on `aarch64` targets.
-* To enable `NEON` on `aarch64` targets add `-C target-feature=+neon` to
   `RUSTFLAGS`.
+* `NEON` is enabled by default on `aarch64` targets.
 * To enable `simd128` on `wasm32` or `wasm64` targets add `-C target-feature=+simd128` to
   `RUSTFLAGS`.
 * Experimental [portable simd] support can be enabled with the `core-simd`
@@ -88,7 +88,7 @@ defined in `std`. For example:
 
 ```toml
 [dependencies]
-glam = { version = "0.33.1", default-features = false, features = ["libm"] }
+glam = { version = "0.33.2", default-features = false, features = ["libm"] }
 ```
 
 To support both `std` and `no_std` builds in project, you can use the following
@@ -102,7 +102,7 @@ std = ["glam/std"]
 libm = ["glam/libm"]
 
 [dependencies]
-glam = { version = "0.33.1", default-features = false }
+glam = { version = "0.33.2", default-features = false }
 ```
 
 Alternatively, you can use the `nostd-libm` feature. This will always include a
@@ -118,7 +118,7 @@ std = ["glam/std"]
 libm = ["glam/libm"]
 
 [dependencies]
-glam = { version = "0.33.1", default-features = false, features = ["nostd-libm"] }
+glam = { version = "0.33.2", default-features = false, features = ["nostd-libm"] }
 ```
 
 ### Feature gates
@@ -204,6 +204,15 @@ contiguous memory.
 
 `glam` is co-ordinate system agnostic and intends to support both right-handed
 and left-handed conventions.
+
+### Camera
+
+`glam` provides a `camera` module with view matrix (`look_at`, `look_to`)
+and projection matrix (`perspective`, `orthographic`, `frustum`) constructors.
+
+Pick the `rh` or `lh` sub-module based on your world space handedness,
+then the API-specific constructor for your target graphics API convention
+(OpenGL, DirectX, Vulkan, or WebGPU).
 
 ## Design Philosophy
 

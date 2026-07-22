@@ -68,28 +68,44 @@ impl<'a> Meta<'a> {
 
     pub fn version_byte_range(&self) -> Range<usize> {
         let start = 0;
-        start..start + u32::RAW_BYTE_LEN
+        let end = start + u32::RAW_BYTE_LEN;
+        start..end
     }
 
     pub fn flags_byte_range(&self) -> Range<usize> {
         let start = self.version_byte_range().end;
-        start..start + u32::RAW_BYTE_LEN
+        let end = start + u32::RAW_BYTE_LEN;
+        start..end
     }
 
     pub fn reserved_byte_range(&self) -> Range<usize> {
         let start = self.flags_byte_range().end;
-        start..start + u32::RAW_BYTE_LEN
+        let end = start + u32::RAW_BYTE_LEN;
+        start..end
     }
 
     pub fn data_maps_count_byte_range(&self) -> Range<usize> {
         let start = self.reserved_byte_range().end;
-        start..start + u32::RAW_BYTE_LEN
+        let end = start + u32::RAW_BYTE_LEN;
+        start..end
     }
 
     pub fn data_maps_byte_range(&self) -> Range<usize> {
         let data_maps_count = self.data_maps_count();
         let start = self.data_maps_count_byte_range().end;
-        start..start + (data_maps_count as usize).saturating_mul(DataMapRecord::RAW_BYTE_LEN)
+        let end = start
+            + (transforms::to_usize(data_maps_count)).saturating_mul(DataMapRecord::RAW_BYTE_LEN);
+        start..end
+    }
+}
+
+const _: () = assert!(FontData::default_data_long_enough(Meta::MIN_SIZE));
+
+impl Default for Meta<'_> {
+    fn default() -> Self {
+        Self {
+            data: FontData::default_table_data(),
+        }
     }
 }
 

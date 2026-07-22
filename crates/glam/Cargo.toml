@@ -13,8 +13,7 @@
 edition = "2021"
 rust-version = "1.68.2"
 name = "glam"
-version = "0.33.1"
-authors = ["Cameron Hart <cameron.hart@gmail.com>"]
+version = "0.33.2"
 build = false
 autolib = false
 autobins = false
@@ -104,6 +103,10 @@ path = "tests/affine2.rs"
 [[test]]
 name = "affine3"
 path = "tests/affine3.rs"
+
+[[test]]
+name = "camera"
+path = "tests/camera.rs"
 
 [[test]]
 name = "euler"

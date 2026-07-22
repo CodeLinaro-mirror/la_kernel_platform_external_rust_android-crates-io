@@ -12,7 +12,7 @@
 [package]
 edition = "2024"
 name = "linux-aio-tokio"
-version = "0.4.0"
+version = "0.4.1"
 authors = [
     "Gleb Pomykalov <glebpom@gmail.com>",
     "Hans-Martin Will <hwill@acm.org>",

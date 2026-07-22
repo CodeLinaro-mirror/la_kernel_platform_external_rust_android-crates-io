@@ -13,11 +13,12 @@ license {
     license_text: ["LICENSE"],
 }
 
-rust_library_host {
+rust_library {
     name: "libvhost_android",
+    host_supported: true,
     crate_name: "vhost",
     cargo_env_compat: true,
-    cargo_pkg_version: "0.14.0",
+    cargo_pkg_version: "0.15.0",
     crate_root: "src/lib.rs",
     edition: "2021",
     features: [
@@ -33,4 +34,11 @@ rust_library_host {
         "libvmm_sys_util",
     ],
     compile_multilib: "first",
+    apex_available: [
+        "//apex_available:platform",
+        "//apex_available:anyapex",
+    ],
+    product_available: true,
+    vendor_available: true,
+    min_sdk_version: "29",
 }

@@ -280,6 +280,29 @@ macro_rules! impl_unary_uprim {
     )*);
 }
 impl_unary_uprim!(u8 u16 u32 u64 u128 usize);
+macro_rules! impl_const_powm {
+    ($name:ident, $T:ty, $D:ty) => {
+        /// Const modular exponentiation using binary exponentiation.
+        pub const fn $name(base: $T, exp: $T, m: $T) -> $T {
+            if m <= 1 {
+                return 0;
+            }
+            let mut base = base % m;
+            let mut result: $T = 1;
+            let mut exp = exp;
+            while exp > 0 {
+                if exp & 1 == 1 {
+                    result = (((result as $D) * (base as $D)) % (m as $D)) as $T;
+                }
+                exp >>= 1;
+                base = (((base as $D) * (base as $D)) % (m as $D)) as $T;
+            }
+            result
+        }
+    };
+}
+impl_const_powm!(powm_u32, u32, u64);
+impl_const_powm!(powm_u64, u64, u128);
 
 // forward modular operations to valye by value
 macro_rules! impl_mod_ops_by_deref {
@@ -675,6 +698,22 @@ mod tests {
             if let Some(ia) = a.invm(&m) {
                 assert_eq!(a.mulm(ia, &m), 1);
             }
+        }
+    }
+
+    #[test]
+    fn const_powm_test() {
+        // Verify const powm matches the trait-based powm
+        for _ in 0..NRANDOM {
+            let a = random::<u32>();
+            let m = random::<u32>().max(2);
+            let exp = random::<u32>() % 32;
+            assert_eq!(powm_u32(a, exp, m), a.powm(exp, &m));
+
+            let a = random::<u64>();
+            let m = random::<u64>().max(2);
+            let exp = random::<u64>() % 32;
+            assert_eq!(powm_u64(a, exp, m), a.powm(exp, &m));
         }
     }
 

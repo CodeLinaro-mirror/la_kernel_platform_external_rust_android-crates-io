@@ -2,7 +2,14 @@
   "min_sdk_version": "29",
   "features": [
     "alloc",
-    "proto-ipv4"
+    "std",
+    "log",
+    "medium-ethernet",
+    "proto-ipv4",
+    "socket-tcp",
+    "socket-udp",
+    "socket-raw",
+    "socket-icmp"
   ],
   "package": {
     "smoltcp": {

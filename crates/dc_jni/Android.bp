@@ -17,7 +17,7 @@ rust_library {
     name: "libdc_jni",
     crate_name: "dc_jni",
     cargo_env_compat: true,
-    cargo_pkg_version: "0.39.2",
+    cargo_pkg_version: "0.39.4",
     crate_root: "src/lib.rs",
     edition: "2021",
     rustlibs: [
@@ -48,7 +48,7 @@ rust_ffi_shared {
     name: "libdc_jni_shared",
     crate_name: "dc_jni",
     cargo_env_compat: true,
-    cargo_pkg_version: "0.39.2",
+    cargo_pkg_version: "0.39.4",
     crate_root: "src/lib.rs",
     edition: "2021",
     rustlibs: [

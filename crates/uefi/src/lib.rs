@@ -142,12 +142,18 @@
 //!   using this feature, or no allocator at all if you don't need to
 //!   dynamically allocate any memory. Note that even without that feature,
 //!   some code might use the internal UEFI allocator.
+//! - `jiff02`: Integration of [`runtime::Time`] with the `jiff` crate
+//!   (version 0.2 and possible above). Specifically, it integrates the time
+//!   struct with `DateTime` and `Zoned` via `TryFrom`.
 //! - `logger`: Logging implementation for the standard [`log`] crate
 //!   that prints output to the UEFI console. No buffering is done; this
 //!   is not a high-performance logger.
 //! - `log-debugcon`: Whether the logger set up by `logger` should also log
 //!   to the debugcon device (available in QEMU or Cloud Hypervisor on x86).
 //! - `panic_handler`: Add a default panic handler that logs to `stdout`.
+//! - `time03`: Integration of [`Time`][time-struct] with the `time` crate
+//!   (version 0.3). Specifically, the covers [`TryFrom`] integration with
+//!   `PrimitiveDateTime` and `OffsetDateTime` of the `time` crate.
 //! - `unstable`: Enable functionality that depends on [unstable features] in
 //!   the Rust compiler (nightly version).
 //! - `qemu`: Enable some code paths to adapt their execution when executed
@@ -251,6 +257,7 @@
 //! [rustc-uefi-std]: https://doc.rust-lang.org/nightly/rustc/platform-support/unknown-uefi.html
 //! [spec]: https://uefi.org/specifications
 //! [template]: https://github.com/rust-osdev/uefi-rs/tree/main/template
+//! [time-struct]: crate::runtime::Time
 //! [uefi-std-tr-issue]: https://github.com/rust-lang/rust/issues/100499
 //! [unstable features]: https://doc.rust-lang.org/unstable-book/
 

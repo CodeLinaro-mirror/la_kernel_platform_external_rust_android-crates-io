@@ -13,6 +13,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+# [0.12.1] - 2026-06-23
+
+### Fixed
+
+- Unsoundness in `RwLock`'s `try_upgrade` path for the `lock_api` interface has been
+  fixed. Note that this unsoundness only affects you if all of the following apply:
+  - You use `RwLock` via the `lock_api` interface specifically
+  - You call `upgradable_read` to create an upgradeable lock guard
+  - You call `try_upgrade` on the upgradeable lock guard
+
+- `LazyLock`'s `Sync` implementation is now less restrictive
+
 # [0.12.0] - 2026-05-20
 
 ### Changed

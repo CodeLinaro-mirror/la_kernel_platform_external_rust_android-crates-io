@@ -19,7 +19,7 @@ rust_library {
     host_supported: true,
     crate_name: "log",
     cargo_env_compat: true,
-    cargo_pkg_version: "0.4.31",
+    cargo_pkg_version: "0.4.33",
     crate_root: "src/lib.rs",
     edition: "2021",
     features: ["std"],
@@ -48,7 +48,7 @@ rust_library {
     host_supported: true,
     crate_name: "log",
     cargo_env_compat: true,
-    cargo_pkg_version: "0.4.31",
+    cargo_pkg_version: "0.4.33",
     crate_root: "src/lib.rs",
     edition: "2021",
     features: [
@@ -77,7 +77,7 @@ rust_library {
     host_supported: true,
     crate_name: "log",
     cargo_env_compat: true,
-    cargo_pkg_version: "0.4.31",
+    cargo_pkg_version: "0.4.33",
     crate_root: "src/lib.rs",
     edition: "2021",
     features: [

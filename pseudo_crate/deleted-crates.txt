@@ -18,6 +18,7 @@ mls-rs-crypto-traits
 moveit
 oneshot-uniffi
 syn-mid
+toml
 uniffi
 uniffi_checksum_derive
 uniffi_core
