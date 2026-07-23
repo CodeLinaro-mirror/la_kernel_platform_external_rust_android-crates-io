@@ -634,7 +634,7 @@ dependencies = [
  "raw-cpuid",
  "rayon",
  "rayon-core",
- "read-fonts 0.41.0",
+ "read-fonts 0.42.0",
  "regex",
  "regex-automata",
  "regex-lite",
