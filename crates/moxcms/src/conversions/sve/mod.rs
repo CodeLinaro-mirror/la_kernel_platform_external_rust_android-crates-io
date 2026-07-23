@@ -1,5 +1,5 @@
 /*
- * // Copyright (c) Radzivon Bartoshyk 6/2025. All rights reserved.
+ * // Copyright (c) Radzivon Bartoshyk 3/2025. All rights reserved.
  * //
  * // Redistribution and use in source and binary forms, with or without modification,
  * // are permitted provided that the following conditions are met:
@@ -26,37 +26,22 @@
  * // OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-#![cfg(feature = "lut")]
-use crate::{CmsError, InPlaceStage, Lab, Xyz};
+mod rgb_xyz_q2_13_opt;
 
-#[derive(Default)]
-pub(crate) struct StageLabToXyz {}
+pub(crate) use rgb_xyz_q2_13_opt::TransformShaperQ2_13SveOpt;
 
-impl InPlaceStage for StageLabToXyz {
-    fn transform(&self, dst: &mut [f32]) -> Result<(), CmsError> {
-        for dst in dst.as_chunks_mut::<3>().0.iter_mut() {
-            let lab = Lab::new(dst[0], dst[1], dst[2]);
-            let xyz = lab.to_pcs_xyz();
-            dst[0] = xyz.x;
-            dst[1] = xyz.y;
-            dst[2] = xyz.z;
-        }
-        Ok(())
-    }
+#[allow(dead_code)]
+#[inline]
+pub(crate) fn split_by_twos<T: Copy>(data: &[T], channels: usize) -> (&[T], &[T]) {
+    let len = data.len() / (channels * 4);
+    let split_point = len * 4;
+    data.split_at(split_point * channels)
 }
 
-#[derive(Default)]
-pub(crate) struct StageXyzToLab {}
-
-impl InPlaceStage for StageXyzToLab {
-    fn transform(&self, dst: &mut [f32]) -> Result<(), CmsError> {
-        for dst in dst.as_chunks_mut::<3>().0.iter_mut() {
-            let xyz = Xyz::new(dst[0], dst[1], dst[2]);
-            let lab = Lab::from_pcs_xyz(xyz);
-            dst[0] = lab.l;
-            dst[1] = lab.a;
-            dst[2] = lab.b;
-        }
-        Ok(())
-    }
+#[allow(dead_code)]
+#[inline]
+pub(crate) fn split_by_twos_mut<T: Copy>(data: &mut [T], channels: usize) -> (&mut [T], &mut [T]) {
+    let len = data.len() / (channels * 4);
+    let split_point = len * 4;
+    data.split_at_mut(split_point * channels)
 }

@@ -82,7 +82,7 @@ where
         &self,
         src: &[T],
         dst: &mut [T],
-        interpolator: Box<dyn NeonMdInterpolationDouble + Send + Sync>,
+        interpolator: Box<dyn NeonMdInterpolationDouble<BINS, U> + Send + Sync>,
     ) {
         let cn = Layout::from(LAYOUT);
         let channels = cn.channels();
@@ -92,7 +92,12 @@ where
         let value_scale = unsafe { vdupq_n_f32(((1 << BIT_DEPTH) - 1) as f32) };
         let max_value = ((1 << BIT_DEPTH) - 1u32).as_();
 
-        for (src, dst) in src.chunks_exact(4).zip(dst.chunks_exact_mut(channels)) {
+        for (src, dst) in src
+            .as_chunks::<4>()
+            .0
+            .iter()
+            .zip(dst.chunks_exact_mut(channels))
+        {
             let c = <() as LutBarycentricReduction<T, U>>::reduce::<BIT_DEPTH, BARYCENTRIC_BINS>(
                 src[0],
             );
@@ -115,14 +120,7 @@ where
             let table1 = &self.lut[(w * grid_size3) as usize..];
             let table2 = &self.lut[(w_n * grid_size3) as usize..];
 
-            let (a0, b0) = interpolator.inter3_neon(
-                table1,
-                table2,
-                c.as_(),
-                m.as_(),
-                y.as_(),
-                self.weights.as_slice(),
-            );
+            let (a0, b0) = interpolator.inter3_neon(table1, table2, c, m, y, &self.weights);
             let (a0, b0) = (a0.v, b0.v);
 
             if T::FINITE {
@@ -175,10 +173,10 @@ where
     fn transform(&self, src: &[T], dst: &mut [T]) -> Result<(), CmsError> {
         let cn = Layout::from(LAYOUT);
         let channels = cn.channels();
-        if src.len() % 4 != 0 {
+        if !src.len().is_multiple_of(4) {
             return Err(CmsError::LaneMultipleOfChannels);
         }
-        if dst.len() % channels != 0 {
+        if !dst.len().is_multiple_of(channels) {
             return Err(CmsError::LaneMultipleOfChannels);
         }
         let src_chunks = src.len() / 4;
@@ -246,7 +244,9 @@ impl Lut4x3Factory for NeonLut4x3Factory {
                 ((1i32 << 14i32) - 1) as f32
             };
             let lut = lut
-                .chunks_exact(3)
+                .as_chunks::<3>()
+                .0
+                .iter()
                 .map(|x| {
                     NeonAlignedI16x4([
                         (x[0] * q).round() as i16,
@@ -303,7 +303,9 @@ impl Lut4x3Factory for NeonLut4x3Factory {
             };
         }
         let lut = lut
-            .chunks_exact(3)
+            .as_chunks::<3>()
+            .0
+            .iter()
             .map(|x| NeonAlignedF32([x[0], x[1], x[2], 0f32]))
             .collect::<Vec<_>>();
         match options.barycentric_weight_scale {

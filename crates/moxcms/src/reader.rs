@@ -26,7 +26,6 @@
  * // OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-use crate::err::try_vec;
 use crate::helpers::{read_matrix_3d, read_vector_3d};
 use crate::profile::LutDataType;
 use crate::safe_math::{SafeAdd, SafeMul, SafePowi};
@@ -72,11 +71,12 @@ pub(crate) fn uint8_number_to_float_fast(a: u8) -> f32 {
 }
 
 fn utf16be_to_utf16(slice: &[u8]) -> Result<Vec<u16>, CmsError> {
-    let mut vec = try_vec![0u16; slice.len() / 2];
-    for (dst, chunk) in vec.iter_mut().zip(slice.chunks_exact(2)) {
-        *dst = u16::from_be_bytes([chunk[0], chunk[1]]);
-    }
-    Ok(vec)
+    Ok(slice
+        .as_chunks::<2>()
+        .0
+        .iter()
+        .map(|chunk| u16::from_be_bytes([chunk[0], chunk[1]]))
+        .collect())
 }
 
 /// Parse the Unicode section of a desc tag at `unicode_offset` (the byte
@@ -283,7 +283,7 @@ impl ColorProfile {
             // but also seen in some v2 profiles in the wild).
             let unicode_offset = ascii_end;
             let (unicode_code, unicode_string) =
-                self::read_desc_unicode(tag, unicode_offset)?.unwrap_or((0, String::new()));
+                read_desc_unicode(tag, unicode_offset)?.unwrap_or((0, String::new()));
 
             return Ok(Some(ProfileText::Description(DescriptionString {
                 ascii_string,
@@ -298,17 +298,15 @@ impl ColorProfile {
 
     fn read_lut_table_f32(table: &[u8], lut_type: LutType) -> Result<LutStore, CmsError> {
         if lut_type == LutType::Lut16 {
-            let mut clut = try_vec![0u16; table.len() / 2];
-            for (src, dst) in table.chunks_exact(2).zip(clut.iter_mut()) {
-                *dst = u16::from_be_bytes([src[0], src[1]]);
-            }
+            let clut = table
+                .as_chunks::<2>()
+                .0
+                .iter()
+                .map(|chunk| u16::from_be_bytes([chunk[0], chunk[1]]))
+                .collect();
             Ok(LutStore::Store16(clut))
         } else if lut_type == LutType::Lut8 {
-            let mut clut = try_vec![0u8; table.len()];
-            for (&src, dst) in table.iter().zip(clut.iter_mut()) {
-                *dst = src;
-            }
-            Ok(LutStore::Store8(clut))
+            Ok(LutStore::Store8(table.to_vec()))
         } else {
             unreachable!("This should never happen, report to https://github.com/awxkee/moxcms")
         }
@@ -334,7 +332,7 @@ impl ColorProfile {
             }
             curve_offset += tag_size;
             // 4 byte aligned
-            if curve_offset % 4 != 0 {
+            if !curve_offset.is_multiple_of(4) {
                 curve_offset += 4 - curve_offset % 4;
             }
         }
@@ -431,9 +429,9 @@ impl ColorProfile {
                 let mut last_index: usize = 0;
                 for &dim in grid_points.iter().take(in_channels as usize).rev() {
                     let dim_usize = dim as usize;
-                    if dim_usize == 0 {
+                    if dim_usize < 2 {
                         return Err(CmsError::IncorrectlyFormedLut(
-                            "One of grid dimensions is zero".to_string(),
+                            "One of grid dimensions is less than 2".to_string(),
                         ));
                     }
                     let l = match dim_usize
@@ -611,12 +609,14 @@ impl ColorProfile {
 
         let in_chan = tag[8];
         let out_chan = tag[9];
-        let is_3_to_4 = in_chan == 3 || out_chan == 4;
-        let is_4_to_3 = in_chan == 4 || out_chan == 3;
-        if !is_3_to_4 && !is_4_to_3 {
+        let is_pcs = in_chan == 3 || out_chan == 3;
+        if !is_pcs || !(1..=4).contains(&in_chan) || !(1..=4).contains(&out_chan) {
             return Err(CmsError::InvalidProfile);
         }
         let grid_points = tag[10];
+        if grid_points < 2 {
+            return Err(CmsError::InvalidProfile);
+        }
         let clut_size = (grid_points as u32).safe_powi(in_chan as u32)? as usize;
 
         if !(1..=parsing_options.max_allowed_clut_size).contains(&clut_size) {
@@ -758,11 +758,12 @@ impl ColorProfile {
                 ));
             }
             let curve_sliced = &tag[12..curve_end];
-            let mut curve_values = try_vec![0u16; entry_count];
-            for (value, curve_value) in curve_sliced.chunks_exact(2).zip(curve_values.iter_mut()) {
-                let gamma_s15 = u16::from_be_bytes([value[0], value[1]]);
-                *curve_value = gamma_s15;
-            }
+            let curve_values = curve_sliced
+                .as_chunks::<2>()
+                .0
+                .iter()
+                .map(|chunk| u16::from_be_bytes([chunk[0], chunk[1]]))
+                .collect::<Vec<_>>();
             *read_size = curve_end;
             Ok(Some(ToneReprCurve::Lut(curve_values)))
         } else if curve_type == TagTypeDefinition::ParametricToneCurve {
@@ -781,11 +782,16 @@ impl ColorProfile {
                 ));
             }
             let curve_sliced = &tag[12..12 + COUNT_TO_LENGTH[entry_count] * size_of::<u32>()];
-            let mut params = try_vec![0f32; COUNT_TO_LENGTH[entry_count]];
-            for (value, param_value) in curve_sliced.chunks_exact(4).zip(params.iter_mut()) {
-                let parametric_value = i32::from_be_bytes([value[0], value[1], value[2], value[3]]);
-                *param_value = s15_fixed16_number_to_float(parametric_value);
-            }
+            let params = curve_sliced
+                .as_chunks::<4>()
+                .0
+                .iter()
+                .map(|chunk| {
+                    s15_fixed16_number_to_float(i32::from_be_bytes([
+                        chunk[0], chunk[1], chunk[2], chunk[3],
+                    ]))
+                })
+                .collect::<Vec<_>>();
             if entry_count == 1 || entry_count == 2 {
                 // we have a type 1 or type 2 function that has a division by `a`
                 let a: f32 = params[1];
@@ -995,5 +1001,74 @@ impl ColorProfile {
             matrix_coefficients,
             full_range,
         }))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::profile::ParsingOptions;
+
+    fn default_options() -> ParsingOptions {
+        ParsingOptions::default()
+    }
+
+    /// Build a minimal mAB tag with a CLUT section.
+    fn make_mab_tag_with_clut(in_chan: u8, out_chan: u8, grid_values: &[u8]) -> Vec<u8> {
+        let clut_offset: u32 = 48;
+        let mut grid_points = [0u8; 16];
+        for (i, &g) in grid_values.iter().enumerate().take(16) {
+            grid_points[i] = g;
+        }
+        let mut clut_size: u32 = 1;
+        for &g in grid_points.iter().take(in_chan as usize) {
+            clut_size = clut_size.saturating_mul(g as u32);
+        }
+        clut_size = clut_size.saturating_mul(out_chan as u32);
+        let total = 48 + 20 + clut_size as usize;
+        let mut tag = vec![0u8; total];
+        let sig = u32::from_ne_bytes(*b"mAB ").to_be().to_be_bytes();
+        tag[0..4].copy_from_slice(&sig);
+        tag[8] = in_chan;
+        tag[9] = out_chan;
+        tag[24..28].copy_from_slice(&clut_offset.to_be_bytes());
+        let co = clut_offset as usize;
+        tag[co..co + 16].copy_from_slice(&grid_points);
+        tag[co + 16] = 1; // entry_size = 1 byte
+        tag
+    }
+
+    /// Build a minimal mft1 (lut8) tag.
+    fn make_mft1_tag(in_chan: u8, out_chan: u8, grid_points: u8) -> Vec<u8> {
+        let clut_size = (grid_points as usize).pow(in_chan as u32) * out_chan as usize;
+        let input_table_size = 256usize * in_chan as usize;
+        let output_table_size = 256usize * out_chan as usize;
+        let total = 48 + input_table_size + clut_size + output_table_size;
+        let mut tag = vec![0u8; total];
+        let sig = u32::from_ne_bytes(*b"mft1").to_be().to_be_bytes();
+        tag[0..4].copy_from_slice(&sig);
+        tag[8] = in_chan;
+        tag[9] = out_chan;
+        tag[10] = grid_points;
+        let one = 0x00010000u32.to_be_bytes();
+        for i in 0..3 {
+            let off = 12 + i * 3 * 4 + i * 4;
+            tag[off..off + 4].copy_from_slice(&one);
+        }
+        tag
+    }
+
+    #[test]
+    fn test_mab_rejects_degenerate_grid_points() {
+        let tag = make_mab_tag_with_clut(3, 3, &[1, 1, 1]);
+        let result = ColorProfile::read_lut_abm_type(&tag, 0, tag.len(), true, &default_options());
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_mft1_rejects_degenerate_grid_points() {
+        let tag = make_mft1_tag(3, 3, 1);
+        let result = ColorProfile::read_lut_a_to_b_type(&tag, 0, tag.len(), &default_options());
+        assert!(matches!(result, Err(CmsError::InvalidProfile)));
     }
 }
