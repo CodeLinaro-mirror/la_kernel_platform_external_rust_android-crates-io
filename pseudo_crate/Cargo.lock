@@ -428,7 +428,7 @@ dependencies = [
  "home",
  "hound",
  "http 1.4.2",
- "http-body 1.1.0",
+ "http-body 1.0.1",
  "http-body-util",
  "httparse",
  "httpdate",
@@ -1442,7 +1442,7 @@ dependencies = [
  "form_urlencoded",
  "futures-util",
  "http 1.4.2",
- "http-body 1.1.0",
+ "http-body 1.0.1",
  "http-body-util",
  "hyper 1.10.1",
  "hyper-util",
@@ -1473,7 +1473,7 @@ dependencies = [
  "bytes",
  "futures-core",
  "http 1.4.2",
- "http-body 1.1.0",
+ "http-body 1.0.1",
  "http-body-util",
  "mime",
  "pin-project-lite",
@@ -1619,9 +1619,9 @@ dependencies = [
 
 [[package]]
 name = "binrw"
-version = "0.15.1"
+version = "0.15.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d53195f985e88ab94d1cc87e80049dd2929fd39e4a772c5ae96a7e5c4aad3642"
+checksum = "6ad120d555272286c1017d25165ab8bd74806f13fc85b258484ec7e4ce75458f"
 dependencies = [
  "array-init",
  "binrw_derive",
@@ -1630,9 +1630,9 @@ dependencies = [
 
 [[package]]
 name = "binrw_derive"
-version = "0.15.1"
+version = "0.15.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5910da05ee556b789032c8ff5a61fb99239580aa3fd0bfaa8f4d094b2aee00ad"
+checksum = "6df92e0e9baae4dc82c7bad7715ca40c0a5c71539057bf2ea04a5c29c980410b"
 dependencies = [
  "either",
  "owo-colors",
@@ -4522,9 +4522,9 @@ dependencies = [
 
 [[package]]
 name = "http-body"
-version = "1.1.0"
+version = "1.0.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ca2a8f2913ee65f60facd6a5905613afaa448497a0230cc41ce022d93290bc2c"
+checksum = "1efedce1fb8e6913f23e0c92de8e62cd5b772a67e7b3946df930a62566c93184"
 dependencies = [
  "bytes",
  "http 1.4.2",
@@ -4539,7 +4539,7 @@ dependencies = [
  "bytes",
  "futures-core",
  "http 1.4.2",
- "http-body 1.1.0",
+ "http-body 1.0.1",
  "pin-project-lite",
 ]
 
@@ -4605,7 +4605,7 @@ dependencies = [
  "futures-core",
  "h2",
  "http 1.4.2",
- "http-body 1.1.0",
+ "http-body 1.0.1",
  "httparse",
  "httpdate",
  "itoa",
@@ -4673,13 +4673,13 @@ dependencies = [
  "futures-channel",
  "futures-util",
  "http 1.4.2",
- "http-body 1.1.0",
+ "http-body 1.0.1",
  "hyper 1.10.1",
  "ipnet",
  "libc 0.2.186",
  "percent-encoding",
  "pin-project-lite",
- "socket2 0.5.10",
+ "socket2 0.6.5",
  "system-configuration",
  "tokio",
  "tower-service",
@@ -7998,7 +7998,7 @@ dependencies = [
  "quinn-udp",
  "rustc-hash 2.1.3",
  "rustls",
- "socket2 0.5.10",
+ "socket2 0.6.5",
  "thiserror 2.0.18",
  "tokio",
  "tracing",
@@ -8037,7 +8037,7 @@ dependencies = [
  "cfg_aliases",
  "libc 0.2.186",
  "once_cell",
- "socket2 0.5.10",
+ "socket2 0.6.5",
  "tracing",
  "windows-sys 0.61.2",
 ]
@@ -8391,7 +8391,7 @@ dependencies = [
  "futures-util",
  "h2",
  "http 1.4.2",
- "http-body 1.1.0",
+ "http-body 1.0.1",
  "http-body-util",
  "hyper 1.10.1",
  "hyper-rustls",
@@ -8435,7 +8435,7 @@ dependencies = [
  "futures-core",
  "futures-util",
  "http 1.4.2",
- "http-body 1.1.0",
+ "http-body 1.0.1",
  "http-body-util",
  "hyper 1.10.1",
  "hyper-rustls",
@@ -10256,7 +10256,6 @@ dependencies = [
  "serde_spanned",
  "toml_datetime 1.1.1+spec-1.1.0",
  "toml_parser",
- "toml_writer",
  "winnow 1.0.4",
 ]
 
@@ -10341,7 +10340,7 @@ dependencies = [
  "bytes",
  "h2",
  "http 1.4.2",
- "http-body 1.1.0",
+ "http-body 1.0.1",
  "http-body-util",
  "hyper 1.10.1",
  "hyper-timeout",
@@ -10387,7 +10386,7 @@ dependencies = [
  "bytes",
  "futures-util",
  "http 1.4.2",
- "http-body 1.1.0",
+ "http-body 1.0.1",
  "pin-project-lite",
  "tower",
  "tower-layer",
