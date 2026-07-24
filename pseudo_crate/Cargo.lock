@@ -428,7 +428,7 @@ dependencies = [
  "home",
  "hound",
  "http 1.4.2",
- "http-body 1.1.0",
+ "http-body 1.0.1",
  "http-body-util",
  "httparse",
  "httpdate",
@@ -1442,7 +1442,7 @@ dependencies = [
  "form_urlencoded",
  "futures-util",
  "http 1.4.2",
- "http-body 1.1.0",
+ "http-body 1.0.1",
  "http-body-util",
  "hyper 1.10.1",
  "hyper-util",
@@ -1473,7 +1473,7 @@ dependencies = [
  "bytes",
  "futures-core",
  "http 1.4.2",
- "http-body 1.1.0",
+ "http-body 1.0.1",
  "http-body-util",
  "mime",
  "pin-project-lite",
@@ -4522,9 +4522,9 @@ dependencies = [
 
 [[package]]
 name = "http-body"
-version = "1.1.0"
+version = "1.0.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ca2a8f2913ee65f60facd6a5905613afaa448497a0230cc41ce022d93290bc2c"
+checksum = "1efedce1fb8e6913f23e0c92de8e62cd5b772a67e7b3946df930a62566c93184"
 dependencies = [
  "bytes",
  "http 1.4.2",
@@ -4539,7 +4539,7 @@ dependencies = [
  "bytes",
  "futures-core",
  "http 1.4.2",
- "http-body 1.1.0",
+ "http-body 1.0.1",
  "pin-project-lite",
 ]
 
@@ -4605,7 +4605,7 @@ dependencies = [
  "futures-core",
  "h2",
  "http 1.4.2",
- "http-body 1.1.0",
+ "http-body 1.0.1",
  "httparse",
  "httpdate",
  "itoa",
@@ -4673,13 +4673,13 @@ dependencies = [
  "futures-channel",
  "futures-util",
  "http 1.4.2",
- "http-body 1.1.0",
+ "http-body 1.0.1",
  "hyper 1.10.1",
  "ipnet",
  "libc 0.2.186",
  "percent-encoding",
  "pin-project-lite",
- "socket2 0.5.10",
+ "socket2 0.6.5",
  "system-configuration",
  "tokio",
  "tower-service",
@@ -7998,7 +7998,7 @@ dependencies = [
  "quinn-udp",
  "rustc-hash 2.1.3",
  "rustls",
- "socket2 0.5.10",
+ "socket2 0.6.5",
  "thiserror 2.0.18",
  "tokio",
  "tracing",
@@ -8037,7 +8037,7 @@ dependencies = [
  "cfg_aliases",
  "libc 0.2.186",
  "once_cell",
- "socket2 0.5.10",
+ "socket2 0.6.5",
  "tracing",
  "windows-sys 0.61.2",
 ]
@@ -8391,7 +8391,7 @@ dependencies = [
  "futures-util",
  "h2",
  "http 1.4.2",
- "http-body 1.1.0",
+ "http-body 1.0.1",
  "http-body-util",
  "hyper 1.10.1",
  "hyper-rustls",
@@ -8435,7 +8435,7 @@ dependencies = [
  "futures-core",
  "futures-util",
  "http 1.4.2",
- "http-body 1.1.0",
+ "http-body 1.0.1",
  "http-body-util",
  "hyper 1.10.1",
  "hyper-rustls",
@@ -8768,9 +8768,9 @@ checksum = "9774ba4a74de5f7b1c1451ed6cd5285a32eddb5cccb8cc655a4e50009e06477f"
 
 [[package]]
 name = "safe-mmio"
-version = "0.3.0"
+version = "0.3.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4813ee49326057f105d6d8ca3d8f9265095f26aa7b42094e487028403a594f4c"
+checksum = "ce5e4ed477d6ebc07e01ce97b87fe319e6b62d0ab2564594db6a8c4cdc29ffd9"
 dependencies = [
  "zerocopy",
 ]
@@ -10256,7 +10256,6 @@ dependencies = [
  "serde_spanned",
  "toml_datetime 1.1.1+spec-1.1.0",
  "toml_parser",
- "toml_writer",
  "winnow 1.0.4",
 ]
 
@@ -10341,7 +10340,7 @@ dependencies = [
  "bytes",
  "h2",
  "http 1.4.2",
- "http-body 1.1.0",
+ "http-body 1.0.1",
  "http-body-util",
  "hyper 1.10.1",
  "hyper-timeout",
@@ -10387,7 +10386,7 @@ dependencies = [
  "bytes",
  "futures-util",
  "http 1.4.2",
- "http-body 1.1.0",
+ "http-body 1.0.1",
  "pin-project-lite",
  "tower",
  "tower-layer",
