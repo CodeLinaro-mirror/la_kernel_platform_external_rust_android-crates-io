@@ -10,6 +10,7 @@
 //! * UDP
 //! * TCP
 //! * ICMP & ICMPv6 (not all message types are supported)
+//! * IGMP (v1, v2 & v3)
 //!
 //! Reconstruction of fragmented IP packets is also supported, but requires allocations.
 //!
@@ -19,7 +20,7 @@
 //!
 //! ```toml
 //! [dependencies]
-//! etherparse = "0.20.3"
+//! etherparse = "0.21.0"
 //! ```
 //!
 //! # What is etherparse?
@@ -137,6 +138,7 @@
 //! * [`TcpSlice::from_slice`]
 //! * [`Icmpv4Slice::from_slice`]
 //! * [`Icmpv6Slice::from_slice`]
+//! * [`IgmpSlice::from_slice`]
 //!
 //! The resulting data types allow access to both the header(s) and the payload of the layer
 //! and will automatically limit the length of payload if the layer has a length field limiting the
@@ -182,6 +184,7 @@
 //! * [`TcpHeader::read`] & [`TcpHeader::from_slice`]
 //! * [`Icmpv4Header::read`] & [`Icmpv4Header::from_slice`]
 //! * [`Icmpv6Header::read`] & [`Icmpv6Header::from_slice`]
+//! * [`IgmpHeader::from_slice`]
 //!
 //! # How to generate fake packet data?
 //!
@@ -247,6 +250,7 @@
 //! * [`TcpHeader::to_bytes`] & [`TcpHeader::write`]
 //! * [`Icmpv4Header::to_bytes`] & [`Icmpv4Header::write`]
 //! * [`Icmpv6Header::to_bytes`] & [`Icmpv6Header::write`]
+//! * [`IgmpHeader::to_bytes`] & [`IgmpHeader::write`]
 //!
 //! # References
 //! * Darpa Internet Program Protocol Specification [RFC 791](https://tools.ietf.org/html/rfc791)
@@ -281,7 +285,10 @@
 //! * [Arp hardware identifiers definitions](https://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git/plain/include/uapi/linux/if_arp.h?id=e33c4963bf536900f917fb65a687724d5539bc21) on the Linux kernel
 //! * ["IEEE Standard for Local and metropolitan area networks-Media Access Control (MAC) Security," in IEEE Std 802.1AE-2018 (Revision of IEEE Std 802.1AE-2006) , vol., no., pp.1-239, 26 Dec. 2018, doi: 10.1109/IEEESTD.2018.8585421.](https://ieeexplore.ieee.org/stamp/stamp.jsp?tp=&arnumber=8585421&isnumber=8585420)
 //! * ["IEEE Standard for Local and metropolitan area networks--Media Access Control (MAC) Security Corrigendum 1: Tag Control Information Figure," in IEEE Std 802.1AE-2018/Cor 1-2020 (Corrigendum to IEEE Std 802.1AE-2018) , vol., no., pp.1-14, 21 July 2020, doi: 10.1109/IEEESTD.2020.9144679.](https://ieeexplore.ieee.org/stamp/stamp.jsp?tp=&arnumber=9144679&isnumber=9144678)
-
+//! * Host Extensions for IP Multicasting (IGMPv1) [RFC 1112](https://tools.ietf.org/html/rfc1112)
+//! * Internet Group Management Protocol, Version 2 [RFC 2236](https://tools.ietf.org/html/rfc2236)
+//! * Internet Group Management Protocol, Version 3 [RFC 9776](https://tools.ietf.org/html/rfc9776)
+//
 // # Reason for 'bool_comparison' disable:
 //
 // Clippy triggers triggers errors like the following if the warning stays enabled:
