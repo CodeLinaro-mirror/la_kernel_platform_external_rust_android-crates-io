@@ -28,8 +28,8 @@ jobs:
         with:
           profile: minimal
           toolchain: stable
-      - uses: actions/checkout@v4
-      - uses: actions/cache@v4
+      - uses: actions/checkout@v7
+      - uses: actions/cache@v6
         with:
           path: |
             ~/.cargo/bin/
@@ -48,8 +48,8 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    - uses: actions/checkout@v4
-    - uses: actions/cache@v4
+    - uses: actions/checkout@v7
+    - uses: actions/cache@v6
       with:
         path: |
           ~/.cargo/bin/
@@ -66,8 +66,8 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    - uses: actions/checkout@v4
-    - uses: actions/cache@v4
+    - uses: actions/checkout@v7
+    - uses: actions/cache@v6
       with:
         path: |
           ~/.cargo/bin/
