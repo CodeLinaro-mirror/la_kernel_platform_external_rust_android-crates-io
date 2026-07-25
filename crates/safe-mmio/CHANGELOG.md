@@ -1,5 +1,21 @@
 # Changelog
 
+## 0.3.1
+
+### Breaking changes
+
+- `read_unsafe` methods on `UniqueMmioPointer` and `SharedMmioPointer` are now restricted to
+  `T: Immutable + IntoBytes` in all cases. Likewise `write_unsafe` is restricted to
+  `T: Immutable + IntoBytes`. This was previously the case on `aarch64` but is now true on all
+  platforms. While this is technically a breaking change it shouldn't affect anyone using the crate
+  as intended so we have opted not to treat it as semver-breaking.
+
+### Improvements
+
+- Added `custom-mmio` feature to allow the user of the crate to override how the underlying MMIO
+  operations are done. This may be useful for faking devices for driver tests, or for virtual
+  platforms where MMIO requires co-ordination with the hypervisor.
+
 ## 0.3.0
 
 ### Breaking changes
