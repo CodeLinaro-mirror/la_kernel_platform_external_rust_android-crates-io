@@ -13,7 +13,7 @@
 edition = "2021"
 rust-version = "1.83"
 name = "pest_meta"
-version = "2.8.7"
+version = "2.8.8"
 authors = ["Dragoș Tiselice <dragostiselice@gmail.com>"]
 build = false
 exclude = ["src/grammar.pest"]
@@ -51,4 +51,4 @@ name = "pest_meta"
 path = "src/lib.rs"
 
 [dependencies.pest]
-version = "2.8.7"
+version = "2.8.8"
