@@ -13,7 +13,7 @@
 edition = "2021"
 rust-version = "1.70"
 name = "binrw_derive"
-version = "0.15.1"
+version = "0.15.2"
 authors = [
     "jam1garner <jam@jam1.re>",
     "Colin Snover <github.com@zetafleet.com>",
