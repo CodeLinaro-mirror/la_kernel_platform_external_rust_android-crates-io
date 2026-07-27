@@ -28,9 +28,11 @@
  */
 #![allow(dead_code)]
 #![cfg(feature = "neon_luts")]
-use crate::conversions::interpolator::BarycentricWeight;
+use crate::conversions::interpolator::{BarycentricWeight, load_bary_weights};
 use crate::conversions::neon::NeonAlignedF32;
+use crate::conversions::simd::aarch64::vld1q_f32;
 use crate::math::{FusedMultiplyAdd, FusedMultiplyNegAdd};
+use num_traits::AsPrimitive;
 use std::arch::aarch64::*;
 use std::ops::{Add, Mul, Sub};
 
@@ -208,7 +210,7 @@ impl<const GRID_SIZE: usize> Fetcher<NeonVector> for TetrahedralNeonFetchVector<
             + z as u32) as usize;
         let jx = unsafe { self.cube.get_unchecked(offset..) };
         NeonVector {
-            v: unsafe { vld1q_f32(jx.as_ptr() as *const f32) },
+            v: unsafe { vld1q_f32(&jx.get_unchecked(0).0) },
         }
     }
 }
@@ -225,60 +227,46 @@ impl<const GRID_SIZE: usize> Fetcher<NeonVectorDouble>
         let jx0 = unsafe { self.cube0.get_unchecked(offset..) };
         let jx1 = unsafe { self.cube1.get_unchecked(offset..) };
         NeonVectorDouble {
-            v0: unsafe { vld1q_f32(jx0.as_ptr() as *const f32) },
-            v1: unsafe { vld1q_f32(jx1.as_ptr() as *const f32) },
+            v0: unsafe { vld1q_f32(&jx0.get_unchecked(0).0) },
+            v1: unsafe { vld1q_f32(&jx1.get_unchecked(0).0) },
         }
     }
 }
 
-pub(crate) trait NeonMdInterpolation {
+pub(crate) trait NeonMdInterpolation<const BINS: usize, U: AsPrimitive<usize>> {
     fn inter3_neon(
         &self,
         cube: &[NeonAlignedF32],
-        in_r: usize,
-        in_g: usize,
-        in_b: usize,
-        lut: &[BarycentricWeight<f32>],
+        in_r: U,
+        in_g: U,
+        in_b: U,
+        lut: &[BarycentricWeight<f32>; BINS],
     ) -> NeonVector;
 }
 
-pub(crate) trait NeonMdInterpolationDouble {
+pub(crate) trait NeonMdInterpolationDouble<const BINS: usize, U: AsPrimitive<usize>> {
     fn inter3_neon(
         &self,
         table0: &[NeonAlignedF32],
         table1: &[NeonAlignedF32],
-        in_r: usize,
-        in_g: usize,
-        in_b: usize,
-        lut: &[BarycentricWeight<f32>],
+        in_r: U,
+        in_g: U,
+        in_b: U,
+        lut: &[BarycentricWeight<f32>; BINS],
     ) -> (NeonVector, NeonVector);
 }
 
 impl<const GRID_SIZE: usize> TetrahedralNeon<GRID_SIZE> {
     #[inline]
-    fn interpolate(
+    fn interpolate<U: AsPrimitive<usize>, const BINS: usize>(
         &self,
-        in_r: usize,
-        in_g: usize,
-        in_b: usize,
-        lut: &[BarycentricWeight<f32>],
+        in_r: U,
+        in_g: U,
+        in_b: U,
+        lut: &[BarycentricWeight<f32>; BINS],
         r: impl Fetcher<NeonVector>,
     ) -> NeonVector {
-        let lut_r = unsafe { *lut.get_unchecked(in_r) };
-        let lut_g = unsafe { *lut.get_unchecked(in_g) };
-        let lut_b = unsafe { *lut.get_unchecked(in_b) };
-
-        let x: i32 = lut_r.x;
-        let y: i32 = lut_g.x;
-        let z: i32 = lut_b.x;
-
-        let x_n: i32 = lut_r.x_n;
-        let y_n: i32 = lut_g.x_n;
-        let z_n: i32 = lut_b.x_n;
-
-        let rx = lut_r.w;
-        let ry = lut_g.w;
-        let rz = lut_b.w;
+        let (x, y, z, x_n, y_n, z_n, rx, ry, rz) = load_bary_weights(lut, in_r, in_g, in_b);
 
         let c0 = r.fetch(x, y, z);
 
@@ -326,29 +314,15 @@ impl<const GRID_SIZE: usize> TetrahedralNeon<GRID_SIZE> {
 
 impl<const GRID_SIZE: usize> TetrahedralNeonDouble<GRID_SIZE> {
     #[inline]
-    fn interpolate(
+    fn interpolate<U: AsPrimitive<usize>, const BINS: usize>(
         &self,
-        in_r: usize,
-        in_g: usize,
-        in_b: usize,
-        lut: &[BarycentricWeight<f32>],
+        in_r: U,
+        in_g: U,
+        in_b: U,
+        lut: &[BarycentricWeight<f32>; BINS],
         r: impl Fetcher<NeonVectorDouble>,
     ) -> (NeonVector, NeonVector) {
-        let lut_r = unsafe { *lut.get_unchecked(in_r) };
-        let lut_g = unsafe { *lut.get_unchecked(in_g) };
-        let lut_b = unsafe { *lut.get_unchecked(in_b) };
-
-        let x: i32 = lut_r.x;
-        let y: i32 = lut_g.x;
-        let z: i32 = lut_b.x;
-
-        let x_n: i32 = lut_r.x_n;
-        let y_n: i32 = lut_g.x_n;
-        let z_n: i32 = lut_b.x_n;
-
-        let rx = lut_r.w;
-        let ry = lut_g.w;
-        let rz = lut_b.w;
+        let (x, y, z, x_n, y_n, z_n, rx, ry, rz) = load_bary_weights(lut, in_r, in_g, in_b);
 
         let c0 = r.fetch(x, y, z);
 
@@ -396,14 +370,16 @@ impl<const GRID_SIZE: usize> TetrahedralNeonDouble<GRID_SIZE> {
 
 macro_rules! define_md_inter_neon {
     ($interpolator: ident) => {
-        impl<const GRID_SIZE: usize> NeonMdInterpolation for $interpolator<GRID_SIZE> {
+        impl<const GRID_SIZE: usize, const BINS: usize, U: AsPrimitive<usize>>
+            NeonMdInterpolation<BINS, U> for $interpolator<GRID_SIZE>
+        {
             fn inter3_neon(
                 &self,
                 cube: &[NeonAlignedF32],
-                in_r: usize,
-                in_g: usize,
-                in_b: usize,
-                lut: &[BarycentricWeight<f32>],
+                in_r: U,
+                in_g: U,
+                in_b: U,
+                lut: &[BarycentricWeight<f32>; BINS],
             ) -> NeonVector {
                 self.interpolate(
                     in_r,
@@ -419,15 +395,17 @@ macro_rules! define_md_inter_neon {
 
 macro_rules! define_md_inter_neon_d {
     ($interpolator: ident) => {
-        impl<const GRID_SIZE: usize> NeonMdInterpolationDouble for $interpolator<GRID_SIZE> {
+        impl<const GRID_SIZE: usize, const BINS: usize, U: AsPrimitive<usize>>
+            NeonMdInterpolationDouble<BINS, U> for $interpolator<GRID_SIZE>
+        {
             fn inter3_neon(
                 &self,
                 table0: &[NeonAlignedF32],
                 table1: &[NeonAlignedF32],
-                in_r: usize,
-                in_g: usize,
-                in_b: usize,
-                lut: &[BarycentricWeight<f32>],
+                in_r: U,
+                in_g: U,
+                in_b: U,
+                lut: &[BarycentricWeight<f32>; BINS],
             ) -> (NeonVector, NeonVector) {
                 self.interpolate(
                     in_r,
@@ -455,29 +433,15 @@ define_md_inter_neon_d!(TrilinearNeonDouble);
 
 impl<const GRID_SIZE: usize> PyramidalNeon<GRID_SIZE> {
     #[inline]
-    fn interpolate(
+    fn interpolate<U: AsPrimitive<usize>, const BINS: usize>(
         &self,
-        in_r: usize,
-        in_g: usize,
-        in_b: usize,
-        lut: &[BarycentricWeight<f32>],
+        in_r: U,
+        in_g: U,
+        in_b: U,
+        lut: &[BarycentricWeight<f32>; BINS],
         r: impl Fetcher<NeonVector>,
     ) -> NeonVector {
-        let lut_r = unsafe { *lut.get_unchecked(in_r) };
-        let lut_g = unsafe { *lut.get_unchecked(in_g) };
-        let lut_b = unsafe { *lut.get_unchecked(in_b) };
-
-        let x: i32 = lut_r.x;
-        let y: i32 = lut_g.x;
-        let z: i32 = lut_b.x;
-
-        let x_n: i32 = lut_r.x_n;
-        let y_n: i32 = lut_g.x_n;
-        let z_n: i32 = lut_b.x_n;
-
-        let dr = lut_r.w;
-        let dg = lut_g.w;
-        let db = lut_b.w;
+        let (x, y, z, x_n, y_n, z_n, dr, dg, db) = load_bary_weights(lut, in_r, in_g, in_b);
 
         let c0 = r.fetch(x, y, z);
 
@@ -532,29 +496,15 @@ impl<const GRID_SIZE: usize> PyramidalNeon<GRID_SIZE> {
 
 impl<const GRID_SIZE: usize> PyramidalNeonDouble<GRID_SIZE> {
     #[inline]
-    fn interpolate(
+    fn interpolate<U: AsPrimitive<usize>, const BINS: usize>(
         &self,
-        in_r: usize,
-        in_g: usize,
-        in_b: usize,
-        lut: &[BarycentricWeight<f32>],
+        in_r: U,
+        in_g: U,
+        in_b: U,
+        lut: &[BarycentricWeight<f32>; BINS],
         r: impl Fetcher<NeonVectorDouble>,
     ) -> (NeonVector, NeonVector) {
-        let lut_r = unsafe { *lut.get_unchecked(in_r) };
-        let lut_g = unsafe { *lut.get_unchecked(in_g) };
-        let lut_b = unsafe { *lut.get_unchecked(in_b) };
-
-        let x: i32 = lut_r.x;
-        let y: i32 = lut_g.x;
-        let z: i32 = lut_b.x;
-
-        let x_n: i32 = lut_r.x_n;
-        let y_n: i32 = lut_g.x_n;
-        let z_n: i32 = lut_b.x_n;
-
-        let dr = lut_r.w;
-        let dg = lut_g.w;
-        let db = lut_b.w;
+        let (x, y, z, x_n, y_n, z_n, dr, dg, db) = load_bary_weights(lut, in_r, in_g, in_b);
 
         let c0 = r.fetch(x, y, z);
 
@@ -619,29 +569,15 @@ impl<const GRID_SIZE: usize> PyramidalNeonDouble<GRID_SIZE> {
 
 impl<const GRID_SIZE: usize> PrismaticNeon<GRID_SIZE> {
     #[inline]
-    fn interpolate(
+    fn interpolate<U: AsPrimitive<usize>, const BINS: usize>(
         &self,
-        in_r: usize,
-        in_g: usize,
-        in_b: usize,
-        lut: &[BarycentricWeight<f32>],
+        in_r: U,
+        in_g: U,
+        in_b: U,
+        lut: &[BarycentricWeight<f32>; BINS],
         r: impl Fetcher<NeonVector>,
     ) -> NeonVector {
-        let lut_r = unsafe { *lut.get_unchecked(in_r) };
-        let lut_g = unsafe { *lut.get_unchecked(in_g) };
-        let lut_b = unsafe { *lut.get_unchecked(in_b) };
-
-        let x: i32 = lut_r.x;
-        let y: i32 = lut_g.x;
-        let z: i32 = lut_b.x;
-
-        let x_n: i32 = lut_r.x_n;
-        let y_n: i32 = lut_g.x_n;
-        let z_n: i32 = lut_b.x_n;
-
-        let dr = lut_r.w;
-        let dg = lut_g.w;
-        let db = lut_b.w;
+        let (x, y, z, x_n, y_n, z_n, dr, dg, db) = load_bary_weights(lut, in_r, in_g, in_b);
 
         let c0 = r.fetch(x, y, z);
 
@@ -687,29 +623,15 @@ impl<const GRID_SIZE: usize> PrismaticNeon<GRID_SIZE> {
 
 impl<const GRID_SIZE: usize> PrismaticNeonDouble<GRID_SIZE> {
     #[inline]
-    fn interpolate(
+    fn interpolate<U: AsPrimitive<usize>, const BINS: usize>(
         &self,
-        in_r: usize,
-        in_g: usize,
-        in_b: usize,
-        lut: &[BarycentricWeight<f32>],
+        in_r: U,
+        in_g: U,
+        in_b: U,
+        lut: &[BarycentricWeight<f32>; BINS],
         rv: impl Fetcher<NeonVectorDouble>,
     ) -> (NeonVector, NeonVector) {
-        let lut_r = unsafe { *lut.get_unchecked(in_r) };
-        let lut_g = unsafe { *lut.get_unchecked(in_g) };
-        let lut_b = unsafe { *lut.get_unchecked(in_b) };
-
-        let x: i32 = lut_r.x;
-        let y: i32 = lut_g.x;
-        let z: i32 = lut_b.x;
-
-        let x_n: i32 = lut_r.x_n;
-        let y_n: i32 = lut_g.x_n;
-        let z_n: i32 = lut_b.x_n;
-
-        let dr = lut_r.w;
-        let dg = lut_g.w;
-        let db = lut_b.w;
+        let (x, y, z, x_n, y_n, z_n, dr, dg, db) = load_bary_weights(lut, in_r, in_g, in_b);
 
         let c0 = rv.fetch(x, y, z);
 
@@ -761,29 +683,15 @@ impl<const GRID_SIZE: usize> PrismaticNeonDouble<GRID_SIZE> {
 
 impl<const GRID_SIZE: usize> TrilinearNeonDouble<GRID_SIZE> {
     #[inline]
-    fn interpolate(
+    fn interpolate<U: AsPrimitive<usize>, const BINS: usize>(
         &self,
-        in_r: usize,
-        in_g: usize,
-        in_b: usize,
-        lut: &[BarycentricWeight<f32>],
+        in_r: U,
+        in_g: U,
+        in_b: U,
+        lut: &[BarycentricWeight<f32>; BINS],
         r: impl Fetcher<NeonVectorDouble>,
     ) -> (NeonVector, NeonVector) {
-        let lut_r = unsafe { *lut.get_unchecked(in_r) };
-        let lut_g = unsafe { *lut.get_unchecked(in_g) };
-        let lut_b = unsafe { *lut.get_unchecked(in_b) };
-
-        let x: i32 = lut_r.x;
-        let y: i32 = lut_g.x;
-        let z: i32 = lut_b.x;
-
-        let x_n: i32 = lut_r.x_n;
-        let y_n: i32 = lut_g.x_n;
-        let z_n: i32 = lut_b.x_n;
-
-        let dr = lut_r.w;
-        let dg = lut_g.w;
-        let db = lut_b.w;
+        let (x, y, z, x_n, y_n, z_n, dr, dg, db) = load_bary_weights(lut, in_r, in_g, in_b);
 
         let w0 = NeonVector::from(dr);
         let w1 = NeonVector::from(dg);
@@ -818,29 +726,15 @@ impl<const GRID_SIZE: usize> TrilinearNeonDouble<GRID_SIZE> {
 
 impl<const GRID_SIZE: usize> TrilinearNeon<GRID_SIZE> {
     #[inline]
-    fn interpolate(
+    fn interpolate<U: AsPrimitive<usize>, const BINS: usize>(
         &self,
-        in_r: usize,
-        in_g: usize,
-        in_b: usize,
-        lut: &[BarycentricWeight<f32>],
+        in_r: U,
+        in_g: U,
+        in_b: U,
+        lut: &[BarycentricWeight<f32>; BINS],
         r: impl Fetcher<NeonVector>,
     ) -> NeonVector {
-        let lut_r = unsafe { *lut.get_unchecked(in_r) };
-        let lut_g = unsafe { *lut.get_unchecked(in_g) };
-        let lut_b = unsafe { *lut.get_unchecked(in_b) };
-
-        let x: i32 = lut_r.x;
-        let y: i32 = lut_g.x;
-        let z: i32 = lut_b.x;
-
-        let x_n: i32 = lut_r.x_n;
-        let y_n: i32 = lut_g.x_n;
-        let z_n: i32 = lut_b.x_n;
-
-        let dr = lut_r.w;
-        let dg = lut_g.w;
-        let db = lut_b.w;
+        let (x, y, z, x_n, y_n, z_n, dr, dg, db) = load_bary_weights(lut, in_r, in_g, in_b);
 
         let w0 = NeonVector::from(dr);
         let w1 = NeonVector::from(dg);

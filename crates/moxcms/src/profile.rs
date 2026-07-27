@@ -26,7 +26,6 @@
  * // OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-use crate::chad::BRADFORD_D;
 use crate::cicp::{
     CicpColorPrimaries, ColorPrimaries, MatrixCoefficients, TransferCharacteristics,
 };
@@ -1006,7 +1005,7 @@ impl ColorProfile {
             ..Default::default()
         };
         let color_space = profile.color_space;
-        for tag in tags_slice.chunks_exact(TAG_SIZE) {
+        for tag in tags_slice.as_chunks::<TAG_SIZE>().0.iter() {
             let tag_value = u32::from_be_bytes([tag[0], tag[1], tag[2], tag[3]]);
             let tag_entry = u32::from_be_bytes([tag[4], tag[5], tag[6], tag[7]]);
             let tag_size = u32::from_be_bytes([tag[8], tag[9], tag[10], tag[11]]) as usize;
@@ -1205,7 +1204,7 @@ impl ColorProfile {
     ///
     /// To work on `const` context this method does have restrictions.
     /// If invalid values were provided it may return invalid matrix or NaNs.
-    pub const fn colorants_matrix(white_point: XyY, primaries: ColorPrimaries) -> Matrix3d {
+    pub fn colorants_matrix(white_point: XyY, primaries: ColorPrimaries) -> Matrix3d {
         let red_xyz = primaries.red.to_xyzd();
         let green_xyz = primaries.green.to_xyzd();
         let blue_xyz = primaries.blue.to_xyzd();
@@ -1223,13 +1222,13 @@ impl ColorProfile {
 
     /// Updates RGB triple colorimetry from 3 [Chromaticity] and white point
     /// This will nullify CICP.
-    pub const fn update_rgb_colorimetry(&mut self, white_point: XyY, primaries: ColorPrimaries) {
+    pub fn update_rgb_colorimetry(&mut self, white_point: XyY, primaries: ColorPrimaries) {
         self.cicp = None;
         let red_xyz = primaries.red.to_xyzd();
         let green_xyz = primaries.green.to_xyzd();
         let blue_xyz = primaries.blue.to_xyzd();
 
-        self.chromatic_adaptation = Some(BRADFORD_D);
+        self.chromatic_adaptation = Some(Matrix3d::bradford());
         self.update_rgb_colorimetry_triplet(white_point, red_xyz, green_xyz, blue_xyz)
     }
 
@@ -1239,7 +1238,7 @@ impl ColorProfile {
     /// If invalid values were provided it may return invalid matrix or NaNs.
     ///
     /// This will void CICP tag.
-    pub const fn update_rgb_colorimetry_triplet(
+    pub fn update_rgb_colorimetry_triplet(
         &mut self,
         white_point: XyY,
         red_xyz: Xyzd,
@@ -1301,7 +1300,7 @@ impl ColorProfile {
         false
     }
 
-    pub const fn rgb_to_xyz(xyz_matrix: Matrix3f, wp: Xyz) -> Matrix3f {
+    pub fn rgb_to_xyz(xyz_matrix: Matrix3f, wp: Xyz) -> Matrix3f {
         let xyz_inverse = xyz_matrix.inverse();
         let s = xyz_inverse.mul_vector(wp.to_vector());
         let mut v = xyz_matrix.mul_row_vector::<0>(s);
@@ -1311,7 +1310,7 @@ impl ColorProfile {
 
     /// If Primaries is invalid will return invalid matrix on const context.
     /// This assumes not transposed matrix and returns not transposed matrix.
-    pub const fn rgb_to_xyz_d(xyz_matrix: Matrix3d, wp: Xyzd) -> Matrix3d {
+    pub fn rgb_to_xyz_d(xyz_matrix: Matrix3d, wp: Xyzd) -> Matrix3d {
         let xyz_inverse = xyz_matrix.inverse();
         let s = xyz_inverse.mul_vector(wp.to_vector_d());
         let mut v = xyz_matrix.mul_row_vector::<0>(s);
@@ -1445,18 +1444,18 @@ mod tests {
     #[test]
     fn test_rgb_to_xyz_matrix_equals_colorant_matrix() {
         // Test with SM245B.icc (D65 colorants, no CHAD tag)
-        if let Ok(icc_data) = fs::read("./assets/SM245B.icc") {
-            if let Ok(profile) = ColorProfile::new_from_slice(&icc_data) {
-                let rgb_to_xyz = profile.rgb_to_xyz_matrix();
-                let colorants = profile.colorant_matrix();
+        if let Ok(icc_data) = fs::read("./assets/SM245B.icc")
+            && let Ok(profile) = ColorProfile::new_from_slice(&icc_data)
+        {
+            let rgb_to_xyz = profile.rgb_to_xyz_matrix();
+            let colorants = profile.colorant_matrix();
 
-                for i in 0..3 {
-                    for j in 0..3 {
-                        assert!(
-                            (rgb_to_xyz.v[i][j] - colorants.v[i][j]).abs() < 1e-10,
-                            "rgb_to_xyz_matrix should equal colorant_matrix at [{i}][{j}]"
-                        );
-                    }
+            for i in 0..3 {
+                for j in 0..3 {
+                    assert!(
+                        (rgb_to_xyz.v[i][j] - colorants.v[i][j]).abs() < 1e-10,
+                        "rgb_to_xyz_matrix should equal colorant_matrix at [{i}][{j}]"
+                    );
                 }
             }
         }
