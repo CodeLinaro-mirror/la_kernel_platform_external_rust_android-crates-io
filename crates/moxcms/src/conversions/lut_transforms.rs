@@ -50,7 +50,7 @@ impl InPlaceStage for MatrixStage {
     fn transform(&self, dst: &mut [f32]) -> Result<(), CmsError> {
         if !self.matrices.is_empty() {
             let m = self.matrices[0];
-            for dst in dst.chunks_exact_mut(3) {
+            for dst in dst.as_chunks_mut::<3>().0.iter_mut() {
                 let x = dst[0];
                 let y = dst[1];
                 let z = dst[2];
@@ -61,7 +61,7 @@ impl InPlaceStage for MatrixStage {
         }
 
         for m in self.matrices.iter().skip(1) {
-            for dst in dst.chunks_exact_mut(3) {
+            for dst in dst.as_chunks_mut::<3>().0.iter_mut() {
                 let x = dst[0];
                 let y = dst[1];
                 let z = dst[2];
@@ -119,7 +119,7 @@ pub(crate) trait Lut4x3Factory {
 fn pcs_lab_v4_to_v2(profile: &ColorProfile, lut: &mut [f32]) {
     if profile.pcs == DataColorSpace::Lab
         && profile.version_internal < ProfileVersion::V4_0
-        && lut.len() % 3 == 0
+        && lut.len().is_multiple_of(3)
     {
         assert_eq!(
             lut.len() % 3,
@@ -142,7 +142,7 @@ fn pcs_lab_v4_to_v2(profile: &ColorProfile, lut: &mut [f32]) {
 fn pcs_lab_v2_to_v4(profile: &ColorProfile, lut: &mut [f32]) {
     if profile.pcs == DataColorSpace::Lab
         && profile.version_internal < ProfileVersion::V4_0
-        && lut.len() % 3 == 0
+        && lut.len().is_multiple_of(3)
     {
         assert_eq!(
             lut.len() % 3,
@@ -296,6 +296,7 @@ make_transform_3x3_fn!(make_transformer_3x3_sse41, SseLut3x3Factory);
 use crate::conversions::LutBarycentricReduction;
 #[cfg(all(target_arch = "x86_64", feature = "avx_luts"))]
 use crate::conversions::avx::AvxLut4x3Factory;
+use crate::conversions::bpc::{TransformDirection, compensate_bpc_in_lut};
 #[cfg(feature = "any_to_any")]
 use crate::conversions::katana::{
     Katana, KatanaDefaultIntermediate, KatanaInitialStage, KatanaPostFinalizationStage,
@@ -360,6 +361,15 @@ where
     (): LutBarycentricReduction<T, u8>,
     (): LutBarycentricReduction<T, u16>,
 {
+    let apply_bpc_scaling = |lut: &mut [f32]| {
+        if let (Some(src_bp), Some(dest_bp)) = (
+            source.detect_black_point(options.rendering_intent, TransformDirection::DeviceToPcs),
+            dest.detect_black_point(options.rendering_intent, TransformDirection::PcsToDevice),
+        ) {
+            compensate_bpc_in_lut(lut, src_bp, dest_bp);
+        }
+    };
+
     if (source.color_space == DataColorSpace::Cmyk || source.color_space == DataColorSpace::Color4)
         && (dest.color_space == DataColorSpace::Rgb || dest.color_space == DataColorSpace::Lab)
     {
@@ -469,27 +479,16 @@ where
 
         pcs_lab_v2_to_v4(source, &mut lut);
 
-        if source.pcs == DataColorSpace::Lab {
+        if source.pcs == DataColorSpace::Xyz && dest.pcs == DataColorSpace::Lab {
+            apply_bpc_scaling(&mut lut);
+            let xyz_to_lab = StageXyzToLab::default();
+            xyz_to_lab.transform(&mut lut)?;
+        } else if source.pcs == DataColorSpace::Lab && dest.pcs == DataColorSpace::Xyz {
             let lab_to_xyz_stage = StageLabToXyz::default();
             lab_to_xyz_stage.transform(&mut lut)?;
-        }
-
-        // if source.color_space == DataColorSpace::Cmyk
-        //     && (options.rendering_intent == RenderingIntent::Perceptual
-        //         || options.rendering_intent == RenderingIntent::RelativeColorimetric)
-        //     && options.black_point_compensation
-        // {
-        //     if let (Some(src_bp), Some(dst_bp)) = (
-        //         source.detect_black_point::<GRID_SIZE>(&lut),
-        //         dest.detect_black_point::<GRID_SIZE>(&lut),
-        //     ) {
-        //         compensate_bpc_in_lut(&mut lut, src_bp, dst_bp);
-        //     }
-        // }
-
-        if dest.pcs == DataColorSpace::Lab {
-            let lab_to_xyz_stage = StageXyzToLab::default();
-            lab_to_xyz_stage.transform(&mut lut)?;
+            apply_bpc_scaling(&mut lut);
+        } else {
+            apply_bpc_scaling(&mut lut);
         }
 
         pcs_lab_v4_to_v2(dest, &mut lut);
@@ -585,11 +584,15 @@ where
         pcs_lab_v2_to_v4(source, &mut lut);
 
         if source.pcs == DataColorSpace::Xyz && dest.pcs == DataColorSpace::Lab {
+            apply_bpc_scaling(&mut lut);
             let xyz_to_lab = StageXyzToLab::default();
             xyz_to_lab.transform(&mut lut)?;
         } else if source.pcs == DataColorSpace::Lab && dest.pcs == DataColorSpace::Xyz {
             let lab_to_xyz_stage = StageLabToXyz::default();
             lab_to_xyz_stage.transform(&mut lut)?;
+            apply_bpc_scaling(&mut lut);
+        } else {
+            apply_bpc_scaling(&mut lut);
         }
 
         pcs_lab_v4_to_v2(dest, &mut lut);
@@ -743,11 +746,15 @@ where
         pcs_lab_v2_to_v4(source, &mut lut);
 
         if source.pcs == DataColorSpace::Xyz && dest.pcs == DataColorSpace::Lab {
+            apply_bpc_scaling(&mut lut);
             let xyz_to_lab = StageXyzToLab::default();
             xyz_to_lab.transform(&mut lut)?;
         } else if source.pcs == DataColorSpace::Lab && dest.pcs == DataColorSpace::Xyz {
             let lab_to_xyz_stage = StageLabToXyz::default();
             lab_to_xyz_stage.transform(&mut lut)?;
+            apply_bpc_scaling(&mut lut);
+        } else {
+            apply_bpc_scaling(&mut lut);
         }
 
         pcs_lab_v4_to_v2(dest, &mut lut);

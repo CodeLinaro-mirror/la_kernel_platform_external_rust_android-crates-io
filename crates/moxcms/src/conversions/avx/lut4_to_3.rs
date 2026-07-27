@@ -76,23 +76,27 @@ where
     u32: AsPrimitive<T>,
     (): LutBarycentricReduction<T, U>,
 {
-    #[allow(unused_unsafe)]
-    #[target_feature(enable = "avx2", enable = "fma")]
-    unsafe fn transform_chunk(
+    #[target_feature(enable = "avx2,fma")]
+    fn transform_chunk(
         &self,
         src: &[T],
         dst: &mut [T],
-        interpolator: Box<dyn AvxMdInterpolationDouble + Send + Sync>,
+        interpolator: Box<dyn AvxMdInterpolationDouble<BINS, U> + Send + Sync>,
     ) {
         let cn = Layout::from(LAYOUT);
         let channels = cn.channels();
         let grid_size = GRID_SIZE as i32;
         let grid_size3 = grid_size * grid_size * grid_size;
 
-        let value_scale = unsafe { _mm_set1_ps(((1 << BIT_DEPTH) - 1) as f32) };
+        let value_scale = _mm_set1_ps(((1 << BIT_DEPTH) - 1) as f32);
         let max_value = ((1 << BIT_DEPTH) - 1u32).as_();
 
-        for (src, dst) in src.chunks_exact(4).zip(dst.chunks_exact_mut(channels)) {
+        for (src, dst) in src
+            .as_chunks::<4>()
+            .0
+            .iter()
+            .zip(dst.chunks_exact_mut(channels))
+        {
             let c = <() as LutBarycentricReduction<T, U>>::reduce::<BIT_DEPTH, BARYCENTRIC_BINS>(
                 src[0],
             );
@@ -115,43 +119,32 @@ where
             let table1 = &self.lut[(w * grid_size3) as usize..];
             let table2 = &self.lut[(w_n * grid_size3) as usize..];
 
-            let v = interpolator.inter3_sse(
-                table1,
-                table2,
-                c.as_(),
-                m.as_(),
-                y.as_(),
-                self.weights.as_slice(),
-            );
+            let v = interpolator.inter3_sse(table1, table2, c, m, y, &self.weights);
             let (a0, b0) = (v.0.v, v.1.v);
 
             if T::FINITE {
-                unsafe {
-                    let t0 = _mm_set1_ps(t);
-                    let hp = _mm_fnmadd_ps(a0, t0, a0);
-                    let mut v = _mm_fmadd_ps(b0, t0, hp);
-                    v = _mm_max_ps(v, _mm_setzero_ps());
-                    v = _mm_mul_ps(v, value_scale);
-                    v = _mm_min_ps(v, value_scale);
-                    let jvz = _mm_cvtps_epi32(v);
+                let t0 = _mm_set1_ps(t);
+                let hp = _mm_fnmadd_ps(a0, t0, a0);
+                let mut v = _mm_fmadd_ps(b0, t0, hp);
+                v = _mm_max_ps(v, _mm_setzero_ps());
+                v = _mm_mul_ps(v, value_scale);
+                v = _mm_min_ps(v, value_scale);
+                let jvz = _mm_cvtps_epi32(v);
 
-                    let x = _mm_extract_epi32::<0>(jvz);
-                    let y = _mm_extract_epi32::<1>(jvz);
-                    let z = _mm_extract_epi32::<2>(jvz);
+                let x = _mm_extract_epi32::<0>(jvz);
+                let y = _mm_extract_epi32::<1>(jvz);
+                let z = _mm_extract_epi32::<2>(jvz);
 
-                    dst[cn.r_i()] = (x as u32).as_();
-                    dst[cn.g_i()] = (y as u32).as_();
-                    dst[cn.b_i()] = (z as u32).as_();
-                }
+                dst[cn.r_i()] = (x as u32).as_();
+                dst[cn.g_i()] = (y as u32).as_();
+                dst[cn.b_i()] = (z as u32).as_();
             } else {
-                unsafe {
-                    let t0 = _mm_set1_ps(t);
-                    let hp = _mm_fnmadd_ps(a0, t0, a0);
-                    let v = _mm_fmadd_ps(b0, t0, hp);
-                    dst[cn.r_i()] = f32::from_bits(_mm_extract_ps::<0>(v) as u32).as_();
-                    dst[cn.g_i()] = f32::from_bits(_mm_extract_ps::<1>(v) as u32).as_();
-                    dst[cn.b_i()] = f32::from_bits(_mm_extract_ps::<2>(v) as u32).as_();
-                }
+                let t0 = _mm_set1_ps(t);
+                let hp = _mm_fnmadd_ps(a0, t0, a0);
+                let v = _mm_fmadd_ps(b0, t0, hp);
+                dst[cn.r_i()] = f32::from_bits(_mm_extract_ps::<0>(v) as u32).as_();
+                dst[cn.g_i()] = f32::from_bits(_mm_extract_ps::<1>(v) as u32).as_();
+                dst[cn.b_i()] = f32::from_bits(_mm_extract_ps::<2>(v) as u32).as_();
             }
             if channels == 4 {
                 dst[cn.a_i()] = max_value;
@@ -178,10 +171,10 @@ where
     fn transform(&self, src: &[T], dst: &mut [T]) -> Result<(), CmsError> {
         let cn = Layout::from(LAYOUT);
         let channels = cn.channels();
-        if src.len() % 4 != 0 {
+        if !src.len().is_multiple_of(4) {
             return Err(CmsError::LaneMultipleOfChannels);
         }
-        if dst.len() % channels != 0 {
+        if !dst.len().is_multiple_of(channels) {
             return Err(CmsError::LaneMultipleOfChannels);
         }
         let src_chunks = src.len() / 4;
@@ -264,7 +257,9 @@ impl Lut4x3Factory for AvxLut4x3Factory {
                 ((1i32 << 14i32) - 1) as f32
             };
             let lut = lut
-                .chunks_exact(3)
+                .as_chunks::<3>()
+                .0
+                .iter()
                 .map(|x| {
                     AvxAlignedI16([
                         (x[0] * q).round() as i16,
@@ -325,7 +320,9 @@ impl Lut4x3Factory for AvxLut4x3Factory {
             "Internal configuration error, this feature might not be called without `fma` feature"
         );
         let lut = lut
-            .chunks_exact(3)
+            .as_chunks::<3>()
+            .0
+            .iter()
             .map(|x| SseAlignedF32([x[0], x[1], x[2], 0f32]))
             .collect::<Vec<_>>();
         match options.barycentric_weight_scale {

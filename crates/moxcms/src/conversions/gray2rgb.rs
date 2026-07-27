@@ -202,10 +202,10 @@ where
         if src.len() / src_channels != dst.len() / dst_channels {
             return Err(CmsError::LaneSizeMismatch);
         }
-        if src.len() % src_channels != 0 {
+        if !src.len().is_multiple_of(src_channels) {
             return Err(CmsError::LaneMultipleOfChannels);
         }
-        if dst.len() % dst_channels != 0 {
+        if !dst.len().is_multiple_of(dst_channels) {
             return Err(CmsError::LaneMultipleOfChannels);
         }
 
@@ -254,7 +254,7 @@ where
         let src_cn = Layout::from(SRC_LAYOUT);
         let src_channels = src_cn.channels();
 
-        if in_out.len() % src_channels != 0 {
+        if !in_out.len().is_multiple_of(src_channels) {
             return Err(CmsError::LaneMultipleOfChannels);
         }
 
@@ -433,10 +433,10 @@ where
         if src.len() / src_channels != dst.len() / dst_channels {
             return Err(CmsError::LaneSizeMismatch);
         }
-        if src.len() % src_channels != 0 {
+        if !src.len().is_multiple_of(src_channels) {
             return Err(CmsError::LaneMultipleOfChannels);
         }
-        if dst.len() % dst_channels != 0 {
+        if !dst.len().is_multiple_of(dst_channels) {
             return Err(CmsError::LaneMultipleOfChannels);
         }
 
@@ -492,9 +492,9 @@ mod tests {
                 let transform = gray
                     .create_transform_8bit(src, &srgb, dst, TransformOptions::default())
                     .unwrap();
-                let mut in_px = vec![0u8; src.channels()];
+                let in_px = vec![0u8; src.channels()];
                 let mut out_px = vec![0u8; dst.channels()];
-                transform.transform(&mut in_px, &mut out_px).unwrap();
+                transform.transform(&in_px, &mut out_px).unwrap();
             }
         }
     }

@@ -82,7 +82,10 @@ where
 
         let value_scale = ((1 << BIT_DEPTH) - 1) as f32;
 
-        for (src, dst) in src.chunks_exact(channels).zip(dst.chunks_exact_mut(4)) {
+        for (src, dst) in src
+            .chunks_exact(channels)
+            .zip(dst.as_chunks_mut::<4>().0.iter_mut())
+        {
             let x = <() as LutBarycentricReduction<T, U>>::reduce::<BIT_DEPTH, BARYCENTRIC_BINS>(
                 src[cn.r_i()],
             );
@@ -133,10 +136,10 @@ where
     fn transform(&self, src: &[T], dst: &mut [T]) -> Result<(), CmsError> {
         let cn = Layout::from(LAYOUT);
         let channels = cn.channels();
-        if src.len() % channels != 0 {
+        if !src.len().is_multiple_of(channels) {
             return Err(CmsError::LaneMultipleOfChannels);
         }
-        if dst.len() % 4 != 0 {
+        if !dst.len().is_multiple_of(4) {
             return Err(CmsError::LaneMultipleOfChannels);
         }
         let src_chunks = src.len() / channels;

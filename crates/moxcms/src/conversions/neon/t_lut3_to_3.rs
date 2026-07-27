@@ -83,7 +83,7 @@ where
         &self,
         src: &[T],
         dst: &mut [T],
-        interpolator: Box<dyn NeonMdInterpolation + Send + Sync>,
+        interpolator: Box<dyn NeonMdInterpolation<BINS, U> + Send + Sync>,
     ) {
         unsafe {
             let src_cn = Layout::from(SRC_LAYOUT);
@@ -115,13 +115,7 @@ where
                     max_value
                 };
 
-                let v = interpolator.inter3_neon(
-                    &self.lut,
-                    x.as_(),
-                    y.as_(),
-                    z.as_(),
-                    self.weights.as_slice(),
-                );
+                let v = interpolator.inter3_neon(&self.lut, x, y, z, &self.weights);
                 if T::FINITE {
                     let mut r = vfmaq_f32(vdupq_n_f32(0.5f32), v.v, value_scale);
                     r = vminq_f32(r, value_scale);
@@ -174,10 +168,10 @@ where
 
         let dst_cn = Layout::from(DST_LAYOUT);
         let dst_channels = dst_cn.channels();
-        if src.len() % src_channels != 0 {
+        if !src.len().is_multiple_of(src_channels) {
             return Err(CmsError::LaneMultipleOfChannels);
         }
-        if dst.len() % dst_channels != 0 {
+        if !dst.len().is_multiple_of(dst_channels) {
             return Err(CmsError::LaneMultipleOfChannels);
         }
         let src_chunks = src.len() / src_channels;
@@ -246,7 +240,9 @@ impl Lut3x3Factory for NeonLut3x3Factory {
                 ((1i32 << 14i32) - 1) as f32
             };
             let lut = lut
-                .chunks_exact(3)
+                .as_chunks::<3>()
+                .0
+                .iter()
                 .map(|x| {
                     NeonAlignedI16x4([
                         (x[0] * q).round() as i16,
@@ -306,7 +302,9 @@ impl Lut3x3Factory for NeonLut3x3Factory {
             };
         }
         let lut = lut
-            .chunks_exact(3)
+            .as_chunks::<3>()
+            .0
+            .iter()
             .map(|x| NeonAlignedF32([x[0], x[1], x[2], 0f32]))
             .collect::<Vec<_>>();
         match options.barycentric_weight_scale {

@@ -529,7 +529,7 @@ dependencies = [
  "mockall",
  "mockall_derive",
  "mockall_double",
- "moxcms",
+ "moxcms 0.9.0",
  "named-lock",
  "neli",
  "netlink-packet-core",
@@ -5215,7 +5215,7 @@ dependencies = [
  "exr",
  "gif 0.14.2",
  "image-webp",
- "moxcms",
+ "moxcms 0.8.1",
  "num-traits",
  "png 0.18.1",
  "qoi",
@@ -6302,6 +6302,16 @@ name = "moxcms"
 version = "0.8.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "bb85c154ba489f01b25c0d36ae69a87e4a1c73a72631fc6c0eb6dde34a73e44b"
+dependencies = [
+ "num-traits",
+ "pxfm",
+]
+
+[[package]]
+name = "moxcms"
+version = "0.9.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "aee701c0ffba6cc991c0fefda5ff5fca1bd2f2f4a928ffba9f825b9afceedbc3"
 dependencies = [
  "num-traits",
  "pxfm",
