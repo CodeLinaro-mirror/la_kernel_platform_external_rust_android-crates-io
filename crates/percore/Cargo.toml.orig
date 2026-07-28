@@ -1,6 +1,6 @@
 [package]
 name = "percore"
-version = "0.2.4"
+version = "0.2.5"
 edition = "2024"
 license = "MIT OR Apache-2.0"
 description = "Safe per-CPU core mutable state on no_std platforms through exception masking."
@@ -12,12 +12,14 @@ categories = ["embedded", "no-std", "rust-patterns"]
 [features]
 alloc = []
 default = ["alloc", "zerocopy"]
+derive = ["percore-derive"]
 
 [dependencies]
-zerocopy = { version = "0.8.48", optional = true, features = ["derive"] }
+percore-derive = { version = "=0.2.5", path = "percore-derive", optional = true }
+zerocopy = { version = "0.8.50", optional = true, features = ["derive"] }
 
 [dev-dependencies]
-spin = { version = "0.10.0", default-features = false, features = [
+spin = { version = "0.12.0", default-features = false, features = [
   "lazy",
   "once",
 ] }
@@ -26,3 +28,8 @@ spin = { version = "0.10.0", default-features = false, features = [
 all-features = true
 default-target = "aarch64-unknown-none"
 rustdoc-args = ["--cfg", "docsrs"]
+
+[workspace]
+resolver = "3"
+members = ["percore-derive", "examples/aarch64_qemu"]
+default-members = [".", "percore-derive"]

@@ -12,7 +12,7 @@
 [package]
 edition = "2024"
 name = "percore"
-version = "0.2.4"
+version = "0.2.5"
 authors = ["Andrew Walbran <qwandor@google.com>"]
 build = false
 autolib = false
@@ -48,18 +48,23 @@ default = [
     "alloc",
     "zerocopy",
 ]
+derive = ["percore-derive"]
 
 [lib]
 name = "percore"
 path = "src/lib.rs"
 
+[dependencies.percore-derive]
+version = "=0.2.5"
+optional = true
+
 [dependencies.zerocopy]
-version = "0.8.48"
+version = "0.8.50"
 features = ["derive"]
 optional = true
 
 [dev-dependencies.spin]
-version = "0.10.0"
+version = "0.12.0"
 features = [
     "lazy",
     "once",
