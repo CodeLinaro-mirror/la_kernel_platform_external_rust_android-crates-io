@@ -13,8 +13,15 @@
 edition = "2024"
 rust-version = "1.85.0"
 name = "json-strip-comments"
-version = "3.1.1"
+version = "3.1.2"
 build = false
+include = [
+    "src/lib.rs",
+    "LICENSE",
+    "README.md",
+    "CHANGELOG.md",
+    "examples/example.rs",
+]
 autolib = false
 autobins = false
 autoexamples = false
@@ -22,7 +29,7 @@ autotests = false
 autobenches = false
 description = "Strip comments from JSON"
 readme = "README.md"
-license = "MIT"
+license = "Apache-2.0"
 repository = "https://github.com/oxc-project/json-strip-comments"
 resolver = "2"
 
@@ -36,15 +43,6 @@ path = "src/lib.rs"
 [[example]]
 name = "example"
 path = "examples/example.rs"
-
-[[test]]
-name = "main"
-path = "tests/main.rs"
-
-[[bench]]
-name = "strip"
-path = "benches/strip.rs"
-harness = false
 
 [dependencies.memchr]
 version = "2.7.5"
