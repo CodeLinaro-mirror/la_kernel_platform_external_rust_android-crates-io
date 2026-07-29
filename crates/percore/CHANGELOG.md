@@ -1,6 +1,15 @@
 # Changelog
 
+## 0.2.5
+
+### New features
+
+- Added `derive` feature. This provides the `#[percore]` macro for another approach to per-core
+  variables.
+
 ## 0.2.4
+
+### New features
 
 - Added `into_inner` methods for `ExceptionLock` and `PerCore`.
 
