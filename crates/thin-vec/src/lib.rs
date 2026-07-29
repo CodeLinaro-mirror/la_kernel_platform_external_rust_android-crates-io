@@ -151,6 +151,7 @@
 
 #![cfg_attr(not(feature = "std"), no_std)]
 #![cfg_attr(feature = "unstable", feature(trusted_len))]
+#![cfg_attr(feature = "unstable", feature(dropck_eyepatch))]
 #![allow(clippy::comparison_chain, clippy::missing_safety_doc)]
 
 extern crate alloc;
@@ -436,16 +437,18 @@ fn alloc_align<T>() -> usize {
 ///
 /// # Panics
 ///
-/// Panics if the required size overflows `isize::MAX`.
+/// Panics if the required size overflows `isize::MAX` when rounded up to the required alignment.
 fn layout<T>(cap: usize) -> Layout {
-    unsafe { Layout::from_size_align_unchecked(alloc_size::<T>(cap), alloc_align::<T>()) }
+    Layout::from_size_align(alloc_size::<T>(cap), alloc_align::<T>())
+        .ok()
+        .unwrap_cap_overflow()
 }
 
 /// Allocates a header (and array) for a `ThinVec<T>` with the given capacity.
 ///
 /// # Panics
 ///
-/// Panics if the required size overflows `isize::MAX`.
+/// Panics if the required size overflows `isize::MAX` when rounded up to the required alignment.
 fn header_with_capacity<T>(cap: usize, is_auto: bool) -> NonNull<Header> {
     debug_assert!(cap > 0);
     unsafe {
@@ -1918,23 +1921,34 @@ impl<T: PartialEq> ThinVec<T> {
     }
 }
 
+#[cold]
+#[inline(never)]
+fn drop_non_singleton<T>(this: &mut ThinVec<T>) {
+    unsafe {
+        ptr::drop_in_place(&mut this[..]);
+
+        if this.uses_stack_allocated_buffer() {
+            return;
+        }
+
+        dealloc(this.ptr() as *mut u8, layout::<T>(this.capacity()))
+    }
+}
+
+#[cfg(not(feature = "unstable"))]
 impl<T> Drop for ThinVec<T> {
     #[inline]
     fn drop(&mut self) {
-        #[cold]
-        #[inline(never)]
-        fn drop_non_singleton<T>(this: &mut ThinVec<T>) {
-            unsafe {
-                ptr::drop_in_place(&mut this[..]);
-
-                if this.uses_stack_allocated_buffer() {
-                    return;
-                }
-
-                dealloc(this.ptr() as *mut u8, layout::<T>(this.capacity()))
-            }
+        if !self.is_singleton() {
+            drop_non_singleton(self);
         }
+    }
+}
 
+#[cfg(feature = "unstable")]
+unsafe impl<#[may_dangle] T> Drop for ThinVec<T> {
+    #[inline]
+    fn drop(&mut self) {
         if !self.is_singleton() {
             drop_non_singleton(self);
         }
@@ -2132,16 +2146,12 @@ impl<'de, T: serde::Deserialize<'de>> serde::Deserialize<'de> for ThinVec<T> {
 #[cfg(feature = "malloc_size_of")]
 impl<T> MallocShallowSizeOf for ThinVec<T> {
     fn shallow_size_of(&self, ops: &mut MallocSizeOfOps) -> usize {
-        if self.capacity() == 0 {
-            // If it's the singleton we might not be a heap pointer.
+        if self.capacity() == 0 || self.uses_stack_allocated_buffer() {
+            // We're not a heap pointer.
             return 0;
         }
 
-        assert_eq!(
-            core::mem::size_of::<Self>(),
-            core::mem::size_of::<*const ()>()
-        );
-        unsafe { ops.malloc_size_of(*(self as *const Self as *const *const ())) }
+        unsafe { ops.malloc_size_of(self.ptr() as _) }
     }
 }
 
@@ -3106,6 +3116,12 @@ mod tests {
     #[test]
     fn test_drop_empty() {
         ThinVec::<u8>::new();
+    }
+
+    #[test]
+    #[should_panic]
+    fn test_cap_plus_header_rounded_up_overflows() {
+        let _ = ThinVec::<u8>::with_capacity(isize::MAX as usize - size_of::<super::Header>());
     }
 
     #[test]
@@ -4828,5 +4844,24 @@ mod std_tests {
         v.push(PanicBomb("panic"));
         v.push(PanicBomb("normal2"));
         v.clear();
+    }
+
+    #[cfg(all(feature = "gecko-ffi", feature = "malloc_size_of"))]
+    #[test]
+    fn malloc_size_of_auto_array() {
+        use malloc_size_of::{MallocShallowSizeOf, MallocSizeOfOps};
+        use std::ffi::c_void;
+
+        extern "C" {
+            fn malloc_usable_size(ptr: *const c_void) -> usize;
+        }
+
+        unsafe extern "C" fn malloc_size_of(ptr: *const c_void) -> usize {
+            unsafe { malloc_usable_size(ptr) }
+        }
+
+        crate::auto_thin_vec!(let t: [u8; 4]);
+        let mut ops = MallocSizeOfOps::new(malloc_size_of, None, None);
+        let _ = MallocShallowSizeOf::shallow_size_of(&**t, &mut ops);
     }
 }
