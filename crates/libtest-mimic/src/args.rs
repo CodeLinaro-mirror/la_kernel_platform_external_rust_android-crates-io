@@ -46,6 +46,14 @@ pub struct Arguments {
     #[arg(long = "nocapture", help = "No-op (libtest-mimic always runs in no-capture mode)")]
     pub nocapture: bool,
 
+    /// No-op, ignored. libtest-mimic does not currently capture stdout.
+    #[arg(long = "show-output")]
+    pub show_output: bool,
+
+    /// No-op, ignored. Flag only exists for CLI compatibility with libtest.
+    #[arg(short = 'Z')]
+    pub unstable_flags: Option<UnstableFlags>,
+
     /// If set, filters are matched exactly rather than by substring.
     #[arg(
         long = "exact",
@@ -112,7 +120,8 @@ pub struct Arguments {
         value_name = "pretty|terse|json",
         help = "Configure formatting of output: \n\
             - pretty = Print verbose output\n\
-            - terse = Display one character per test\n",
+            - terse = Display one character per test\n\
+            - json = Print json events\n",
     )]
     pub format: Option<FormatSetting>,
 
@@ -168,6 +177,12 @@ impl Default for ColorSetting {
     }
 }
 
+/// Possible values for the `-Z` option
+#[derive(Debug, Clone, Copy, PartialEq, Eq, ValueEnum)]
+pub enum UnstableFlags {
+    UnstableOptions,
+}
+
 /// Possible values for the `--format` option.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, ValueEnum)]
 pub enum FormatSetting {
@@ -176,6 +191,9 @@ pub enum FormatSetting {
 
     /// One character per test. Usefull for test suites with many tests.
     Terse,
+
+    /// Json output
+    Json,
 }
 
 impl Default for FormatSetting {

@@ -14,7 +14,7 @@
 
 [package]
 name = "googletest"
-version = "0.14.2"
+version = "0.14.3"
 keywords = ["unit", "matcher", "testing", "assertions"]
 categories = ["development-tools", "development-tools::testing"]
 description = "A rich assertion and matcher library inspired by GoogleTest for C++"
@@ -22,7 +22,7 @@ repository = "https://github.com/google/googletest-rust"
 readme = "../README.md"
 license = "Apache-2.0"
 edition = "2021"
-rust-version = "1.70.0"
+rust-version = "1.85.0"  # Needed for async closures.
 authors = [
   "Bradford Hovinen <hovinen@google.com>",
   "Bastien Jacot-Guillarmod <bjacotg@google.com>",
@@ -31,12 +31,12 @@ authors = [
 ]
 
 [dependencies]
-googletest_macro = { path = "../googletest_macro", version = "0.14.2" }
+googletest_macro = { path = "../googletest_macro", version = "0.14.3" }
 anyhow = { version = "1", optional = true }
 num-traits = "0.2.17"
-proptest = { version = "1.7.0", optional = true }
-regex = "1.11.1"
-rustversion = "1.0.21"
+proptest = { version = "1.9.0", optional = true }
+regex = "1.12.2"
+rustversion = "1.0.22"
 
 [dev-dependencies]
 indoc = "2"

@@ -106,9 +106,9 @@ impl IVec2 {
     /// Returns a vector containing each element of `self` modified by a mapping function `f`.
     #[inline]
     #[must_use]
-    pub fn map<F>(self, f: F) -> Self
+    pub fn map<F>(self, mut f: F) -> Self
     where
-        F: Fn(i32) -> i32,
+        F: FnMut(i32) -> i32,
     {
         Self::new(f(self.x), f(self.y))
     }
@@ -401,6 +401,16 @@ impl IVec2 {
     #[must_use]
     pub fn is_negative_bitmask(self) -> u32 {
         (self.x.is_negative() as u32) | ((self.y.is_negative() as u32) << 1)
+    }
+
+    /// Returns a mask indicating which components are negative.
+    ///
+    /// An element is negative if it has a negative sign, including -0.0, NaNs with negative sign
+    /// bit and negative infinity.
+    #[inline]
+    #[must_use]
+    pub fn is_negative_mask(self) -> BVec2 {
+        BVec2::new(self.x.is_negative(), self.y.is_negative())
     }
 
     /// Computes the squared length of `self`.

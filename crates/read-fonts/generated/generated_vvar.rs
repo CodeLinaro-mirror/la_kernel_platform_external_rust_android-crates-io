@@ -115,32 +115,48 @@ impl<'a> Vvar<'a> {
 
     pub fn version_byte_range(&self) -> Range<usize> {
         let start = 0;
-        start..start + MajorMinor::RAW_BYTE_LEN
+        let end = start + MajorMinor::RAW_BYTE_LEN;
+        start..end
     }
 
     pub fn item_variation_store_offset_byte_range(&self) -> Range<usize> {
         let start = self.version_byte_range().end;
-        start..start + Offset32::RAW_BYTE_LEN
+        let end = start + Offset32::RAW_BYTE_LEN;
+        start..end
     }
 
     pub fn advance_height_mapping_offset_byte_range(&self) -> Range<usize> {
         let start = self.item_variation_store_offset_byte_range().end;
-        start..start + Offset32::RAW_BYTE_LEN
+        let end = start + Offset32::RAW_BYTE_LEN;
+        start..end
     }
 
     pub fn tsb_mapping_offset_byte_range(&self) -> Range<usize> {
         let start = self.advance_height_mapping_offset_byte_range().end;
-        start..start + Offset32::RAW_BYTE_LEN
+        let end = start + Offset32::RAW_BYTE_LEN;
+        start..end
     }
 
     pub fn bsb_mapping_offset_byte_range(&self) -> Range<usize> {
         let start = self.tsb_mapping_offset_byte_range().end;
-        start..start + Offset32::RAW_BYTE_LEN
+        let end = start + Offset32::RAW_BYTE_LEN;
+        start..end
     }
 
     pub fn v_org_mapping_offset_byte_range(&self) -> Range<usize> {
         let start = self.bsb_mapping_offset_byte_range().end;
-        start..start + Offset32::RAW_BYTE_LEN
+        let end = start + Offset32::RAW_BYTE_LEN;
+        start..end
+    }
+}
+
+const _: () = assert!(FontData::default_data_long_enough(Vvar::MIN_SIZE));
+
+impl Default for Vvar<'_> {
+    fn default() -> Self {
+        Self {
+            data: FontData::default_table_data(),
+        }
     }
 }
 

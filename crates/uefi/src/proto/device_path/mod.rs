@@ -75,6 +75,8 @@
 //!   other types in this module are DSTs, so pointers to the type are
 //!   "fat" and not suitable for FFI.
 //!
+//! * [`PoolDevicePath`] is an owned device path on the UEFI heap.
+//!
 //! All of these types use a packed layout and may appear on any byte
 //! boundary.
 //!
@@ -134,6 +136,10 @@ opaque_type! {
 }
 
 /// Device path allocated from UEFI pool memory.
+///
+/// Please note that this differs from `Box<[DevicePath]>`. Although both
+/// represent owned values, a `Box<[DevicePath]>` is on the Rust heap which may
+/// or may not be backed by the UEFI heap.
 #[derive(Debug)]
 pub struct PoolDevicePath(pub(crate) PoolAllocation);
 
@@ -358,7 +364,8 @@ impl<'a> TryFrom<&'a [u8]> for &'a DevicePathNode {
 
     fn try_from(bytes: &[u8]) -> Result<Self, Self::Error> {
         let dp = <&DevicePathHeader>::try_from(bytes)?;
-        if usize::from(dp.length()) <= bytes.len() {
+        let length = usize::from(dp.length());
+        if length >= size_of::<DevicePathHeader>() && length <= bytes.len() {
             unsafe { Ok(DevicePathNode::from_ffi_ptr(bytes.as_ptr().cast())) }
         } else {
             Err(ByteConversionError::InvalidLength)
@@ -407,11 +414,15 @@ impl DevicePathInstance {
     }
 
     /// Returns a boxed copy of that value.
+    ///
+    /// The semantics slightly differs from a [`PoolDevicePath`] but is
+    /// generally more idiomatic to use.
     #[cfg(feature = "alloc")]
     #[must_use]
     pub fn to_boxed(&self) -> Box<Self> {
         let data = self.data.to_owned();
         let data = data.into_boxed_slice();
+        // SAFETY: This is safe as a DevicePath has the same layout.
         unsafe { mem::transmute(data) }
     }
 }
@@ -594,12 +605,16 @@ impl DevicePath {
         &self.data
     }
 
-    /// Returns a boxed copy of that value.
+    /// Returns a boxed copy of that value on the Rust heap.
+    ///
+    /// The semantics slightly differs from a [`PoolDevicePath`] but is
+    /// generally more idiomatic to use.
     #[cfg(feature = "alloc")]
     #[must_use]
     pub fn to_boxed(&self) -> Box<Self> {
         let data = self.data.to_owned();
         let data = data.into_boxed_slice();
+        // SAFETY: This is safe as a DevicePath has the same layout.
         unsafe { mem::transmute(data) }
     }
 
@@ -1123,6 +1138,10 @@ mod tests {
         // [`DevicePathNode`] data length exceeds the raw_data slice.
         raw_data[2] += 1;
         assert!(<&DevicePathNode>::try_from(raw_data.as_slice()).is_err());
+
+        // [`DevicePathNode`] data length is shorter than the fixed header.
+        raw_data[2..4].copy_from_slice(&3_u16.to_le_bytes());
+        assert!(<&DevicePathNode>::try_from(raw_data.as_slice()).is_err());
     }
 
     #[test]
@@ -1147,6 +1166,18 @@ mod tests {
         check_node(nodes[4], 0xa3, 0xb3, &[40, 41, 42, 43]);
         // The end-entire node is not returned by the iterator.
         assert_eq!(nodes.len(), 5);
+    }
+
+    #[test]
+    fn test_device_path_from_bytes_rejects_short_node_length() {
+        #[rustfmt::skip]
+        let raw_data = [
+            0xa0, 0xb0,
+            // Length shorter than the fixed header.
+            0x03, 0x00,
+        ];
+
+        assert!(<&DevicePath>::try_from(raw_data.as_slice()).is_err());
     }
 
     /// Test converting from `&DevicePathNode` to a specific node type.

@@ -10,7 +10,9 @@
     "pipe",
     "thread",
     "fs",
-    "event"
+    "event",
+    "process",
+    "time"
   ],
   "min_sdk_version": "30",
   "extra_cfg": [

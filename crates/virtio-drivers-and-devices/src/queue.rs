@@ -14,6 +14,7 @@ use bitflags::bitflags;
 #[cfg(test)]
 use core::cmp::min;
 use core::convert::TryInto;
+#[cfg(any(test, not(feature = "trusty_sleep")))]
 use core::hint::spin_loop;
 use core::mem::{forget, size_of, take};
 #[cfg(test)]
@@ -21,6 +22,8 @@ use core::ptr;
 use core::ptr::NonNull;
 use core::sync::atomic::{fence, AtomicU16, Ordering};
 use zerocopy::{FromBytes, FromZeros, Immutable, IntoBytes, KnownLayout};
+
+use rust_support::thread::sleep;
 
 /// The mechanism for bulk data transport on virtio devices.
 ///
@@ -308,7 +311,7 @@ impl<H: Hal, const SIZE: usize> VirtQueue<H, SIZE> {
         &mut self,
         inputs: &'a [&'a [u8]],
         outputs: &'a mut [&'a mut [u8]],
-        transport: &mut impl Transport,
+        transport: &impl Transport,
     ) -> Result<u32> {
         // SAFETY: We don't return until the same token has been popped, so the buffers remain
         // valid and are not otherwise accessed until then.
@@ -321,6 +324,11 @@ impl<H: Hal, const SIZE: usize> VirtQueue<H, SIZE> {
 
         // Wait until there is at least one element in the used ring.
         while !self.can_pop() {
+            // SAFETY: Trusty kernel booted and we're on a valid trusty thread.
+            #[cfg(feature = "trusty_sleep")]
+            unsafe { sleep(core::time::Duration::from_millis(10)); }
+
+            #[cfg(not(feature = "trusty_sleep"))]
             spin_loop();
         }
 
@@ -669,11 +677,16 @@ impl<H: DeviceHal, const SIZE: usize> DeviceVirtQueue<H, SIZE> {
     pub fn wait_pop_add_notify(
         &mut self,
         inputs: &[&[u8]],
-        transport: &mut impl DeviceTransport,
+        transport: &impl DeviceTransport,
     ) -> Result<()> {
         #[cfg(feature = "alloc")]
         {
             while !self.can_pop() {
+                // SAFETY: Trusty kernel booted and we're on a valid trusty thread.
+                #[cfg(feature = "trusty_sleep")]
+                unsafe { sleep(core::time::Duration::from_millis(10)); }
+
+                #[cfg(not(feature = "trusty_sleep"))]
                 spin_loop();
             }
             // SAFETY: inputs is copied into the first write buffer then they are returned to the
@@ -715,7 +728,7 @@ impl<H: DeviceHal, const SIZE: usize> DeviceVirtQueue<H, SIZE> {
 
     pub fn poll<T>(
         &mut self,
-        transport: &mut impl DeviceTransport,
+        transport: &impl DeviceTransport,
         handler: impl FnOnce(&[u8]) -> Result<Option<T>>,
     ) -> Result<Option<T>> {
         #[cfg(feature = "alloc")]

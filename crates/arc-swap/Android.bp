@@ -13,14 +13,22 @@ license {
     license_text: ["LICENSE"],
 }
 
-rust_library_host {
+rust_library {
     name: "libarc_swap",
+    host_supported: true,
     crate_name: "arc_swap",
     cargo_env_compat: true,
-    cargo_pkg_version: "1.9.1",
+    cargo_pkg_version: "1.9.2",
     crate_root: "src/lib.rs",
     edition: "2018",
     proc_macros: ["librustversion"],
+    apex_available: [
+        "//apex_available:platform",
+        "//apex_available:anyapex",
+    ],
+    product_available: true,
+    vendor_available: true,
+    min_sdk_version: "29",
 }
 
 dirgroup {

@@ -1,5 +1,78 @@
 # CHANGELOG
 
+0.2.32 (2026-07-08)
+===================
+This release updates Jiff's bundled copy of the [IANA Time Zone Database]
+to `2026c`. See the [`2026c` release announcement] for more details.
+
+[`2026c` release announcement]: https://lists.iana.org//hyperkitty/list/tz-announce@iana.org/thread/NVHSX2PAQIT44U5FCCEVNJJYXQMMTJSA/
+
+
+0.2.31 (2026-06-29)
+===================
+This release fixes a minor bug in tests that prevents the crate from running
+through standard build processes in Linux distributions downstream.
+
+* [#594](https://github.com/BurntSushi/jiff/pull/591):
+Fix imports in recently added tests.
+
+
+0.2.30 (2026-06-29)
+===================
+This release fixes a safety soundness bug in Jiff's lower level printing
+APIs. There is also a nice performance improvement to `civil::Date::weekday`,
+which also improves downstread routines like `civil::Date::nth_weekday` and
+datetime<-->timestamp conversions in some cases.
+
+Enhancements:
+
+* [#591](https://github.com/BurntSushi/jiff/pull/591):
+Improve the performance of weekday calculations from Gregorian dates by 30-50%.
+
+Bug fixes:
+
+* [#592](https://github.com/BurntSushi/jiff/issues/592):
+Fix safety soundness bug when using a non-empty `String` destination buffer
+with lower level printing APIs inside of `jiff::fmt`.
+
+
+0.2.29 (2026-06-20)
+===================
+This release adds support for [`defmt`], which is a highly efficient logging
+framework that targets resource-constrained devices, like microcontrollers.
+
+Enhancements:
+
+* [#505](https://github.com/BurntSushi/jiff/issues/505):
+Add support for the `defmt` crate by implementing `defmt::Format` on the
+principle public types in Jiff.
+* [#584](https://github.com/BurntSushi/jiff/pull/584):
+Add `Zoned::UNIX_EPOCH` as a constant.
+* [#587](https://github.com/BurntSushi/jiff/pull/587):
+Change the `Debug` output for `civil::ISOWeekDate` to match the `Debug` output
+style of other primitive datetime types.
+
+Bug fixes:
+
+* [#525](https://github.com/BurntSushi/jiff/issues/525):
+Fix a bug that prevented time zone lookups when using an on-disk time zone
+database on Windows.
+* [#539](https://github.com/BurntSushi/jiff/issues/539):
+Fix a bug where rendering a datetime in an error message would omit a `T`
+separator.
+
+
+0.2.28 (2026-05-28)
+===================
+This is a small release with a fix for test failures on 32-bit targets in
+`no-alloc` environments.
+
+Bug fixes:
+
+* [#573](https://github.com/BurntSushi/jiff/issues/573):
+Fix test failure on 32-bit targets in `no-alloc` environments.
+
+
 0.2.27 (2026-05-26)
 ===================
 This is a small release with a bug fix for build errors on Windows for very old
@@ -1539,3 +1612,4 @@ The initial release of Jiff.
 [SQLx]: https://github.com/launchbadge/sqlx
 [Diesel]: https://github.com/diesel-rs/diesel
 [Discussions on GitHub]: https://github.com/BurntSushi/jiff/discussions
+[`defmt`]: https://github.com/BurntSushi/jiff/issues/587

@@ -64,34 +64,49 @@ impl<'a> BasicTable<'a> {
 
     pub fn simple_count_byte_range(&self) -> Range<usize> {
         let start = 0;
-        start..start + u16::RAW_BYTE_LEN
+        let end = start + u16::RAW_BYTE_LEN;
+        start..end
     }
 
     pub fn simple_records_byte_range(&self) -> Range<usize> {
         let simple_count = self.simple_count();
         let start = self.simple_count_byte_range().end;
-        start..start + (simple_count as usize).saturating_mul(SimpleRecord::RAW_BYTE_LEN)
+        let end =
+            start + (transforms::to_usize(simple_count)).saturating_mul(SimpleRecord::RAW_BYTE_LEN);
+        start..end
     }
 
     pub fn arrays_inner_count_byte_range(&self) -> Range<usize> {
         let start = self.simple_records_byte_range().end;
-        start..start + u16::RAW_BYTE_LEN
+        let end = start + u16::RAW_BYTE_LEN;
+        start..end
     }
 
     pub fn array_records_count_byte_range(&self) -> Range<usize> {
         let start = self.arrays_inner_count_byte_range().end;
-        start..start + u32::RAW_BYTE_LEN
+        let end = start + u32::RAW_BYTE_LEN;
+        start..end
     }
 
     pub fn array_records_byte_range(&self) -> Range<usize> {
         let array_records_count = self.array_records_count();
         let start = self.array_records_count_byte_range().end;
-        start
-            ..start
-                + (array_records_count as usize).saturating_mul(
-                    <ContainsArrays as ComputeSize>::compute_size(&self.arrays_inner_count())
-                        .unwrap_or(0),
-                )
+        let end = start
+            + (transforms::to_usize(array_records_count)).saturating_mul(
+                <ContainsArrays as ComputeSize>::compute_size(&self.arrays_inner_count())
+                    .unwrap_or(0),
+            );
+        start..end
+    }
+}
+
+const _: () = assert!(FontData::default_data_long_enough(BasicTable::MIN_SIZE));
+
+impl Default for BasicTable<'_> {
+    fn default() -> Self {
+        Self {
+            data: FontData::default_table_data(),
+        }
     }
 }
 
@@ -200,10 +215,12 @@ impl ComputeSize for ContainsArrays<'_> {
         let array_len = *args;
         let mut result = 0usize;
         result = result
-            .checked_add((array_len as usize).saturating_mul(u16::RAW_BYTE_LEN))
+            .checked_add((transforms::to_usize(array_len)).saturating_mul(u16::RAW_BYTE_LEN))
             .ok_or(ReadError::OutOfBounds)?;
         result = result
-            .checked_add((array_len as usize).saturating_mul(SimpleRecord::RAW_BYTE_LEN))
+            .checked_add(
+                (transforms::to_usize(array_len)).saturating_mul(SimpleRecord::RAW_BYTE_LEN),
+            )
             .ok_or(ReadError::OutOfBounds)?;
         Ok(result)
     }
@@ -214,8 +231,8 @@ impl<'a> FontReadWithArgs<'a> for ContainsArrays<'a> {
         let mut cursor = data.cursor();
         let array_len = *args;
         Ok(Self {
-            scalars: cursor.read_array(array_len as usize)?,
-            records: cursor.read_array(array_len as usize)?,
+            scalars: cursor.read_array(transforms::to_usize(array_len))?,
+            records: cursor.read_array(transforms::to_usize(array_len))?,
         })
     }
 }
@@ -365,12 +382,25 @@ impl<'a> VarLenItem<'a> {
 
     pub fn length_byte_range(&self) -> Range<usize> {
         let start = 0;
-        start..start + u32::RAW_BYTE_LEN
+        let end = start + u32::RAW_BYTE_LEN;
+        start..end
     }
 
     pub fn data_byte_range(&self) -> Range<usize> {
         let start = self.length_byte_range().end;
-        start..start + self.data.len().saturating_sub(start) / u8::RAW_BYTE_LEN * u8::RAW_BYTE_LEN
+        let end =
+            start + self.data.len().saturating_sub(start) / u8::RAW_BYTE_LEN * u8::RAW_BYTE_LEN;
+        start..end
+    }
+}
+
+const _: () = assert!(FontData::default_data_long_enough(VarLenItem::MIN_SIZE));
+
+impl Default for VarLenItem<'_> {
+    fn default() -> Self {
+        Self {
+            data: FontData::default_table_data(),
+        }
     }
 }
 

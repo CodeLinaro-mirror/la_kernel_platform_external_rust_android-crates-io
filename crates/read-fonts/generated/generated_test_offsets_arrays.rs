@@ -148,56 +148,78 @@ impl<'a> KindsOfOffsets<'a> {
 
     pub fn version_byte_range(&self) -> Range<usize> {
         let start = 0;
-        start..start + MajorMinor::RAW_BYTE_LEN
+        let end = start + MajorMinor::RAW_BYTE_LEN;
+        start..end
     }
 
     pub fn nonnullable_offset_byte_range(&self) -> Range<usize> {
         let start = self.version_byte_range().end;
-        start..start + Offset16::RAW_BYTE_LEN
+        let end = start + Offset16::RAW_BYTE_LEN;
+        start..end
     }
 
     pub fn nullable_offset_byte_range(&self) -> Range<usize> {
         let start = self.nonnullable_offset_byte_range().end;
-        start..start + Offset16::RAW_BYTE_LEN
+        let end = start + Offset16::RAW_BYTE_LEN;
+        start..end
     }
 
     pub fn array_offset_count_byte_range(&self) -> Range<usize> {
         let start = self.nullable_offset_byte_range().end;
-        start..start + u16::RAW_BYTE_LEN
+        let end = start + u16::RAW_BYTE_LEN;
+        start..end
     }
 
     pub fn array_offset_byte_range(&self) -> Range<usize> {
         let start = self.array_offset_count_byte_range().end;
-        start..start + Offset16::RAW_BYTE_LEN
+        let end = start + Offset16::RAW_BYTE_LEN;
+        start..end
     }
 
     pub fn record_array_offset_byte_range(&self) -> Range<usize> {
         let start = self.array_offset_byte_range().end;
-        start..start + Offset16::RAW_BYTE_LEN
+        let end = start + Offset16::RAW_BYTE_LEN;
+        start..end
     }
 
     pub fn versioned_nullable_record_array_offset_byte_range(&self) -> Range<usize> {
         let start = self.record_array_offset_byte_range().end;
-        start
-            ..(self.version().compatible((1u16, 1u16)))
-                .then(|| start + Offset16::RAW_BYTE_LEN)
-                .unwrap_or(start)
+        let end = if self.version().compatible((1u16, 1u16)) {
+            start + Offset16::RAW_BYTE_LEN
+        } else {
+            start
+        };
+        start..end
     }
 
     pub fn versioned_nonnullable_offset_byte_range(&self) -> Range<usize> {
         let start = self.versioned_nullable_record_array_offset_byte_range().end;
-        start
-            ..(self.version().compatible((1u16, 1u16)))
-                .then(|| start + Offset16::RAW_BYTE_LEN)
-                .unwrap_or(start)
+        let end = if self.version().compatible((1u16, 1u16)) {
+            start + Offset16::RAW_BYTE_LEN
+        } else {
+            start
+        };
+        start..end
     }
 
     pub fn versioned_nullable_offset_byte_range(&self) -> Range<usize> {
         let start = self.versioned_nonnullable_offset_byte_range().end;
-        start
-            ..(self.version().compatible((1u16, 1u16)))
-                .then(|| start + Offset32::RAW_BYTE_LEN)
-                .unwrap_or(start)
+        let end = if self.version().compatible((1u16, 1u16)) {
+            start + Offset32::RAW_BYTE_LEN
+        } else {
+            start
+        };
+        start..end
+    }
+}
+
+const _: () = assert!(FontData::default_data_long_enough(KindsOfOffsets::MIN_SIZE));
+
+impl Default for KindsOfOffsets<'_> {
+    fn default() -> Self {
+        Self {
+            data: FontData::default_table_data(),
+        }
     }
 }
 
@@ -367,42 +389,62 @@ impl<'a> KindsOfArraysOfOffsets<'a> {
 
     pub fn version_byte_range(&self) -> Range<usize> {
         let start = 0;
-        start..start + MajorMinor::RAW_BYTE_LEN
+        let end = start + MajorMinor::RAW_BYTE_LEN;
+        start..end
     }
 
     pub fn count_byte_range(&self) -> Range<usize> {
         let start = self.version_byte_range().end;
-        start..start + u16::RAW_BYTE_LEN
+        let end = start + u16::RAW_BYTE_LEN;
+        start..end
     }
 
     pub fn nonnullable_offsets_byte_range(&self) -> Range<usize> {
         let count = self.count();
         let start = self.count_byte_range().end;
-        start..start + (count as usize).saturating_mul(Offset16::RAW_BYTE_LEN)
+        let end = start + (transforms::to_usize(count)).saturating_mul(Offset16::RAW_BYTE_LEN);
+        start..end
     }
 
     pub fn nullable_offsets_byte_range(&self) -> Range<usize> {
         let count = self.count();
         let start = self.nonnullable_offsets_byte_range().end;
-        start..start + (count as usize).saturating_mul(Offset16::RAW_BYTE_LEN)
+        let end = start + (transforms::to_usize(count)).saturating_mul(Offset16::RAW_BYTE_LEN);
+        start..end
     }
 
     pub fn versioned_nonnullable_offsets_byte_range(&self) -> Range<usize> {
         let count = self.count();
         let start = self.nullable_offsets_byte_range().end;
-        start
-            ..(self.version().compatible((1u16, 1u16)))
-                .then(|| start + (count as usize).saturating_mul(Offset16::RAW_BYTE_LEN))
-                .unwrap_or(start)
+        let end = if self.version().compatible((1u16, 1u16)) {
+            start + (transforms::to_usize(count)).saturating_mul(Offset16::RAW_BYTE_LEN)
+        } else {
+            start
+        };
+        start..end
     }
 
     pub fn versioned_nullable_offsets_byte_range(&self) -> Range<usize> {
         let count = self.count();
         let start = self.versioned_nonnullable_offsets_byte_range().end;
-        start
-            ..(self.version().compatible((1u16, 1u16)))
-                .then(|| start + (count as usize).saturating_mul(Offset16::RAW_BYTE_LEN))
-                .unwrap_or(start)
+        let end = if self.version().compatible((1u16, 1u16)) {
+            start + (transforms::to_usize(count)).saturating_mul(Offset16::RAW_BYTE_LEN)
+        } else {
+            start
+        };
+        start..end
+    }
+}
+
+const _: () = assert!(FontData::default_data_long_enough(
+    KindsOfArraysOfOffsets::MIN_SIZE
+));
+
+impl Default for KindsOfArraysOfOffsets<'_> {
+    fn default() -> Self {
+        Self {
+            data: FontData::default_table_data(),
+        }
     }
 }
 
@@ -415,62 +457,22 @@ impl<'a> SomeTable<'a> for KindsOfArraysOfOffsets<'a> {
         match idx {
             0usize => Some(Field::new("version", self.version())),
             1usize => Some(Field::new("count", self.count())),
-            2usize => Some({
-                let data = self.data;
-                Field::new(
-                    "nonnullable_offsets",
-                    FieldType::array_of_offsets(
-                        better_type_name::<Dummy>(),
-                        self.nonnullable_offsets(),
-                        move |off| {
-                            let target = off.get().resolve::<Dummy>(data);
-                            FieldType::offset(off.get(), target)
-                        },
-                    ),
-                )
-            }),
-            3usize => Some({
-                let data = self.data;
-                Field::new(
-                    "nullable_offsets",
-                    FieldType::array_of_offsets(
-                        better_type_name::<Dummy>(),
-                        self.nullable_offsets(),
-                        move |off| {
-                            let target = off.get().resolve::<Dummy>(data);
-                            FieldType::offset(off.get(), target)
-                        },
-                    ),
-                )
-            }),
-            4usize if self.version().compatible((1u16, 1u16)) => Some({
-                let data = self.data;
-                Field::new(
-                    "versioned_nonnullable_offsets",
-                    FieldType::array_of_offsets(
-                        better_type_name::<Dummy>(),
-                        self.versioned_nonnullable_offsets().unwrap(),
-                        move |off| {
-                            let target = off.get().resolve::<Dummy>(data);
-                            FieldType::offset(off.get(), target)
-                        },
-                    ),
-                )
-            }),
-            5usize if self.version().compatible((1u16, 1u16)) => Some({
-                let data = self.data;
-                Field::new(
-                    "versioned_nullable_offsets",
-                    FieldType::array_of_offsets(
-                        better_type_name::<Dummy>(),
-                        self.versioned_nullable_offsets().unwrap(),
-                        move |off| {
-                            let target = off.get().resolve::<Dummy>(data);
-                            FieldType::offset(off.get(), target)
-                        },
-                    ),
-                )
-            }),
+            2usize => Some(Field::new(
+                "nonnullable_offsets",
+                FieldType::from(self.nonnullables()),
+            )),
+            3usize => Some(Field::new(
+                "nullable_offsets",
+                FieldType::from(self.nullables()),
+            )),
+            4usize if self.version().compatible((1u16, 1u16)) => Some(Field::new(
+                "versioned_nonnullable_offsets",
+                FieldType::from(self.versioned_nonnullables().unwrap()),
+            )),
+            5usize if self.version().compatible((1u16, 1u16)) => Some(Field::new(
+                "versioned_nullable_offsets",
+                FieldType::from(self.versioned_nullables().unwrap()),
+            )),
             _ => None,
         }
     }
@@ -555,42 +557,60 @@ impl<'a> KindsOfArrays<'a> {
 
     pub fn version_byte_range(&self) -> Range<usize> {
         let start = 0;
-        start..start + u16::RAW_BYTE_LEN
+        let end = start + u16::RAW_BYTE_LEN;
+        start..end
     }
 
     pub fn count_byte_range(&self) -> Range<usize> {
         let start = self.version_byte_range().end;
-        start..start + u16::RAW_BYTE_LEN
+        let end = start + u16::RAW_BYTE_LEN;
+        start..end
     }
 
     pub fn scalars_byte_range(&self) -> Range<usize> {
         let count = self.count();
         let start = self.count_byte_range().end;
-        start..start + (count as usize).saturating_mul(u16::RAW_BYTE_LEN)
+        let end = start + (transforms::to_usize(count)).saturating_mul(u16::RAW_BYTE_LEN);
+        start..end
     }
 
     pub fn records_byte_range(&self) -> Range<usize> {
         let count = self.count();
         let start = self.scalars_byte_range().end;
-        start..start + (count as usize).saturating_mul(Shmecord::RAW_BYTE_LEN)
+        let end = start + (transforms::to_usize(count)).saturating_mul(Shmecord::RAW_BYTE_LEN);
+        start..end
     }
 
     pub fn versioned_scalars_byte_range(&self) -> Range<usize> {
         let count = self.count();
         let start = self.records_byte_range().end;
-        start
-            ..(self.version().compatible(1u16))
-                .then(|| start + (count as usize).saturating_mul(u16::RAW_BYTE_LEN))
-                .unwrap_or(start)
+        let end = if self.version().compatible(1u16) {
+            start + (transforms::to_usize(count)).saturating_mul(u16::RAW_BYTE_LEN)
+        } else {
+            start
+        };
+        start..end
     }
 
     pub fn versioned_records_byte_range(&self) -> Range<usize> {
         let count = self.count();
         let start = self.versioned_scalars_byte_range().end;
-        start
-            ..(self.version().compatible(1u16))
-                .then(|| start + (count as usize).saturating_mul(Shmecord::RAW_BYTE_LEN))
-                .unwrap_or(start)
+        let end = if self.version().compatible(1u16) {
+            start + (transforms::to_usize(count)).saturating_mul(Shmecord::RAW_BYTE_LEN)
+        } else {
+            start
+        };
+        start..end
+    }
+}
+
+const _: () = assert!(FontData::default_data_long_enough(KindsOfArrays::MIN_SIZE));
+
+impl Default for KindsOfArrays<'_> {
+    fn default() -> Self {
+        Self {
+            data: FontData::default_table_data(),
+        }
     }
 }
 
@@ -672,7 +692,7 @@ impl<'a> VarLenHaver<'a> {
         self.data.read_at(range.start).ok().unwrap()
     }
 
-    pub fn var_len(&self) -> VarLenArray<'a, VarSizeDummy> {
+    pub fn var_len(&self) -> VarLenArray<'a, VarSizeDummy<'a>> {
         let range = self.var_len_byte_range();
         self.data
             .split_off(range.start)
@@ -687,21 +707,35 @@ impl<'a> VarLenHaver<'a> {
 
     pub fn count_byte_range(&self) -> Range<usize> {
         let start = 0;
-        start..start + u16::RAW_BYTE_LEN
+        let end = start + u16::RAW_BYTE_LEN;
+        start..end
     }
 
     pub fn var_len_byte_range(&self) -> Range<usize> {
         let count = self.count();
         let start = self.count_byte_range().end;
-        start..start + {
+        let end = start + {
             let data = self.data.split_off(start).unwrap_or_default();
-            <VarSizeDummy as VarSize>::total_len_for_count(data, count as usize).unwrap_or(0)
-        }
+            <VarSizeDummy as VarSize>::total_len_for_count(data, transforms::to_usize(count))
+                .unwrap_or(0)
+        };
+        start..end
     }
 
     pub fn other_field_byte_range(&self) -> Range<usize> {
         let start = self.var_len_byte_range().end;
-        start..start + u32::RAW_BYTE_LEN
+        let end = start + u32::RAW_BYTE_LEN;
+        start..end
+    }
+}
+
+const _: () = assert!(FontData::default_data_long_enough(VarLenHaver::MIN_SIZE));
+
+impl Default for VarLenHaver<'_> {
+    fn default() -> Self {
+        Self {
+            data: FontData::default_table_data(),
+        }
     }
 }
 
@@ -765,12 +799,24 @@ impl<'a> Dummy<'a> {
 
     pub fn value_byte_range(&self) -> Range<usize> {
         let start = 0;
-        start..start + u16::RAW_BYTE_LEN
+        let end = start + u16::RAW_BYTE_LEN;
+        start..end
     }
 
     pub fn _reserved_byte_range(&self) -> Range<usize> {
         let start = self.value_byte_range().end;
-        start..start + u16::RAW_BYTE_LEN
+        let end = start + u16::RAW_BYTE_LEN;
+        start..end
+    }
+}
+
+const _: () = assert!(FontData::default_data_long_enough(Dummy::MIN_SIZE));
+
+impl Default for Dummy<'_> {
+    fn default() -> Self {
+        Self {
+            data: FontData::default_table_data(),
+        }
     }
 }
 

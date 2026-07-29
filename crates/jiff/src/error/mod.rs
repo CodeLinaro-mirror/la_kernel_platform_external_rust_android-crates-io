@@ -394,9 +394,32 @@ impl core::fmt::Debug for Error {
     }
 }
 
+#[cfg(feature = "defmt")]
+impl defmt::Format for Error {
+    fn format(&self, f: defmt::Formatter) {
+        let Some(ref inner) = self.inner else {
+            return defmt::write!(f, "Error {{ kind: None }}");
+        };
+        #[cfg(feature = "alloc")]
+        {
+            defmt::write!(
+                f,
+                "Error {{ kind: {}, cause: {} }}",
+                inner.kind,
+                inner.cause
+            );
+        }
+        #[cfg(not(feature = "alloc"))]
+        {
+            defmt::write!(f, "Error {{ kind: {} }}", inner.kind);
+        }
+    }
+}
+
 /// The underlying kind of a [`Error`].
 #[derive(Debug)]
 #[cfg_attr(not(feature = "alloc"), derive(Clone))]
+#[cfg_attr(feature = "defmt", derive(defmt::Format))]
 enum ErrorKind {
     Adhoc(AdhocError),
     Bounds(BoundsError),
@@ -512,6 +535,7 @@ impl From<ErrorKind> for Error {
 /// support the `Error::from_args` public API, which permits users of Jiff to
 /// manifest their own `Error` values from an arbitrary message.
 #[cfg_attr(not(feature = "alloc"), derive(Clone))]
+#[cfg_attr(feature = "defmt", derive(defmt::Format))]
 struct AdhocError {
     #[cfg(feature = "alloc")]
     message: alloc::boxed::Box<str>,
@@ -559,6 +583,7 @@ impl core::fmt::Debug for AdhocError {
 /// This enum doesn't necessarily contain every Jiff crate feature. It only
 /// contains the features whose absence can result in an error.
 #[derive(Clone, Debug)]
+#[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub(crate) enum CrateFeatureError {
     #[cfg(not(feature = "tz-system"))]
     TzSystem,
@@ -643,6 +668,16 @@ impl core::fmt::Debug for IOError {
     }
 }
 
+#[cfg(feature = "defmt")]
+impl defmt::Format for IOError {
+    fn format(&self, f: defmt::Formatter) {
+        // `std::io::Error` does not implement `defmt::Format`. Since this
+        // error is std-only and defmt is mainly used in embedded contexts,
+        // omitting the error is probably fine.
+        defmt::write!(f, "IOError(unavailable)");
+    }
+}
+
 #[cfg(feature = "std")]
 impl From<std::io::Error> for IOError {
     fn from(err: std::io::Error) -> IOError {
@@ -682,6 +717,16 @@ impl core::fmt::Debug for FilePathError {
         {
             f.write_str("<BUG: SHOULD NOT EXIST>")
         }
+    }
+}
+
+#[cfg(feature = "defmt")]
+impl defmt::Format for FilePathError {
+    fn format(&self, f: defmt::Formatter) {
+        // `std::path::PathBuf` does not implement `defmt::Format`. Since this
+        // error is std-only and defmt is mainly used in embedded contexts,
+        // omitting the path is probably fine.
+        defmt::write!(f, "FilePathError(unavailable)");
     }
 }
 
@@ -769,37 +814,49 @@ mod tests {
     // general, we should not increase the size without a very good reason.
     #[test]
     fn error_size() {
-        let mut expected_size = core::mem::size_of::<usize>();
-        if !cfg!(feature = "alloc") {
-            // oooowwwwwwwwwwwch.
-            //
-            // Like, this is horrible, right? core-only environments are
-            // precisely the place where one want to keep things slim. But
-            // in core-only, I don't know of a way to introduce any sort of
-            // indirection in the library level without using a completely
-            // different API.
-            //
-            // This is what makes me doubt that core-only Jiff is actually
-            // useful. In what context are people using a huge library like
-            // Jiff but can't define a small little heap allocator?
-            //
-            // OK, this used to be `expected_size *= 10`, but I slimmed it down
-            // to x3. Still kinda sucks right? If we tried harder, I think we
-            // could probably slim this down more. And if we were willing to
-            // sacrifice error message quality even more (like, all the way),
-            // then we could make `Error` a zero sized type. Which might
-            // actually be the right trade-off for core-only, but I'll hold off
-            // until we have some real world use cases.
-            //
-            // OK... after switching to structured errors, this jumped
-            // back up to `expected_size *= 6`. And that was with me being
-            // conscientious about what data we store inside of error types.
-            // Blech.
-            //
-            // 2026-01-14: A change to the `Offset` type made this move back
-            // down to `expected_size *= 4`.
-            expected_size *= 4;
+        if cfg!(feature = "alloc") {
+            let expected_size = core::mem::size_of::<usize>();
+            assert_eq!(expected_size, core::mem::size_of::<Error>());
+            return;
         }
-        assert_eq!(expected_size, core::mem::size_of::<Error>());
+        // oooowwwwwwwwwwwch.
+        //
+        // Like, this is horrible, right? core-only environments are
+        // precisely the place where one want to keep things slim. But
+        // in core-only, I don't know of a way to introduce any sort of
+        // indirection in the library level without using a completely
+        // different API.
+        //
+        // This is what makes me doubt that core-only Jiff is actually
+        // useful. In what context are people using a huge library like
+        // Jiff but can't define a small little heap allocator?
+        //
+        // OK, this used to be `expected_size *= 10`, but I slimmed it down
+        // to x3. Still kinda sucks right? If we tried harder, I think we
+        // could probably slim this down more. And if we were willing to
+        // sacrifice error message quality even more (like, all the way),
+        // then we could make `Error` a zero sized type. Which might
+        // actually be the right trade-off for core-only, but I'll hold off
+        // until we have some real world use cases.
+        //
+        // OK... after switching to structured errors, this jumped
+        // back up to `expected_size *= 6`. And that was with me being
+        // conscientious about what data we store inside of error types.
+        // Blech.
+        //
+        // 2026-01-14: A change to the `Offset` type made this move back
+        // down to `expected_size *= 4`.
+        //
+        // 2026-05-28: No changes here, but `4 * pointer-size` is not the
+        // right calculation here. This is unfortunately coupled with an
+        // internal representation for the biggest possible error variant.
+        // And also compiler optimizations. But at time of writing, it's
+        // from the `jiff::error::tz::offset::Error` enum. We get 4 32-bit
+        // integers (always 32-bit) plus one pointer sized discriminant.
+        //
+        // 2026-05-28 redux: this now seems coupled with compiler
+        // optimizations. So just give up and check that it's reasonable.
+        let got = core::mem::size_of::<Error>();
+        assert!(got <= 40, "wanted error size to be <= 40, but got {got}");
     }
 }

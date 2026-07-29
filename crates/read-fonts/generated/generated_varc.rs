@@ -111,32 +111,48 @@ impl<'a> Varc<'a> {
 
     pub fn version_byte_range(&self) -> Range<usize> {
         let start = 0;
-        start..start + MajorMinor::RAW_BYTE_LEN
+        let end = start + MajorMinor::RAW_BYTE_LEN;
+        start..end
     }
 
     pub fn coverage_offset_byte_range(&self) -> Range<usize> {
         let start = self.version_byte_range().end;
-        start..start + Offset32::RAW_BYTE_LEN
+        let end = start + Offset32::RAW_BYTE_LEN;
+        start..end
     }
 
     pub fn multi_var_store_offset_byte_range(&self) -> Range<usize> {
         let start = self.coverage_offset_byte_range().end;
-        start..start + Offset32::RAW_BYTE_LEN
+        let end = start + Offset32::RAW_BYTE_LEN;
+        start..end
     }
 
     pub fn condition_list_offset_byte_range(&self) -> Range<usize> {
         let start = self.multi_var_store_offset_byte_range().end;
-        start..start + Offset32::RAW_BYTE_LEN
+        let end = start + Offset32::RAW_BYTE_LEN;
+        start..end
     }
 
     pub fn axis_indices_list_offset_byte_range(&self) -> Range<usize> {
         let start = self.condition_list_offset_byte_range().end;
-        start..start + Offset32::RAW_BYTE_LEN
+        let end = start + Offset32::RAW_BYTE_LEN;
+        start..end
     }
 
     pub fn var_composite_glyphs_offset_byte_range(&self) -> Range<usize> {
         let start = self.axis_indices_list_offset_byte_range().end;
-        start..start + Offset32::RAW_BYTE_LEN
+        let end = start + Offset32::RAW_BYTE_LEN;
+        start..end
+    }
+}
+
+const _: () = assert!(FontData::default_data_long_enough(Varc::MIN_SIZE));
+
+impl Default for Varc<'_> {
+    fn default() -> Self {
+        Self {
+            data: FontData::default_table_data(),
+        }
     }
 }
 
@@ -255,23 +271,40 @@ impl<'a> MultiItemVariationStore<'a> {
 
     pub fn format_byte_range(&self) -> Range<usize> {
         let start = 0;
-        start..start + u16::RAW_BYTE_LEN
+        let end = start + u16::RAW_BYTE_LEN;
+        start..end
     }
 
     pub fn region_list_offset_byte_range(&self) -> Range<usize> {
         let start = self.format_byte_range().end;
-        start..start + Offset32::RAW_BYTE_LEN
+        let end = start + Offset32::RAW_BYTE_LEN;
+        start..end
     }
 
     pub fn variation_data_count_byte_range(&self) -> Range<usize> {
         let start = self.region_list_offset_byte_range().end;
-        start..start + u16::RAW_BYTE_LEN
+        let end = start + u16::RAW_BYTE_LEN;
+        start..end
     }
 
     pub fn variation_data_offsets_byte_range(&self) -> Range<usize> {
         let variation_data_count = self.variation_data_count();
         let start = self.variation_data_count_byte_range().end;
-        start..start + (variation_data_count as usize).saturating_mul(Offset32::RAW_BYTE_LEN)
+        let end = start
+            + (transforms::to_usize(variation_data_count)).saturating_mul(Offset32::RAW_BYTE_LEN);
+        start..end
+    }
+}
+
+const _: () = assert!(FontData::default_data_long_enough(
+    MultiItemVariationStore::MIN_SIZE
+));
+
+impl Default for MultiItemVariationStore<'_> {
+    fn default() -> Self {
+        Self {
+            data: FontData::default_format_1_u16_table_data(),
+        }
     }
 }
 
@@ -291,20 +324,10 @@ impl<'a> SomeTable<'a> for MultiItemVariationStore<'a> {
                 "variation_data_count",
                 self.variation_data_count(),
             )),
-            3usize => Some({
-                let data = self.data;
-                Field::new(
-                    "variation_data_offsets",
-                    FieldType::array_of_offsets(
-                        better_type_name::<MultiItemVariationData>(),
-                        self.variation_data_offsets(),
-                        move |off| {
-                            let target = off.get().resolve::<MultiItemVariationData>(data);
-                            FieldType::offset(off.get(), target)
-                        },
-                    ),
-                )
-            }),
+            3usize => Some(Field::new(
+                "variation_data_offsets",
+                FieldType::from(self.variation_data()),
+            )),
             _ => None,
         }
     }
@@ -367,13 +390,28 @@ impl<'a> SparseVariationRegionList<'a> {
 
     pub fn region_count_byte_range(&self) -> Range<usize> {
         let start = 0;
-        start..start + u16::RAW_BYTE_LEN
+        let end = start + u16::RAW_BYTE_LEN;
+        start..end
     }
 
     pub fn region_offsets_byte_range(&self) -> Range<usize> {
         let region_count = self.region_count();
         let start = self.region_count_byte_range().end;
-        start..start + (region_count as usize).saturating_mul(Offset32::RAW_BYTE_LEN)
+        let end =
+            start + (transforms::to_usize(region_count)).saturating_mul(Offset32::RAW_BYTE_LEN);
+        start..end
+    }
+}
+
+const _: () = assert!(FontData::default_data_long_enough(
+    SparseVariationRegionList::MIN_SIZE
+));
+
+impl Default for SparseVariationRegionList<'_> {
+    fn default() -> Self {
+        Self {
+            data: FontData::default_table_data(),
+        }
     }
 }
 
@@ -385,20 +423,10 @@ impl<'a> SomeTable<'a> for SparseVariationRegionList<'a> {
     fn get_field(&self, idx: usize) -> Option<Field<'a>> {
         match idx {
             0usize => Some(Field::new("region_count", self.region_count())),
-            1usize => Some({
-                let data = self.data;
-                Field::new(
-                    "region_offsets",
-                    FieldType::array_of_offsets(
-                        better_type_name::<SparseVariationRegion>(),
-                        self.region_offsets(),
-                        move |off| {
-                            let target = off.get().resolve::<SparseVariationRegion>(data);
-                            FieldType::offset(off.get(), target)
-                        },
-                    ),
-                )
-            }),
+            1usize => Some(Field::new(
+                "region_offsets",
+                FieldType::from(self.regions()),
+            )),
             _ => None,
         }
     }
@@ -454,16 +482,29 @@ impl<'a> SparseVariationRegion<'a> {
 
     pub fn region_axis_count_byte_range(&self) -> Range<usize> {
         let start = 0;
-        start..start + u16::RAW_BYTE_LEN
+        let end = start + u16::RAW_BYTE_LEN;
+        start..end
     }
 
     pub fn region_axes_byte_range(&self) -> Range<usize> {
         let region_axis_count = self.region_axis_count();
         let start = self.region_axis_count_byte_range().end;
-        start
-            ..start
-                + (region_axis_count as usize)
-                    .saturating_mul(SparseRegionAxisCoordinates::RAW_BYTE_LEN)
+        let end = start
+            + (transforms::to_usize(region_axis_count))
+                .saturating_mul(SparseRegionAxisCoordinates::RAW_BYTE_LEN);
+        start..end
+    }
+}
+
+const _: () = assert!(FontData::default_data_long_enough(
+    SparseVariationRegion::MIN_SIZE
+));
+
+impl Default for SparseVariationRegion<'_> {
+    fn default() -> Self {
+        Self {
+            data: FontData::default_table_data(),
+        }
     }
 }
 
@@ -602,23 +643,41 @@ impl<'a> MultiItemVariationData<'a> {
 
     pub fn format_byte_range(&self) -> Range<usize> {
         let start = 0;
-        start..start + u8::RAW_BYTE_LEN
+        let end = start + u8::RAW_BYTE_LEN;
+        start..end
     }
 
     pub fn region_index_count_byte_range(&self) -> Range<usize> {
         let start = self.format_byte_range().end;
-        start..start + u16::RAW_BYTE_LEN
+        let end = start + u16::RAW_BYTE_LEN;
+        start..end
     }
 
     pub fn region_indices_byte_range(&self) -> Range<usize> {
         let region_index_count = self.region_index_count();
         let start = self.region_index_count_byte_range().end;
-        start..start + (region_index_count as usize).saturating_mul(u16::RAW_BYTE_LEN)
+        let end =
+            start + (transforms::to_usize(region_index_count)).saturating_mul(u16::RAW_BYTE_LEN);
+        start..end
     }
 
     pub fn raw_delta_sets_byte_range(&self) -> Range<usize> {
         let start = self.region_indices_byte_range().end;
-        start..start + self.data.len().saturating_sub(start) / u8::RAW_BYTE_LEN * u8::RAW_BYTE_LEN
+        let end =
+            start + self.data.len().saturating_sub(start) / u8::RAW_BYTE_LEN * u8::RAW_BYTE_LEN;
+        start..end
+    }
+}
+
+const _: () = assert!(FontData::default_data_long_enough(
+    MultiItemVariationData::MIN_SIZE
+));
+
+impl Default for MultiItemVariationData<'_> {
+    fn default() -> Self {
+        Self {
+            data: FontData::default_format_1_u8_table_data(),
+        }
     }
 }
 
@@ -695,13 +754,26 @@ impl<'a> ConditionList<'a> {
 
     pub fn condition_count_byte_range(&self) -> Range<usize> {
         let start = 0;
-        start..start + u32::RAW_BYTE_LEN
+        let end = start + u32::RAW_BYTE_LEN;
+        start..end
     }
 
     pub fn condition_offsets_byte_range(&self) -> Range<usize> {
         let condition_count = self.condition_count();
         let start = self.condition_count_byte_range().end;
-        start..start + (condition_count as usize).saturating_mul(Offset32::RAW_BYTE_LEN)
+        let end =
+            start + (transforms::to_usize(condition_count)).saturating_mul(Offset32::RAW_BYTE_LEN);
+        start..end
+    }
+}
+
+const _: () = assert!(FontData::default_data_long_enough(ConditionList::MIN_SIZE));
+
+impl Default for ConditionList<'_> {
+    fn default() -> Self {
+        Self {
+            data: FontData::default_table_data(),
+        }
     }
 }
 
@@ -713,20 +785,10 @@ impl<'a> SomeTable<'a> for ConditionList<'a> {
     fn get_field(&self, idx: usize) -> Option<Field<'a>> {
         match idx {
             0usize => Some(Field::new("condition_count", self.condition_count())),
-            1usize => Some({
-                let data = self.data;
-                Field::new(
-                    "condition_offsets",
-                    FieldType::array_of_offsets(
-                        better_type_name::<Condition>(),
-                        self.condition_offsets(),
-                        move |off| {
-                            let target = off.get().resolve::<Condition>(data);
-                            FieldType::offset(off.get(), target)
-                        },
-                    ),
-                )
-            }),
+            1usize => Some(Field::new(
+                "condition_offsets",
+                FieldType::from(self.conditions()),
+            )),
             _ => None,
         }
     }

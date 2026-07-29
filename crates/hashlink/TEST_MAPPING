@@ -9,27 +9,5 @@
     {
       "path": "tools/security/fuzzing/orphans/hashlink"
     }
-  ],
-  "presubmit": [
-    {
-      "name": "hashlink_test_tests_linked_hash_map"
-    },
-    {
-      "name": "hashlink_test_tests_linked_hash_set"
-    },
-    {
-      "name": "hashlink_test_tests_lru_cache"
-    }
-  ],
-  "presubmit-rust": [
-    {
-      "name": "hashlink_test_tests_linked_hash_map"
-    },
-    {
-      "name": "hashlink_test_tests_linked_hash_set"
-    },
-    {
-      "name": "hashlink_test_tests_lru_cache"
-    }
   ]
 }

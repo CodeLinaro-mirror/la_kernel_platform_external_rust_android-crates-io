@@ -14,6 +14,7 @@
 
 use std::cell::{RefCell, RefMut};
 use std::fmt::{Debug, Display, Error, Formatter};
+use std::sync::OnceLock;
 use std::thread_local;
 
 /// The outcome hitherto of running a test.
@@ -43,6 +44,33 @@ impl TestOutcome {
     /// **For internal use only. API stablility is not guaranteed!**
     #[doc(hidden)]
     pub fn init_current_test_outcome() {
+        static INSTALL_HOOK: OnceLock<()> = OnceLock::new();
+        INSTALL_HOOK.get_or_init(|| {
+            let prev_hook = std::panic::take_hook();
+            std::panic::set_hook(Box::new(move |info| {
+                let traces = crate::internal::scoped_trace::get_scoped_traces();
+                if !traces.is_empty() {
+                    #[cfg(test)]
+                    {
+                        use crate::internal::scoped_trace::test_helpers::*;
+                        let use_capture = USE_CAPTURE_HOOK.with(|v| v.get());
+                        if use_capture {
+                            let _ = CAPTURED_TRACES_IN_HOOK
+                                .with(|v| v.try_borrow_mut().map(|mut b| *b = traces.clone()));
+                            prev_hook(info);
+                            return;
+                        }
+                    }
+
+                    eprintln!("Google Test trace:");
+                    for trace in traces.iter().rev() {
+                        eprintln!("  {}:{}: {}", trace.file, trace.line, trace.message);
+                    }
+                }
+                prev_hook(info);
+            }));
+        });
+
         Self::with_current_test_outcome(|mut current_test_outcome| {
             *current_test_outcome = Some(TestOutcome::Success);
         })
@@ -118,6 +146,10 @@ impl TestOutcome {
 
     /// Ensure that there is a test context present and panic if there is not.
     pub(crate) fn ensure_test_context_present() {
+        if FAILURE_REPORTER_HOOK.get().is_some() {
+            // Bypassed because an external runner hook is registered.
+            return;
+        }
         TestOutcome::with_current_test_outcome(|outcome| {
             outcome.as_ref().expect(
                 "
@@ -156,12 +188,15 @@ impl std::fmt::Display for TestFailure {
 /// A report that a single test assertion failed.
 ///
 /// **For internal use only. API stablility is not guaranteed!**
+///
+/// See pub type Result in googletest/src/lib.rs for the public alias.
 #[doc(hidden)]
 #[derive(Clone)]
 pub struct TestAssertionFailure {
     /// A human-readable formatted string describing the error.
     pub description: String,
     pub custom_message: Option<String>,
+    pub traces: Vec<crate::internal::scoped_trace::TraceInfo>,
     location: Location,
 }
 
@@ -187,6 +222,21 @@ impl Display for Location {
     }
 }
 
+/// A hook to capture non fatal test failures. This is a global static, and it
+/// is initialized exactly once.
+#[doc(hidden)]
+static FAILURE_REPORTER_HOOK: OnceLock<fn(&TestAssertionFailure)> = OnceLock::new();
+
+/// Initializes the failure reporter hook.
+///
+/// This is a global static, and it is initialized at most once and returns true
+/// if the initialization was successful.
+/// If the hook is already set, this will do nothing and return false.
+#[doc(hidden)]
+pub fn set_failure_reporter_hook_if_not_set(capture_fn: fn(&TestAssertionFailure)) -> bool {
+    FAILURE_REPORTER_HOOK.set(capture_fn).is_ok()
+}
+
 impl TestAssertionFailure {
     /// Creates a new instance with the given `description`.
     ///
@@ -196,6 +246,7 @@ impl TestAssertionFailure {
         Self {
             description,
             custom_message: None,
+            traces: crate::internal::scoped_trace::get_scoped_traces(),
             location: Location::Real(std::panic::Location::caller()),
         }
     }
@@ -209,8 +260,28 @@ impl TestAssertionFailure {
     }
 
     pub(crate) fn log(&self) {
-        TestOutcome::fail_current_test();
         println!("{self}");
+        if let Some(capture_fn) = FAILURE_REPORTER_HOOK.get() {
+            capture_fn(self);
+            return;
+        }
+        TestOutcome::fail_current_test();
+    }
+
+    /// Returns the file name of the location.
+    pub fn file(&self) -> &'static str {
+        match self.location {
+            Location::Real(l) => l.file(),
+            Location::Fake { file, .. } => file,
+        }
+    }
+
+    /// Returns the line number of the location.
+    pub fn line(&self) -> u32 {
+        match self.location {
+            Location::Real(l) => l.line(),
+            Location::Fake { line, .. } => line,
+        }
     }
 }
 
@@ -219,6 +290,12 @@ impl Display for TestAssertionFailure {
         writeln!(f, "{}", self.description)?;
         if let Some(custom_message) = &self.custom_message {
             writeln!(f, "{custom_message}")?;
+        }
+        if !self.traces.is_empty() {
+            writeln!(f, "Google Test trace:")?;
+            for trace in self.traces.iter().rev() {
+                writeln!(f, "  {}:{}: {}", trace.file, trace.line, trace.message)?;
+            }
         }
         writeln!(f, "  at {}", self.location)
     }

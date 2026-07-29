@@ -13,8 +13,7 @@
 edition = "2021"
 rust-version = "1.68.2"
 name = "glam"
-version = "0.33.0"
-authors = ["Cameron Hart <cameron.hart@gmail.com>"]
+version = "0.33.2"
 build = false
 autolib = false
 autobins = false
@@ -104,6 +103,10 @@ path = "tests/affine2.rs"
 [[test]]
 name = "affine3"
 path = "tests/affine3.rs"
+
+[[test]]
+name = "camera"
+path = "tests/camera.rs"
 
 [[test]]
 name = "euler"
@@ -340,7 +343,7 @@ version = "0.8"
 features = ["html_reports"]
 
 [target.'cfg(not(target_family = "wasm"))'.dev-dependencies.gungraun]
-version = "0.17"
+version = "0.19"
 
 [target.'cfg(target_family = "wasm")'.dev-dependencies.wasm-bindgen-test]
 version = "0.3.0"

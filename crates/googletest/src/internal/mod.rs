@@ -16,6 +16,7 @@
 
 pub(crate) mod description_renderer;
 pub mod glob;
+pub mod scoped_trace;
 pub mod test_data;
 pub mod test_filter;
 pub mod test_outcome;

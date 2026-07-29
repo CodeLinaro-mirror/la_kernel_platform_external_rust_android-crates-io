@@ -124,24 +124,24 @@ bitflags! {
         /// Do not check or update any extended attribute security.sehash entries.
         ///
         /// This flag is supported only by `libselinux` version `3.0` or later.
-        const SKIP_DIGEST = 0x08000;
+        const SKIP_DIGEST = 0x8000;
 
         /// Treat conflicting specifications, such as where two hardlinks for
         /// the same inode have different contexts, as errors.
         ///
         /// This flag is supported only by `libselinux` version `3.1` or later.
-        const CONFLICT_ERROR = 0x10000;
+        const CONFLICT_ERROR = 0x1_0000;
 
         /// Count, but otherwise ignore, errors during the file tree walk.
         ///
         /// This flag requires `libselinux` version `3.4` or later.
-        const COUNT_ERRORS = 0x20000;
+        const COUNT_ERRORS = 0x2_0000;
 
         /// In addition to the type component also change the user and
         /// role component of security contexts.
         ///
         /// This flag requires `libselinux` version `3.9` or later.
-        const SET_USER_ROLE = 0x40000;
+        const SET_USER_ROLE = 0x4_0000;
 
         /// Count the number of relabeled files (or would be relabeled if
         /// the [`NO_CHANGE`] flag was not set).
@@ -149,7 +149,12 @@ bitflags! {
         /// This flag requires `libselinux` version `3.10` or later.
         ///
         /// [`NO_CHANGE`]: Self::NO_CHANGE
-        const COUNT_RELABELED = 0x80000;
+        const COUNT_RELABELED = 0x8_0000;
+
+        /// Do not relabel non-directories that have more than one hard link.
+        ///
+        /// This flag requires `libselinux` version `3.11` or later.
+        const SKIP_MULTILINK = 0x10_0000;
     }
 }
 

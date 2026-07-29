@@ -1,0 +1,9 @@
+{
+  "run_cargo": false,
+  "min_sdk_version": "29",
+  "package": {
+      "cpufeatures": {
+        "add_module_block": "libc.bp.fragment"
+      }
+  }
+}

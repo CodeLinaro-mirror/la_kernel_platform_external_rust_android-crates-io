@@ -11,11 +11,17 @@
 
 [package]
 edition = "2021"
-rust-version = "1.60"
+rust-version = "1.65"
 name = "libtest-mimic"
-version = "0.6.1"
+version = "0.8.2"
 authors = ["Lukas Kalbertodt <lukas.kalbertodt@gmail.com>"]
+build = false
 exclude = [".github"]
+autolib = false
+autobins = false
+autoexamples = false
+autotests = false
+autobenches = false
 description = """
 Write your own test harness that looks and behaves like the built-in test harness used by `rustc --test`
 """
@@ -35,18 +41,49 @@ categories = [
 license = "MIT/Apache-2.0"
 repository = "https://github.com/LukasKalbertodt/libtest-mimic"
 
+[lib]
+name = "libtest_mimic"
+path = "src/lib.rs"
+
+[[example]]
+name = "simple"
+path = "examples/simple.rs"
+
+[[example]]
+name = "tidy"
+path = "examples/tidy.rs"
+
+[[test]]
+name = "all_passing"
+path = "tests/all_passing.rs"
+
+[[test]]
+name = "mixed_bag"
+path = "tests/mixed_bag.rs"
+
+[[test]]
+name = "panic"
+path = "tests/panic.rs"
+
+[[test]]
+name = "threads"
+path = "tests/threads.rs"
+
+[dependencies.anstream]
+version = "1"
+
+[dependencies.anstyle]
+version = "1.0.7"
+
 [dependencies.clap]
 version = "4.0.8"
 features = ["derive"]
 
-[dependencies.termcolor]
-version = "1.0.5"
-
-[dependencies.threadpool]
-version = "1.8.1"
+[dependencies.escape8259]
+version = "0.5.2"
 
 [dev-dependencies.fastrand]
-version = "1.8.0"
+version = "2.0.0"
 
 [dev-dependencies.pretty_assertions]
 version = "1.2.1"

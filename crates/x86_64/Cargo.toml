@@ -13,7 +13,7 @@
 edition = "2018"
 rust-version = "1.59"
 name = "x86_64"
-version = "0.15.4"
+version = "0.15.5"
 authors = [
     "Gerd Zellweger <mail@gerdzellweger.com>",
     "Eric Kidd <git@randomhacks.net>",

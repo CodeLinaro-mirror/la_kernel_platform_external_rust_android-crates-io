@@ -77,6 +77,9 @@ impl<TSys: Sys> Finder<TSys> {
         );
 
         let ret = match cwd {
+            _ if path.is_absolute() => {
+                WhichFindIterator::new_path(path, self.sys, nonfatal_error_handler)
+            }
             Some(cwd) if path.has_separator() => {
                 WhichFindIterator::new_cwd(path, cwd.as_ref(), self.sys, nonfatal_error_handler)
             }
@@ -123,16 +126,19 @@ struct WhichFindIterator<TSys: Sys, F: NonFatalErrorHandler> {
 }
 
 impl<TSys: Sys, F: NonFatalErrorHandler> WhichFindIterator<TSys, F> {
-    pub fn new_cwd(binary_name: PathBuf, cwd: &Path, sys: TSys, nonfatal_error_handler: F) -> Self {
+    pub fn new_path(binary_name: PathBuf, sys: TSys, mut nonfatal_error_handler: F) -> Self {
         let path_extensions = if sys.is_windows() {
             sys.env_windows_path_ext()
         } else {
             Cow::Borrowed(Default::default())
         };
+        if sys.is_windows() && path_extensions.is_empty() && binary_name.extension().is_none() {
+            nonfatal_error_handler.handle(NonFatalError::PathExtNotPopulated);
+        }
         Self {
             sys,
             paths: PathsIter {
-                paths: vec![binary_name.to_absolute(cwd)].into_iter(),
+                paths: vec![binary_name].into_iter(),
                 current_path_with_index: None,
                 path_extensions,
             },
@@ -140,17 +146,24 @@ impl<TSys: Sys, F: NonFatalErrorHandler> WhichFindIterator<TSys, F> {
         }
     }
 
+    pub fn new_cwd(binary_name: PathBuf, cwd: &Path, sys: TSys, nonfatal_error_handler: F) -> Self {
+        Self::new_path(binary_name.to_absolute(cwd), sys, nonfatal_error_handler)
+    }
+
     pub fn new_paths(
         binary_name: PathBuf,
         paths: Vec<PathBuf>,
         sys: TSys,
-        nonfatal_error_handler: F,
+        mut nonfatal_error_handler: F,
     ) -> Self {
         let path_extensions = if sys.is_windows() {
             sys.env_windows_path_ext()
         } else {
             Cow::Borrowed(Default::default())
         };
+        if sys.is_windows() && path_extensions.is_empty() && binary_name.extension().is_none() {
+            nonfatal_error_handler.handle(NonFatalError::PathExtNotPopulated);
+        }
 
         let paths = paths.iter();
 
@@ -363,18 +376,14 @@ impl<TSys: Sys, B: Borrow<Regex>, F: NonFatalErrorHandler> Iterator
                     }
                 }
             } else {
-                let path = self.paths.next();
-                if let Some(path) = path {
-                    match self.sys.read_dir(&path) {
-                        Ok(new_read_dir_iter) => {
-                            self.current_read_dir_iter = Some(new_read_dir_iter);
-                        }
-                        Err(e) => {
-                            self.nonfatal_error_handler.handle(NonFatalError::Io(e));
-                        }
+                let path = self.paths.next()?;
+                match self.sys.read_dir(&path) {
+                    Ok(new_read_dir_iter) => {
+                        self.current_read_dir_iter = Some(new_read_dir_iter);
                     }
-                } else {
-                    return None;
+                    Err(e) => {
+                        self.nonfatal_error_handler.handle(NonFatalError::Io(e));
+                    }
                 }
             }
         }

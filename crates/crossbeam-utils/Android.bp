@@ -18,7 +18,7 @@ rust_test {
     host_supported: true,
     crate_name: "crossbeam_utils",
     cargo_env_compat: true,
-    cargo_pkg_version: "0.8.21",
+    cargo_pkg_version: "0.8.22",
     crate_root: "src/lib.rs",
     test_suites: ["general-tests"],
     auto_gen_config: true,
@@ -31,6 +31,7 @@ rust_test {
         "std",
     ],
     rustlibs: ["librand-0.8"],
+    proc_macros: ["librustversion"],
 }
 
 rust_test {
@@ -38,7 +39,7 @@ rust_test {
     host_supported: true,
     crate_name: "atomic_cell",
     cargo_env_compat: true,
-    cargo_pkg_version: "0.8.21",
+    cargo_pkg_version: "0.8.22",
     crate_root: "tests/atomic_cell.rs",
     test_suites: ["general-tests"],
     auto_gen_config: true,
@@ -54,6 +55,7 @@ rust_test {
         "libcrossbeam_utils",
         "librand-0.8",
     ],
+    proc_macros: ["librustversion"],
 }
 
 rust_test {
@@ -61,7 +63,7 @@ rust_test {
     host_supported: true,
     crate_name: "cache_padded",
     cargo_env_compat: true,
-    cargo_pkg_version: "0.8.21",
+    cargo_pkg_version: "0.8.22",
     crate_root: "tests/cache_padded.rs",
     test_suites: ["general-tests"],
     auto_gen_config: true,
@@ -77,6 +79,7 @@ rust_test {
         "libcrossbeam_utils",
         "librand-0.8",
     ],
+    proc_macros: ["librustversion"],
 }
 
 rust_test {
@@ -84,7 +87,7 @@ rust_test {
     host_supported: true,
     crate_name: "parker",
     cargo_env_compat: true,
-    cargo_pkg_version: "0.8.21",
+    cargo_pkg_version: "0.8.22",
     crate_root: "tests/parker.rs",
     test_suites: ["general-tests"],
     auto_gen_config: true,
@@ -100,6 +103,7 @@ rust_test {
         "libcrossbeam_utils",
         "librand-0.8",
     ],
+    proc_macros: ["librustversion"],
 }
 
 rust_test {
@@ -107,7 +111,7 @@ rust_test {
     host_supported: true,
     crate_name: "sharded_lock",
     cargo_env_compat: true,
-    cargo_pkg_version: "0.8.21",
+    cargo_pkg_version: "0.8.22",
     crate_root: "tests/sharded_lock.rs",
     test_suites: ["general-tests"],
     auto_gen_config: true,
@@ -123,6 +127,7 @@ rust_test {
         "libcrossbeam_utils",
         "librand-0.8",
     ],
+    proc_macros: ["librustversion"],
 }
 
 rust_test {
@@ -130,7 +135,7 @@ rust_test {
     host_supported: true,
     crate_name: "thread",
     cargo_env_compat: true,
-    cargo_pkg_version: "0.8.21",
+    cargo_pkg_version: "0.8.22",
     crate_root: "tests/thread.rs",
     test_suites: ["general-tests"],
     auto_gen_config: true,
@@ -146,6 +151,7 @@ rust_test {
         "libcrossbeam_utils",
         "librand-0.8",
     ],
+    proc_macros: ["librustversion"],
 }
 
 rust_test {
@@ -153,7 +159,7 @@ rust_test {
     host_supported: true,
     crate_name: "wait_group",
     cargo_env_compat: true,
-    cargo_pkg_version: "0.8.21",
+    cargo_pkg_version: "0.8.22",
     crate_root: "tests/wait_group.rs",
     test_suites: ["general-tests"],
     auto_gen_config: true,
@@ -169,6 +175,7 @@ rust_test {
         "libcrossbeam_utils",
         "librand-0.8",
     ],
+    proc_macros: ["librustversion"],
 }
 
 rust_library {
@@ -176,7 +183,7 @@ rust_library {
     host_supported: true,
     crate_name: "crossbeam_utils",
     cargo_env_compat: true,
-    cargo_pkg_version: "0.8.21",
+    cargo_pkg_version: "0.8.22",
     crate_root: "src/lib.rs",
     edition: "2021",
     features: [
@@ -187,6 +194,7 @@ rust_library {
         "//apex_available:platform",
         "//apex_available:anyapex",
     ],
+    ota_recovery_ramdisk_available: true,
     product_available: true,
     vendor_available: true,
     min_sdk_version: "29",

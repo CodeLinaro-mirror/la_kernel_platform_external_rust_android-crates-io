@@ -4,6 +4,7 @@ use crate::{DivExact, ModularUnaryOps};
 ///
 /// This struct stores the modular inverse of a divisor, and a limit for divisibility check.
 /// See <https://math.stackexchange.com/a/1251328> for the explanation of the trick
+#[must_use]
 #[derive(Debug, Clone, Copy)]
 pub struct PreModInv<T> {
     d_inv: T, // modular inverse of divisor
@@ -105,6 +106,7 @@ mod tests {
     use rand::random;
 
     #[test]
+    #[allow(unstable_name_collisions)]
     fn div_exact_test() {
         const N: u8 = 100;
         for _ in 0..N {

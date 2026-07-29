@@ -4,6 +4,8 @@ acpi
 adler2
 ahash
 aho-corasick
+alloc-no-stdlib
+alloc-stdlib
 alloca
 android-chrono-tz
 android_bp
@@ -11,8 +13,13 @@ android_log-sys
 android_logger
 anes
 annotate-snippets
+anstream
 anstyle
+anstyle-parse
+anstyle-query
 anyhow
+appendlist
+approx
 arbitrary
 arc-swap
 argh
@@ -23,6 +30,7 @@ arm-ffa
 arm-gic
 arm-pl011-uart
 arm-psci
+arm-sysregs
 array-init
 arrayvec
 ash
@@ -36,9 +44,12 @@ async-task
 async-trait
 atomic
 atomic-waker
+atomic_float
 atty
 autocfg
 automotive_diag
+awaitable
+awaitable-error
 aws-lc-rs
 axum
 axum-core
@@ -54,6 +65,9 @@ bit_field
 bitflags
 bitreader
 bitvec
+block-buffer
+brotli
+brotli-decompressor
 bstr
 buddy_system_allocator
 bytemuck
@@ -62,6 +76,7 @@ byteorder
 byteorder-lite
 bytes
 bzip2-cli
+calloop
 camino
 caps
 cargo-platform
@@ -72,6 +87,7 @@ cesu8
 cexpr
 cfg-expr
 cfg-if
+cgmath
 chrono
 chunked_transfer
 ciborium
@@ -85,14 +101,17 @@ clap_complete
 clap_derive
 clap_lex
 codespan-reporting
+colorchoice
 combine
 command-fds
+concurrent_arena
 config
 configparser
 const-oid
 const_fn
 coset
 cov-mark
+cpufeatures
 crates-index
 crc
 crc-catalog
@@ -105,9 +124,11 @@ crossbeam-deque
 crossbeam-epoch
 crossbeam-queue
 crossbeam-utils
+crypto-common
 csv
 csv-core
 ctrlc
+cursor-icon
 darling
 darling_core
 darling_macro
@@ -128,10 +149,13 @@ derive_arbitrary
 derive_builder
 derive_builder_core
 derive_builder_macro
+derive_destructure2
+digest
 diplomat
 diplomat-runtime
 diplomat_core
 displaydoc
+dlmalloc
 doc-comment
 document-features
 doip-definitions
@@ -153,6 +177,7 @@ env_logger
 epoll
 equivalent
 errno
+escape8259
 etcetera
 etherparse
 euclid
@@ -195,6 +220,7 @@ gdbstub
 gdbstub_arch
 genco
 genco-macros
+generic-array
 getopts
 getrandom
 gherkin
@@ -253,6 +279,7 @@ idna_adapter
 if-addrs
 ignore
 image
+image-compare
 indexmap
 inotify
 inotify-sys
@@ -263,8 +290,10 @@ ipp
 ippusb
 iri-string
 is-terminal
+is_terminal_polyfill
 itertools
 itoa
+java-locator
 jiff
 jni
 jni-macros
@@ -296,6 +325,7 @@ linkme-impl
 linux-aio-tokio
 litemap
 litrs
+little_exif
 lock_api
 log
 lru-cache
@@ -343,6 +373,7 @@ netlink-proto
 netlink-sys
 nix
 no-panic
+no_denormals
 nom
 normpath
 nu-ansi-term
@@ -362,6 +393,11 @@ oneshot-uniffi
 oorandom
 open-enum
 open-enum-derive
+openssh-sftp-client
+openssh-sftp-client-lowlevel
+openssh-sftp-error
+openssh-sftp-protocol
+openssh-sftp-protocol-error
 openssl-macros
 openssl-probe
 os_pipe
@@ -398,6 +434,8 @@ plotters-backend
 plotters-svg
 png
 poll_token_derive
+polling
+polycool
 portable-atomic
 potential_utf
 ppv-lite86
@@ -409,6 +447,8 @@ primal-check
 proc-macro-error-attr2
 proc-macro-error2
 proc-macro2
+profiling
+profiling-procmacros
 protobuf
 protobuf-codegen
 protobuf-json-mapping
@@ -418,6 +458,7 @@ ptr_meta
 ptr_meta_derive
 pxfm
 quiche
+quick-xml
 quickcheck
 quote
 radium
@@ -431,6 +472,7 @@ rayon-core
 read-fonts
 regex
 regex-automata
+regex-lite
 regex-syntax
 region
 relative-path
@@ -477,6 +519,7 @@ serde_test
 serde_urlencoded
 serde_yaml
 serialport
+sha2
 sharded-slab
 shared_child
 shared_library
@@ -493,6 +536,7 @@ slab
 slotmap
 smallvec
 smccc
+smithay
 smol_str
 smoltcp
 socket2
@@ -500,6 +544,8 @@ spdx
 spidev
 spin
 spki
+ssh_format
+ssh_format_error
 stable_deref_trait
 static_assertions
 strck
@@ -527,6 +573,7 @@ termcolor
 termtree
 textdistance
 textwrap
+thin-vec
 thiserror
 thiserror-impl
 thread-priority
@@ -541,6 +588,7 @@ tinyvec
 tinyvec_macros
 tokio
 tokio-io-timeout
+tokio-io-utility
 tokio-macros
 tokio-openssl
 tokio-rustls
@@ -564,12 +612,14 @@ tracing-core
 tracing-log
 tracing-subscriber
 transpose
+triomphe
 try-lock
 tryhard
 tungstenite
 twox-hash
 typed-builder
 typed-builder-macro
+typenum
 ucd-trie
 ucs2
 uefi
@@ -596,7 +646,9 @@ userfaultfd
 userfaultfd-sys
 utf-8
 utf8_iter
+utf8parse
 uuid
+vec-strings
 vhost
 vhost-device-vsock
 vhost-user-backend
@@ -613,6 +665,13 @@ vsprintf
 vulkano
 walkdir
 want
+wayland-backend
+wayland-protocols
+wayland-protocols-misc
+wayland-protocols-wlr
+wayland-scanner
+wayland-server
+wayland-sys
 weak-table
 webpki
 which
@@ -632,6 +691,8 @@ writeable
 wyz
 x509-cert
 x86_64
+xkbcommon
+xkeysym
 xml-rs
 yaml-rust
 yoke

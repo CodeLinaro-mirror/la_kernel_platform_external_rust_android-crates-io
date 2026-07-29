@@ -17,7 +17,7 @@ rust_library_host {
     name: "libnum_modular",
     crate_name: "num_modular",
     cargo_env_compat: true,
-    cargo_pkg_version: "0.6.1",
+    cargo_pkg_version: "0.6.4",
     crate_root: "src/lib.rs",
     edition: "2018",
     compile_multilib: "first",

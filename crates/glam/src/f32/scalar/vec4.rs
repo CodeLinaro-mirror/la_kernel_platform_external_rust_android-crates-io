@@ -128,9 +128,9 @@ impl Vec4 {
     /// Returns a vector containing each element of `self` modified by a mapping function `f`.
     #[inline]
     #[must_use]
-    pub fn map<F>(self, f: F) -> Self
+    pub fn map<F>(self, mut f: F) -> Self
     where
-        F: Fn(f32) -> f32,
+        F: FnMut(f32) -> f32,
     {
         Self::new(f(self.x), f(self.y), f(self.z), f(self.w))
     }
@@ -545,6 +545,21 @@ impl Vec4 {
             | ((self.y.is_sign_negative() as u32) << 1)
             | ((self.z.is_sign_negative() as u32) << 2)
             | ((self.w.is_sign_negative() as u32) << 3)
+    }
+
+    /// Returns a mask indicating which components are negative.
+    ///
+    /// An element is negative if it has a negative sign, including -0.0, NaNs with negative sign
+    /// bit and negative infinity.
+    #[inline]
+    #[must_use]
+    pub fn is_negative_mask(self) -> BVec4A {
+        BVec4A::new(
+            self.x.is_sign_negative(),
+            self.y.is_sign_negative(),
+            self.z.is_sign_negative(),
+            self.w.is_sign_negative(),
+        )
     }
 
     /// Returns `true` if, and only if, all elements are finite.  If any element is either

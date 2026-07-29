@@ -5,13 +5,10 @@ use slotmap::{new_key_type, SlotMap};
 use std::cell::RefCell;
 use web_sys::{
     self, HtmlCanvasElement, HtmlImageElement, HtmlVideoElement, ImageBitmap, ImageData,
-    WebGl2RenderingContext, WebGlBuffer, WebGlFramebuffer, WebGlProgram, WebGlQuery,
+    VideoFrame, WebGl2RenderingContext, WebGlBuffer, WebGlFramebuffer, WebGlProgram, WebGlQuery,
     WebGlRenderbuffer, WebGlRenderingContext, WebGlSampler, WebGlShader, WebGlSync, WebGlTexture,
     WebGlTransformFeedback, WebGlUniformLocation, WebGlVertexArrayObject,
 };
-
-#[cfg(web_sys_unstable_apis)]
-use web_sys::VideoFrame;
 
 #[derive(Debug)]
 enum RawRenderingContext {
@@ -606,7 +603,6 @@ impl Context {
         }
     }
 
-    #[cfg(web_sys_unstable_apis)]
     pub unsafe fn tex_image_2d_with_video_frame(
         &self,
         target: u32,
@@ -644,7 +640,6 @@ impl Context {
         }
     }
 
-    #[cfg(web_sys_unstable_apis)]
     /// WebGL2 Only
     pub unsafe fn tex_image_2d_with_video_frame_and_width_and_height(
         &self,
@@ -958,7 +953,6 @@ impl Context {
         }
     }
 
-    #[cfg(web_sys_unstable_apis)]
     pub unsafe fn tex_sub_image_2d_with_video_frame(
         &self,
         target: u32,
@@ -999,7 +993,6 @@ impl Context {
         }
     }
 
-    #[cfg(web_sys_unstable_apis)]
     /// WebGL2 Only
     pub unsafe fn tex_sub_image_2d_with_video_frame_and_width_and_height(
         &self,
@@ -1222,7 +1215,6 @@ impl Context {
         }
     }
 
-    #[cfg(web_sys_unstable_apis)]
     /// WebGL2 Only
     pub unsafe fn tex_image_3d_with_video_frame(
         &self,
@@ -1399,7 +1391,6 @@ impl Context {
         }
     }
 
-    #[cfg(web_sys_unstable_apis)]
     /// WebGL2 Only
     pub unsafe fn tex_sub_image_3d_with_video_frame(
         &self,
@@ -1541,6 +1532,34 @@ impl Context {
         if let Some(ext) = &self.extensions.webgl_lose_context {
             ext.restore_context()
         }
+    }
+
+    /// Register an externally-owned `WebGlTexture` and return a glow
+    /// [`Texture`] key that refers to it.
+    ///
+    /// # Safety
+    /// The handle must come from the same `WebGl[2]RenderingContext` this
+    /// glow `Context` wraps and must remain valid for as long as the
+    /// returned key is in use.
+    pub unsafe fn register_external_texture(&self, handle: WebGlTexture) -> WebTextureKey {
+        self.textures.borrow_mut().insert(handle)
+    }
+
+    /// Drop the slot for a key produced by
+    /// [`Self::register_external_texture`] without calling
+    /// `gl.deleteTexture`. Returns the underlying handle, or `None` if the
+    /// key is dead.
+    pub fn unregister_external_texture(&self, key: WebTextureKey) -> Option<WebGlTexture> {
+        self.textures.borrow_mut().remove(key)
+    }
+
+    /// Borrow the underlying `WebGlTexture` for a glow [`Texture`] key.
+    ///
+    /// Returns `None` if the key is dead. Works for both
+    /// [`HasContext::create_texture`]-allocated keys and keys produced by
+    /// [`Self::register_external_texture`].
+    pub fn as_web_gl_texture(&self, key: WebTextureKey) -> Option<WebGlTexture> {
+        self.textures.borrow().get(key).cloned()
     }
 
     unsafe fn get_parameter_gl_name<TKey, TResource>(

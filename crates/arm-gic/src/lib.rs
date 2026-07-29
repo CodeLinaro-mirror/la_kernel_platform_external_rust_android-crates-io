@@ -52,6 +52,7 @@
 //! ```
 
 #![cfg_attr(not(any(test, feature = "fakes")), no_std)]
+#![cfg_attr(docsrs, feature(doc_cfg))]
 #![deny(clippy::undocumented_unsafe_blocks)]
 #![deny(unsafe_op_in_unsafe_fn)]
 
@@ -61,15 +62,13 @@ pub mod gicv3;
 mod sysreg;
 
 pub use safe_mmio::UniqueMmioPointer;
-
-#[cfg(feature = "fakes")]
-pub use sysreg::fake as sysreg_fake;
-#[cfg(feature = "fakes")]
-pub use sysreg::fake::{irq_disable, irq_enable, wfi};
+use safe_mmio::fields::ReadPureWrite;
+use thiserror::Error;
+use zerocopy::{FromZeros, Immutable, IntoBytes, KnownLayout};
 
 #[cfg(all(target_arch = "aarch64", not(feature = "fakes")))]
 use core::arch::asm;
-use core::fmt::{Debug, Formatter, Result};
+use core::fmt::{self, Debug, Formatter};
 
 /// The trigger configuration for an interrupt.
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
@@ -80,8 +79,22 @@ pub enum Trigger {
     Level,
 }
 
+/// An interrupt group, without distinguishing between secure and non-secure.
+///
+/// This is used to select which group of interrupts to get, acknowledge and end.
+#[derive(Copy, Clone, Debug, Eq, PartialEq)]
+pub enum InterruptGroup {
+    /// Interrupt group 0.
+    Group0,
+    /// Interrupt group 1.
+    Group1,
+}
+
 /// An interrupt ID.
-#[derive(Copy, Clone, Eq, Ord, PartialOrd, PartialEq)]
+#[derive(
+    Copy, Clone, Eq, FromZeros, Immutable, IntoBytes, KnownLayout, Ord, PartialOrd, PartialEq,
+)]
+#[repr(transparent)]
 pub struct IntId(u32);
 
 impl IntId {
@@ -115,6 +128,9 @@ impl IntId {
     /// The maximum number of extended Shared Peripheral Interrupts which may be supported.
     pub const MAX_ESPI_COUNT: u32 = Self::ESPI_END - Self::ESPI_START;
 
+    /// The maximum number of Locality-specific Peripheral Interrupts which may be supported.
+    pub const MAX_LPI_COUNT: u32 = Self::LPI_END - Self::LPI_START;
+
     /// The ID of the first Software Generated Interrupt.
     const SGI_START: u32 = 0;
 
@@ -144,6 +160,9 @@ impl IntId {
 
     /// The first Locality-specific Peripheral Interrupt.
     const LPI_START: u32 = 8192;
+
+    /// One more than the last possible Locality-specific Peripheral Interrupt.
+    const LPI_END: u32 = 1 << 24;
 
     /// Returns the interrupt ID for the given Software Generated Interrupt.
     pub const fn sgi(sgi: u32) -> Self {
@@ -177,6 +196,7 @@ impl IntId {
 
     /// Returns the interrupt ID for the given Locality-specific Peripheral Interrupt.
     pub const fn lpi(lpi: u32) -> Self {
+        assert!(lpi < Self::MAX_LPI_COUNT);
         Self(Self::LPI_START + lpi)
     }
 
@@ -250,6 +270,13 @@ impl IntId {
         }
     }
 
+    /// Returns the raw interrupt ID value.
+    ///
+    /// This is the same as using the `From<IntId>` implementation, but const.
+    pub const fn raw_value(self) -> u32 {
+        self.0
+    }
+
     // TODO: Change this to return a Range<IntId> once core::iter::Step is stabilised.
     /// Returns an array of all interrupt Ids that are private to a core, i.e. SGIs and PPIs.
     pub fn private() -> impl Iterator<Item = IntId> {
@@ -267,7 +294,7 @@ impl IntId {
 }
 
 impl Debug for IntId {
-    fn fmt(&self, f: &mut Formatter) -> Result {
+    fn fmt(&self, f: &mut Formatter) -> fmt::Result {
         if self.0 < Self::PPI_START {
             write!(f, "SGI {}", self.0 - Self::SGI_START)
         } else if self.0 < Self::SPI_START {
@@ -298,6 +325,26 @@ impl From<IntId> for u32 {
     }
 }
 
+#[derive(Clone, Copy, Debug, Eq, PartialEq, Error)]
+#[error("Invalid (reserved) interrupt ID {0}")]
+pub struct InvalidIntId(u32);
+
+impl TryFrom<u32> for IntId {
+    type Error = InvalidIntId;
+
+    fn try_from(value: u32) -> Result<Self, Self::Error> {
+        if (Self::SPECIAL_END..Self::EPPI_START).contains(&value)
+            || (Self::EPPI_END..Self::ESPI_START).contains(&value)
+            || (Self::ESPI_END..Self::LPI_START).contains(&value)
+            || value >= Self::LPI_END
+        {
+            Err(InvalidIntId(value))
+        } else {
+            Ok(Self(value))
+        }
+    }
+}
+
 /// Disables debug, SError, IRQ and FIQ exceptions.
 #[cfg(all(target_arch = "aarch64", not(feature = "fakes")))]
 pub fn irq_disable() {
@@ -306,6 +353,10 @@ pub fn irq_disable() {
         asm!("msr DAIFSet, #0xf", options(nomem, nostack));
     }
 }
+
+/// Disables debug, SError, IRQ and FIQ exceptions.
+#[cfg(any(test, feature = "fakes"))]
+pub fn irq_disable() {}
 
 /// Enables debug, SError, IRQ and FIQ exceptions.
 #[cfg(all(target_arch = "aarch64", not(feature = "fakes")))]
@@ -316,6 +367,10 @@ pub fn irq_enable() {
     }
 }
 
+/// Enables debug, SError, IRQ and FIQ exceptions.
+#[cfg(any(test, feature = "fakes"))]
+pub fn irq_enable() {}
+
 /// Waits for an interrupt.
 #[cfg(all(target_arch = "aarch64", not(feature = "fakes")))]
 pub fn wfi() {
@@ -323,4 +378,42 @@ pub fn wfi() {
     unsafe {
         asm!("wfi", options(nomem, nostack));
     }
+}
+
+/// Waits for an interrupt.
+#[cfg(any(test, feature = "fakes"))]
+pub fn wfi() {
+    // No-op, just return immediately.
+}
+
+/// Modifies `nth` bit of memory pointed by `registers`.
+fn modify_bit<const N: usize>(
+    mut registers: UniqueMmioPointer<[ReadPureWrite<u32>; N]>,
+    nth: usize,
+    set_bit: bool,
+) {
+    let reg_num: usize = nth / 32;
+
+    let bit_num: usize = nth % 32;
+    let bit_mask: u32 = 1 << bit_num;
+
+    let mut reg_ptr = registers.get(reg_num).unwrap();
+
+    reg_ptr.modify(|old_value| {
+        if set_bit {
+            old_value | bit_mask
+        } else {
+            old_value & !bit_mask
+        }
+    });
+}
+
+/// Sets `nth` bit of memory pointed by `registers`.
+fn set_bit<const N: usize>(registers: UniqueMmioPointer<[ReadPureWrite<u32>; N]>, nth: usize) {
+    modify_bit(registers, nth, true);
+}
+
+/// Clears `nth` bit of memory pointed by `registers`.
+fn clear_bit<const N: usize>(registers: UniqueMmioPointer<[ReadPureWrite<u32>; N]>, nth: usize) {
+    modify_bit(registers, nth, false);
 }

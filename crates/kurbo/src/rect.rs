@@ -118,25 +118,25 @@ impl Rect {
 
     /// Returns the minimum value for the x-coordinate of the rectangle.
     #[inline]
-    pub fn min_x(&self) -> f64 {
+    pub const fn min_x(&self) -> f64 {
         self.x0.min(self.x1)
     }
 
     /// Returns the maximum value for the x-coordinate of the rectangle.
     #[inline]
-    pub fn max_x(&self) -> f64 {
+    pub const fn max_x(&self) -> f64 {
         self.x0.max(self.x1)
     }
 
     /// Returns the minimum value for the y-coordinate of the rectangle.
     #[inline]
-    pub fn min_y(&self) -> f64 {
+    pub const fn min_y(&self) -> f64 {
         self.y0.min(self.y1)
     }
 
     /// Returns the maximum value for the y-coordinate of the rectangle.
     #[inline]
-    pub fn max_y(&self) -> f64 {
+    pub const fn max_y(&self) -> f64 {
         self.y0.max(self.y1)
     }
 
@@ -1031,5 +1031,23 @@ mod tests {
         let outer = Rect::new(0.0, 0.0, 10.0, 10.0);
         let inner = Rect::new(11.0, 11.0, 15.0, 15.0);
         assert!(!outer.contains_rect(inner));
+    }
+
+    #[test]
+    fn rect_intersect_zero() {
+        // These rectangles don't overlap vertically.
+        let a = Rect::new(25., 101., 200., 130.);
+        let b = Rect::new(0., 0., 100., 100.);
+
+        for intersection in [a.intersect(b), b.intersect(a)] {
+            assert_eq!(intersection.x0, 25.);
+            assert_eq!(intersection.x1, 100.);
+            assert_eq!(intersection.area(), 0.);
+            assert_eq!(intersection.y0, intersection.y1);
+
+            // We don't guarantee this in the documentation, but the intersection's `y` values should
+            // be a sensible value taken from the input.
+            assert!([0., 100., 101., 130.].contains(&intersection.y0));
+        }
     }
 }

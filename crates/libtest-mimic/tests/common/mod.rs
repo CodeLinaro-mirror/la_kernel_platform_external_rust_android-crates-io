@@ -68,7 +68,9 @@ pub fn assert_reordered_log(actual: &str, num: u64, expected_lines: &[&str], tai
 
     for expected in expected_lines.iter().map(|l| l.trim()).filter(|l| !l.is_empty()) {
         match actual_lines.get_mut(expected) {
-            None | Some(0) => panic!("expected line \"{expected}\" not in log"),
+            None | Some(0) => {
+                panic!("expected line \"{expected}\" not in log. actual:\n```\n{actual}\n```")
+            }
             Some(num) => *num -= 1,
         }
     }
@@ -95,6 +97,11 @@ macro_rules! assert_log {
                 actual.truncate(pos);
                 actual.push_str("finished in 0.00s");
             }
+        }
+
+        if let Some(pos) = actual.rfind("\"exec_time\":") {
+            actual.truncate(pos);
+            actual.push_str("\"exec_time\": 0.000000000 }");
         }
 
         assert_eq!(actual, expected);

@@ -2,6 +2,7 @@
   "tests": true,
   "min_sdk_version": "29",
   "sdk_version": "current",
+  "ota_recovery_ramdisk_available": true,
   "package": {
     "anyhow": {
       "dep_blocklist": [

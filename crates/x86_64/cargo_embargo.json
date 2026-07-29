@@ -7,6 +7,12 @@
     "libx86_64": "libx86_64_rust_nostd",
     "libbit_field": "libbit_field_nostd"
   },
+  "features": [
+    "instructions",
+    "const_fn",
+    "abi_x86_interrupt",
+    "asm_const"
+  ],
   "package": {
     "x86_64": {
       "host_supported": false,

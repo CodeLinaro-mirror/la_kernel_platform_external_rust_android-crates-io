@@ -3322,6 +3322,17 @@ impl TryFrom<SignedDuration> for Span {
     }
 }
 
+#[cfg(feature = "defmt")]
+impl defmt::Format for Span {
+    fn format(&self, f: defmt::Formatter) {
+        use crate::fmt::DefmtWrite;
+
+        defmt::unwrap!(
+            friendly::DEFAULT_SPAN_PRINTER.print_span(self, DefmtWrite(f))
+        );
+    }
+}
+
 #[cfg(feature = "serde")]
 impl serde_core::Serialize for Span {
     #[inline]
@@ -3496,6 +3507,7 @@ impl quickcheck::Arbitrary for Span {
 /// # Ok::<(), Box<dyn std::error::Error>>(())
 /// ```
 #[derive(Clone, Copy, Debug, Default)]
+#[cfg_attr(feature = "defmt", derive(defmt::Format))]
 #[repr(transparent)]
 pub struct SpanFieldwise(pub Span);
 
@@ -3857,6 +3869,7 @@ impl_to_span!(i64);
 /// assert_eq!(Unit::Hour, Unit::Hour);
 /// ```
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq, PartialOrd, Ord)]
+#[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub enum Unit {
     /// A Gregorian calendar year. It usually has 365 days for non-leap years,
     /// and 366 days for leap years.
@@ -5630,7 +5643,7 @@ impl core::fmt::Debug for UnitSet {
             }
             i += 1;
             write!(f, "{}", unit.compact())?;
-            units = units.set(unit, false);
+            units = units.set(unit, true);
         }
         if i == 0 {
             write!(f, "∅")?;
@@ -7183,5 +7196,11 @@ mod tests {
                 709_551_614,
             ),
         );
+    }
+
+    #[test]
+    fn unit_set_debug() {
+        let set = UnitSet::from_slice(&[Unit::Second]);
+        assert_eq!(std::format!("{set:?}"), "{s}");
     }
 }

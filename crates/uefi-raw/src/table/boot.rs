@@ -134,7 +134,7 @@ pub struct BootServices {
         exit_status: Status,
         exit_data_size: usize,
         exit_data: *mut Char16,
-    ) -> !,
+    ) -> Status,
     pub unload_image: unsafe extern "efiapi" fn(image_handle: Handle) -> Status,
     pub exit_boot_services:
         unsafe extern "efiapi" fn(image_handle: Handle, map_key: usize) -> Status,
@@ -152,7 +152,7 @@ pub struct BootServices {
     // Driver support services
     pub connect_controller: unsafe extern "efiapi" fn(
         controller: Handle,
-        driver_image: Handle,
+        driver_image: *const Handle,
         remaining_device_path: *const DevicePathProtocol,
         recursive: Boolean,
     ) -> Status,

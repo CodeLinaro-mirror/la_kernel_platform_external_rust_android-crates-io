@@ -5,7 +5,53 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog], and this project adheres to
 [Semantic Versioning].
 
-## [0.33.0]
+## [Unreleased]
+
+## [0.33.2] - 2026-06-28
+
+### Added
+
+* Added the `camera` and `dcamera` modules containing view and projection
+  constructor functions organized by handedness and graphics API convention.
+
+  The `view` sub-module provides `look_at_*` and `look_to_*` functions
+  that return `Mat4`, `Affine3`, `Affine3A`, `Mat3`, `Mat3A`, or `Quat`
+  view transforms.
+
+  The `proj` sub-module provides API-specific constructors for OpenGL,
+  DirectX and Vulkan conventions, each offering `perspective`,
+  `perspective_infinite`, `perspective_infinite_reverse`, `orthographic`,
+  and `frustum` constructors for both left-handed and right-handed view
+  spaces.
+
+* Added a `prelude` module which re-exports all common types and traits
+  but not camera modules.
+
+* Added `slerp_long` method to quaternion types, a spherical linear
+  interpolation that preserves the rotation direction.
+
+* Added `is_negative_mask` method to all signed vector types which returns a
+  boolean mask vector indicating which components have a negative sign.
+
+### Changed
+
+* View and projection constructors (`look_at_*`, `look_to_*`,
+  `perspective_*`, `orthographic_*`, `frustum_*`) have been moved off
+  matrix, affine and quaternion types into the `camera`/`dcamera` modules
+  as free functions. The existing methods on those types have been
+  deprecated.
+
+## [0.33.1] - 2026-06-06
+
+### Changed
+
+* Changed vector `map` method constraint from `Fn` to `FnMut`, allowing closures
+  that mutate their captured state.
+
+* Clarified documentation for `any_orthogonal_pair` method to specify it produces
+  a right-handed basis.
+
+## [0.33.0] - 2026-05-21
 
 ### Breaking changes
 
@@ -1407,7 +1453,9 @@ The format is based on [Keep a Changelog], and this project adheres to
 
 [Keep a Changelog]: https://keepachangelog.com/
 [Semantic Versioning]: https://semver.org/spec/v2.0.0.html
-[Unreleased]: https://github.com/bitshifter/glam-rs/compare/0.33.0...HEAD
+[Unreleased]: https://github.com/bitshifter/glam-rs/compare/0.33.2...HEAD
+[0.33.2]: https://github.com/bitshifter/glam-rs/compare/0.33.1...0.33.2
+[0.33.1]: https://github.com/bitshifter/glam-rs/compare/0.33.0...0.33.1
 [0.33.0]: https://github.com/bitshifter/glam-rs/compare/0.32.1...0.33.0
 [0.32.1]: https://github.com/bitshifter/glam-rs/compare/0.32.0...0.32.1
 [0.32.0]: https://github.com/bitshifter/glam-rs/compare/0.31.1...0.32.0

@@ -1,6 +1,6 @@
 [package]
 name = "smccc"
-version = "0.2.2"
+version = "0.2.3"
 edition = "2024"
 license = "MIT OR Apache-2.0"
 description = "Functions and constants for the Arm SMC Calling Convention (SMCCC) 1.4 and Arm Power State Coordination Interface (PSCI) 1.1 on aarch32 and aarch64."
@@ -10,7 +10,7 @@ keywords = ["arm", "aarch64", "cortex-a", "smccc", "psci"]
 categories = ["embedded", "no-std", "hardware-support"]
 
 [dependencies]
-thiserror = { version = "2.0.12", default-features = false }
+thiserror = { version = "2.0.18", default-features = false }
 
 [package.metadata.docs.rs]
 default-target = "aarch64-unknown-none"
