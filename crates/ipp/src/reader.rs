@@ -4,14 +4,13 @@
 use std::io::{self, Read};
 
 use bytes::Bytes;
-
 #[cfg(feature = "async")]
 use futures_util::io::{AsyncRead, AsyncReadExt};
 
-use crate::{IppHeader, model::IppVersion, payload::IppPayload};
+use crate::{IppHeader, model::IppVersion, parser::IppParseError, payload::IppPayload, value::IppName};
 
 #[cfg(feature = "async")]
-/// Asynchronous IPP reader contains a set of methods to read from IPP data stream
+/// Asynchronous IPP reader containing a set of methods to read from an IPP data stream
 pub struct AsyncIppReader<R> {
     inner: R,
 }
@@ -19,9 +18,9 @@ pub struct AsyncIppReader<R> {
 #[cfg(feature = "async")]
 impl<R> AsyncIppReader<R>
 where
-    R: AsyncRead + Send + Sync + Unpin,
+    R: AsyncRead + Send + Unpin,
 {
-    /// Create IppReader from AsyncRead instance
+    /// Create an IppReader from an AsyncRead instance
     pub fn new(inner: R) -> Self {
         AsyncIppReader { inner }
     }
@@ -62,9 +61,9 @@ where
     }
 
     /// Read IPP name from [len; name] element
-    pub async fn read_name(&mut self) -> io::Result<String> {
+    pub async fn read_name(&mut self) -> Result<IppName, IppParseError> {
         let name_len = self.read_u16().await?;
-        self.read_string(name_len as usize).await
+        self.read_string(name_len as usize).await?.try_into()
     }
 
     /// Read IPP value from [len; value] element
@@ -99,23 +98,23 @@ where
 #[cfg(feature = "async")]
 impl<R> From<R> for AsyncIppReader<R>
 where
-    R: AsyncRead + Send + Sync + Unpin,
+    R: AsyncRead + Send + Unpin,
 {
     fn from(r: R) -> Self {
         AsyncIppReader::new(r)
     }
 }
 
-/// Synchronous IPP reader contains a set of methods to read from IPP data stream
+/// Synchronous IPP reader containing a set of methods to read from an IPP data stream
 pub struct IppReader<R> {
     inner: R,
 }
 
 impl<R> IppReader<R>
 where
-    R: Read + Send + Sync,
+    R: Read + Send,
 {
-    /// Create IppReader from Read instance
+    /// Create an IppReader from a Read instance
     pub fn new(inner: R) -> Self {
         IppReader { inner }
     }
@@ -154,9 +153,9 @@ where
     }
 
     /// Read IPP name from [len; name] element
-    pub fn read_name(&mut self) -> io::Result<String> {
+    pub fn read_name(&mut self) -> Result<IppName, IppParseError> {
         let name_len = self.read_u16()?;
-        self.read_string(name_len as usize)
+        self.read_string(name_len as usize)?.try_into()
     }
 
     /// Read IPP value from [len; value] element
@@ -190,7 +189,7 @@ where
 
 impl<R> From<R> for IppReader<R>
 where
-    R: Read + Send + Sync,
+    R: Read + Send,
 {
     fn from(r: R) -> Self {
         IppReader::new(r)
@@ -207,7 +206,7 @@ mod tests {
         let data = io::Cursor::new(vec![0x00, 0x04, b't', b'e', b's', b't']);
         let mut reader = IppReader::new(data);
         let name = reader.read_name().unwrap();
-        assert_eq!(name, "test");
+        assert_eq!(name, "test".try_into().unwrap());
     }
 
     #[test]
@@ -244,7 +243,7 @@ mod tests {
         let data = futures_util::io::Cursor::new(vec![0x00, 0x04, b't', b'e', b's', b't']);
         let mut reader = AsyncIppReader::new(data);
         let name = reader.read_name().await.unwrap();
-        assert_eq!(name, "test");
+        assert_eq!(name, "test".try_into().unwrap());
     }
 
     #[cfg(feature = "async")]
