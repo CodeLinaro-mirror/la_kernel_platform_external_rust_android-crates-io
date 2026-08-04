@@ -29,5 +29,6 @@
   "recovery_available": true,
   "run_cargo": false,
   "tests": true,
-  "vendor_ramdisk_available": true
+  "vendor_ramdisk_available": true,
+  "native_coverage": false
 }

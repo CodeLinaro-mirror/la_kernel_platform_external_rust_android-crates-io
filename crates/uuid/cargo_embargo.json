@@ -2,6 +2,7 @@
   "package": {
     "uuid": {
       "dep_blocklist": [
+        "libgungraun",
         "libtrybuild"
       ]
     }

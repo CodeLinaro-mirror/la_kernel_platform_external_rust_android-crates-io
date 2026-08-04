@@ -18,7 +18,7 @@ rust_library_rlib {
     defaults: ["rust_baremetal_nostd_defaults"],
     crate_name: "safe_mmio",
     cargo_env_compat: true,
-    cargo_pkg_version: "0.3.0",
+    cargo_pkg_version: "0.3.1",
     crate_root: "src/lib.rs",
     edition: "2024",
     rustlibs: ["libzerocopy"],
@@ -38,10 +38,25 @@ rust_test {
     name: "safe-mmio_test_src_lib",
     crate_name: "safe_mmio",
     cargo_env_compat: true,
-    cargo_pkg_version: "0.3.0",
+    cargo_pkg_version: "0.3.1",
     crate_root: "src/lib.rs",
     test_suites: ["general-tests"],
     auto_gen_config: true,
     edition: "2024",
     rustlibs: ["libzerocopy"],
+}
+
+rust_test {
+    name: "safe-mmio_test_tests_custom_mmio",
+    crate_name: "custom_mmio",
+    cargo_env_compat: true,
+    cargo_pkg_version: "0.3.1",
+    crate_root: "tests/custom_mmio.rs",
+    test_suites: ["general-tests"],
+    auto_gen_config: true,
+    edition: "2024",
+    rustlibs: [
+        "libsafe_mmio",
+        "libzerocopy",
+    ],
 }

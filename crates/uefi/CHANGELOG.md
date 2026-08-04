@@ -2,11 +2,16 @@
 
 ## Added
 
-
 ## Changed
 
-
 ## Removed
+
+
+# uefi - v0.39.0 (2026-07-11)
+
+## Added
+- Added `driver::{Driver, install}` to streamline driver development.
+- Added `proto::dma::iommu::Iommu` for IOMMU-based DMA buffer management.
 
 
 # uefi - v0.38.0 (2026-06-21)

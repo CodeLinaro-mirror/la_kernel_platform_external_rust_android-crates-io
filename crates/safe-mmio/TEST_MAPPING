@@ -16,6 +16,9 @@
   "postsubmit": [
     {
       "name": "safe-mmio_test_src_lib"
+    },
+    {
+      "name": "safe-mmio_test_tests_custom_mmio"
     }
   ]
 }

@@ -13,7 +13,7 @@
 edition = "2024"
 rust-version = "1.85"
 name = "safe-mmio"
-version = "0.3.0"
+version = "0.3.1"
 authors = ["Andrew Walbran <qwandor@google.com>"]
 build = false
 autolib = false
@@ -31,10 +31,24 @@ categories = [
 license = "MIT OR Apache-2.0"
 repository = "https://github.com/google/safe-mmio"
 
+[package.metadata.docs.rs]
+features = ["custom-mmio"]
+rustdoc-args = [
+    "--cfg",
+    "docsrs",
+]
+
+[features]
+custom-mmio = []
+
 [lib]
 name = "safe_mmio"
 path = "src/lib.rs"
 
+[[test]]
+name = "custom_mmio"
+path = "tests/custom_mmio.rs"
+
 [dependencies.zerocopy]
-version = "0.8.40"
+version = "0.8.50"
 features = ["derive"]

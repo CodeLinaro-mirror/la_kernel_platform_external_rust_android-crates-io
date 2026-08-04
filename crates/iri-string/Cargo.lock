@@ -4,7 +4,7 @@ version = 3
 
 [[package]]
 name = "iri-string"
-version = "0.7.12"
+version = "0.7.14"
 dependencies = [
  "memchr",
  "serde",

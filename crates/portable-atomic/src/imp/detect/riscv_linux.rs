@@ -6,7 +6,7 @@ Run-time CPU feature detection on RISC-V Linux/Android by using riscv_hwprobe.
 On RISC-V, detection using auxv only supports single-letter extensions.
 So, we use riscv_hwprobe that supports multi-letter extensions.
 
-Refs: https://github.com/torvalds/linux/blob/v6.16/Documentation/arch/riscv/hwprobe.rst
+Refs: https://github.com/torvalds/linux/blob/v6.19/Documentation/arch/riscv/hwprobe.rst
 */
 
 include!("common.rs");
@@ -19,7 +19,7 @@ mod ffi {
     pub(crate) use crate::utils::ffi::{c_long, c_size_t, c_uint, c_ulong};
 
     sys_struct!({
-        // https://github.com/torvalds/linux/blob/v6.16/arch/riscv/include/uapi/asm/hwprobe.h
+        // https://github.com/torvalds/linux/blob/v6.19/arch/riscv/include/uapi/asm/hwprobe.h
         pub(crate) struct riscv_hwprobe {
             pub(crate) key: i64,
             pub(crate) value: u64,
@@ -29,7 +29,7 @@ mod ffi {
     sys_const!({
         pub(crate) const __NR_riscv_hwprobe: c_long = 258;
 
-        // https://github.com/torvalds/linux/blob/v6.16/arch/riscv/include/uapi/asm/hwprobe.h
+        // https://github.com/torvalds/linux/blob/v6.19/arch/riscv/include/uapi/asm/hwprobe.h
         // Linux 6.4+
         // https://github.com/torvalds/linux/commit/00e76e2c6a2bd3976d44d4a1fdd0b7a3c2566607
         pub(crate) const RISCV_HWPROBE_KEY_BASE_BEHAVIOR: i64 = 3;
@@ -57,6 +57,7 @@ mod ffi {
                 target_arch = "riscv32",
                 all(target_arch = "riscv64", target_pointer_width = "64"),
             ),
+            not(portable_atomic_no_asm_syscall),
         ))]
         {
             #[cfg(not(portable_atomic_no_asm))]
@@ -65,8 +66,8 @@ mod ffi {
             use crate::utils::{RegISize, RegSize};
 
             // Refs:
-            // - https://github.com/bminor/musl/blob/v1.2.5/arch/riscv32/syscall_arch.h
-            // - https://github.com/bminor/musl/blob/v1.2.5/arch/riscv64/syscall_arch.h
+            // - https://git.musl-libc.org/cgit/musl/tree/arch/riscv32/syscall_arch.h?h=v1.2.5
+            // - https://git.musl-libc.org/cgit/musl/tree/arch/riscv64/syscall_arch.h?h=v1.2.5
             #[inline]
             pub(crate) unsafe fn syscall5(
                 number: c_long,
@@ -96,7 +97,7 @@ mod ffi {
                         in("a3") arg4,
                         in("a4") arg5,
                         // Clobber vector registers and do not use `preserves_flags` because RISC-V Linux syscalls don't preserve them.
-                        // https://github.com/torvalds/linux/blob/v6.18/Documentation/arch/riscv/vector.rst#3--vector-register-state-across-system-calls
+                        // https://github.com/torvalds/linux/blob/v6.19/Documentation/arch/riscv/vector.rst#3--vector-register-state-across-system-calls
                         out("v0") _,
                         out("v1") _,
                         out("v2") _,
@@ -150,7 +151,7 @@ mod ffi {
         }
     });
 
-    // https://github.com/torvalds/linux/blob/v6.16/Documentation/arch/riscv/hwprobe.rst
+    // https://github.com/torvalds/linux/blob/v6.19/Documentation/arch/riscv/hwprobe.rst
     pub(crate) unsafe fn __riscv_hwprobe(
         pairs: *mut riscv_hwprobe,
         pair_count: c_size_t,
@@ -173,7 +174,8 @@ fn riscv_hwprobe(out: &mut [ffi::riscv_hwprobe]) -> bool {
 }
 
 #[cold]
-fn _detect(info: &mut CpuInfo) {
+#[must_use]
+fn _detect(mut info: CpuInfo) -> CpuInfo {
     let mut out = [
         ffi::riscv_hwprobe { key: ffi::RISCV_HWPROBE_KEY_BASE_BEHAVIOR, value: 0 },
         ffi::riscv_hwprobe { key: ffi::RISCV_HWPROBE_KEY_IMA_EXT_0, value: 0 },
@@ -197,6 +199,7 @@ fn _detect(info: &mut CpuInfo) {
         #[cfg(test)]
         check!(zalasr, RISCV_HWPROBE_EXT_ZALASR);
     }
+    info
 }
 
 #[allow(

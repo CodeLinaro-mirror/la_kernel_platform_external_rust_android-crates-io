@@ -56,6 +56,8 @@
 
 #![no_std]
 #![cfg_attr(docsrs, feature(doc_cfg))]
+#![deny(clippy::undocumented_unsafe_blocks)]
+#![deny(unsafe_op_in_unsafe_fn)]
 
 #[cfg(feature = "alloc")]
 extern crate alloc;
@@ -65,10 +67,12 @@ mod boxed;
 mod exceptions;
 mod lock;
 
+#[cfg(feature = "derive")]
+pub mod derive;
+
 #[cfg(any(target_arch = "aarch64", target_arch = "arm"))]
 pub use self::exceptions::exception_free;
 pub use self::{exceptions::ExceptionFree, lock::ExceptionLock};
-
 use core::marker::PhantomData;
 
 /// Trait abstracting how to get the index of the current CPU core.
