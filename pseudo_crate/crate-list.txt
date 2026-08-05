@@ -280,6 +280,7 @@ if-addrs
 ignore
 image
 image-compare
+image-webp
 indexmap
 inotify
 inotify-sys
@@ -458,6 +459,7 @@ ptr_meta
 ptr_meta_derive
 pxfm
 quiche
+quick-error
 quick-xml
 quickcheck
 quote
