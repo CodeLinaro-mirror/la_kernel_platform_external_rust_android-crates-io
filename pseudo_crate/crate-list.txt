@@ -88,6 +88,7 @@ cexpr
 cfg-expr
 cfg-if
 cgmath
+chacha20
 chrono
 chunked_transfer
 ciborium
