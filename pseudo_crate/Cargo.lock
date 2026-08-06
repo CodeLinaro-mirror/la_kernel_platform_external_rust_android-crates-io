@@ -731,6 +731,7 @@ dependencies = [
  "symphonia",
  "symphonia-bundle-flac",
  "symphonia-bundle-mp3",
+ "symphonia-codec-vorbis",
  "symphonia-core",
  "symphonia-metadata",
  "symphonia-utils-xiph",
