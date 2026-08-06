@@ -3647,6 +3647,359 @@ impl ::protobuf::reflect::ProtobufValue for BezierCurve {
     type RuntimeType = ::protobuf::reflect::rt::RuntimeTypeMessage<Self>;
 }
 
+// @@protoc_insertion_point(message:designcompose.definition.animation.TransitionSpec)
+#[derive(PartialEq,Clone,Default,Debug)]
+pub struct TransitionSpec {
+    // message fields
+    // @@protoc_insertion_point(field:designcompose.definition.animation.TransitionSpec.source_variant)
+    pub source_variant: ::std::string::String,
+    // @@protoc_insertion_point(field:designcompose.definition.animation.TransitionSpec.target_variant)
+    pub target_variant: ::std::string::String,
+    // @@protoc_insertion_point(field:designcompose.definition.animation.TransitionSpec.animation_name)
+    pub animation_name: ::std::string::String,
+    // @@protoc_insertion_point(field:designcompose.definition.animation.TransitionSpec.spec)
+    pub spec: ::protobuf::MessageField<AnimationSpec>,
+    // @@protoc_insertion_point(field:designcompose.definition.animation.TransitionSpec.timelines)
+    pub timelines: ::std::collections::HashMap<::std::string::String, CustomTimeline>,
+    // special fields
+    // @@protoc_insertion_point(special_field:designcompose.definition.animation.TransitionSpec.special_fields)
+    pub special_fields: ::protobuf::SpecialFields,
+}
+
+impl<'a> ::std::default::Default for &'a TransitionSpec {
+    fn default() -> &'a TransitionSpec {
+        <TransitionSpec as ::protobuf::Message>::default_instance()
+    }
+}
+
+impl TransitionSpec {
+    pub fn new() -> TransitionSpec {
+        ::std::default::Default::default()
+    }
+
+    fn generated_message_descriptor_data() -> ::protobuf::reflect::GeneratedMessageDescriptorData {
+        let mut fields = ::std::vec::Vec::with_capacity(5);
+        let mut oneofs = ::std::vec::Vec::with_capacity(0);
+        fields.push(::protobuf::reflect::rt::v2::make_simpler_field_accessor::<_, _>(
+            "source_variant",
+            |m: &TransitionSpec| { &m.source_variant },
+            |m: &mut TransitionSpec| { &mut m.source_variant },
+        ));
+        fields.push(::protobuf::reflect::rt::v2::make_simpler_field_accessor::<_, _>(
+            "target_variant",
+            |m: &TransitionSpec| { &m.target_variant },
+            |m: &mut TransitionSpec| { &mut m.target_variant },
+        ));
+        fields.push(::protobuf::reflect::rt::v2::make_simpler_field_accessor::<_, _>(
+            "animation_name",
+            |m: &TransitionSpec| { &m.animation_name },
+            |m: &mut TransitionSpec| { &mut m.animation_name },
+        ));
+        fields.push(::protobuf::reflect::rt::v2::make_message_field_accessor::<_, AnimationSpec>(
+            "spec",
+            |m: &TransitionSpec| { &m.spec },
+            |m: &mut TransitionSpec| { &mut m.spec },
+        ));
+        fields.push(::protobuf::reflect::rt::v2::make_map_simpler_accessor_new::<_, _>(
+            "timelines",
+            |m: &TransitionSpec| { &m.timelines },
+            |m: &mut TransitionSpec| { &mut m.timelines },
+        ));
+        ::protobuf::reflect::GeneratedMessageDescriptorData::new_2::<TransitionSpec>(
+            "TransitionSpec",
+            fields,
+            oneofs,
+        )
+    }
+}
+
+impl ::protobuf::Message for TransitionSpec {
+    const NAME: &'static str = "TransitionSpec";
+
+    fn is_initialized(&self) -> bool {
+        true
+    }
+
+    fn merge_from(&mut self, is: &mut ::protobuf::CodedInputStream<'_>) -> ::protobuf::Result<()> {
+        while let Some(tag) = is.read_raw_tag_or_eof()? {
+            match tag {
+                10 => {
+                    self.source_variant = is.read_string()?;
+                },
+                18 => {
+                    self.target_variant = is.read_string()?;
+                },
+                26 => {
+                    self.animation_name = is.read_string()?;
+                },
+                34 => {
+                    ::protobuf::rt::read_singular_message_into_field(is, &mut self.spec)?;
+                },
+                42 => {
+                    let len = is.read_raw_varint32()?;
+                    let old_limit = is.push_limit(len as u64)?;
+                    let mut key = ::std::default::Default::default();
+                    let mut value = ::std::default::Default::default();
+                    while let Some(tag) = is.read_raw_tag_or_eof()? {
+                        match tag {
+                            10 => key = is.read_string()?,
+                            18 => value = is.read_message()?,
+                            _ => ::protobuf::rt::skip_field_for_tag(tag, is)?,
+                        };
+                    }
+                    is.pop_limit(old_limit);
+                    self.timelines.insert(key, value);
+                },
+                tag => {
+                    ::protobuf::rt::read_unknown_or_skip_group(tag, is, self.special_fields.mut_unknown_fields())?;
+                },
+            };
+        }
+        ::std::result::Result::Ok(())
+    }
+
+    // Compute sizes of nested messages
+    #[allow(unused_variables)]
+    fn compute_size(&self) -> u64 {
+        let mut my_size = 0;
+        if !self.source_variant.is_empty() {
+            my_size += ::protobuf::rt::string_size(1, &self.source_variant);
+        }
+        if !self.target_variant.is_empty() {
+            my_size += ::protobuf::rt::string_size(2, &self.target_variant);
+        }
+        if !self.animation_name.is_empty() {
+            my_size += ::protobuf::rt::string_size(3, &self.animation_name);
+        }
+        if let Some(v) = self.spec.as_ref() {
+            let len = v.compute_size();
+            my_size += 1 + ::protobuf::rt::compute_raw_varint64_size(len) + len;
+        }
+        for (k, v) in &self.timelines {
+            let mut entry_size = 0;
+            entry_size += ::protobuf::rt::string_size(1, &k);
+            let len = v.compute_size();
+            entry_size += 1 + ::protobuf::rt::compute_raw_varint64_size(len) + len;
+            my_size += 1 + ::protobuf::rt::compute_raw_varint64_size(entry_size) + entry_size
+        };
+        my_size += ::protobuf::rt::unknown_fields_size(self.special_fields.unknown_fields());
+        self.special_fields.cached_size().set(my_size as u32);
+        my_size
+    }
+
+    fn write_to_with_cached_sizes(&self, os: &mut ::protobuf::CodedOutputStream<'_>) -> ::protobuf::Result<()> {
+        if !self.source_variant.is_empty() {
+            os.write_string(1, &self.source_variant)?;
+        }
+        if !self.target_variant.is_empty() {
+            os.write_string(2, &self.target_variant)?;
+        }
+        if !self.animation_name.is_empty() {
+            os.write_string(3, &self.animation_name)?;
+        }
+        if let Some(v) = self.spec.as_ref() {
+            ::protobuf::rt::write_message_field_with_cached_size(4, v, os)?;
+        }
+        for (k, v) in &self.timelines {
+            let mut entry_size = 0;
+            entry_size += ::protobuf::rt::string_size(1, &k);
+            let len = v.cached_size() as u64;
+            entry_size += 1 + ::protobuf::rt::compute_raw_varint64_size(len) + len;
+            os.write_raw_varint32(42)?; // Tag.
+            os.write_raw_varint32(entry_size as u32)?;
+            os.write_string(1, &k)?;
+            ::protobuf::rt::write_message_field_with_cached_size(2, v, os)?;
+        };
+        os.write_unknown_fields(self.special_fields.unknown_fields())?;
+        ::std::result::Result::Ok(())
+    }
+
+    fn special_fields(&self) -> &::protobuf::SpecialFields {
+        &self.special_fields
+    }
+
+    fn mut_special_fields(&mut self) -> &mut ::protobuf::SpecialFields {
+        &mut self.special_fields
+    }
+
+    fn new() -> TransitionSpec {
+        TransitionSpec::new()
+    }
+
+    fn clear(&mut self) {
+        self.source_variant.clear();
+        self.target_variant.clear();
+        self.animation_name.clear();
+        self.spec.clear();
+        self.timelines.clear();
+        self.special_fields.clear();
+    }
+
+    fn default_instance() -> &'static TransitionSpec {
+        static instance: ::protobuf::rt::Lazy<TransitionSpec> = ::protobuf::rt::Lazy::new();
+        instance.get(TransitionSpec::new)
+    }
+}
+
+impl ::protobuf::MessageFull for TransitionSpec {
+    fn descriptor() -> ::protobuf::reflect::MessageDescriptor {
+        static descriptor: ::protobuf::rt::Lazy<::protobuf::reflect::MessageDescriptor> = ::protobuf::rt::Lazy::new();
+        descriptor.get(|| file_descriptor().message_by_package_relative_name("TransitionSpec").unwrap()).clone()
+    }
+}
+
+impl ::std::fmt::Display for TransitionSpec {
+    fn fmt(&self, f: &mut ::std::fmt::Formatter<'_>) -> ::std::fmt::Result {
+        ::protobuf::text_format::fmt(self, f)
+    }
+}
+
+impl ::protobuf::reflect::ProtobufValue for TransitionSpec {
+    type RuntimeType = ::protobuf::reflect::rt::RuntimeTypeMessage<Self>;
+}
+
+// @@protoc_insertion_point(message:designcompose.definition.animation.AnimationMatrix)
+#[derive(PartialEq,Clone,Default,Debug)]
+pub struct AnimationMatrix {
+    // message fields
+    // @@protoc_insertion_point(field:designcompose.definition.animation.AnimationMatrix.default_spec)
+    pub default_spec: ::protobuf::MessageField<AnimationSpec>,
+    // @@protoc_insertion_point(field:designcompose.definition.animation.AnimationMatrix.transitions)
+    pub transitions: ::std::vec::Vec<TransitionSpec>,
+    // special fields
+    // @@protoc_insertion_point(special_field:designcompose.definition.animation.AnimationMatrix.special_fields)
+    pub special_fields: ::protobuf::SpecialFields,
+}
+
+impl<'a> ::std::default::Default for &'a AnimationMatrix {
+    fn default() -> &'a AnimationMatrix {
+        <AnimationMatrix as ::protobuf::Message>::default_instance()
+    }
+}
+
+impl AnimationMatrix {
+    pub fn new() -> AnimationMatrix {
+        ::std::default::Default::default()
+    }
+
+    fn generated_message_descriptor_data() -> ::protobuf::reflect::GeneratedMessageDescriptorData {
+        let mut fields = ::std::vec::Vec::with_capacity(2);
+        let mut oneofs = ::std::vec::Vec::with_capacity(0);
+        fields.push(::protobuf::reflect::rt::v2::make_message_field_accessor::<_, AnimationSpec>(
+            "default_spec",
+            |m: &AnimationMatrix| { &m.default_spec },
+            |m: &mut AnimationMatrix| { &mut m.default_spec },
+        ));
+        fields.push(::protobuf::reflect::rt::v2::make_vec_simpler_accessor::<_, _>(
+            "transitions",
+            |m: &AnimationMatrix| { &m.transitions },
+            |m: &mut AnimationMatrix| { &mut m.transitions },
+        ));
+        ::protobuf::reflect::GeneratedMessageDescriptorData::new_2::<AnimationMatrix>(
+            "AnimationMatrix",
+            fields,
+            oneofs,
+        )
+    }
+}
+
+impl ::protobuf::Message for AnimationMatrix {
+    const NAME: &'static str = "AnimationMatrix";
+
+    fn is_initialized(&self) -> bool {
+        true
+    }
+
+    fn merge_from(&mut self, is: &mut ::protobuf::CodedInputStream<'_>) -> ::protobuf::Result<()> {
+        while let Some(tag) = is.read_raw_tag_or_eof()? {
+            match tag {
+                10 => {
+                    ::protobuf::rt::read_singular_message_into_field(is, &mut self.default_spec)?;
+                },
+                18 => {
+                    self.transitions.push(is.read_message()?);
+                },
+                tag => {
+                    ::protobuf::rt::read_unknown_or_skip_group(tag, is, self.special_fields.mut_unknown_fields())?;
+                },
+            };
+        }
+        ::std::result::Result::Ok(())
+    }
+
+    // Compute sizes of nested messages
+    #[allow(unused_variables)]
+    fn compute_size(&self) -> u64 {
+        let mut my_size = 0;
+        if let Some(v) = self.default_spec.as_ref() {
+            let len = v.compute_size();
+            my_size += 1 + ::protobuf::rt::compute_raw_varint64_size(len) + len;
+        }
+        for value in &self.transitions {
+            let len = value.compute_size();
+            my_size += 1 + ::protobuf::rt::compute_raw_varint64_size(len) + len;
+        };
+        my_size += ::protobuf::rt::unknown_fields_size(self.special_fields.unknown_fields());
+        self.special_fields.cached_size().set(my_size as u32);
+        my_size
+    }
+
+    fn write_to_with_cached_sizes(&self, os: &mut ::protobuf::CodedOutputStream<'_>) -> ::protobuf::Result<()> {
+        if let Some(v) = self.default_spec.as_ref() {
+            ::protobuf::rt::write_message_field_with_cached_size(1, v, os)?;
+        }
+        for v in &self.transitions {
+            ::protobuf::rt::write_message_field_with_cached_size(2, v, os)?;
+        };
+        os.write_unknown_fields(self.special_fields.unknown_fields())?;
+        ::std::result::Result::Ok(())
+    }
+
+    fn special_fields(&self) -> &::protobuf::SpecialFields {
+        &self.special_fields
+    }
+
+    fn mut_special_fields(&mut self) -> &mut ::protobuf::SpecialFields {
+        &mut self.special_fields
+    }
+
+    fn new() -> AnimationMatrix {
+        AnimationMatrix::new()
+    }
+
+    fn clear(&mut self) {
+        self.default_spec.clear();
+        self.transitions.clear();
+        self.special_fields.clear();
+    }
+
+    fn default_instance() -> &'static AnimationMatrix {
+        static instance: AnimationMatrix = AnimationMatrix {
+            default_spec: ::protobuf::MessageField::none(),
+            transitions: ::std::vec::Vec::new(),
+            special_fields: ::protobuf::SpecialFields::new(),
+        };
+        &instance
+    }
+}
+
+impl ::protobuf::MessageFull for AnimationMatrix {
+    fn descriptor() -> ::protobuf::reflect::MessageDescriptor {
+        static descriptor: ::protobuf::rt::Lazy<::protobuf::reflect::MessageDescriptor> = ::protobuf::rt::Lazy::new();
+        descriptor.get(|| file_descriptor().message_by_package_relative_name("AnimationMatrix").unwrap()).clone()
+    }
+}
+
+impl ::std::fmt::Display for AnimationMatrix {
+    fn fmt(&self, f: &mut ::std::fmt::Formatter<'_>) -> ::std::fmt::Result {
+        ::protobuf::text_format::fmt(self, f)
+    }
+}
+
+impl ::protobuf::reflect::ProtobufValue for AnimationMatrix {
+    type RuntimeType = ::protobuf::reflect::rt::RuntimeTypeMessage<Self>;
+}
+
 // @@protoc_insertion_point(message:designcompose.definition.animation.AnimationOverride)
 #[derive(PartialEq,Clone,Default,Debug)]
 pub struct AnimationOverride {
@@ -3815,8 +4168,57 @@ impl AnimationOverride {
         }
     }
 
+    // .designcompose.definition.animation.AnimationMatrix matrix = 4;
+
+    pub fn matrix(&self) -> &AnimationMatrix {
+        match self.animation_override {
+            ::std::option::Option::Some(animation_override::Animation_override::Matrix(ref v)) => v,
+            _ => <AnimationMatrix as ::protobuf::Message>::default_instance(),
+        }
+    }
+
+    pub fn clear_matrix(&mut self) {
+        self.animation_override = ::std::option::Option::None;
+    }
+
+    pub fn has_matrix(&self) -> bool {
+        match self.animation_override {
+            ::std::option::Option::Some(animation_override::Animation_override::Matrix(..)) => true,
+            _ => false,
+        }
+    }
+
+    // Param is passed by value, moved
+    pub fn set_matrix(&mut self, v: AnimationMatrix) {
+        self.animation_override = ::std::option::Option::Some(animation_override::Animation_override::Matrix(v))
+    }
+
+    // Mutable pointer to the field.
+    pub fn mut_matrix(&mut self) -> &mut AnimationMatrix {
+        if let ::std::option::Option::Some(animation_override::Animation_override::Matrix(_)) = self.animation_override {
+        } else {
+            self.animation_override = ::std::option::Option::Some(animation_override::Animation_override::Matrix(AnimationMatrix::new()));
+        }
+        match self.animation_override {
+            ::std::option::Option::Some(animation_override::Animation_override::Matrix(ref mut v)) => v,
+            _ => panic!(),
+        }
+    }
+
+    // Take field
+    pub fn take_matrix(&mut self) -> AnimationMatrix {
+        if self.has_matrix() {
+            match self.animation_override.take() {
+                ::std::option::Option::Some(animation_override::Animation_override::Matrix(v)) => v,
+                _ => panic!(),
+            }
+        } else {
+            AnimationMatrix::new()
+        }
+    }
+
     fn generated_message_descriptor_data() -> ::protobuf::reflect::GeneratedMessageDescriptorData {
-        let mut fields = ::std::vec::Vec::with_capacity(3);
+        let mut fields = ::std::vec::Vec::with_capacity(4);
         let mut oneofs = ::std::vec::Vec::with_capacity(1);
         fields.push(::protobuf::reflect::rt::v2::make_oneof_message_has_get_mut_set_accessor::<_, ::protobuf::well_known_types::empty::Empty>(
             "no_override",
@@ -3838,6 +4240,13 @@ impl AnimationOverride {
             AnimationOverride::custom,
             AnimationOverride::mut_custom,
             AnimationOverride::set_custom,
+        ));
+        fields.push(::protobuf::reflect::rt::v2::make_oneof_message_has_get_mut_set_accessor::<_, AnimationMatrix>(
+            "matrix",
+            AnimationOverride::has_matrix,
+            AnimationOverride::matrix,
+            AnimationOverride::mut_matrix,
+            AnimationOverride::set_matrix,
         ));
         oneofs.push(animation_override::Animation_override::generated_oneof_descriptor_data());
         ::protobuf::reflect::GeneratedMessageDescriptorData::new_2::<AnimationOverride>(
@@ -3867,6 +4276,9 @@ impl ::protobuf::Message for AnimationOverride {
                 26 => {
                     self.animation_override = ::std::option::Option::Some(animation_override::Animation_override::Custom(is.read_message()?));
                 },
+                34 => {
+                    self.animation_override = ::std::option::Option::Some(animation_override::Animation_override::Matrix(is.read_message()?));
+                },
                 tag => {
                     ::protobuf::rt::read_unknown_or_skip_group(tag, is, self.special_fields.mut_unknown_fields())?;
                 },
@@ -3893,6 +4305,10 @@ impl ::protobuf::Message for AnimationOverride {
                     let len = v.compute_size();
                     my_size += 1 + ::protobuf::rt::compute_raw_varint64_size(len) + len;
                 },
+                &animation_override::Animation_override::Matrix(ref v) => {
+                    let len = v.compute_size();
+                    my_size += 1 + ::protobuf::rt::compute_raw_varint64_size(len) + len;
+                },
             };
         }
         my_size += ::protobuf::rt::unknown_fields_size(self.special_fields.unknown_fields());
@@ -3911,6 +4327,9 @@ impl ::protobuf::Message for AnimationOverride {
                 },
                 &animation_override::Animation_override::Custom(ref v) => {
                     ::protobuf::rt::write_message_field_with_cached_size(3, v, os)?;
+                },
+                &animation_override::Animation_override::Matrix(ref v) => {
+                    ::protobuf::rt::write_message_field_with_cached_size(4, v, os)?;
                 },
             };
         }
@@ -3931,6 +4350,7 @@ impl ::protobuf::Message for AnimationOverride {
     }
 
     fn clear(&mut self) {
+        self.animation_override = ::std::option::Option::None;
         self.animation_override = ::std::option::Option::None;
         self.animation_override = ::std::option::Option::None;
         self.animation_override = ::std::option::Option::None;
@@ -3976,6 +4396,8 @@ pub mod animation_override {
         DisableAnimations(::protobuf::well_known_types::empty::Empty),
         // @@protoc_insertion_point(oneof_field:designcompose.definition.animation.AnimationOverride.custom)
         Custom(super::AnimationSpec),
+        // @@protoc_insertion_point(oneof_field:designcompose.definition.animation.AnimationOverride.matrix)
+        Matrix(super::AnimationMatrix),
     }
 
     impl ::protobuf::Oneof for Animation_override {
@@ -4064,12 +4486,26 @@ static file_descriptor_proto_data: &'static [u8] = b"\
     zierB\x06\n\x04type\"M\n\x0bBezierCurve\x12\x0e\n\x02p0\x18\x01\x20\x01(\
     \x02R\x02p0\x12\x0e\n\x02p1\x18\x02\x20\x01(\x02R\x02p1\x12\x0e\n\x02p2\
     \x18\x03\x20\x01(\x02R\x02p2\x12\x0e\n\x02p3\x18\x04\x20\x01(\x02R\x02p3\
-    \"\xfa\x01\n\x11AnimationOverride\x129\n\x0bno_override\x18\x01\x20\x01(\
-    \x0b2\x16.google.protobuf.EmptyH\0R\nnoOverride\x12G\n\x12disable_animat\
-    ions\x18\x02\x20\x01(\x0b2\x16.google.protobuf.EmptyH\0R\x11disableAnima\
-    tions\x12K\n\x06custom\x18\x03\x20\x01(\x0b21.designcompose.definition.a\
-    nimation.AnimationSpecH\0R\x06customB\x14\n\x12animation_overrideb\x06pr\
-    oto3\
+    \"\xad\x03\n\x0eTransitionSpec\x12%\n\x0esource_variant\x18\x01\x20\x01(\
+    \tR\rsourceVariant\x12%\n\x0etarget_variant\x18\x02\x20\x01(\tR\rtargetV\
+    ariant\x12%\n\x0eanimation_name\x18\x03\x20\x01(\tR\ranimationName\x12J\
+    \n\x04spec\x18\x04\x20\x01(\x0b21.designcompose.definition.animation.Ani\
+    mationSpecH\0R\x04spec\x88\x01\x01\x12_\n\ttimelines\x18\x05\x20\x03(\
+    \x0b2A.designcompose.definition.animation.TransitionSpec.TimelinesEntryR\
+    \ttimelines\x1ap\n\x0eTimelinesEntry\x12\x10\n\x03key\x18\x01\x20\x01(\t\
+    R\x03key\x12H\n\x05value\x18\x02\x20\x01(\x0b22.designcompose.definition\
+    .animation.CustomTimelineR\x05value:\x028\x01B\x07\n\x05_spec\"\xd3\x01\
+    \n\x0fAnimationMatrix\x12Y\n\x0cdefault_spec\x18\x01\x20\x01(\x0b21.desi\
+    gncompose.definition.animation.AnimationSpecH\0R\x0bdefaultSpec\x88\x01\
+    \x01\x12T\n\x0btransitions\x18\x02\x20\x03(\x0b22.designcompose.definiti\
+    on.animation.TransitionSpecR\x0btransitionsB\x0f\n\r_default_spec\"\xc9\
+    \x02\n\x11AnimationOverride\x129\n\x0bno_override\x18\x01\x20\x01(\x0b2\
+    \x16.google.protobuf.EmptyH\0R\nnoOverride\x12G\n\x12disable_animations\
+    \x18\x02\x20\x01(\x0b2\x16.google.protobuf.EmptyH\0R\x11disableAnimation\
+    s\x12K\n\x06custom\x18\x03\x20\x01(\x0b21.designcompose.definition.anima\
+    tion.AnimationSpecH\0R\x06custom\x12M\n\x06matrix\x18\x04\x20\x01(\x0b23\
+    .designcompose.definition.animation.AnimationMatrixH\0R\x06matrixB\x14\n\
+    \x12animation_overrideb\x06proto3\
 ";
 
 /// `FileDescriptorProto` object which was a source for this generated file
@@ -4089,7 +4525,7 @@ pub fn file_descriptor() -> &'static ::protobuf::reflect::FileDescriptor {
             let mut deps = ::std::vec::Vec::with_capacity(2);
             deps.push(::protobuf::well_known_types::duration::file_descriptor().clone());
             deps.push(::protobuf::well_known_types::empty::file_descriptor().clone());
-            let mut messages = ::std::vec::Vec::with_capacity(18);
+            let mut messages = ::std::vec::Vec::with_capacity(20);
             messages.push(RgbaValue::generated_message_descriptor_data());
             messages.push(GradientStopValue::generated_message_descriptor_data());
             messages.push(GradientValue::generated_message_descriptor_data());
@@ -4107,6 +4543,8 @@ pub fn file_descriptor() -> &'static ::protobuf::reflect::FileDescriptor {
             messages.push(KeyFrame::generated_message_descriptor_data());
             messages.push(Easing::generated_message_descriptor_data());
             messages.push(BezierCurve::generated_message_descriptor_data());
+            messages.push(TransitionSpec::generated_message_descriptor_data());
+            messages.push(AnimationMatrix::generated_message_descriptor_data());
             messages.push(AnimationOverride::generated_message_descriptor_data());
             let mut enums = ::std::vec::Vec::with_capacity(0);
             ::protobuf::reflect::GeneratedFileDescriptor::new_generated(
