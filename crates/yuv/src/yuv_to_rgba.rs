@@ -1190,7 +1190,7 @@ pub fn yuv444_to_bgr(
 mod tests {
     use super::*;
     use crate::{rgb_to_yuv420, rgb_to_yuv422, rgb_to_yuv444, yuv444_to_rgb, YuvPlanarImageMut};
-    use rand::RngExt;
+    use rand::Rng;
 
     #[test]
     fn test_yuv444_round_trip_full_range() {

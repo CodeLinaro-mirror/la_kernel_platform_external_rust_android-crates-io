@@ -6,7 +6,7 @@ pub mod write;
 mod tests {
     use std::io::prelude::*;
 
-    use rand::{prelude::*, rng};
+    use rand::{rng, Rng};
 
     use super::{read, write};
     use crate::Compression;

@@ -37,7 +37,7 @@ pub(crate) fn next() -> String {
 #[inline]
 pub(crate) fn next() -> String {
     use rand::distr::Alphanumeric;
-    use rand::{rng, RngExt};
+    use rand::{rng, Rng};
 
     rng()
         .sample_iter(Alphanumeric)

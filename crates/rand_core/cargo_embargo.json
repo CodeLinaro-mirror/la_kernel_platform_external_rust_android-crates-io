@@ -1,5 +1,8 @@
 {
-  "features": [],
+  "features": [
+    "os_rng",
+    "std"
+  ],
   "run_cargo": false,
   "tests": true,
   "min_sdk_version": "29",
