@@ -9,7 +9,7 @@
 //! The Bernoulli distribution `Bernoulli(p)`.
 
 use crate::distr::Distribution;
-use crate::{Rng, RngExt};
+use crate::Rng;
 use core::fmt;
 
 #[cfg(feature = "serde")]
@@ -90,7 +90,8 @@ impl fmt::Display for BernoulliError {
     }
 }
 
-impl core::error::Error for BernoulliError {}
+#[cfg(feature = "std")]
+impl std::error::Error for BernoulliError {}
 
 impl Bernoulli {
     /// Construct a new `Bernoulli` with the given probability of success `p`.
@@ -164,15 +165,15 @@ impl Distribution<bool> for Bernoulli {
 #[cfg(test)]
 mod test {
     use super::Bernoulli;
-    use crate::RngExt;
     use crate::distr::Distribution;
+    use crate::Rng;
 
     #[test]
     #[cfg(feature = "serde")]
     fn test_serializing_deserializing_bernoulli() {
         let coin_flip = Bernoulli::new(0.5).unwrap();
         let de_coin_flip: Bernoulli =
-            postcard::from_bytes(&postcard::to_allocvec(&coin_flip).unwrap()).unwrap();
+            bincode::deserialize(&bincode::serialize(&coin_flip).unwrap()).unwrap();
 
         assert_eq!(coin_flip.p_int, de_coin_flip.p_int);
     }
@@ -231,9 +232,7 @@ mod test {
         }
         assert_eq!(
             buf,
-            [
-                true, false, false, true, false, false, true, true, true, true
-            ]
+            [true, false, false, true, false, false, true, true, true, true]
         );
     }
 

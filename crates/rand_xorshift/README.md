@@ -1,8 +1,9 @@
 # rand_xorshift
 
-[![Test Status](https://github.com/rust-random/rngs/actions/workflows/test.yml/badge.svg?event=push)](https://github.com/rust-random/rngs/actions)
+[![Test Status](https://github.com/rust-random/rngs/workflows/Tests/badge.svg?event=push)](https://github.com/rust-random/rngs/actions)
 [![Latest version](https://img.shields.io/crates/v/rand_xorshift.svg)](https://crates.io/crates/rand_xorshift)
 [![Book](https://img.shields.io/badge/book-master-yellow.svg)](https://rust-random.github.io/book/)
+[![API](https://img.shields.io/badge/api-master-yellow.svg)](https://rust-random.github.io/rand/rand_xorshift)
 [![API](https://docs.rs/rand_xorshift/badge.svg)](https://docs.rs/rand_xorshift)
 
 Implements the Xorshift random number generator.
@@ -17,6 +18,7 @@ requirements, use a more secure one such as `StdRng` or `OsRng`.
 
 Links:
 
+-   [API documentation (master)](https://rust-random.github.io/rand/rand_xorshift)
 -   [API documentation (docs.rs)](https://docs.rs/rand_xorshift)
 -   [Changelog](https://github.com/rust-random/rngs/blob/master/rand_xorshift/CHANGELOG.md)
 
