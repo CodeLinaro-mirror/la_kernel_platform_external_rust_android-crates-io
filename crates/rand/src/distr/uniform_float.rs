@@ -12,10 +12,12 @@
 use super::{Error, SampleBorrow, SampleUniform, UniformSampler};
 use crate::distr::float::IntoFloat;
 use crate::distr::utils::{BoolAsSIMD, FloatAsSIMD, FloatSIMDUtils, IntAsSIMD};
-use crate::{Rng, RngExt};
+use crate::Rng;
 
 #[cfg(feature = "simd_support")]
 use core::simd::prelude::*;
+// #[cfg(feature = "simd_support")]
+// use core::simd::{LaneCount, SupportedLaneCount};
 
 #[cfg(feature = "serde")]
 use serde::{Deserialize, Serialize};
@@ -216,7 +218,7 @@ uniform_float_impl! { feature = "simd_support", f64x8, u64x8, f64, u64, 64 - 52 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::distr::{Uniform, utils::FloatSIMDScalarUtils};
+    use crate::distr::{utils::FloatSIMDScalarUtils, Uniform};
     use crate::test::{const_rng, step_rng};
 
     #[test]

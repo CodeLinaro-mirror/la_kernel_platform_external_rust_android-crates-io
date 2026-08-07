@@ -1978,7 +1978,7 @@ pub fn yuv_nv42_to_bgra(
 mod tests {
     use super::*;
     use crate::{rgb_to_yuv_nv12, rgb_to_yuv_nv16, rgb_to_yuv_nv24, YuvBiPlanarImageMut};
-    use rand::RngExt;
+    use rand::Rng;
 
     #[test]
     fn test_yuv444_nv_round_trip_full_range() {

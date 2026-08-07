@@ -10,10 +10,10 @@
 //!
 //! # Example
 //!
-//! To initialize a generator, use the [`SeedableRng`] trait:
+//! To initialize a generator, use the [`SeedableRng`][rand_core::SeedableRng] trait:
 //!
 //! ```
-//! use rand_core::{SeedableRng, Rng};
+//! use rand_core::{SeedableRng, RngCore};
 //! use rand_xorshift::XorShiftRng;
 //!
 //! let mut rng = XorShiftRng::seed_from_u64(0);
@@ -22,16 +22,17 @@
 
 #![doc(
     html_logo_url = "https://www.rust-lang.org/logos/rust-logo-128x128-blk.png",
-    html_favicon_url = "https://www.rust-lang.org/favicon.ico"
+    html_favicon_url = "https://www.rust-lang.org/favicon.ico",
+    html_root_url = "https://docs.rs/rand_xorshift/0.4.0"
 )]
 #![forbid(unsafe_code)]
 #![deny(missing_docs)]
 #![deny(missing_debug_implementations)]
 #![no_std]
 
+use core::fmt;
 use core::num::Wrapping as w;
-use core::{convert::Infallible, fmt};
-use rand_core::{Rng, SeedableRng, TryRng, utils};
+use rand_core::{impls, le, RngCore, SeedableRng, TryRngCore};
 #[cfg(feature = "serde")]
 use serde::{Deserialize, Serialize};
 
@@ -65,10 +66,9 @@ impl fmt::Debug for XorShiftRng {
     }
 }
 
-impl TryRng for XorShiftRng {
-    type Error = Infallible;
+impl RngCore for XorShiftRng {
     #[inline]
-    fn try_next_u32(&mut self) -> Result<u32, Self::Error> {
+    fn next_u32(&mut self) -> u32 {
         // These shifts are taken from the example in the Summary section of
         // the paper 'Xorshift RNGs'. (On the bottom of page 5.)
         let x = self.x;
@@ -78,17 +78,17 @@ impl TryRng for XorShiftRng {
         self.z = self.w;
         let w_ = self.w;
         self.w = w_ ^ (w_ >> 19) ^ (t ^ (t >> 8));
-        Ok(self.w.0)
+        self.w.0
     }
 
     #[inline]
-    fn try_next_u64(&mut self) -> Result<u64, Self::Error> {
-        utils::next_u64_via_u32(self)
+    fn next_u64(&mut self) -> u64 {
+        impls::next_u64_via_u32(self)
     }
 
     #[inline]
-    fn try_fill_bytes(&mut self, dest: &mut [u8]) -> Result<(), Self::Error> {
-        utils::fill_bytes_via_next_word(dest, || self.try_next_u32())
+    fn fill_bytes(&mut self, dest: &mut [u8]) {
+        impls::fill_bytes_via_next(self, dest)
     }
 }
 
@@ -96,7 +96,8 @@ impl SeedableRng for XorShiftRng {
     type Seed = [u8; 16];
 
     fn from_seed(seed: Self::Seed) -> Self {
-        let mut seed_u32: [u32; 4] = utils::read_words(&seed);
+        let mut seed_u32 = [0u32; 4];
+        le::read_u32_into(&seed, &mut seed_u32);
 
         // Xorshift cannot be seeded with 0 and we cannot return an Error, but
         // also do not wish to panic (because a random seed can legitimately be
@@ -113,10 +114,7 @@ impl SeedableRng for XorShiftRng {
         }
     }
 
-    fn from_rng<R>(rng: &mut R) -> Self
-    where
-        R: Rng + ?Sized,
-    {
+    fn from_rng(rng: &mut impl RngCore) -> Self {
         let mut b = [0u8; 16];
         loop {
             rng.fill_bytes(b.as_mut());
@@ -133,10 +131,7 @@ impl SeedableRng for XorShiftRng {
         }
     }
 
-    fn try_from_rng<R>(rng: &mut R) -> Result<Self, R::Error>
-    where
-        R: TryRng + ?Sized,
-    {
+    fn try_from_rng<R: TryRngCore>(rng: &mut R) -> Result<Self, R::Error> {
         let mut b = [0u8; 16];
         loop {
             rng.try_fill_bytes(b.as_mut())?;

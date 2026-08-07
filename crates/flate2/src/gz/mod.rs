@@ -444,7 +444,7 @@ mod tests {
 
     use super::{read, write, GzBuilder, GzHeaderParser};
     use crate::{Compression, GzHeader};
-    use rand::{prelude::*, rng};
+    use rand::{rng, Rng};
 
     #[test]
     fn roundtrip() {

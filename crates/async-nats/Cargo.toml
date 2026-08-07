@@ -84,12 +84,10 @@ default = [
     "service",
     "ring",
     "jetstream",
-    "nkeys",
     "crypto",
     "object-store",
     "kv",
-    "websockets",
-    "nuid",
+    "chrono",
 ]
 experimental = []
 fips = [
@@ -97,7 +95,6 @@ fips = [
     "tokio-rustls/fips",
 ]
 jetstream = [
-    "dep:time",
     "dep:serde_nanos",
     "dep:tryhard",
     "dep:base64",
@@ -122,7 +119,6 @@ server_2_11 = []
 server_2_12 = []
 server_2_14 = []
 service = [
-    "dep:time",
     "dep:serde_nanos",
 ]
 slow_tests = []
@@ -357,7 +353,7 @@ version = "1.0"
 version = "1"
 
 [dependencies.rand]
-version = "0.10.1"
+version = "0.9.4"
 
 [dependencies.regex]
 version = "1.9.1"
@@ -394,15 +390,6 @@ version = "0.1.16"
 [dependencies.thiserror]
 version = "2.0"
 
-[dependencies.time]
-version = "0.3.36"
-features = [
-    "parsing",
-    "formatting",
-    "serde",
-    "serde-well-known",
-]
-optional = true
 
 [dependencies.tokio]
 version = "1.36"
