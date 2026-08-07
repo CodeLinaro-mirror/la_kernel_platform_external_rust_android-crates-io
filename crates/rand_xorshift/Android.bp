@@ -18,9 +18,9 @@ rust_library {
     host_supported: true,
     crate_name: "rand_xorshift",
     cargo_env_compat: true,
-    cargo_pkg_version: "0.4.0",
+    cargo_pkg_version: "0.5.0",
     crate_root: "src/lib.rs",
-    edition: "2021",
+    edition: "2024",
     rustlibs: ["librand_core"],
     apex_available: [
         "//apex_available:platform",
@@ -29,24 +29,4 @@ rust_library {
     product_available: true,
     vendor_available: true,
     min_sdk_version: "29",
-}
-
-rust_test {
-    name: "rand_xorshift_test_tests_mod",
-    host_supported: true,
-    crate_name: "mod",
-    cargo_env_compat: true,
-    cargo_pkg_version: "0.4.0",
-    crate_root: "tests/mod.rs",
-    test_suites: ["general-tests"],
-    auto_gen_config: true,
-    test_options: {
-        unit_test: true,
-    },
-    edition: "2021",
-    rustlibs: [
-        "libbincode",
-        "librand_core",
-        "librand_xorshift",
-    ],
 }

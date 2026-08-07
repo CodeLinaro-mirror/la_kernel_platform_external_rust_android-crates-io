@@ -17,6 +17,7 @@ mls-rs-core
 mls-rs-crypto-traits
 moveit
 oneshot-uniffi
+rand_chacha
 syn-mid
 uniffi
 uniffi_checksum_derive
