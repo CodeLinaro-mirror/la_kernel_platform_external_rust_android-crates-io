@@ -7,7 +7,7 @@ mod tests {
     use std::io;
     use std::io::prelude::*;
 
-    use rand::{rng, Rng};
+    use rand::{prelude::*, rng};
 
     use crate::zlib::{read, write};
     use crate::Compression;
