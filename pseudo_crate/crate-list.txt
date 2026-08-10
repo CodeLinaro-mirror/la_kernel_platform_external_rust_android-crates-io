@@ -31,6 +31,10 @@ arm-gic
 arm-pl011-uart
 arm-psci
 arm-sysregs
+arm-sysregs-aarch32
+arm-sysregs-common
+arm-sysregs-el0
+arm-sysregs-el1
 array-init
 arrayvec
 ash
