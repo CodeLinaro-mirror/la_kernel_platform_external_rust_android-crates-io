@@ -15,7 +15,7 @@ license {
 
 rust_library {
     name: "libarm_sysregs",
-    host_supported: true,
+    defaults: ["rust_baremetal_defaults"],
     crate_name: "arm_sysregs",
     cargo_env_compat: true,
     cargo_pkg_version: "0.2.9",
@@ -30,6 +30,12 @@ rust_library {
     apex_available: [
         "//apex_available:platform",
         "//apex_available:anyapex",
+    ],
+    prefer_rlib: true,
+    no_stdlibs: true,
+    stdlibs: [
+        "libcompiler_builtins.rust_sysroot",
+        "libcore.rust_sysroot",
     ],
     product_available: true,
     vendor_available: true,
