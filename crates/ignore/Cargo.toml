@@ -11,8 +11,9 @@
 
 [package]
 edition = "2024"
+rust-version = "1.88"
 name = "ignore"
-version = "0.4.29"
+version = "0.4.31"
 authors = ["Andrew Gallant <jamslam@gmail.com>"]
 build = false
 autolib = false

@@ -13,7 +13,7 @@
 edition = "2021"
 rust-version = "1.61.0"
 name = "camino"
-version = "1.2.4"
+version = "1.2.5"
 authors = [
     "Without Boats <saoirse@without.boats>",
     "Ashley Williams <ashley666ashley@gmail.com>",
@@ -21,9 +21,14 @@ authors = [
     "Rain <rain@sunshowers.io>",
 ]
 build = "build.rs"
-exclude = [
-    ".cargo/**/*",
-    ".github/**/*",
+include = [
+    "/build.rs",
+    "/src/**/*.rs",
+    "/tests/**/*.rs",
+    "/CHANGELOG.md",
+    "/LICENSE-APACHE",
+    "/LICENSE-MIT",
+    "/README.md",
 ]
 autolib = false
 autobins = false

@@ -9,21 +9,21 @@ Supported platforms:
   prctl returns an unsupported error if operation is not supported,
   so we can safely use this on older versions.
 - glibc 2.16+ (through getauxval)
-  https://github.com/bminor/glibc/commit/c7683a6d02f3ed59f5cd119b3e8547f45a15912f
+  https://sourceware.org/git/?p=glibc.git;a=blob;f=NEWS;hb=glibc-2.16#l83
   Always available on:
-  - aarch64 (glibc 2.17+ https://github.com/bminor/glibc/blob/glibc-2.17/NEWS#L36)
-  - powerpc64 (le) (glibc 2.19+ or RHEL/CentOS's patched glibc 2.17+ https://github.com/bminor/glibc/blob/glibc-2.19/NEWS#L108)
+  - aarch64 (glibc 2.17+ https://sourceware.org/git/?p=glibc.git;a=blob;f=NEWS;hb=glibc-2.17#l36)
+  - powerpc64 (le) (glibc 2.19+ or RHEL/CentOS's patched glibc 2.17+ https://sourceware.org/git/?p=glibc.git;a=blob;f=NEWS;hb=glibc-2.19#l108)
   Not always available on:
-  - arm (glibc 2.1+ https://github.com/bminor/glibc/blob/glibc-2.1/NEWS#L97)
-  - powerpc64 (be) (glibc 2.3+ https://github.com/bminor/glibc/blob/glibc-2.3/NEWS#L56)
+  - arm (glibc 2.1+ https://sourceware.org/git/?p=glibc.git;a=blob;f=NEWS;hb=glibc-2.1#l97)
+  - powerpc64 (be) (glibc 2.3+ https://sourceware.org/git/?p=glibc.git;a=blob;f=NEWS;hb=glibc-2.3#l56)
   Since Rust 1.64, std requires glibc 2.17+ https://blog.rust-lang.org/2022/08/01/Increasing-glibc-kernel-requirements
 - musl 1.1.0+ (through getauxval)
-  https://github.com/bminor/musl/commit/21ada94c4b8c01589367cea300916d7db8461ae7
+  https://git.musl-libc.org/cgit/musl/tree/WHATSNEW?h=v1.1.0#n1197
   Always available on:
-  - aarch64 (musl 1.1.7+ https://github.com/bminor/musl/blob/v1.1.7/WHATSNEW#L1422)
-  - powerpc64 (musl 1.1.15+ https://github.com/bminor/musl/blob/v1.1.15/WHATSNEW#L1702)
+  - aarch64 (musl 1.1.7+ https://git.musl-libc.org/cgit/musl/tree/WHATSNEW?h=v1.1.7#n1422)
+  - powerpc64 (musl 1.1.15+ https://git.musl-libc.org/cgit/musl/tree/WHATSNEW?h=v1.1.15#n1702)
   Not always available on:
-  - arm (musl 0.8.3+ https://github.com/bminor/musl/blob/v0.8.3/WHATSNEW#L354)
+  - arm (musl 0.8.3+ https://git.musl-libc.org/cgit/musl/tree/WHATSNEW?h=v0.8.3#n354)
   At least since Rust 1.15, std requires musl 1.1.14+ https://github.com/rust-lang/rust/blob/1.15.0/src/ci/docker/x86_64-musl/build-musl.sh#L15
   Since Rust 1.18, std requires musl 1.1.16+ https://github.com/rust-lang/rust/pull/41089
   Since Rust 1.23, std requires musl 1.1.17+ https://github.com/rust-lang/rust/pull/45393
@@ -33,6 +33,7 @@ Supported platforms:
   Since Rust 1.37, std requires musl 1.1.22+ https://github.com/rust-lang/rust/pull/61252
   Since Rust 1.46, std requires musl 1.1.24+ https://github.com/rust-lang/rust/pull/73089
   Since Rust 1.71, std requires musl 1.2.3+ https://blog.rust-lang.org/2023/05/09/Updating-musl-targets
+  Since Rust 1.93, std requires musl 1.2.5+ https://blog.rust-lang.org/2025/12/05/Updating-musl-1.2.5/
   OpenHarmony uses a fork of musl 1.2 https://gitee.com/openharmony/docs/blob/master/en/application-dev/reference/native-lib/musl.md
 - uClibc-ng 1.0.43+ (through getauxval)
   https://github.com/wbx-github/uclibc-ng/commit/d869bb1600942c01a77539128f9ba5b5b55ad647
@@ -42,10 +43,10 @@ Supported platforms:
   (powerpc64 is not supported https://github.com/wbx-github/uclibc-ng/commit/d4d4f37fda7fa57e57132ff2f0d735ce7cc2178e)
 - Picolibc 1.4.6+ (through getauxval)
   https://github.com/picolibc/picolibc/commit/19bfe51d62ad7e32533c7f664b5bca8e26286e31
-  The implementation always return 0 (as of 1.8.10): https://github.com/picolibc/picolibc/blob/1.8.10/newlib/libc/picolib/getauxval.c
+  The implementation always return 0 (as of 1.8.11): https://github.com/picolibc/picolibc/blob/1.8.11/libc/misc/getauxval.c
 - Android 4.3+ (API level 18+) (through getauxval)
-  https://github.com/aosp-mirror/platform_bionic/commit/2c5153b043b44e9935a334ae9b2d5a4bc5258b40
-  https://github.com/aosp-mirror/platform_bionic/commit/655e430b28d7404f763e7ebefe84fba5a387666d
+  https://android.googlesource.com/platform/bionic.git/+/2c5153b043b44e9935a334ae9b2d5a4bc5258b40
+  https://android.googlesource.com/platform/bionic.git/+/655e430b28d7404f763e7ebefe84fba5a387666d
   Always available on:
   - 64-bit architectures (Android 5.0+ (API level 21+) https://android-developers.googleblog.com/2014/10/whats-new-in-android-50-lollipop.html)
   Not always available on:
@@ -115,7 +116,7 @@ See tests::test_alternative and aarch64_aa64reg.rs for (test-only) alternative i
 
 # FreeBSD
 
-As of nightly-2024-09-07, is_aarch64_feature_detected always uses mrs on
+As of Rust 1.94, is_aarch64_feature_detected always uses mrs on
 AArch64 FreeBSD. However, they do not work on FreeBSD 12 on QEMU (confirmed
 on FreeBSD 12.{2,3,4}), and we got SIGILL (worked on FreeBSD 13 and 14).
 
@@ -155,7 +156,7 @@ mod os {
         pub(crate) use crate::utils::ffi::{c_char, c_int, c_void};
 
         sys_const!({
-            // https://github.com/torvalds/linux/blob/v6.16/include/uapi/linux/auxvec.h
+            // https://github.com/torvalds/linux/blob/v6.19/include/uapi/linux/auxvec.h
             pub(crate) const AT_HWCAP: c_ulong = 16;
             #[cfg(any(
                 test,
@@ -173,10 +174,11 @@ mod os {
             pub(crate) const AT_HWCAP4: c_ulong = 30;
 
             // Defined in dlfcn.h.
-            // https://github.com/bminor/glibc/blob/glibc-2.40/dlfcn/dlfcn.h
-            // https://github.com/bminor/musl/blob/v1.2.5/include/dlfcn.h
+            // https://sourceware.org/git/?p=glibc.git;a=blob;f=dlfcn/dlfcn.h;hb=glibc-2.43
+            // https://git.musl-libc.org/cgit/musl/tree/include/dlfcn.h?h=v1.2.5
             // https://github.com/wbx-github/uclibc-ng/blob/v1.0.47/include/dlfcn.h
-            // https://github.com/aosp-mirror/platform_bionic/blob/android-16.0.0_r1/libc/include/dlfcn.h
+            // https://github.com/kernkonzept/l4re-core/blob/r-2026-W07/libc/uclibc-ng/contrib/uclibc/include/dlfcn.h
+            // https://android.googlesource.com/platform/bionic.git/+/refs/tags/android-16.0.0_r1/libc/include/dlfcn.h
             #[cfg(any(
                 test,
                 not(any(
@@ -206,7 +208,7 @@ mod os {
                 crate::utils::ptr::without_provenance_mut(-1_isize as usize);
 
             // Defined in sys/system_properties.h.
-            // https://github.com/aosp-mirror/platform_bionic/blob/android-16.0.0_r1/libc/include/sys/system_properties.h
+            // https://android.googlesource.com/platform/bionic.git/+/refs/tags/android-16.0.0_r1/libc/include/sys/system_properties.h
             #[cfg(all(target_arch = "aarch64", target_os = "android"))]
             pub(crate) const PROP_VALUE_MAX: c_int = 92;
         });
@@ -215,12 +217,12 @@ mod os {
             extern "C" {
                 // Defined in sys/auxv.h.
                 // https://man7.org/linux/man-pages/man3/getauxval.3.html
-                // https://github.com/bminor/glibc/blob/glibc-2.40/misc/sys/auxv.h
-                // https://github.com/bminor/musl/blob/v1.2.5/include/sys/auxv.h
+                // https://sourceware.org/git/?p=glibc.git;a=blob;f=misc/sys/auxv.h;hb=glibc-2.43
+                // https://git.musl-libc.org/cgit/musl/tree/include/sys/auxv.h?h=v1.2.5
                 // https://github.com/wbx-github/uclibc-ng/blob/v1.0.47/include/sys/auxv.h
-                // https://github.com/kernkonzept/l4re-core/blob/4351d4474804636122d64ea5a5d41f5e78e9208e/uclibc/lib/contrib/uclibc/include/sys/auxv.h
-                // https://github.com/aosp-mirror/platform_bionic/blob/android-16.0.0_r1/libc/include/sys/auxv.h
-                // https://github.com/picolibc/picolibc/blob/1.8.10/newlib/libc/include/sys/auxv.h
+                // https://github.com/kernkonzept/l4re-core/blob/r-2026-W07/libc/uclibc-ng/contrib/uclibc/include/sys/auxv.h
+                // https://android.googlesource.com/platform/bionic.git/+/refs/tags/android-16.0.0_r1/libc/include/sys/auxv.h
+                // https://github.com/picolibc/picolibc/blob/1.8.11/libc/include/sys/auxv.h
                 #[cfg(any(
                     test,
                     all(
@@ -244,10 +246,11 @@ mod os {
 
                 // Defined in dlfcn.h.
                 // https://man7.org/linux/man-pages/man3/dlsym.3.html
-                // https://github.com/bminor/glibc/blob/glibc-2.40/dlfcn/dlfcn.h
-                // https://github.com/bminor/musl/blob/v1.2.5/include/dlfcn.h
+                // https://sourceware.org/git/?p=glibc.git;a=blob;f=dlfcn/dlfcn.h;hb=glibc-2.43
+                // https://git.musl-libc.org/cgit/musl/tree/include/dlfcn.h?h=v1.2.5
                 // https://github.com/wbx-github/uclibc-ng/blob/v1.0.47/include/dlfcn.h
-                // https://github.com/aosp-mirror/platform_bionic/blob/android-16.0.0_r1/libc/include/dlfcn.h
+                // https://github.com/kernkonzept/l4re-core/blob/r-2026-W07/libc/uclibc-ng/contrib/uclibc/include/dlfcn.h
+                // https://android.googlesource.com/platform/bionic.git/+/refs/tags/android-16.0.0_r1/libc/include/dlfcn.h
                 #[cfg(any(
                     test,
                     not(any(
@@ -272,7 +275,7 @@ mod os {
                 pub(crate) fn dlsym(handle: *mut c_void, symbol: *const c_char) -> *mut c_void;
 
                 // Defined in sys/system_properties.h.
-                // https://github.com/aosp-mirror/platform_bionic/blob/android-16.0.0_r1/libc/include/sys/system_properties.h
+                // https://android.googlesource.com/platform/bionic.git/+/refs/tags/android-16.0.0_r1/libc/include/sys/system_properties.h
                 #[cfg(all(target_arch = "aarch64", target_os = "android"))]
                 pub(crate) fn __system_property_get(
                     name: *const c_char,
@@ -338,7 +341,7 @@ mod os {
         sys_const!({
             // FreeBSD
             // Defined in sys/elf_common.h.
-            // https://github.com/freebsd/freebsd-src/blob/release/14.3.0/sys/sys/elf_common.h
+            // https://github.com/freebsd/freebsd-src/blob/release/15.0.0/sys/sys/elf_common.h
             // OpenBSD
             // Defined in sys/auxv.h.
             // https://github.com/openbsd/src/blob/ed8f5e8d82ace15e4cefca2c82941b15cb1a7830/sys/sys/auxv.h
@@ -361,7 +364,7 @@ mod os {
             // FreeBSD
             // Defined in dlfcn.h.
             // https://man.freebsd.org/dlsym(3)
-            // https://github.com/freebsd/freebsd-src/blob/release/14.3.0/include/dlfcn.h
+            // https://github.com/freebsd/freebsd-src/blob/release/15.0.0/include/dlfcn.h
             // OpenBSD
             // Defined in dlfcn.h.
             // https://man.openbsd.org/dlsym.3
@@ -380,7 +383,8 @@ mod os {
                 )),
             ))]
             #[allow(clippy::cast_sign_loss)]
-            pub(crate) const RTLD_DEFAULT: *mut c_void = -2_isize as usize as *mut c_void;
+            pub(crate) const RTLD_DEFAULT: *mut c_void =
+                crate::utils::ptr::without_provenance_mut(-2_isize as usize);
         });
 
         sys_fn!({
@@ -388,7 +392,7 @@ mod os {
                 // FreeBSD
                 // Defined in sys/auxv.h.
                 // https://man.freebsd.org/elf_aux_info(3)
-                // https://github.com/freebsd/freebsd-src/blob/release/14.3.0/sys/sys/auxv.h
+                // https://github.com/freebsd/freebsd-src/blob/release/15.0.0/sys/sys/auxv.h
                 // OpenBSD
                 // Defined in sys/auxv.h.
                 // https://man.openbsd.org/elf_aux_info.3
@@ -411,7 +415,7 @@ mod os {
                 // FreeBSD
                 // Defined in dlfcn.h.
                 // https://man.freebsd.org/dlsym(3)
-                // https://github.com/freebsd/freebsd-src/blob/release/14.3.0/include/dlfcn.h
+                // https://github.com/freebsd/freebsd-src/blob/release/15.0.0/include/dlfcn.h
                 // OpenBSD
                 // Defined in dlfcn.h.
                 // https://man.openbsd.org/dlsym.3
@@ -491,11 +495,11 @@ mod arch {
 
     sys_const!({
         // Linux
-        // https://github.com/torvalds/linux/blob/v6.16/arch/arm64/include/uapi/asm/hwcap.h
-        // https://github.com/torvalds/linux/blob/v6.16/Documentation/arch/arm64/elf_hwcaps.rst
+        // https://github.com/torvalds/linux/blob/v6.19/arch/arm64/include/uapi/asm/hwcap.h
+        // https://github.com/torvalds/linux/blob/v6.19/Documentation/arch/arm64/elf_hwcaps.rst
         // FreeBSD
         // Defined in machine/elf.h.
-        // https://github.com/freebsd/freebsd-src/blob/release/14.3.0/sys/arm64/include/elf.h
+        // https://github.com/freebsd/freebsd-src/blob/release/15.0.0/sys/arm64/include/elf.h
         // OpenBSD
         // Defined in machine/elf.h.
         // https://github.com/openbsd/src/blob/ed8f5e8d82ace15e4cefca2c82941b15cb1a7830/sys/arch/arm64/include/elf.h
@@ -551,14 +555,17 @@ mod arch {
         pub(crate) const HWCAP2_LSE128: ffi::c_ulong = 1 << 47;
         // Linux 6.18+
         // https://github.com/torvalds/linux/commit/220928e52cb03d223b3acad3888baf0687486d21
+        // FreeBSD 16.0+
+        // https://github.com/freebsd/freebsd-src/commit/3a960425df759a7bb8f946d23f035c63f3a5de7a
         #[cfg(test)]
-        #[cfg(any(target_os = "linux", target_os = "android"))]
+        #[cfg(not(target_os = "openbsd"))]
         #[cfg(target_pointer_width = "64")]
         pub(crate) const HWCAP3_LSFE: ffi::c_ulong = 1 << 2;
     });
 
     #[cold]
-    pub(super) fn _detect(info: &mut CpuInfo) {
+    #[must_use]
+    pub(crate) fn _detect(mut info: CpuInfo) -> CpuInfo {
         #[cfg(target_os = "android")]
         {
             // Samsung Exynos 9810 has a bug that big and little cores have different
@@ -576,7 +583,7 @@ mod arch {
             // On Exynos, ro.arch is not available on Android 12+, but it is fine
             // because Android 9+ includes the fix.
             if len > 0 && arch.starts_with(b"exynos9810") {
-                return;
+                return info;
             }
         }
 
@@ -604,12 +611,12 @@ mod arch {
             check!(hwcap2, rcpc3, HWCAP2_LRCPC3);
             check!(hwcap2, lse128, HWCAP2_LSE128);
             #[cfg(test)]
-            #[cfg(any(target_os = "linux", target_os = "android"))]
             {
                 let hwcap3 = os::getauxval(ffi::AT_HWCAP3);
                 check!(hwcap3, lsfe, HWCAP3_LSFE);
             }
         }
+        info
     }
 }
 #[cfg(target_arch = "arm")]
@@ -618,10 +625,10 @@ mod arch {
 
     sys_const!({
         // Linux
-        // https://github.com/torvalds/linux/blob/v6.16/arch/arm/include/uapi/asm/hwcap.h
+        // https://github.com/torvalds/linux/blob/v6.19/arch/arm/include/uapi/asm/hwcap.h
         // FreeBSD
         // Defined in machine/elf.h.
-        // https://github.com/freebsd/freebsd-src/blob/release/14.3.0/sys/arm/include/elf.h
+        // https://github.com/freebsd/freebsd-src/blob/release/15.0.0/sys/arm/include/elf.h
         // OpenBSD
         // Defined in machine/elf.h.
         // https://github.com/openbsd/src/blob/ed8f5e8d82ace15e4cefca2c82941b15cb1a7830/sys/arch/arm/include/elf.h
@@ -637,7 +644,8 @@ mod arch {
     });
 
     #[cold]
-    pub(crate) fn _detect(info: &mut CpuInfo) {
+    #[must_use]
+    pub(crate) fn _detect(mut info: CpuInfo) -> CpuInfo {
         macro_rules! check {
             ($x:ident, $flag:ident, $($bit:ident) ||+) => {
                 if $x & ($($bit) |+) != 0 {
@@ -653,6 +661,7 @@ mod arch {
         let hwcap = os::getauxval(ffi::AT_HWCAP);
         #[cfg(test)]
         check!(hwcap, lpae, HWCAP_LPAE);
+        info
     }
 }
 #[cfg(target_arch = "powerpc64")]
@@ -661,11 +670,11 @@ mod arch {
 
     sys_const!({
         // Linux
-        // https://github.com/torvalds/linux/blob/v6.16/arch/powerpc/include/uapi/asm/cputable.h
-        // https://github.com/torvalds/linux/blob/v6.16/Documentation/arch/powerpc/elf_hwcaps.rst
+        // https://github.com/torvalds/linux/blob/v6.19/arch/powerpc/include/uapi/asm/cputable.h
+        // https://github.com/torvalds/linux/blob/v6.19/Documentation/arch/powerpc/elf_hwcaps.rst
         // FreeBSD
         // Defined in machine/cpu.h.
-        // https://github.com/freebsd/freebsd-src/blob/release/14.3.0/sys/powerpc/include/cpu.h
+        // https://github.com/freebsd/freebsd-src/blob/release/15.0.0/sys/powerpc/include/cpu.h
         // OpenBSD
         // Defined in machine/elf.h.
         // https://github.com/openbsd/src/blob/ed8f5e8d82ace15e4cefca2c82941b15cb1a7830/sys/arch/powerpc64/include/elf.h
@@ -701,7 +710,8 @@ mod arch {
     });
 
     #[cold]
-    pub(super) fn _detect(info: &mut CpuInfo) {
+    #[must_use]
+    pub(crate) fn _detect(mut info: CpuInfo) -> CpuInfo {
         let hwcap = os::getauxval(ffi::AT_HWCAP);
         if hwcap & PPC_FEATURE_BOOKE != 0 {
             // quadword-atomics (Load/Store Quadword category in ISA 2.07) is requirement of ISA 2.07
@@ -710,7 +720,7 @@ mod arch {
             // BookE processors that appear to be supported on these platforms.)
             // Refs: Appendix B "Platform Support Requirements" of Power ISA 2.07B
             // https://ibm.ent.box.com/s/jd5w15gz301s5b5dt375mshpq9c3lh4u
-            return;
+            return info;
         }
         let hwcap2 = os::getauxval(ffi::AT_HWCAP2);
         // Check both 2_07 and later ISAs (which are superset of 2_07) because
@@ -722,6 +732,7 @@ mod arch {
         if hwcap2 & isa_2_07_or_later != 0 {
             info.set(CpuInfoFlag::quadword_atomics);
         }
+        info
     }
 }
 
@@ -851,7 +862,7 @@ mod tests {
     fn test_alternative() {
         #[cfg(not(portable_atomic_no_asm))]
         use std::arch::asm;
-        use std::{str, vec};
+        use std::{eprintln, str, vec};
 
         #[cfg(target_pointer_width = "32")]
         use sys::Elf32_auxv_t as Elf_auxv_t;
@@ -869,12 +880,12 @@ mod tests {
         fn getauxval_pr_get_auxv_no_libc(type_: c_ulong) -> Result<c_ulong, c_int> {
             // Refs:
             // - aarch64
-            //   https://github.com/bminor/musl/blob/v1.2.5/arch/aarch64/syscall_arch.h
+            //   https://git.musl-libc.org/cgit/musl/tree/arch/aarch64/syscall_arch.h?h=v1.2.5
             // - arm
-            //   https://github.com/bminor/musl/blob/v1.2.5/arch/arm/syscall_arch.h
+            //   https://git.musl-libc.org/cgit/musl/tree/arch/arm/syscall_arch.h?h=v1.2.5
             // - powerpc64
-            //   https://github.com/torvalds/linux/blob/v6.18/Documentation/arch/powerpc/syscall64-abi.rst
-            //   https://github.com/bminor/musl/blob/1b76ff0767d01df72f692806ee5adee13c67ef88/arch/powerpc64/syscall_arch.h
+            //   https://github.com/torvalds/linux/blob/v6.19/Documentation/arch/powerpc/syscall64-abi.rst
+            //   https://git.musl-libc.org/cgit/musl/tree/arch/powerpc64/syscall_arch.h?h=1b76ff0767d01df72f692806ee5adee13c67ef88
             unsafe fn prctl_get_auxv(out: *mut c_void, len: usize) -> Result<usize, c_int> {
                 // arguments must be extended to 64-bit if 64-bit arch
                 let number = sys::__NR_prctl as RegSize;
@@ -1009,13 +1020,13 @@ mod tests {
             let minor = digits.next().unwrap().parse::<u32>().unwrap();
             // TODO: qemu-user bug (fails even on kernel >= 6.4) (as of 9.2)
             if (major, minor) < (6, 4) || cfg!(qemu) {
-                std::eprintln!("kernel version: {}.{} (no pr_get_auxv)", major, minor);
+                eprintln!("kernel version: {}.{} (no pr_get_auxv)", major, minor);
                 for &at in &[ffi::AT_HWCAP, ffi::AT_HWCAP2, ffi::AT_HWCAP3, ffi::AT_HWCAP4] {
                     assert_eq!(getauxval_pr_get_auxv_libc(at).unwrap_err(), -1);
                     assert_eq!(getauxval_pr_get_auxv_no_libc(at).unwrap_err(), -libc::EINVAL);
                 }
             } else {
-                std::eprintln!("kernel version: {}.{} (has pr_get_auxv)", major, minor);
+                eprintln!("kernel version: {}.{} (has pr_get_auxv)", major, minor);
                 for &at in &[ffi::AT_HWCAP, ffi::AT_HWCAP2] {
                     if cfg!(all(valgrind, target_arch = "powerpc64")) {
                         // TODO: valgrind bug (as of Valgrind 3.26)
@@ -1047,6 +1058,7 @@ mod tests {
     }
     #[allow(clippy::cast_possible_wrap)]
     #[cfg(target_os = "freebsd")]
+    #[cfg_attr(target_arch = "powerpc64", rustversion::since(1.92))] // requires https://github.com/rust-lang/rust/pull/146831
     #[test]
     fn test_alternative() {
         #[cfg(not(portable_atomic_no_asm))]
@@ -1127,7 +1139,7 @@ mod tests {
             // Refs:
             // - aarch64
             //   https://github.com/freebsd/freebsd-src/blob/release/15.0.0/lib/libsys/aarch64/SYS.h
-            //   https://github.com/golang/go/blob/go1.25.0/src/syscall/asm_freebsd_arm64.s
+            //   https://github.com/golang/go/blob/go1.26.0/src/syscall/asm_freebsd_arm64.s
             // - powerpc64
             //   https://github.com/freebsd/freebsd-src/blob/release/15.0.0/lib/libsys/powerpc64/SYS.h
             #[inline]

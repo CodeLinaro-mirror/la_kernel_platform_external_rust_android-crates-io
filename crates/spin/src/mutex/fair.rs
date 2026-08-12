@@ -98,7 +98,7 @@ unsafe impl<T: ?Sized, R> Send for FairMutexGuard<'_, T, R> where for<'a> &'a mu
 /// A handle that indicates that we have been trying to acquire the lock for a while.
 ///
 /// This handle is used to prevent starvation.
-pub struct Starvation<'a, T: ?Sized + 'a, R> {
+pub struct Starvation<'a, T: ?Sized + 'a, R = Spin> {
     inner: &'a FairMutex<T, R>,
 }
 

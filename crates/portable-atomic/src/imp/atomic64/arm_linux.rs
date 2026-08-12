@@ -8,11 +8,11 @@ detailed description of the atomic and synchronize instructions in this architec
 https://github.com/taiki-e/atomic-maybe-uninit/blob/HEAD/src/arch/README.md#arm
 
 Refs:
-- https://github.com/torvalds/linux/blob/v6.16/Documentation/arch/arm/kernel_user_helpers.rst
+- https://github.com/torvalds/linux/blob/v6.19/Documentation/arch/arm/kernel_user_helpers.rst
 - https://github.com/rust-lang/compiler-builtins/blob/compiler_builtins-v0.1.124/src/arm_linux.rs
 
 Note: __kuser_cmpxchg64 is always SeqCst.
-https://github.com/torvalds/linux/blob/v6.16/arch/arm/kernel/entry-armv.S#L700-L707
+https://github.com/torvalds/linux/blob/v6.19/arch/arm/kernel/entry-armv.S#L700-L707
 
 Note: On Miri and ThreadSanitizer which do not support inline assembly, we don't use
 this module and use fallback implementation instead.
@@ -50,9 +50,11 @@ mod test_detect_auxv;
 use core::arch::asm;
 use core::{mem, sync::atomic::Ordering};
 
+#[cfg(portable_atomic_no_strict_provenance)]
+use crate::utils::ptr::PtrExt as _;
 use crate::utils::{Pair, U64};
 
-// https://github.com/torvalds/linux/blob/v6.16/Documentation/arch/arm/kernel_user_helpers.rst
+// https://github.com/torvalds/linux/blob/v6.19/Documentation/arch/arm/kernel_user_helpers.rst
 const KUSER_HELPER_VERSION: usize = 0xFFFF0FFC;
 // __kuser_helper_version >= 5 (kernel version 3.1+)
 const KUSER_CMPXCHG64: usize = 0xFFFF0F60;
@@ -119,7 +121,7 @@ macro_rules! select_atomic {
         #[inline]
         unsafe fn $name($dst: *mut u64 $(, $($arg)*)?, _: Ordering) $(-> $ret_ty)? {
             unsafe fn kuser_cmpxchg64_fn($dst: *mut u64 $(, $($arg)*)?) $(-> $ret_ty)? {
-                debug_assert!($dst as usize % 8 == 0);
+                debug_assert!($dst.addr() % 8 == 0);
                 debug_assert!(has_kuser_cmpxchg64());
                 // SAFETY: the caller must uphold the safety contract.
                 unsafe {
@@ -189,7 +191,7 @@ unsafe fn atomic_compare_exchange(
     _: Ordering,
 ) -> Result<u64, u64> {
     unsafe fn kuser_cmpxchg64_fn(dst: *mut u64, old: u64, new: u64) -> (u64, bool) {
-        debug_assert!(dst as usize % 8 == 0);
+        debug_assert!(dst.addr() % 8 == 0);
         debug_assert!(has_kuser_cmpxchg64());
         // SAFETY: the caller must uphold the safety contract.
         unsafe {

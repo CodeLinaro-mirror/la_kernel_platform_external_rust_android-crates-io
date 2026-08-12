@@ -2,7 +2,7 @@ use crate::{Error, Manifest, Value};
 use std::collections::HashSet;
 use std::fs::read_dir;
 use std::io;
-use std::path::{Path, PathBuf};
+use std::path::{Component, Path, PathBuf};
 
 /// This crate supports reading `Cargo.toml` not only from a real directory, but also directly from other sources, like tarballs or bare git repos (BYO directory reader).
 ///
@@ -71,7 +71,9 @@ pub struct Filesystem<'a> {
 impl<'a> Filesystem<'a> {
     #[must_use]
     pub fn new(path: &'a Path) -> Self {
-        Self { path }
+        Self {
+            path: if path == Path::new("") { Path::new(&Component::CurDir) } else { path }
+        }
     }
 }
 

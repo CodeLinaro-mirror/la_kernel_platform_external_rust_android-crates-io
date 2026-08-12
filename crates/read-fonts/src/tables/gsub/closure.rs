@@ -361,8 +361,8 @@ impl GlyphClosure for SubstitutionSubtables<'_> {
     }
 }
 
-impl<'a, T: FontRead<'a> + GlyphClosure + 'a, Ext: ExtensionLookup<'a, T> + 'a> GlyphClosure
-    for Subtables<'a, T, Ext>
+impl<'a, T: FontRead<'a, Args = ()> + GlyphClosure + 'a, Ext: ExtensionLookup<'a, T> + 'a>
+    GlyphClosure for Subtables<'a, T, Ext>
 {
     fn closure_glyphs(
         &self,
@@ -1043,7 +1043,7 @@ impl Intersect for ExtensionSubtable<'_> {
 
 impl<'a, T> Intersect for ExtensionSubstFormat1<'a, T>
 where
-    T: Intersect + FontRead<'a>,
+    T: Intersect + FontRead<'a, Args = ()>,
 {
     fn intersects(&self, glyph_set: &IntSet<GlyphId>) -> Result<bool, ReadError> {
         if self.extension_offset().is_null() {
