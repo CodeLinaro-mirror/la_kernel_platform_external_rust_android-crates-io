@@ -31,9 +31,9 @@ checksum = "9330f8b2ff13f34540b44e946ef35111825727b38d33286ef986142615121801"
 
 [[package]]
 name = "dc_bundle"
-version = "0.39.4"
+version = "0.39.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "fbb67662bde5b8a0b4a9cf3c592abb26e630e3d6390432255c173c696da62559"
+checksum = "56fb0c5ae0620eda58872400bf336285f690d363b1c60d4be5201bff214e59a8"
 dependencies = [
  "log",
  "protobuf",
@@ -45,7 +45,7 @@ dependencies = [
 
 [[package]]
 name = "dc_squoosh_animation"
-version = "0.39.4"
+version = "0.39.5"
 dependencies = [
  "dc_bundle",
  "log",

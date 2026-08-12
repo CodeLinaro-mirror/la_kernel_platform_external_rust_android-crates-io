@@ -2851,9 +2851,9 @@ checksum = "4583a4551df46e2792f82ceeac45e850d2e2d5debba0b91f102385cda5b11f06"
 
 [[package]]
 name = "dc_bundle"
-version = "0.39.4"
+version = "0.39.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "fbb67662bde5b8a0b4a9cf3c592abb26e630e3d6390432255c173c696da62559"
+checksum = "56fb0c5ae0620eda58872400bf336285f690d363b1c60d4be5201bff214e59a8"
 dependencies = [
  "log",
  "protobuf 3.7.2",
@@ -2865,9 +2865,9 @@ dependencies = [
 
 [[package]]
 name = "dc_figma_import"
-version = "0.39.4"
+version = "0.39.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "aa2e0225f3ea6dcc8dd9bf3702151354e736e900f0b7c2997146f8ae18d17a4e"
+checksum = "494b498b044f7bd36fe39016074cc472677163d3b1d5d39f46508f1280c64b2e"
 dependencies = [
  "anyhow",
  "dc_bundle",
@@ -2892,9 +2892,9 @@ dependencies = [
 
 [[package]]
 name = "dc_jni"
-version = "0.39.4"
+version = "0.39.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "fc4f7f53dccc89f376301798e0c74b49bbbd9f9eedbfd75008be177c44eabd94"
+checksum = "eaa4756c8c5a82cee30222175d6f306aed72f40d1c5743aba1850949f3671f02"
 dependencies = [
  "android_logger 0.13.3",
  "bytes",
@@ -2913,9 +2913,9 @@ dependencies = [
 
 [[package]]
 name = "dc_layout"
-version = "0.39.4"
+version = "0.39.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d2948f8f05601638c16945f377ec8b4e12f68d5a8ded43865a10a440ce706965"
+checksum = "b5620eab95212a24f1a98ce1406b9f2aa8f1aa0e45d37d121a039864f8735951"
 dependencies = [
  "android_logger 0.13.3",
  "dc_bundle",
@@ -2928,9 +2928,9 @@ dependencies = [
 
 [[package]]
 name = "dc_squoosh_animation"
-version = "0.39.4"
+version = "0.39.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1f1cf885ab96ddc32ec3bef11dc7b7ea787ebe4012f1a83b339131ce98ed3218"
+checksum = "98809e0b61ecb6a5ed062b4d681918bb40b8de3e12bd039d2a79275745934274"
 dependencies = [
  "dc_bundle",
  "log",
@@ -2940,9 +2940,9 @@ dependencies = [
 
 [[package]]
 name = "dc_squoosh_parser"
-version = "0.39.4"
+version = "0.39.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a59a579321e2fc862bd6d80279b29d8ba18e6a9f0dc8fee97ff188fc264501e5"
+checksum = "7ba028a09213b7b83d0230f693d9cd27ee62feb4535bedf492bced9f48219180"
 dependencies = [
  "dc_squoosh_animation",
  "log",
