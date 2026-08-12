@@ -136,6 +136,12 @@ impl Context {
         unsafe {
             let ctx_raw = SSL_CTX_new(TLS_method());
 
+
+            #[cfg(all(feature = "soong", test))]
+            {
+                let curves = std::ffi::CString::new("X25519:P-256:P-384").unwrap();
+                bssl_sys::SSL_CTX_set1_curves_list(ctx_raw as *mut _, curves.as_ptr());
+            }
             let mut ctx = Context(ctx_raw);
 
             ctx.set_session_callback();
