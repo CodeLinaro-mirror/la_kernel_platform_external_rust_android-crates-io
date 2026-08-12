@@ -240,9 +240,9 @@ dependencies = [
 
 [[package]]
 name = "dc_bundle"
-version = "0.39.4"
+version = "0.39.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "fbb67662bde5b8a0b4a9cf3c592abb26e630e3d6390432255c173c696da62559"
+checksum = "56fb0c5ae0620eda58872400bf336285f690d363b1c60d4be5201bff214e59a8"
 dependencies = [
  "log",
  "protobuf",
@@ -254,7 +254,7 @@ dependencies = [
 
 [[package]]
 name = "dc_figma_import"
-version = "0.39.4"
+version = "0.39.5"
 dependencies = [
  "anyhow",
  "clap",
@@ -281,9 +281,9 @@ dependencies = [
 
 [[package]]
 name = "dc_layout"
-version = "0.39.4"
+version = "0.39.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d2948f8f05601638c16945f377ec8b4e12f68d5a8ded43865a10a440ce706965"
+checksum = "b5620eab95212a24f1a98ce1406b9f2aa8f1aa0e45d37d121a039864f8735951"
 dependencies = [
  "android_logger",
  "dc_bundle",
