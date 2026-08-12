@@ -1,4 +1,4 @@
-#![doc(html_root_url = "https://docs.rs/handlebars/6.4.3")]
+#![doc(html_root_url = "https://docs.rs/handlebars/6.4.4")]
 #![cfg_attr(docsrs, feature(doc_cfg))]
 //! # Handlebars
 //!
@@ -450,3 +450,9 @@ mod sources;
 mod support;
 pub mod template;
 mod util;
+
+/// Test helpers shared by this crate's tests and, behind the `testing` cargo
+/// feature, by downstream users. See `src/testing.rs`.
+#[cfg(any(test, feature = "testing"))]
+#[doc(hidden)]
+pub mod testing;
