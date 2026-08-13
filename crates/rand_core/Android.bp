@@ -18,14 +18,9 @@ rust_library {
     host_supported: true,
     crate_name: "rand_core",
     cargo_env_compat: true,
-    cargo_pkg_version: "0.9.5",
+    cargo_pkg_version: "0.10.1",
     crate_root: "src/lib.rs",
-    edition: "2021",
-    features: [
-        "os_rng",
-        "std",
-    ],
-    rustlibs: ["libgetrandom"],
+    edition: "2024",
     apex_available: [
         "//apex_available:platform",
         "//apex_available:anyapex",
@@ -41,17 +36,60 @@ rust_test {
     host_supported: true,
     crate_name: "rand_core",
     cargo_env_compat: true,
-    cargo_pkg_version: "0.9.5",
+    cargo_pkg_version: "0.10.1",
     crate_root: "src/lib.rs",
     test_suites: ["general-tests"],
     auto_gen_config: true,
     test_options: {
         unit_test: true,
     },
-    edition: "2021",
-    features: [
-        "os_rng",
-        "std",
-    ],
-    rustlibs: ["libgetrandom"],
+    edition: "2024",
+}
+
+rust_test {
+    name: "rand_core_test_tests_block",
+    host_supported: true,
+    crate_name: "block",
+    cargo_env_compat: true,
+    cargo_pkg_version: "0.10.1",
+    crate_root: "tests/block.rs",
+    test_suites: ["general-tests"],
+    auto_gen_config: true,
+    test_options: {
+        unit_test: true,
+    },
+    edition: "2024",
+    rustlibs: ["librand_core"],
+}
+
+rust_test {
+    name: "rand_core_test_tests_mod",
+    host_supported: true,
+    crate_name: "mod",
+    cargo_env_compat: true,
+    cargo_pkg_version: "0.10.1",
+    crate_root: "tests/mod.rs",
+    test_suites: ["general-tests"],
+    auto_gen_config: true,
+    test_options: {
+        unit_test: true,
+    },
+    edition: "2024",
+    rustlibs: ["librand_core"],
+}
+
+rust_test {
+    name: "rand_core_test_tests_utils",
+    host_supported: true,
+    crate_name: "utils",
+    cargo_env_compat: true,
+    cargo_pkg_version: "0.10.1",
+    crate_root: "tests/utils.rs",
+    test_suites: ["general-tests"],
+    auto_gen_config: true,
+    test_options: {
+        unit_test: true,
+    },
+    edition: "2024",
+    rustlibs: ["librand_core"],
 }

@@ -24,7 +24,6 @@ rust_library {
     features: [
         "chrono",
         "crypto",
-        "default",
         "jetstream",
         "kv",
         "object-store",
