@@ -5,10 +5,10 @@ use crate::{
     IntId, Trigger, clear_bit,
     gicv3::{
         GicError, Group, HIGHEST_NS_PRIORITY, SecureIntGroup, register_count,
-        registers::{GicrCtlr, GicrIidr, GicrPwrr, GicrSgi, GicrTyper, Sgi, Waker},
+        registers::{GicrCtlr, GicrIidr, GicrPwrr, GicrSgi, GicrTyper, Pidr2, Sgi, Waker},
         set_regs,
     },
-    set_bit,
+    set_bit, write_bit,
 };
 use core::{hint::spin_loop, marker::PhantomData, ops::Range, ptr::NonNull, stringify};
 use safe_mmio::{UniqueMmioPointer, field, field_shared, fields::ReadPureWrite};
@@ -65,10 +65,33 @@ macro_rules! restore_regs {
     };
 }
 
+/// Returns the frame count between redistributor blocks.
+///
+/// # Safety
+///
+/// The gicr_base must point to the GIC redistributor registers. This region must be mapped into
+/// the address space of the process as device memory, and not have any other aliases, either
+/// via another instance of this driver or otherwise.
+pub(crate) unsafe fn get_redistributor_frame_count(
+    gicr_base: NonNull<GicrSgi>,
+) -> Result<usize, GicError> {
+    // SAFETY: The caller promised that `gicr_base` was valid and there are no aliases.
+    let gicr_window = unsafe { UniqueMmioPointer::new(gicr_base) };
+    let gicr = field_shared!(gicr_window, gicr);
+    let vlpis = field_shared!(gicr, typer).read().virtual_lpis_supported();
+    let arch_rev = field_shared!(gicr, pidr2).read().arch_rev();
+
+    match (arch_rev, vlpis) {
+        (3, false) => Ok(1),
+        (4, true) => Ok(2),
+        _ => Err(GicError::InvalidRedistributorFrameLayout),
+    }
+}
+
 /// Iterator over the redistributor register blocks.
 pub struct GicRedistributorIterator<'a> {
     pointer: Option<NonNull<GicrSgi>>,
-    gic_v4: bool,
+    frame_count: usize,
     phantom: PhantomData<&'a GicrSgi>,
 }
 
@@ -80,12 +103,15 @@ impl GicRedistributorIterator<'_> {
     /// The caller must ensure that `base` points to a continiously mapped GIC redistributor memory
     /// area that spans until the last redistributor block (N) where GICR_TYPER.Last is set and
     /// there must be no other references to this area.
-    pub unsafe fn new(base: NonNull<GicrSgi>, gic_v4: bool) -> Self {
-        Self {
-            pointer: Some(base),
-            gic_v4,
+    pub unsafe fn new(gicr_base: NonNull<GicrSgi>) -> Result<Self, GicError> {
+        // SAFETY: The caller promised that `gicr_base` was valid and there are no aliases.
+        let frame_count = unsafe { get_redistributor_frame_count(gicr_base) }?;
+
+        Ok(Self {
+            pointer: Some(gicr_base),
+            frame_count,
             phantom: PhantomData,
-        }
+        })
     }
 }
 
@@ -104,19 +130,11 @@ impl<'a> Iterator for GicRedistributorIterator<'a> {
 
         self.pointer = if !typer.last_redistributor() {
             // Step to next redistributor block
-            let redistributor_size = if self.gic_v4 && typer.virtual_lpis_supported() {
-                // In this case GicV4 adds 2 frames:
-                // vlpi: 64KiB
-                // reserved: 64KiB
-                2
-            } else {
-                1
-            };
 
             // Safety: GicRedistributorIterator::new promises that base points to a valid GIC
             // redistributor block and GICR_TYPER.Last was not set for this redistributor. It is
             // safe to step the pointer to the next redistributor block.
-            unsafe { Some(pointer.add(redistributor_size)) }
+            unsafe { Some(pointer.add(self.frame_count)) }
         } else {
             // Clear pointer at the last redistributor block.
             None
@@ -316,6 +334,12 @@ impl<'a> GicRedistributor<'a> {
         );
     }
 
+    /// Returns the value of the Redistributor Peripheral ID2 Register.
+    pub fn pidr2(&self) -> Pidr2 {
+        let gicr = field_shared!(self.regs, gicr);
+        field_shared!(gicr, pidr2).read()
+    }
+
     /// Sets the interrupt priority of the given interrupt ID. This function will panic if invoked
     /// with a non-private IntId.
     pub fn set_interrupt_priority(&mut self, intid: IntId, priority: u8) -> Result<(), GicError> {
@@ -377,9 +401,9 @@ impl<'a> GicRedistributor<'a> {
         let mut sgi = field!(self.regs, sgi);
 
         if enable {
-            set_bit(field!(sgi, isenabler), index);
+            write_bit(field!(sgi, isenabler), index);
         } else {
-            set_bit(field!(sgi, icenabler), index);
+            write_bit(field!(sgi, icenabler), index);
         }
 
         Ok(())
@@ -1071,17 +1095,37 @@ mod tests {
             regs.clear();
         }
 
-        let mut redistributor = regs.redistributor_for_test();
-        assert_eq!(Ok(()), redistributor.enable_interrupt(IntId::sgi(0), true));
-        assert_eq!(Ok(()), redistributor.enable_interrupt(IntId::sgi(1), true));
-        assert_eq!(Ok(()), redistributor.enable_interrupt(IntId::sgi(3), true));
-        assert_eq!(Ok(()), redistributor.enable_interrupt(IntId::sgi(3), false));
-        assert_eq!(
-            Err(GicError::InvalidGicrIntid(IntId::spi(0))),
-            redistributor.enable_interrupt(IntId::spi(0), false)
-        );
-        assert_eq!(0x0000_000b, regs.reg_read(0x1_0100));
+        {
+            let mut redistributor = regs.redistributor_for_test();
+            assert_eq!(Ok(()), redistributor.enable_interrupt(IntId::sgi(0), true));
+        }
+        assert_eq!(0x0000_0001, regs.reg_read(0x1_0100));
+
+        {
+            let mut redistributor = regs.redistributor_for_test();
+            assert_eq!(Ok(()), redistributor.enable_interrupt(IntId::sgi(1), true));
+        }
+        assert_eq!(0x0000_0002, regs.reg_read(0x1_0100));
+
+        {
+            let mut redistributor = regs.redistributor_for_test();
+            assert_eq!(Ok(()), redistributor.enable_interrupt(IntId::sgi(3), true));
+        }
+        assert_eq!(0x0000_0008, regs.reg_read(0x1_0100));
+
+        {
+            let mut redistributor = regs.redistributor_for_test();
+            assert_eq!(Ok(()), redistributor.enable_interrupt(IntId::sgi(3), false));
+        }
         assert_eq!(0x0000_0008, regs.reg_read(0x1_0180));
+
+        {
+            let mut redistributor = regs.redistributor_for_test();
+            assert_eq!(
+                Err(GicError::InvalidGicrIntid(IntId::spi(0))),
+                redistributor.enable_interrupt(IntId::spi(0), false)
+            );
+        }
     }
 
     #[test]
@@ -1319,5 +1363,16 @@ mod tests {
         let redistributor = regs.redistributor_for_test();
         let typer = redistributor.typer();
         assert_eq!(0xcd01, typer.processor_number());
+    }
+
+    #[test]
+    fn pidr2() {
+        let mut regs = FakeRedistributor::new();
+
+        regs.regs_write(0x0_ffe8, 0xabcd_0143);
+
+        let redistributor = regs.redistributor_for_test();
+        let pidr2 = redistributor.pidr2();
+        assert_eq!(0x4, pidr2.arch_rev());
     }
 }

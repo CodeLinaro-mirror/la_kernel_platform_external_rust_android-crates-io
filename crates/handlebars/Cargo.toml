@@ -13,7 +13,7 @@
 edition = "2024"
 rust-version = "1.85"
 name = "handlebars"
-version = "6.4.3"
+version = "6.4.4"
 authors = ["Ning Sun <sunng@pm.me>"]
 build = false
 autolib = false
@@ -52,12 +52,13 @@ rustdoc-args = [
 status = "actively-developed"
 
 [features]
-default = ["preserve_json_order"]
+default = []
 dir_source = ["walkdir"]
 no_logging = []
 preserve_json_order = ["serde_json/preserve_order"]
 script_helper = ["rhai"]
 string_helpers = ["heck"]
+testing = ["preserve_json_order"]
 
 [lib]
 name = "handlebars"

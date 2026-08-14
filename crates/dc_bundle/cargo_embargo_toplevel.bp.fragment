@@ -1,0 +1,21 @@
+java_library {
+    name: "libdc_protos",
+    visibility: ["//visibility:public"],
+    proto: {
+        type: "lite",
+        include_dirs: [
+            "external/protobuf/src",
+            "external/rust/android-crates-io/crates/dc_bundle/src/proto",
+            "external/rust/android-crates-io/crates/dc_bundle/src/proto/definition",
+            "external/rust/android-crates-io/crates/dc_bundle/src/proto/layout_interface",
+            "external/rust/android-crates-io/crates/dc_bundle/src/proto/live_update",
+        ],
+        canonical_path_from_root: false,
+    },
+    srcs: [
+        ":libprotobuf-internal-protos",
+        "src/proto/definition/**/*.proto",
+        "src/proto/layout_interface/**/*.proto",
+        "src/proto/live_update/**/*.proto",
+    ],
+}

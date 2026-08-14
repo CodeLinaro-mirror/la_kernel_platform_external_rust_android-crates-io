@@ -18,7 +18,7 @@ rust_binary {
     host_supported: true,
     crate_name: "analyze_dcf",
     cargo_env_compat: true,
-    cargo_pkg_version: "0.39.4",
+    cargo_pkg_version: "0.39.5",
     crate_root: "src/bin/analyze_dcf.rs",
     srcs: [":copy_dc_bundle_build_out"],
     edition: "2021",
@@ -84,7 +84,7 @@ rust_library {
     host_supported: true,
     crate_name: "dc_bundle",
     cargo_env_compat: true,
-    cargo_pkg_version: "0.39.4",
+    cargo_pkg_version: "0.39.5",
     crate_root: "src/lib.rs",
     srcs: [":copy_dc_bundle_build_out"],
     edition: "2021",
@@ -102,4 +102,26 @@ rust_library {
     product_available: true,
     vendor_available: true,
     min_sdk_version: "29",
+}
+
+java_library {
+    name: "libdc_protos",
+    visibility: ["//visibility:public"],
+    proto: {
+        type: "lite",
+        include_dirs: [
+            "external/protobuf/src",
+            "external/rust/android-crates-io/crates/dc_bundle/src/proto",
+            "external/rust/android-crates-io/crates/dc_bundle/src/proto/definition",
+            "external/rust/android-crates-io/crates/dc_bundle/src/proto/layout_interface",
+            "external/rust/android-crates-io/crates/dc_bundle/src/proto/live_update",
+        ],
+        canonical_path_from_root: false,
+    },
+    srcs: [
+        ":libprotobuf-internal-protos",
+        "src/proto/definition/**/*.proto",
+        "src/proto/layout_interface/**/*.proto",
+        "src/proto/live_update/**/*.proto",
+    ],
 }

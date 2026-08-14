@@ -1,5 +1,28 @@
 # Changelog
 
+## 0.9.0
+
+### Breaking changes
+
+- Split the `id_registers` fields in the `Gicd` and `Gicr` types into `id_registers0`, `pidr2`, and
+  `id_registers7`.
+- Changed `GicV3::new` and `GicRedistributorIterator::new` to derive the redistributor frame layout
+  from `GICR_TYPER.VLPIS` instead of a caller-provided `gic_v4` flag, while still validating the
+  reported GIC version. These functions now return `Result<_, GicError>`.
+
+### Improvements
+
+- Added `GicDistributor::pidr2()` and `GicRedistributor::pidr2()` methods.
+- Added example use of `GicV3` with QEMU's `virt` machine under `examples/`.
+
+### Bugfixes
+
+- Fixed test build on aarch64 hosts.
+- Fixed an issue where `enable_interrupt(false)` on GICv3 inadvertently dropped all active
+  interrupts on the same core by accidentally performing a destructive software read-modify-write on
+  write-1-to-clear `ICENABLER`/`ISENABLER` registers. The methods now correctly use atomic direct
+  writes natively, adhering to the GIC architectural specification.
+
 ## 0.8.1
 
 ### Improvements

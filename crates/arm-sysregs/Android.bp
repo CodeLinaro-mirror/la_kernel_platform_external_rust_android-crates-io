@@ -15,21 +15,28 @@ license {
 
 rust_library {
     name: "libarm_sysregs",
-    host_supported: true,
+    defaults: ["rust_baremetal_defaults"],
     crate_name: "arm_sysregs",
     cargo_env_compat: true,
-    cargo_pkg_version: "0.2.9",
+    cargo_pkg_version: "0.4.0",
     crate_root: "src/lib.rs",
     edition: "2024",
     features: ["el1"],
     rustlibs: [
-        "libbitflags",
-        "libnum_enum",
+        "libarm_sysregs_aarch32",
+        "libarm_sysregs_common",
+        "libarm_sysregs_el0",
+        "libarm_sysregs_el1",
     ],
-    proc_macros: ["libpaste"],
     apex_available: [
         "//apex_available:platform",
         "//apex_available:anyapex",
+    ],
+    prefer_rlib: true,
+    no_stdlibs: true,
+    stdlibs: [
+        "libcompiler_builtins.rust_sysroot",
+        "libcore.rust_sysroot",
     ],
     product_available: true,
     vendor_available: true,
