@@ -3,45 +3,24 @@
 // -----------------------------------------------------------------------------
 // Lock-free implementations
 
-#[cfg(not(any(
-    target_arch = "avr",
-    target_arch = "msp430",
-    all(
-        portable_atomic_no_atomic_load_store,
-        not(all(target_arch = "bpf", not(feature = "critical-section"))),
-    ),
-)))]
-#[cfg_attr(
-    portable_atomic_no_cfg_target_has_atomic,
-    cfg(not(all(
-        any(
-            target_arch = "riscv32",
-            target_arch = "riscv64",
-            feature = "critical-section",
-            portable_atomic_unsafe_assume_single_core,
-        ),
-        portable_atomic_no_atomic_cas,
-    )))
-)]
-#[cfg_attr(
-    not(portable_atomic_no_cfg_target_has_atomic),
-    cfg(not(all(
-        any(
-            target_arch = "riscv32",
-            target_arch = "riscv64",
-            feature = "critical-section",
-            portable_atomic_unsafe_assume_single_core,
-        ),
-        not(target_has_atomic = "ptr"),
-    )))
-)]
-mod core_atomic;
+cfg_core_atomic!({
+    mod core_atomic;
+});
 
 // AVR
 #[cfg(target_arch = "avr")]
 #[cfg(not(portable_atomic_no_asm))]
 #[cfg(not(feature = "critical-section"))]
 mod avr;
+
+// pre-v6 Arm Linux
+#[cfg(all(
+    target_arch = "arm",
+    not(any(miri, portable_atomic_sanitize_thread)),
+    any(target_os = "linux", target_os = "android"),
+    not(any(target_feature = "v6", portable_atomic_target_feature = "v6")),
+))]
+pub(crate) mod arm_linux;
 
 // MSP430
 #[cfg(target_arch = "msp430")]
