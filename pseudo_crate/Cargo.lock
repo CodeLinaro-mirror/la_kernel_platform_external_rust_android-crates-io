@@ -7612,9 +7612,9 @@ checksum = "9b4f627cb1b25917193a259e49bdad08f671f8d9708acfd5fe0a8c1455d87220"
 
 [[package]]
 name = "percore"
-version = "0.2.5"
+version = "0.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "524734e7f004e6ac6ff2fdabfa28c80bbfd1a65b8399f7a44f90fa59992fdadd"
+checksum = "4b9f4bb4c8c288e534c1f96a3c51e718d04a3b602709120ea4b65075d6e4bbd1"
 dependencies = [
  "zerocopy",
 ]
@@ -9171,7 +9171,6 @@ version = "1.0.151"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c841b55ecdae098c80dcae9cf767f6f8a0c2cdb3416bbef72181df4d0fe73f14"
 dependencies = [
- "indexmap 2.14.0",
  "itoa",
  "memchr",
  "serde",
