@@ -61,7 +61,7 @@ impl<M: GuestMemory> GuestMemoryAtomic<M> {
     /// scoped unlock of the mutex (that is, the mutex will be unlocked when
     /// the guard goes out of scope), and optionally also for replacing the
     /// contents of the `GuestMemoryAtomic` when the lock is dropped.
-    pub fn lock(&self) -> LockResult<GuestMemoryExclusiveGuard<M>> {
+    pub fn lock(&self) -> LockResult<GuestMemoryExclusiveGuard<'_, M>> {
         match self.inner.1.lock() {
             Ok(guard) => Ok(GuestMemoryExclusiveGuard {
                 parent: self,
@@ -151,7 +151,7 @@ impl<M: GuestMemory> GuestMemoryExclusiveGuard<'_, M> {
 mod tests {
     use super::*;
     use crate::region::tests::{new_guest_memory_collection_from_regions, Collection, MockRegion};
-    use crate::{GuestAddress, GuestMemory, GuestMemoryRegion, GuestUsize};
+    use crate::{GuestAddress, GuestMemory, GuestMemoryBackend, GuestMemoryRegion, GuestUsize};
 
     type GuestMemoryMmapAtomic = GuestMemoryAtomic<Collection>;
 
@@ -165,7 +165,8 @@ mod tests {
         let mut iterated_regions = Vec::new();
         let gmm = new_guest_memory_collection_from_regions(&regions).unwrap();
         let gm = GuestMemoryMmapAtomic::new(gmm);
-        let mem = gm.memory();
+        let vmem = gm.memory();
+        let mem = vmem.physical_memory().unwrap();
 
         for region in mem.iter() {
             assert_eq!(region.len(), region_size as GuestUsize);
@@ -184,7 +185,7 @@ mod tests {
             .map(|x| (x.0, x.1))
             .eq(iterated_regions.iter().copied()));
 
-        let mem2 = mem.into_inner();
+        let mem2 = vmem.into_inner();
         for region in mem2.iter() {
             assert_eq!(region.len(), region_size as GuestUsize);
         }

@@ -12,7 +12,7 @@
 [package]
 edition = "2021"
 name = "vm-memory"
-version = "0.17.1"
+version = "0.18.0"
 authors = ["Liu Jiang <gerry@linux.alibaba.com>"]
 build = false
 autolib = false
@@ -48,6 +48,7 @@ backend-mmap = [
     "dep:winapi",
 ]
 default = ["rawfd"]
+iommu = ["dep:rangemap"]
 rawfd = ["dep:libc"]
 xen = [
     "backend-mmap",
@@ -74,6 +75,10 @@ optional = true
 
 [dependencies.libc]
 version = "0.2.39"
+optional = true
+
+[dependencies.rangemap]
+version = "1.5.1"
 optional = true
 
 [dependencies.thiserror]
