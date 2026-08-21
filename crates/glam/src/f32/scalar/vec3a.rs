@@ -576,6 +576,12 @@ impl Vec3A {
         math::sqrt(self.dot(self))
     }
 
+    /// Returns `true` if the vector is not the zero vector (also rejects NaN).
+    #[allow(dead_code)]
+    fn is_non_zero(self) -> bool {
+        self.length_squared() > 0.0
+    }
+
     /// Computes the squared length of `self`.
     ///
     /// This is faster than `length()` as it avoids a square root operation.
@@ -592,7 +598,7 @@ impl Vec3A {
     #[inline]
     #[must_use]
     pub fn length_recip(self) -> f32 {
-        self.length().recip()
+        1.0 / self.length()
     }
 
     /// Computes the Euclidean distance between two points in space.
@@ -732,7 +738,7 @@ impl Vec3A {
     #[inline]
     #[must_use]
     pub fn project_onto(self, rhs: Self) -> Self {
-        let other_len_sq_rcp = rhs.dot(rhs).recip();
+        let other_len_sq_rcp = 1.0 / rhs.dot(rhs);
         glam_assert!(other_len_sq_rcp.is_finite());
         rhs * self.dot(rhs) * other_len_sq_rcp
     }
@@ -1125,14 +1131,48 @@ impl Vec3A {
 
     /// Returns the angle (in radians) between two vectors in the range `[0, +π]`.
     ///
+    /// For the full rotation between two vectors as a quaternion, see
+    /// [`Quat::from_rotation_arc`].
+    ///
     /// The inputs do not need to be unit vectors however they must be non-zero.
+    ///
+    /// # Panics
+    ///
+    /// Will panic if `self` or `rhs` has zero length when `glam_assert` is enabled.
     #[inline]
     #[must_use]
     pub fn angle_between(self, rhs: Self) -> f32 {
+        glam_assert!(self.is_non_zero());
+        glam_assert!(rhs.is_non_zero());
         math::acos_approx(
             self.dot(rhs)
                 .div(math::sqrt(self.length_squared().mul(rhs.length_squared()))),
         )
+    }
+
+    /// Returns the signed angle (in radians) from `self` to `rhs` around `axis`
+    /// in the range `[-π, +π]`.
+    ///
+    /// The `axis` must be a unit vector. The angle follows the right-hand rule
+    /// around `axis` and can be used with [`Self::rotate_axis`], e.g.
+    /// `self.rotate_axis(axis, self.angle_to(rhs, axis))` will be equal to `rhs`.
+    ///
+    /// For the unsigned angle without a reference axis, see [`Self::angle_between`].
+    ///
+    /// The inputs do not need to be unit vectors however they must be non-zero.
+    ///
+    /// # Panics
+    ///
+    /// Will panic if `axis` is not normalized when `glam_assert` is enabled.
+    /// Will panic if `self` or `rhs` has zero length when `glam_assert` is enabled.
+    #[doc(alias = "signed_angle")]
+    #[inline]
+    #[must_use]
+    pub fn angle_to(self, rhs: Self, axis: Self) -> f32 {
+        glam_assert!(axis.is_normalized());
+        glam_assert!(self.is_non_zero());
+        glam_assert!(rhs.is_non_zero());
+        math::atan2(self.cross(rhs).dot(axis), self.dot(rhs))
     }
 
     /// Rotates around the x axis by `angle` (in radians).
@@ -1275,7 +1315,7 @@ impl Vec3A {
             let theta = math::acos_approx(dot);
             // Sine of the angle between vectors [0, 1]
             let sin_theta = math::sin(theta);
-            let t1 = math::sin(theta * (1. - s));
+            let t1 = math::sin(theta * (1.0 - s));
             let t2 = math::sin(theta * s);
 
             // Interpolate vector lengths
@@ -1283,7 +1323,7 @@ impl Vec3A {
             // Scale the vectors to the target length and interpolate them
             return (self * (result_length / self_length) * t1
                 + rhs * (result_length / rhs_length) * t2)
-                * sin_theta.recip();
+                * (1.0 / sin_theta);
         }
         if dot < 0.0 {
             // Vectors are almost parallel in opposing directions
