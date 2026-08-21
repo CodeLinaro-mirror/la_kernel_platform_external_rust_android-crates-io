@@ -13,7 +13,7 @@
 edition = "2021"
 rust-version = "1.71.0"
 name = "base64"
-version = "0.23.0"
+version = "0.23.1"
 authors = ["Marshall Pierce <marshall@mpierce.org>"]
 build = false
 autolib = false
