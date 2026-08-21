@@ -11,11 +11,12 @@ use std::fs::{File, OpenOptions};
 use std::os::unix::fs::OpenOptionsExt;
 use std::os::unix::io::{AsRawFd, RawFd};
 
-use vm_memory::GuestAddressSpace;
 use vmm_sys_util::ioctl::ioctl_with_ref;
 
 use super::vhost_binding::{VHOST_VSOCK_SET_GUEST_CID, VHOST_VSOCK_SET_RUNNING};
-use super::{ioctl_result, Error, Result, VhostKernBackend};
+use super::{
+    ioctl_result, Error, PhysicalGuestAddressSpace as GuestAddressSpace, Result, VhostKernBackend,
+};
 use crate::vsock::VhostVsock;
 
 const VHOST_PATH: &str = "/dev/vhost-vsock";
@@ -83,7 +84,7 @@ impl<AS: GuestAddressSpace> AsRawFd for Vsock<AS> {
 
 #[cfg(test)]
 mod tests {
-    use vm_memory::{GuestAddress, GuestMemory, GuestMemoryMmap};
+    use vm_memory::{GuestAddress, GuestMemoryBackend, GuestMemoryMmap};
     use vmm_sys_util::eventfd::EventFd;
 
     use super::*;
@@ -189,7 +190,13 @@ mod tests {
         vsock.set_vring_kick(0, &eventfd).unwrap();
         vsock.set_vring_err(0, &eventfd).unwrap();
         assert_eq!(vsock.get_vring_base(0).unwrap(), 1);
-        vsock.set_guest_cid(0xdead).unwrap();
+        match vsock.set_guest_cid(0xdead) {
+            Ok(()) => {}
+            Err(Error::IoctlError(e)) if e.raw_os_error() == Some(libc::EADDRINUSE) => {
+                println!("set_guest_cid: CID already in use (e.g. by the same test running for another target/architecture in CI), skipping");
+            }
+            Err(e) => panic!("set_guest_cid failed: {:?}", e),
+        }
         //vsock.start().unwrap();
         //vsock.stop().unwrap();
     }
