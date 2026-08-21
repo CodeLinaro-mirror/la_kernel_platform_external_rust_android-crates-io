@@ -13,7 +13,7 @@
 edition = "2021"
 rust-version = "1.68.2"
 name = "glam"
-version = "0.33.2"
+version = "0.33.5"
 build = false
 autolib = false
 autobins = false
