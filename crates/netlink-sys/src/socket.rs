@@ -4,7 +4,7 @@ use std::{
     io::{Error, Result},
     mem,
     os::{
-        fd::{AsFd, BorrowedFd, FromRawFd},
+        fd::{AsFd, BorrowedFd, FromRawFd, IntoRawFd},
         unix::io::{AsRawFd, RawFd},
     },
 };
@@ -66,6 +66,14 @@ impl AsRawFd for Socket {
 impl AsFd for Socket {
     fn as_fd(&self) -> BorrowedFd<'_> {
         unsafe { BorrowedFd::borrow_raw(self.0) }
+    }
+}
+
+impl IntoRawFd for Socket {
+    fn into_raw_fd(self) -> RawFd {
+        let fd = self.0;
+        std::mem::forget(self);
+        fd
     }
 }
 
@@ -426,7 +434,7 @@ impl Socket {
             libc::SOL_NETLINK,
             libc::NETLINK_PKTINFO,
         )?;
-        Ok(res == 1)
+        Ok(res != 0)
     }
 
     pub fn add_membership(&self, group: u32) -> Result<()> {
@@ -473,7 +481,7 @@ impl Socket {
             libc::SOL_NETLINK,
             libc::NETLINK_BROADCAST_ERROR,
         )?;
-        Ok(res == 1)
+        Ok(res != 0)
     }
 
     /// `NETLINK_NO_ENOBUFS` (since Linux 2.6.30). This flag can be used by
@@ -494,7 +502,7 @@ impl Socket {
             libc::SOL_NETLINK,
             libc::NETLINK_NO_ENOBUFS,
         )?;
-        Ok(res == 1)
+        Ok(res != 0)
     }
 
     /// `NETLINK_LISTEN_ALL_NSID` (since Linux 4.2). When set, this socket will
@@ -518,7 +526,7 @@ impl Socket {
             libc::SOL_NETLINK,
             libc::NETLINK_LISTEN_ALL_NSID,
         )?;
-        Ok(res == 1)
+        Ok(res != 0)
     }
 
     /// `NETLINK_CAP_ACK` (since Linux 4.2). The kernel may fail to allocate the
@@ -543,7 +551,7 @@ impl Socket {
             libc::SOL_NETLINK,
             libc::NETLINK_CAP_ACK,
         )?;
-        Ok(res == 1)
+        Ok(res != 0)
     }
 
     /// `NETLINK_EXT_ACK`
@@ -565,7 +573,7 @@ impl Socket {
             libc::SOL_NETLINK,
             libc::NETLINK_EXT_ACK,
         )?;
-        Ok(res == 1)
+        Ok(res != 0)
     }
 
     /// Sets socket receive buffer in bytes.
