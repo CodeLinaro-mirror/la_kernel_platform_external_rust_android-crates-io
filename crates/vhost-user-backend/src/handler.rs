@@ -18,7 +18,7 @@ use crate::bitmap::{BitmapReplace, MemRegionBitmap, MmapLogReg};
 use userfaultfd::{Uffd, UffdBuilder};
 use vhost::vhost_user::message::{
     VhostTransferStateDirection, VhostTransferStatePhase, VhostUserConfigFlags, VhostUserLog,
-    VhostUserMemoryRegion, VhostUserProtocolFeatures, VhostUserSharedMsg,
+    VhostUserMemoryRegion, VhostUserProtocolFeatures, VhostUserShMemConfig, VhostUserSharedMsg,
     VhostUserSingleMemoryRegion, VhostUserVirtioFeatures, VhostUserVringAddrFlags,
     VhostUserVringState,
 };
@@ -30,7 +30,9 @@ use vhost::vhost_user::{
 use virtio_bindings::bindings::virtio_ring::VIRTIO_RING_F_EVENT_IDX;
 use virtio_queue::{Error as VirtQueError, QueueT};
 use vm_memory::mmap::NewBitmap;
-use vm_memory::{GuestAddress, GuestAddressSpace, GuestMemory, GuestMemoryMmap, GuestRegionMmap};
+use vm_memory::{
+    GuestAddress, GuestAddressSpace, GuestMemoryBackend, GuestMemoryMmap, GuestRegionMmap,
+};
 use vmm_sys_util::epoll::EventSet;
 
 use super::backend::VhostUserBackend;
@@ -204,23 +206,43 @@ where
     }
 
     fn initialize_vring(&self, vring: &T::Vring, index: u8) -> VhostUserResult<()> {
-        assert!(vring.get_ref().get_kick().is_some());
+        vring.set_queue_ready(true);
+        self.update_vring_registration(vring, index)
+    }
 
-        if let Some(fd) = vring.get_ref().get_kick() {
+    /// Adds or removes the vring's kick fd to the epoll instance based on the vring status.
+    /// Ensures that notifications are handled only while the vring is both started and enabled
+    /// and that no notifications are lost.
+    fn update_vring_registration(&self, vring: &T::Vring, index: u8) -> VhostUserResult<()> {
+        let vring_state = vring.get_ref();
+        if let Some(fd) = vring_state.get_kick() {
             for (thread_index, queues_mask) in self.queues_per_thread.iter().enumerate() {
                 let shifted_queues_mask = queues_mask >> index;
                 if shifted_queues_mask & 1u64 == 1u64 {
                     let evt_idx = queues_mask.count_ones() - shifted_queues_mask.count_ones();
-                    self.handlers[thread_index]
-                        .register_event(fd.as_raw_fd(), EventSet::IN, u64::from(evt_idx))
-                        .map_err(VhostUserError::ReqHandlerError)?;
+                    if vring_state.get_queue().ready() && vring_state.is_enabled() {
+                        if let Err(e) = self.handlers[thread_index].register_event(
+                            fd.as_raw_fd(),
+                            EventSet::IN,
+                            u64::from(evt_idx),
+                        ) {
+                            if e.kind() != io::ErrorKind::AlreadyExists {
+                                // This could happen if we're asked by the frontend to enable an
+                                // already enabled queue, don't fail in that case.
+                                return Err(VhostUserError::ReqHandlerError(e));
+                            }
+                        }
+                    } else {
+                        let _ = self.handlers[thread_index].unregister_event(
+                            fd.as_raw_fd(),
+                            EventSet::IN,
+                            u64::from(evt_idx),
+                        );
+                    }
                     break;
                 }
             }
         }
-
-        vring.set_queue_ready(true);
-
         Ok(())
     }
 
@@ -256,8 +278,9 @@ where
 
     fn reset_device(&mut self) -> VhostUserResult<()> {
         // Disable all vrings
-        for vring in self.vrings.iter_mut() {
+        for (index, vring) in self.vrings.iter().enumerate() {
             vring.set_enabled(false);
+            self.update_vring_registration(vring, index as u8)?;
         }
 
         // Reset device state, retain protocol state
@@ -288,8 +311,9 @@ where
         // Note: If `VHOST_USER_F_PROTOCOL_FEATURES` has been negotiated we must leave
         // the vrings in their current state.
         if self.acked_features & VhostUserVirtioFeatures::PROTOCOL_FEATURES.bits() == 0 {
-            for vring in self.vrings.iter_mut() {
+            for (index, vring) in self.vrings.iter().enumerate() {
                 vring.set_enabled(true);
+                self.update_vring_registration(vring, index as u8)?;
             }
         }
 
@@ -431,19 +455,7 @@ where
         // VHOST_USER_SET_VRING_KICK, and stop ring upon receiving
         // VHOST_USER_GET_VRING_BASE.
         vring.set_queue_ready(false);
-
-        if let Some(fd) = vring.get_ref().get_kick() {
-            for (thread_index, queues_mask) in self.queues_per_thread.iter().enumerate() {
-                let shifted_queues_mask = queues_mask >> index;
-                if shifted_queues_mask & 1u64 == 1u64 {
-                    let evt_idx = queues_mask.count_ones() - shifted_queues_mask.count_ones();
-                    self.handlers[thread_index]
-                        .unregister_event(fd.as_raw_fd(), EventSet::IN, u64::from(evt_idx))
-                        .map_err(VhostUserError::ReqHandlerError)?;
-                    break;
-                }
-            }
-        }
+        self.update_vring_registration(vring, index as u8)?;
 
         let next_avail = vring.queue_next_avail();
 
@@ -529,6 +541,7 @@ where
         // or after it has been disabled by VHOST_USER_SET_VRING_ENABLE
         // with parameter 0.
         vring.set_enabled(enable);
+        self.update_vring_registration(vring, index as u8)?;
 
         Ok(())
     }
@@ -559,6 +572,9 @@ where
         }
         if self.acked_protocol_features & VhostUserProtocolFeatures::SHARED_OBJECT.bits() != 0 {
             backend.set_shared_object_flag(true);
+        }
+        if self.acked_protocol_features & VhostUserProtocolFeatures::SHMEM.bits() != 0 {
+            backend.set_shmem_flag(true);
         }
         self.backend.set_backend_req_fd(backend);
     }
@@ -674,6 +690,12 @@ where
             .map_err(VhostUserError::ReqHandlerError)
     }
 
+    fn get_shmem_config(&mut self) -> VhostUserResult<VhostUserShMemConfig> {
+        self.backend
+            .get_shmem_config()
+            .map_err(VhostUserError::ReqHandlerError)
+    }
+
     #[cfg(feature = "postcopy")]
     fn postcopy_advice(&mut self) -> VhostUserResult<File> {
         let mut uffd_builder = UffdBuilder::new();
@@ -783,5 +805,67 @@ impl<T: VhostUserBackend> Drop for VhostUserHandler<T> {
                 error!("Error in vring worker: {:?}", e);
             }
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::backend::tests::MockVhostBackend;
+    use std::os::fd::IntoRawFd;
+    use std::os::unix::io::FromRawFd;
+    use std::sync::Mutex;
+    use std::thread;
+    use std::time::Duration;
+    use vhost::vhost_user::message::VhostUserVirtioFeatures;
+    use vm_memory::{GuestAddress, GuestMemoryAtomic, GuestMemoryMmap};
+    use vmm_sys_util::event::{new_event_consumer_and_notifier, EventFlag};
+
+    #[test]
+    fn test_no_lost_kicks() {
+        let mem = GuestMemoryAtomic::new(
+            GuestMemoryMmap::<()>::from_ranges(&[(GuestAddress(0x100000), 0x10000)]).unwrap(),
+        );
+        let backend = Arc::new(Mutex::new(MockVhostBackend::new()));
+        let mut handler = VhostUserHandler::new(backend.clone(), mem.clone()).unwrap();
+        handler
+            .set_features(VhostUserVirtioFeatures::PROTOCOL_FEATURES.bits())
+            .unwrap();
+
+        // Simulate VMM initializing the vring
+        let vring_index = 0;
+
+        let (kick_consumer, notifier) =
+            new_event_consumer_and_notifier(EventFlag::empty()).unwrap();
+        // Safety: we know kick_consumer is valid.
+        let kick_consumer_file = unsafe { File::from_raw_fd(kick_consumer.into_raw_fd()) };
+        handler
+            .set_vring_kick(vring_index as u8, Some(kick_consumer_file))
+            .unwrap();
+
+        // Ring is NOT enabled yet by default (if protocol features negotiated)
+        handler.set_vring_enable(vring_index as u32, false).unwrap();
+
+        // Kick it
+        notifier.notify().unwrap();
+
+        // The worker thread is already running (started in VhostUserHandler::new).
+        // Give it some time to NOT process the event.
+        thread::sleep(Duration::from_millis(200));
+
+        let events = backend.lock().unwrap().events();
+        assert_eq!(
+            events, 0,
+            "Backend should NOT have been kicked while disabled"
+        );
+
+        // Now enable it.
+        handler.set_vring_enable(vring_index as u32, true).unwrap();
+
+        // Give it some time to process the NOW-registered event.
+        thread::sleep(Duration::from_millis(200));
+
+        let events = backend.lock().unwrap().events();
+        assert_eq!(events, 1, "Backend SHOULD have been kicked after enabling");
     }
 }
