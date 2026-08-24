@@ -13,7 +13,7 @@
 edition = "2024"
 rust-version = "1.91"
 name = "smoltcp"
-version = "0.13.1"
+version = "0.14.0"
 authors = ["whitequark <whitequark@whitequark.org>"]
 build = "build.rs"
 autolib = false
@@ -273,6 +273,7 @@ rpl-relations-buffer-count-32 = []
 rpl-relations-buffer-count-4 = []
 rpl-relations-buffer-count-64 = []
 rpl-relations-buffer-count-8 = []
+segmentation-offload = []
 socket = []
 socket-dhcpv4 = [
     "socket",
@@ -508,7 +509,7 @@ default-features = false
 version = "1.0.0"
 
 [dependencies.defmt]
-version = "0.3.8"
+version = "1"
 features = ["ip_in_core"]
 optional = true
 
@@ -556,7 +557,10 @@ version = "2.0"
 [lints.rust.unexpected_cfgs]
 level = "warn"
 priority = 0
-check-cfg = ["cfg(fuzzing)"]
+check-cfg = [
+    "cfg(fuzzing)",
+    "cfg(ci_forbid_unused)",
+]
 
 [profile.release]
 debug = 2
