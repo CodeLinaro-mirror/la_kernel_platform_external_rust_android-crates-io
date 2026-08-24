@@ -1,0 +1,17 @@
+name: "libsmpte2094-50"
+description: "SMPTE 2094-50 serialization/deserialization and utils"
+third_party {
+  version: "0.1.9"
+  license_type: NOTICE
+  last_upgrade_date {
+    year: 2026
+    month: 7
+    day: 1
+  }
+  homepage: "https://crates.io/crates/libsmpte2094-50"
+  identifier {
+    type: "crates.io"
+    value: "libsmpte2094-50"
+    version: "0.1.9"
+  }
+}
