@@ -22,23 +22,23 @@
 //!   region.
 //! - [`GuestMemoryRegion`](trait.GuestMemoryRegion.html): represent a continuous region of guest's
 //!   physical memory.
-//! - [`GuestMemory`](trait.GuestMemory.html): represent a collection of `GuestMemoryRegion`
+//! - [`GuestMemoryBackend`](trait.GuestMemoryBackend.html): represent a collection of `GuestMemoryRegion`
 //!   objects.
-//!   The main responsibilities of the `GuestMemory` trait are:
+//!   The main responsibilities of the `GuestMemoryBackend` trait are:
 //!     - hide the detail of accessing guest's physical address.
 //!     - map a request address to a `GuestMemoryRegion` object and relay the request to it.
 //!     - handle cases where an access request spanning two or more `GuestMemoryRegion` objects.
 //!
 //! Whenever a collection of `GuestMemoryRegion` objects is mutable,
 //! [`GuestAddressSpace`](trait.GuestAddressSpace.html) should be implemented
-//! for clients to obtain a [`GuestMemory`] reference or smart pointer.
+//! for clients to obtain a [`GuestMemoryBackend`] reference or smart pointer.
 //!
 //! The `GuestMemoryRegion` trait has an associated `B: Bitmap` type which is used to handle
 //! dirty bitmap tracking. Backends are free to define the granularity (or whether tracking is
 //! actually performed at all). Those that do implement tracking functionality are expected to
 //! ensure the correctness of the underlying `Bytes` implementation. The user has to explicitly
 //! record (using the handle returned by `GuestRegionMmap::bitmap`) write accesses performed
-//! via pointers, references, or slices returned by methods of `GuestMemory`,`GuestMemoryRegion`,
+//! via pointers, references, or slices returned by methods of `GuestMemoryBackend`,`GuestMemoryRegion`,
 //! `VolatileSlice`, `VolatileRef`, or `VolatileArrayRef`.
 
 use std::convert::From;
@@ -52,9 +52,11 @@ use std::sync::atomic::Ordering;
 use std::sync::Arc;
 
 use crate::address::{Address, AddressValue};
-use crate::bitmap::MS;
+use crate::bitmap::{Bitmap, BitmapSlice, BS, MS};
 use crate::bytes::{AtomicAccess, Bytes};
 use crate::io::{ReadVolatile, WriteVolatile};
+#[cfg(feature = "iommu")]
+use crate::iommu::Error as IommuError;
 use crate::volatile_memory::{self, VolatileSlice};
 use crate::GuestMemoryRegion;
 
@@ -85,6 +87,10 @@ pub enum Error {
     /// The address to be read by `try_access` is outside the address range.
     #[error("The address to be read by `try_access` is outside the address range")]
     GuestAddressOverflow,
+    #[cfg(feature = "iommu")]
+    /// IOMMU translation error
+    #[error("IOMMU failed to translate guest address: {0}")]
+    IommuError(IommuError),
 }
 
 impl From<volatile_memory::Error> for Error {
@@ -161,9 +167,9 @@ impl FileOffset {
     }
 }
 
-/// `GuestAddressSpace` provides a way to retrieve a `GuestMemory` object.
+/// `GuestAddressSpace` provides a way to retrieve a `GuestMemoryBackend` object.
 /// The vm-memory crate already provides trivial implementation for
-/// references to `GuestMemory` or reference-counted `GuestMemory` objects,
+/// references to `GuestMemoryBackend` or reference-counted `GuestMemoryBackend` objects,
 /// but the trait can also be implemented by any other struct in order
 /// to provide temporary access to a snapshot of the memory map.
 ///
@@ -179,7 +185,7 @@ impl FileOffset {
 /// # #[cfg(feature = "backend-mmap")]
 /// # {
 /// # use std::sync::Arc;
-/// # use vm_memory::{GuestAddress, GuestAddressSpace, GuestMemory, GuestMemoryMmap};
+/// # use vm_memory::{GuestAddress, GuestAddressSpace, GuestMemoryBackend, GuestMemoryMmap};
 /// #
 /// pub struct VirtioDevice<AS: GuestAddressSpace> {
 ///     mem: Option<AS>,
@@ -261,16 +267,16 @@ impl<M: GuestMemory> GuestAddressSpace for Arc<M> {
     }
 }
 
-/// `GuestMemory` represents a container for an *immutable* collection of
-/// `GuestMemoryRegion` objects.  `GuestMemory` provides the `Bytes<GuestAddress>`
+/// `GuestMemoryBackend` represents a container for an *immutable* collection of
+/// `GuestMemoryRegion` objects.  `GuestMemoryBackend` provides the `Bytes<GuestAddress>`
 /// trait to hide the details of accessing guest memory by physical address.
-/// Interior mutability is not allowed for implementations of `GuestMemory` so
+/// Interior mutability is not allowed for implementations of `GuestMemoryBackend` so
 /// that they always provide a consistent view of the memory map.
 ///
-/// The task of the `GuestMemory` trait are:
+/// The task of the `GuestMemoryBackend` trait are:
 /// - map a request address to a `GuestMemoryRegion` object and relay the request to it.
 /// - handle cases where an access request spanning two or more `GuestMemoryRegion` objects.
-pub trait GuestMemory {
+pub trait GuestMemoryBackend {
     /// Type of objects hosted by the address space.
     type R: GuestMemoryRegion;
 
@@ -296,7 +302,7 @@ pub trait GuestMemory {
     /// ```
     /// # #[cfg(feature = "backend-mmap")]
     /// # {
-    /// # use vm_memory::{GuestAddress, GuestMemory, GuestMemoryRegion, GuestMemoryMmap};
+    /// # use vm_memory::{GuestAddress, GuestMemoryBackend, GuestMemoryRegion, GuestMemoryMmap};
     /// #
     /// let start_addr1 = GuestAddress(0x0);
     /// let start_addr2 = GuestAddress(0x400);
@@ -313,14 +319,14 @@ pub trait GuestMemory {
     fn iter(&self) -> impl Iterator<Item = &Self::R>;
 
     /// Returns the maximum (inclusive) address managed by the
-    /// [`GuestMemory`](trait.GuestMemory.html).
+    /// [`GuestMemoryBackend`](trait.GuestMemoryBackend.html).
     ///
     /// # Examples (uses the `backend-mmap` feature)
     ///
     /// ```
     /// # #[cfg(feature = "backend-mmap")]
     /// # {
-    /// # use vm_memory::{Address, GuestAddress, GuestMemory, GuestMemoryMmap};
+    /// # use vm_memory::{Address, GuestAddress, GuestMemoryBackend, GuestMemoryMmap};
     /// #
     /// let start_addr = GuestAddress(0x1000);
     /// let mut gm = GuestMemoryMmap::<()>::from_ranges(&vec![(start_addr, 0x400)])
@@ -370,7 +376,7 @@ pub trait GuestMemory {
     ///
     /// The address range `[addr, addr + count)` may span more than one
     /// [`GuestMemoryRegion`](trait.GuestMemoryRegion.html) object, or even have holes in it.
-    /// So [`try_access()`](trait.GuestMemory.html#method.try_access) invokes the callback 'f'
+    /// So [`try_access()`](trait.GuestMemoryBackend.html#method.try_access) invokes the callback 'f'
     /// for each [`GuestMemoryRegion`](trait.GuestMemoryRegion.html) object involved and returns:
     /// - the error code returned by the callback 'f'
     /// - the size of the already handled data when encountering the first hole
@@ -417,7 +423,7 @@ pub trait GuestMemory {
 
     /// Get the host virtual address corresponding to the guest address.
     ///
-    /// Some [`GuestMemory`](trait.GuestMemory.html) implementations, like `GuestMemoryMmap`,
+    /// Some [`GuestMemoryBackend`](trait.GuestMemoryBackend.html) implementations, like `GuestMemoryMmap`,
     /// have the capability to mmap the guest address range into virtual address space of the host
     /// for direct access, so the corresponding host virtual address may be passed to other
     /// subsystems.
@@ -435,7 +441,7 @@ pub trait GuestMemory {
     /// ```
     /// # #[cfg(feature = "backend-mmap")]
     /// # {
-    /// # use vm_memory::{GuestAddress, GuestMemory, GuestMemoryMmap};
+    /// # use vm_memory::{GuestAddress, GuestMemoryBackend, GuestMemoryMmap};
     /// #
     /// # let start_addr = GuestAddress(0x1000);
     /// # let mut gm = GuestMemoryMmap::<()>::from_ranges(&vec![(start_addr, 0x500)])
@@ -455,7 +461,11 @@ pub trait GuestMemory {
 
     /// Returns a [`VolatileSlice`](struct.VolatileSlice.html) of `count` bytes starting at
     /// `addr`.
-    fn get_slice(&self, addr: GuestAddress, count: usize) -> Result<VolatileSlice<MS<Self>>> {
+    fn get_slice(
+        &self,
+        addr: GuestAddress,
+        count: usize,
+    ) -> Result<VolatileSlice<'_, MS<'_, Self>>> {
         self.to_region_addr(addr)
             .ok_or(Error::InvalidGuestAddress(addr))
             .and_then(|(r, addr)| r.get_slice(addr, count))
@@ -474,8 +484,8 @@ pub trait GuestMemory {
         &'a self,
         addr: GuestAddress,
         count: usize,
-    ) -> GuestMemorySliceIterator<'a, Self> {
-        GuestMemorySliceIterator {
+    ) -> GuestMemoryBackendSliceIterator<'a, Self> {
+        GuestMemoryBackendSliceIterator {
             mem: self,
             addr,
             count,
@@ -485,9 +495,9 @@ pub trait GuestMemory {
 
 /// Iterates over [`VolatileSlice`]s that together form a guest memory area.
 ///
-/// Returned by [`GuestMemory::get_slices()`].
+/// Returned by [`GuestMemoryBackend::get_slices()`].
 #[derive(Debug)]
-pub struct GuestMemorySliceIterator<'a, M: GuestMemory + ?Sized> {
+pub struct GuestMemoryBackendSliceIterator<'a, M: GuestMemoryBackend + ?Sized> {
     /// Underlying memory
     mem: &'a M,
     /// Next address in the guest memory area
@@ -496,8 +506,8 @@ pub struct GuestMemorySliceIterator<'a, M: GuestMemory + ?Sized> {
     count: usize,
 }
 
-impl<'a, M: GuestMemory + ?Sized> GuestMemorySliceIterator<'a, M> {
-    /// Helper function for [`<Self as Iterator>::next()`](GuestMemorySliceIterator::next).
+impl<'a, M: GuestMemoryBackend + ?Sized> GuestMemoryBackendSliceIterator<'a, M> {
+    /// Helper function for [`<Self as Iterator>::next()`](GuestMemoryBackendSliceIterator::next).
     ///
     /// Get the next slice (i.e. the one starting from `self.addr` with a length up to
     /// `self.count`) and update the internal state.
@@ -537,19 +547,15 @@ impl<'a, M: GuestMemory + ?Sized> GuestMemorySliceIterator<'a, M> {
         }))
     }
 
-    /// Adapts this [`GuestMemorySliceIterator`] to return `None` (e.g. gracefully terminate)
+    /// Adapts this [`GuestMemoryBackendSliceIterator`] to return `None` (e.g. gracefully terminate)
     /// when it encounters an error after successfully producing at least one slice.
     /// Return an error if requesting the first slice returns an error.
     pub fn stop_on_error(self) -> Result<impl Iterator<Item = VolatileSlice<'a, MS<'a, M>>>> {
-        let mut peek = self.peekable();
-        if let Some(err) = peek.next_if(Result::is_err) {
-            return Err(err.unwrap_err());
-        }
-        Ok(peek.filter_map(Result::ok))
+        <Self as GuestMemorySliceIterator<'a, MS<'a, M>>>::stop_on_error(self)
     }
 }
 
-impl<'a, M: GuestMemory + ?Sized> Iterator for GuestMemorySliceIterator<'a, M> {
+impl<'a, M: GuestMemoryBackend + ?Sized> Iterator for GuestMemoryBackendSliceIterator<'a, M> {
     type Item = Result<VolatileSlice<'a, MS<'a, M>>>;
 
     fn next(&mut self) -> Option<Self::Item> {
@@ -566,23 +572,33 @@ impl<'a, M: GuestMemory + ?Sized> Iterator for GuestMemorySliceIterator<'a, M> {
     }
 }
 
+impl<'a, M: GuestMemoryBackend + ?Sized> GuestMemorySliceIterator<'a, MS<'a, M>>
+    for GuestMemoryBackendSliceIterator<'a, M>
+{
+}
+
 /// This iterator continues to return `None` when exhausted.
 ///
-/// [`<Self as Iterator>::next()`](GuestMemorySliceIterator::next) sets `self.count` to 0 when
+/// [`<Self as Iterator>::next()`](GuestMemoryBackendSliceIterator::next) sets `self.count` to 0 when
 /// returning `None`, ensuring that it will only return `None` from that point on.
-impl<M: GuestMemory + ?Sized> FusedIterator for GuestMemorySliceIterator<'_, M> {}
+impl<M: GuestMemoryBackend + ?Sized> FusedIterator for GuestMemoryBackendSliceIterator<'_, M> {}
 
+/// Allow accessing [`GuestMemory`] (and [`GuestMemoryBackend`]) objects via [`Bytes`].
+///
+/// Thanks to the [blanket implementation of `GuestMemory` for all `GuestMemoryBackend`
+/// types](../guest_memory/trait.GuestMemory.html#impl-GuestMemory-for-M), this blanket implementation
+/// extends to all [`GuestMemoryBackend`] types.
 impl<T: GuestMemory + ?Sized> Bytes<GuestAddress> for T {
     type E = Error;
 
     fn write(&self, buf: &[u8], addr: GuestAddress) -> Result<usize> {
-        self.get_slices(addr, buf.len())
+        self.get_slices(addr, buf.len(), Permissions::Write)?
             .stop_on_error()?
             .try_fold(0, |acc, slice| Ok(acc + slice.write(&buf[acc..], 0)?))
     }
 
     fn read(&self, buf: &mut [u8], addr: GuestAddress) -> Result<usize> {
-        self.get_slices(addr, buf.len())
+        self.get_slices(addr, buf.len(), Permissions::Read)?
             .stop_on_error()?
             .try_fold(0, |acc, slice| Ok(acc + slice.read(&mut buf[acc..], 0)?))
     }
@@ -648,7 +664,7 @@ impl<T: GuestMemory + ?Sized> Bytes<GuestAddress> for T {
     where
         F: ReadVolatile,
     {
-        self.get_slices(addr, count)
+        self.get_slices(addr, count, Permissions::Write)?
             .stop_on_error()?
             .try_fold(0, |acc, slice| {
                 Ok(acc + slice.read_volatile_from(0, src, slice.len())?)
@@ -678,7 +694,7 @@ impl<T: GuestMemory + ?Sized> Bytes<GuestAddress> for T {
     where
         F: WriteVolatile,
     {
-        self.get_slices(addr, count)
+        self.get_slices(addr, count, Permissions::Read)?
             .stop_on_error()?
             .try_fold(0, |acc, slice| {
                 // For a non-RAM region, reading could have side effects, so we
@@ -705,7 +721,7 @@ impl<T: GuestMemory + ?Sized> Bytes<GuestAddress> for T {
     fn store<O: AtomicAccess>(&self, val: O, addr: GuestAddress, order: Ordering) -> Result<()> {
         // No need to check past the first iterator item: It either has the size of `O`, then there
         // can be no further items; or it does not, and then `VolatileSlice::store()` will fail.
-        self.get_slices(addr, size_of::<O>())
+        self.get_slices(addr, size_of::<O>(), Permissions::Write)?
             .next()
             .unwrap()? // count > 0 never produces an empty iterator
             .store(val, 0, order)
@@ -715,7 +731,7 @@ impl<T: GuestMemory + ?Sized> Bytes<GuestAddress> for T {
     fn load<O: AtomicAccess>(&self, addr: GuestAddress, order: Ordering) -> Result<O> {
         // No need to check past the first iterator item: It either has the size of `O`, then there
         // can be no further items; or it does not, and then `VolatileSlice::store()` will fail.
-        self.get_slices(addr, size_of::<O>())
+        self.get_slices(addr, size_of::<O>(), Permissions::Read)?
             .next()
             .unwrap()? // count > 0 never produces an empty iterator
             .load(0, order)
@@ -723,9 +739,171 @@ impl<T: GuestMemory + ?Sized> Bytes<GuestAddress> for T {
     }
 }
 
+/// Permissions for accessing virtual memory.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[repr(u8)]
+pub enum Permissions {
+    /// No permissions
+    No = 0b00,
+    /// Read-only
+    Read = 0b01,
+    /// Write-only
+    Write = 0b10,
+    /// Allow both reading and writing
+    ReadWrite = 0b11,
+}
+
+impl Permissions {
+    /// Convert the numerical representation into the enum.
+    ///
+    /// # Panics
+    ///
+    /// Panics if `raw` is not a valid representation of any `Permissions` variant.
+    fn from_repr(raw: u8) -> Self {
+        use Permissions::*;
+
+        match raw {
+            value if value == No as u8 => No,
+            value if value == Read as u8 => Read,
+            value if value == Write as u8 => Write,
+            value if value == ReadWrite as u8 => ReadWrite,
+            _ => panic!("{raw:x} is not a valid raw Permissions value"),
+        }
+    }
+
+    /// Check whether the permissions `self` allow the given `access`.
+    pub fn allow(&self, access: Self) -> bool {
+        *self & access == access
+    }
+
+    /// Check whether the permissions `self` include write access.
+    pub fn has_write(&self) -> bool {
+        *self & Permissions::Write == Permissions::Write
+    }
+}
+
+impl std::ops::BitOr for Permissions {
+    type Output = Permissions;
+
+    /// Return the union of `self` and `rhs`.
+    fn bitor(self, rhs: Permissions) -> Self::Output {
+        Self::from_repr(self as u8 | rhs as u8)
+    }
+}
+
+impl std::ops::BitAnd for Permissions {
+    type Output = Permissions;
+
+    /// Return the intersection of `self` and `rhs`.
+    fn bitand(self, rhs: Permissions) -> Self::Output {
+        Self::from_repr(self as u8 & rhs as u8)
+    }
+}
+
+/// Represents virtual I/O memory.
+///
+/// `GuestMemory` is generally backed by some “physical” `GuestMemoryBackend`, which then consists for
+/// `GuestMemoryRegion` objects.  However, the mapping from I/O virtual addresses (IOVAs) to
+/// physical addresses may be arbitrarily fragmented.  Translation is done via an IOMMU.
+///
+/// Note in contrast to `GuestMemoryBackend`:
+/// - Any IOVA range may consist of arbitrarily many underlying ranges in physical memory.
+/// - Accessing an IOVA requires passing the intended access mode, and the IOMMU will check whether
+///   the given access mode is permitted for the given IOVA.
+/// - The translation result for a given IOVA may change over time (i.e. the physical address
+///   associated with an IOVA may change).
+pub trait GuestMemory {
+    /// Underlying `GuestMemoryBackend` type.
+    type PhysicalMemory: GuestMemoryBackend + ?Sized;
+    /// Dirty bitmap type for tracking writes to the IOVA address space.
+    type Bitmap: Bitmap;
+
+    /// Return `true` if `addr..(addr + count)` is accessible with `access`.
+    fn check_range(&self, addr: GuestAddress, count: usize, access: Permissions) -> bool;
+
+    /// Returns a [`VolatileSlice`](struct.VolatileSlice.html) of `count` bytes starting at
+    /// `addr`.
+    ///
+    /// Note that because of the fragmented nature of virtual memory, it can easily happen that the
+    /// range `[addr, addr + count)` is not backed by a continuous region in our own virtual
+    /// memory, which will make generating the slice impossible.
+    ///
+    /// The iterator’s items are wrapped in [`Result`], i.e. there may be errors reported on
+    /// individual items.  If there is no such error, the cumulative length of all items will be
+    /// equal to `count`.  Any error will end iteration immediately, i.e. there are no items past
+    /// the first error.
+    ///
+    /// If `count` is 0, an empty iterator will be returned.
+    fn get_slices<'a>(
+        &'a self,
+        addr: GuestAddress,
+        count: usize,
+        access: Permissions,
+    ) -> Result<impl GuestMemorySliceIterator<'a, BS<'a, Self::Bitmap>>>;
+
+    /// If this virtual memory is just a plain `GuestMemoryBackend` object underneath without an IOMMU
+    /// translation layer in between, return that `GuestMemoryBackend` object.
+    fn physical_memory(&self) -> Option<&Self::PhysicalMemory> {
+        None
+    }
+}
+
+/// Iterates over [`VolatileSlice`]s that together form an I/O memory area.
+///
+/// Returned by [`GuestMemory::get_slices()`].
+pub trait GuestMemorySliceIterator<'a, B: BitmapSlice>:
+    Iterator<Item = Result<VolatileSlice<'a, B>>> + FusedIterator + Sized
+{
+    /// Adapts this [`GuestMemorySliceIterator`] to return `None` (e.g. gracefully terminate) when it
+    /// encounters an error after successfully producing at least one slice.
+    /// Return an error if requesting the first slice returns an error.
+    fn stop_on_error(self) -> Result<impl Iterator<Item = VolatileSlice<'a, B>>> {
+        let mut peek = self.peekable();
+        if let Some(err) = peek.next_if(Result::is_err) {
+            return Err(err.unwrap_err());
+        }
+        Ok(peek.filter_map(Result::ok))
+    }
+}
+
+/// Allow accessing every [`GuestMemoryBackend`] via [`GuestMemory`].
+///
+/// [`GuestMemory`] is a generalization of [`GuestMemoryBackend`]: Every object implementing the former is a
+/// subset of an object implementing the latter (there always is an underlying [`GuestMemoryBackend`]),
+/// with an opaque internal mapping on top, e.g. provided by an IOMMU.
+///
+/// Every [`GuestMemoryBackend`] is therefore trivially also an [`GuestMemory`], assuming a complete identity
+/// mapping (which we must assume, so that accessing such objects via either trait will yield the
+/// same result): Basically, all [`GuestMemory`] methods are implemented as trivial wrappers around
+/// the same [`GuestMemoryBackend`] methods (if available), discarding the `access` parameter.
+impl<M: GuestMemoryBackend + ?Sized> GuestMemory for M {
+    type PhysicalMemory = M;
+    type Bitmap = <M::R as GuestMemoryRegion>::B;
+
+    fn check_range(&self, addr: GuestAddress, count: usize, _access: Permissions) -> bool {
+        <M as GuestMemoryBackend>::check_range(self, addr, count)
+    }
+
+    fn get_slices<'a>(
+        &'a self,
+        addr: GuestAddress,
+        count: usize,
+        _access: Permissions,
+    ) -> Result<impl GuestMemorySliceIterator<'a, BS<'a, Self::Bitmap>>> {
+        Ok(<M as GuestMemoryBackend>::get_slices(self, addr, count))
+    }
+
+    fn physical_memory(&self) -> Option<&Self::PhysicalMemory> {
+        Some(self)
+    }
+}
+
 #[cfg(test)]
 mod tests {
     #![allow(clippy::undocumented_unsafe_blocks)]
+
+    // Note that `GuestMemory` is tested primarily in src/iommu.rs via `IommuMemory`.
+
     use super::*;
     #[cfg(feature = "backend-mmap")]
     use crate::bytes::ByteValued;
@@ -965,5 +1143,58 @@ mod tests {
         let mem = GuestMemoryMmap::from_ranges(&[(addr, 0x1000)]).unwrap();
         let r = mem.find_region(addr).unwrap();
         assert_eq!(r.is_hugetlbfs(), None);
+    }
+
+    /// Test `Permissions & Permissions`.
+    #[test]
+    fn test_perm_and() {
+        use Permissions::*;
+
+        for p in [No, Read, Write, ReadWrite] {
+            assert_eq!(p & p, p);
+        }
+        for p1 in [No, Read, Write, ReadWrite] {
+            for p2 in [No, Read, Write, ReadWrite] {
+                assert_eq!(p1 & p2, p2 & p1);
+            }
+        }
+        for p in [No, Read, Write, ReadWrite] {
+            assert_eq!(No & p, No);
+        }
+        for p in [No, Read, Write, ReadWrite] {
+            assert_eq!(ReadWrite & p, p);
+        }
+        assert_eq!(Read & Write, No);
+    }
+
+    /// Test `Permissions | Permissions`.
+    #[test]
+    fn test_perm_or() {
+        use Permissions::*;
+
+        for p in [No, Read, Write, ReadWrite] {
+            assert_eq!(p | p, p);
+        }
+        for p1 in [No, Read, Write, ReadWrite] {
+            for p2 in [No, Read, Write, ReadWrite] {
+                assert_eq!(p1 | p2, p2 | p1);
+            }
+        }
+        for p in [No, Read, Write, ReadWrite] {
+            assert_eq!(No | p, p);
+        }
+        for p in [No, Read, Write, ReadWrite] {
+            assert_eq!(ReadWrite | p, ReadWrite);
+        }
+        assert_eq!(Read | Write, ReadWrite);
+    }
+
+    /// Test `Permissions::has_write()`.
+    #[test]
+    fn test_perm_has_write() {
+        assert!(!Permissions::No.has_write());
+        assert!(!Permissions::Read.has_write());
+        assert!(Permissions::Write.has_write());
+        assert!(Permissions::ReadWrite.has_write());
     }
 }

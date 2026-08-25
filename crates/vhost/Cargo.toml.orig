@@ -1,6 +1,6 @@
 [package]
 name = "vhost"
-version = "0.15.0"
+version = "0.17.0"
 keywords = ["vhost", "vhost-user", "virtio", "vdpa"]
 description = "a pure rust library for vdpa, vhost and vhost-user"
 authors = ["Liu Jiang <gerry@linux.alibaba.com>"]
@@ -30,7 +30,7 @@ postcopy = []
 [dependencies]
 bitflags = "2.4"
 libc = "0.2.39"
-uuid = { version = "1.11.0", features=["v4", "fast-rng"] }
+uuid = { version = "1.11.0", default-features = false, features=["v4", "fast-rng"] }
 
 vmm-sys-util = { workspace = true }
 vm-memory = { workspace = true, features=["backend-mmap"] }

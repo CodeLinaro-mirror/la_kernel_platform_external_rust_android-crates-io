@@ -1,6 +1,6 @@
 use super::recv::RecvHeaderBlockError;
 use super::store::{self, Entry, Resolve, Store};
-use super::{Buffer, Config, Counts, Prioritized, Recv, Send, Stream, StreamId};
+use super::{Buffer, BufferStatus, Config, Counts, Prioritized, Recv, Send, Stream, StreamId};
 use crate::codec::{Codec, SendError, UserError};
 use crate::ext::Protocol;
 use crate::frame::{self, Frame, Reason};
@@ -161,9 +161,18 @@ where
     where
         T: AsyncWrite + Unpin,
     {
-        let mut me = self.inner.lock().unwrap();
-        let me = &mut *me;
-        me.actions.recv.send_pending_refusal(cx, dst)
+        loop {
+            let status = {
+                let mut me = self.inner.lock().unwrap();
+                let me = &mut *me;
+                me.actions.recv.send_pending_refusal(dst)?
+            };
+
+            match status {
+                BufferStatus::Complete => return Poll::Ready(Ok(())),
+                BufferStatus::CodecFull => ready!(dst.poll_ready(cx))?,
+            }
+        }
     }
 
     pub fn clear_expired_reset_streams(&mut self) {
@@ -182,8 +191,43 @@ where
     where
         T: AsyncWrite + Unpin,
     {
-        let mut me = self.inner.lock().unwrap();
-        me.poll_complete(&self.send_buffer, cx, dst)
+        loop {
+            // Make any required socket progress before taking stream locks.
+            ready!(dst.poll_ready(cx))?;
+
+            let status = {
+                let mut me = self.inner.lock().unwrap();
+                let status = me.buffer_pending(&self.send_buffer, dst)?;
+
+                // Register the task while holding the same lock used to
+                // observe that all pending frames have been buffered. A
+                // producer that queues another frame while the codec is being
+                // flushed will then take and wake this task.
+                if status == BufferStatus::Complete {
+                    me.actions.task = Some(cx.waker().clone());
+                }
+
+                status
+            };
+
+            match status {
+                BufferStatus::Complete => {}
+                BufferStatus::CodecFull => continue,
+            }
+
+            // Flush any frames staged by `buffer_pending` without holding the
+            // stream-state or send-buffer mutexes.
+            ready!(dst.flush(cx))?;
+
+            let reclaimed = {
+                let mut me = self.inner.lock().unwrap();
+                me.reclaim_written_frame(&self.send_buffer, dst)
+            };
+
+            if !reclaimed {
+                return Poll::Ready(Ok(()));
+            }
+        }
     }
 
     pub fn apply_remote_settings(
@@ -594,7 +638,14 @@ impl Inner {
 
         self.counts.transition(stream, |counts, stream| {
             let sz = frame.flow_controlled_len();
-            let res = actions.recv.recv_data(frame, stream);
+            let payload_len = frame.payload().len();
+            let mut res = actions.recv.recv_data(frame, stream);
+            if res.is_ok() {
+                res = counts.record_data_frame(payload_len).map_err(|_| {
+                    tracing::debug!("too many small DATA frames");
+                    Error::library_go_away_data(Reason::ENHANCE_YOUR_CALM, "too_many_data_frames")
+                });
+            }
 
             // Any stream error after receiving a DATA frame means
             // we won't give the data to the user, and so they can't
@@ -902,12 +953,11 @@ impl Inner {
         Ok(())
     }
 
-    fn poll_complete<T, B>(
+    fn buffer_pending<T, B>(
         &mut self,
         send_buffer: &SendBuffer<B>,
-        cx: &mut Context,
         dst: &mut Codec<T, Prioritized<B>>,
-    ) -> Poll<io::Result<()>>
+    ) -> io::Result<BufferStatus>
     where
         T: AsyncWrite + Unpin,
         B: Buf,
@@ -919,24 +969,42 @@ impl Inner {
         //
         // TODO: It would probably be better to interleave updates w/ data
         // frames.
-        ready!(self
+        if self
             .actions
             .recv
-            .poll_complete(cx, &mut self.store, &mut self.counts, dst))?;
+            .buffer_pending(&mut self.store, &mut self.counts, dst)?
+            == BufferStatus::CodecFull
+        {
+            return Ok(BufferStatus::CodecFull);
+        }
 
         // Send any other pending frames
-        ready!(self.actions.send.poll_complete(
-            cx,
-            send_buffer,
-            &mut self.store,
-            &mut self.counts,
-            dst
-        ))?;
+        if self
+            .actions
+            .send
+            .buffer_pending(send_buffer, &mut self.store, &mut self.counts, dst)?
+            == BufferStatus::CodecFull
+        {
+            return Ok(BufferStatus::CodecFull);
+        }
 
-        // Nothing else to do, track the task
-        self.actions.task = Some(cx.waker().clone());
+        Ok(BufferStatus::Complete)
+    }
 
-        Poll::Ready(Ok(()))
+    fn reclaim_written_frame<T, B>(
+        &mut self,
+        send_buffer: &SendBuffer<B>,
+        dst: &mut Codec<T, Prioritized<B>>,
+    ) -> bool
+    where
+        B: Buf,
+    {
+        let mut send_buffer = send_buffer.inner.lock().unwrap();
+        let send_buffer = &mut *send_buffer;
+
+        self.actions
+            .send
+            .reclaim_written_frame(send_buffer, &mut self.store, dst)
     }
 
     fn send_reset<B>(
@@ -1442,7 +1510,11 @@ impl OpaqueStreamRef {
 
         let mut stream = me.store.resolve(self.key);
 
-        me.actions.recv.poll_data(cx, &mut stream)
+        let poll = me.actions.recv.poll_data(cx, &mut stream);
+        if let Poll::Ready(Some(Ok(ref payload))) = poll {
+            me.counts.release_data_frame(payload.len());
+        }
+        poll
     }
 
     pub fn poll_trailers(&mut self, cx: &Context) -> Poll<Option<Result<HeaderMap, proto::Error>>> {
@@ -1490,7 +1562,9 @@ impl OpaqueStreamRef {
 
         let mut stream = me.store.resolve(self.key);
         stream.is_recv = false;
-        me.actions.recv.clear_recv_buffer(&mut stream);
+        me.actions
+            .recv
+            .clear_recv_buffer(&mut stream, &mut me.actions.task);
     }
 
     pub fn stream_id(&self) -> StreamId {

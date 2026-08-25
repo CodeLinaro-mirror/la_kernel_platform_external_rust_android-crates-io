@@ -474,6 +474,12 @@ impl Vec2 {
         math::sqrt(self.dot(self))
     }
 
+    /// Returns `true` if the vector is not the zero vector (also rejects NaN).
+    #[allow(dead_code)]
+    fn is_non_zero(self) -> bool {
+        self.length_squared() > 0.0
+    }
+
     /// Computes the squared length of `self`.
     ///
     /// This is faster than `length()` as it avoids a square root operation.
@@ -490,7 +496,7 @@ impl Vec2 {
     #[inline]
     #[must_use]
     pub fn length_recip(self) -> f32 {
-        self.length().recip()
+        1.0 / self.length()
     }
 
     /// Computes the Euclidean distance between two points in space.
@@ -628,7 +634,7 @@ impl Vec2 {
     #[inline]
     #[must_use]
     pub fn project_onto(self, rhs: Self) -> Self {
-        let other_len_sq_rcp = rhs.dot(rhs).recip();
+        let other_len_sq_rcp = 1.0 / rhs.dot(rhs);
         glam_assert!(other_len_sq_rcp.is_finite());
         rhs * self.dot(rhs) * other_len_sq_rcp
     }
@@ -1028,9 +1034,18 @@ impl Vec2 {
     /// Returns the angle of rotation (in radians) from `self` to `rhs` in the range `[-π, +π]`.
     ///
     /// The inputs do not need to be unit vectors however they must be non-zero.
+    ///
+    /// The returned angle can be used with [`rotate_angle()`][Self::rotate_angle], e.g.
+    /// `self.rotate_angle(self.angle_to(rhs))` will be equal to `rhs`.
+    ///
+    /// # Panics
+    ///
+    /// Will panic if `self` or `rhs` has zero length when `glam_assert` is enabled.
     #[inline]
     #[must_use]
     pub fn angle_to(self, rhs: Self) -> f32 {
+        glam_assert!(self.is_non_zero());
+        glam_assert!(rhs.is_non_zero());
         let angle = math::acos_approx(
             self.dot(rhs) / math::sqrt(self.length_squared() * rhs.length_squared()),
         );
@@ -1073,6 +1088,14 @@ impl Vec2 {
             x: self.x * rhs.x - self.y * rhs.y,
             y: self.y * rhs.x + self.x * rhs.y,
         }
+    }
+
+    /// Rotates `self` by `angle` (in radians), equivalent to
+    /// `self.rotate(Vec2::from_angle(angle))`.
+    #[inline]
+    #[must_use]
+    pub fn rotate_angle(self, angle: f32) -> Self {
+        self.rotate(Self::from_angle(angle))
     }
 
     /// Rotates towards `rhs` up to `max_angle` (in radians).

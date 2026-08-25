@@ -35,6 +35,7 @@ rust_library {
     proc_macros: ["libserde_derive"],
     apex_available: [
         "//apex_available:platform",
+        "com.android.bettertogether",
         "com.android.resolv",
         "com.android.tethering",
     ],

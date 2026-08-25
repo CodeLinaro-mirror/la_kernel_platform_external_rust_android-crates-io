@@ -522,6 +522,12 @@ impl Vec4 {
         dot.sqrt()[0]
     }
 
+    /// Returns `true` if the vector is not the zero vector (also rejects NaN).
+    #[allow(dead_code)]
+    fn is_non_zero(self) -> bool {
+        self.length_squared() > 0.0
+    }
+
     /// Computes the squared length of `self`.
     ///
     /// This is faster than `length()` as it avoids a square root operation.
@@ -682,7 +688,7 @@ impl Vec4 {
     #[inline]
     #[must_use]
     pub fn project_onto(self, rhs: Self) -> Self {
-        let other_len_sq_rcp = rhs.dot(rhs).recip();
+        let other_len_sq_rcp = 1.0 / rhs.dot(rhs);
         glam_assert!(other_len_sq_rcp.is_finite());
         rhs * self.dot(rhs) * other_len_sq_rcp
     }

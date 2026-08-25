@@ -18,5 +18,6 @@
             "target_windows": true
         }
     },
+    "recovery_available": true,
     "ota_recovery_ramdisk_available": true
 }

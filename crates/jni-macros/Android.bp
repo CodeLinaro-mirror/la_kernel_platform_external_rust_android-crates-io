@@ -20,6 +20,7 @@ rust_proc_macro {
     cargo_pkg_version: "0.22.4",
     crate_root: "src/lib.rs",
     edition: "2024",
+    cfgs: ["has_unsafe_attr"],
     rustlibs: [
         "libproc_macro2",
         "libquote",
