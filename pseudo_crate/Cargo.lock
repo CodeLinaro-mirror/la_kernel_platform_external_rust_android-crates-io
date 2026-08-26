@@ -671,6 +671,7 @@ dependencies = [
  "rustversion",
  "ryu",
  "safe-mmio",
+ "safer_cffi",
  "same-file",
  "scopeguard",
  "sec1",
@@ -1618,7 +1619,7 @@ checksum = "aa3f0543e1dc90f7b8ffb882c6d78b7005c4bab496ab8a68da25c0103dfbac6b"
 dependencies = [
  "bin-proto-derive",
  "bitstream-io",
- "defmt 1.1.1",
+ "defmt",
  "no_std_io2",
 ]
 
@@ -8997,6 +8998,16 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "ce5e4ed477d6ebc07e01ce97b87fe319e6b62d0ab2564594db6a8c4cdc29ffd9"
 dependencies = [
  "zerocopy",
+]
+
+[[package]]
+name = "safer_cffi"
+version = "0.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "9ea91e79102f6312d849fe25711039cd02c0d6143c605c29807a7de32ab70e9f"
+dependencies = [
+ "libc 0.2.189",
+ "log",
 ]
 
 [[package]]
