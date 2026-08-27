@@ -737,6 +737,7 @@ dependencies = [
  "syn 2.0.119",
  "sync_wrapper",
  "synstructure",
+ "sysexit",
  "taffy 0.7.7",
  "tap",
  "tar",
@@ -10030,6 +10031,15 @@ dependencies = [
  "proc-macro2 1.0.107",
  "quote 1.0.47",
  "syn 2.0.119",
+]
+
+[[package]]
+name = "sysexit"
+version = "0.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a26991bb0e6ef939ac9a8d6b57979efa59921928a3aa0334d818fe6e458aa6a9"
+dependencies = [
+ "libc 0.2.189",
 ]
 
 [[package]]
