@@ -574,6 +574,7 @@ syn
 syn-mid
 sync_wrapper
 synstructure
+sysexit
 taffy
 tap
 tar
