@@ -15,6 +15,7 @@ use crate::{
     IppHeader,
     attribute::{IppAttribute, IppAttributes},
     model::{DelimiterTag, IppVersion, Operation, StatusCode},
+    parser::IppParseError,
     payload::IppPayload,
     value::*,
 };
@@ -29,31 +30,48 @@ pub struct IppRequestResponse {
 }
 
 impl IppRequestResponse {
-    /// Create new IPP request for the operation and uri
-    pub fn new(version: IppVersion, operation: Operation, uri: Option<Uri>) -> IppRequestResponse {
+    /// Create a new IPP request for the operation and URI
+    pub fn new(
+        version: IppVersion,
+        operation: Operation,
+        uri: Option<Uri>,
+    ) -> Result<IppRequestResponse, IppParseError> {
+        let uri = uri
+            .map(|uri| crate::util::canonicalize_uri(&uri).try_into())
+            .transpose()?;
+        Ok(Self::new_internal(version, operation, uri))
+    }
+
+    pub(crate) fn new_internal(
+        version: IppVersion,
+        operation: Operation,
+        uri: Option<IppString>,
+    ) -> IppRequestResponse {
         let header = IppHeader::new(version, operation as u16, 1);
         let mut attributes = IppAttributes::new();
 
-        attributes.add(
-            DelimiterTag::OperationAttributes,
-            IppAttribute::new(IppAttribute::ATTRIBUTES_CHARSET, IppValue::Charset("utf-8".to_string())),
-        );
-
+        // unwrap is fine because "utf-8" into bounded string is infallible.
         attributes.add(
             DelimiterTag::OperationAttributes,
             IppAttribute::new(
-                IppAttribute::ATTRIBUTES_NATURAL_LANGUAGE,
-                IppValue::NaturalLanguage("en".to_string()),
+                IppAttribute::ATTRIBUTES_CHARSET.try_into().unwrap(),
+                IppValue::Charset("utf-8".try_into().unwrap()),
+            ),
+        );
+
+        // unwrap is fine because "en" into bounded string is infallible.
+        attributes.add(
+            DelimiterTag::OperationAttributes,
+            IppAttribute::new(
+                IppAttribute::ATTRIBUTES_NATURAL_LANGUAGE.try_into().unwrap(),
+                IppValue::NaturalLanguage("en".try_into().unwrap()),
             ),
         );
 
         if let Some(uri) = uri {
             attributes.add(
                 DelimiterTag::OperationAttributes,
-                IppAttribute::new(
-                    IppAttribute::PRINTER_URI,
-                    IppValue::Uri(crate::util::canonicalize_uri(&uri).to_string()),
-                ),
+                IppAttribute::new(IppAttribute::PRINTER_URI.try_into().unwrap(), IppValue::Uri(uri)),
             );
         }
 
@@ -64,8 +82,8 @@ impl IppRequestResponse {
         }
     }
 
-    /// Create response from status and id
-    pub fn new_response(version: IppVersion, status: StatusCode, id: u32) -> IppRequestResponse {
+    /// Create a response from a status and id
+    pub fn new_response(version: IppVersion, status: StatusCode, id: u32) -> Result<IppRequestResponse, IppParseError> {
         let header = IppHeader::new(version, status as u16, id);
         let mut response = IppRequestResponse {
             header,
@@ -75,50 +93,53 @@ impl IppRequestResponse {
 
         response.attributes_mut().add(
             DelimiterTag::OperationAttributes,
-            IppAttribute::new(IppAttribute::ATTRIBUTES_CHARSET, IppValue::Charset("utf-8".to_string())),
+            IppAttribute::new(
+                IppAttribute::ATTRIBUTES_CHARSET.try_into().unwrap(),
+                IppValue::Charset("utf-8".try_into()?),
+            ),
         );
         response.attributes_mut().add(
             DelimiterTag::OperationAttributes,
             IppAttribute::new(
-                IppAttribute::ATTRIBUTES_NATURAL_LANGUAGE,
-                IppValue::NaturalLanguage("en".to_string()),
+                IppAttribute::ATTRIBUTES_NATURAL_LANGUAGE.try_into().unwrap(),
+                IppValue::NaturalLanguage("en".try_into()?),
             ),
         );
 
-        response
+        Ok(response)
     }
 
-    /// Get IPP header
+    /// Get the IPP header
     pub fn header(&self) -> &IppHeader {
         &self.header
     }
 
-    /// Get mutable IPP header
+    /// Get the mutable IPP header
     pub fn header_mut(&mut self) -> &mut IppHeader {
         &mut self.header
     }
 
-    /// Get attributes
+    /// Get the attributes
     pub fn attributes(&self) -> &IppAttributes {
         &self.attributes
     }
 
-    /// Get attributes
+    /// Get the mutable attributes
     pub fn attributes_mut(&mut self) -> &mut IppAttributes {
         &mut self.attributes
     }
 
-    /// Get payload
+    /// Get the payload
     pub fn payload(&self) -> &IppPayload {
         &self.payload
     }
 
-    /// Get mutable payload
+    /// Get the mutable payload
     pub fn payload_mut(&mut self) -> &mut IppPayload {
         &mut self.payload
     }
 
-    /// Write request to byte array not including payload
+    /// Write the request to a byte array, not including the payload
     pub fn to_bytes(&self) -> Bytes {
         let mut buffer = BytesMut::new();
         buffer.put(self.header.to_bytes());
@@ -127,23 +148,23 @@ impl IppRequestResponse {
     }
 
     #[cfg(feature = "async")]
-    /// Convert request/response into AsyncRead including payload
-    pub fn into_async_read(self) -> impl AsyncRead + Send + Sync + 'static {
+    /// Convert the request/response into AsyncRead including the payload
+    pub fn into_async_read(self) -> impl AsyncRead + Send + 'static {
         let header = self.to_bytes();
-        trace!("IPP header size: {}", header.len(),);
+        trace!("IPP header size: {}", header.len());
 
         futures_util::io::Cursor::new(header).chain(self.payload)
     }
 
-    /// Convert request/response into Read including payload
-    pub fn into_read(self) -> impl Read + Send + Sync + 'static {
+    /// Convert the request/response into Read including the payload
+    pub fn into_read(self) -> impl Read + Send + 'static {
         let header = self.to_bytes();
-        trace!("IPP header size: {}", header.len(),);
+        trace!("IPP header size: {}", header.len());
 
         io::Cursor::new(header).chain(self.payload)
     }
 
-    /// Consume request/response and return a payload
+    /// Consume the request/response and return the payload
     pub fn into_payload(self) -> IppPayload {
         self.payload
     }
