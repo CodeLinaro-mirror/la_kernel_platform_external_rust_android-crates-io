@@ -507,6 +507,7 @@ rustls-webpki
 rustversion
 ryu
 safe-mmio
+safer_cffi
 same-file
 scopeguard
 sec1
