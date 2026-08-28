@@ -3,12 +3,13 @@
 //!
 use std::{
     collections::BTreeMap,
+    convert::Infallible,
     io::{self, Read},
+    num::TryFromIntError,
 };
 
 use bytes::Bytes;
 use log::{error, trace};
-
 #[cfg(feature = "async")]
 use {crate::reader::AsyncIppReader, futures_util::io::AsyncRead};
 
@@ -18,7 +19,7 @@ use crate::{
     model::{DelimiterTag, ValueTag},
     reader::IppReader,
     request::IppRequestResponse,
-    value::IppValue,
+    value::{IppName, IppValue},
 };
 
 /// Parse error enum
@@ -30,8 +31,19 @@ pub enum IppParseError {
     #[error("Invalid IPP collection")]
     InvalidCollection,
 
+    /// Occurs when a string is too long for an IPP Value.
+    #[error("invalid string length: {len}, max: {max}")]
+    InvalidStringLength { len: usize, max: usize },
+
+    /// Failure to parse an int, usually used when trying to convert usize -> u16 in this crate
+    #[error(transparent)]
+    InvalidIntValue(#[from] TryFromIntError),
+
     #[error(transparent)]
     IoError(#[from] io::Error),
+
+    #[error("infallible this should never happen")]
+    Infallible(#[from] Infallible),
 }
 
 // create a single value from one-element list, list otherwise
@@ -45,7 +57,7 @@ fn list_or_value(mut list: Vec<IppValue>) -> IppValue {
 
 struct ParserState {
     current_group: Option<IppAttributeGroup>,
-    last_name: Option<String>,
+    last_name: Option<IppName>,
     context: Vec<Vec<IppValue>>,
     attributes: IppAttributes,
 }
@@ -65,7 +77,7 @@ impl ParserState {
             if let Some(val_list) = self.context.pop()
                 && let Some(ref mut group) = self.current_group
             {
-                let attr = IppAttribute::new(&last_name, list_or_value(val_list));
+                let attr = IppAttribute::new(last_name.clone(), list_or_value(val_list));
                 group.attributes_mut().insert(last_name, attr);
             }
             self.context.push(vec![]);
@@ -88,7 +100,7 @@ impl ParserState {
         Ok(tag)
     }
 
-    fn parse_value(&mut self, tag: u8, name: String, value: Bytes) -> Result<(), IppParseError> {
+    fn parse_value(&mut self, tag: u8, name: IppName, value: Bytes) -> Result<(), IppParseError> {
         let ipp_value = IppValue::parse(tag, value)?;
 
         trace!("Value tag: {tag:0x}: {name}: {ipp_value}");
@@ -123,10 +135,10 @@ impl ParserState {
             if let Some(arr) = self.context.pop()
                 && let Some(val_list) = self.context.last_mut()
             {
-                let mut map: BTreeMap<String, IppValue> = BTreeMap::new();
+                let mut map: BTreeMap<IppName, IppValue> = BTreeMap::new();
                 for idx in (0..arr.len()).step_by(2) {
                     if let (Some(IppValue::MemberAttrName(k)), Some(v)) = (arr.get(idx), arr.get(idx + 1)) {
-                        map.insert(k.to_string(), v.clone());
+                        map.insert(k.clone(), v.clone());
                     }
                 }
                 val_list.push(IppValue::Collection(map));
@@ -144,14 +156,15 @@ impl ParserState {
 pub struct AsyncIppParser<R> {
     reader: AsyncIppReader<R>,
     state: ParserState,
+    parsed_header: Option<IppHeader>,
 }
 
 #[cfg(feature = "async")]
 impl<R> AsyncIppParser<R>
 where
-    R: AsyncRead + Send + Sync + Unpin,
+    R: AsyncRead + Send + Unpin,
 {
-    /// Create IPP parser from AsyncIppReader
+    /// Create an IPP parser from AsyncIppReader
     pub fn new<T>(reader: T) -> AsyncIppParser<R>
     where
         T: Into<AsyncIppReader<R>>,
@@ -159,19 +172,20 @@ where
         AsyncIppParser {
             reader: reader.into(),
             state: ParserState::new(),
+            parsed_header: None,
         }
     }
 
     async fn parse_value(&mut self, tag: u8) -> Result<(), IppParseError> {
         // value tag
-        let name = self.reader.read_name().await?;
+        let name: IppName = self.reader.read_name().await?;
         let value = self.reader.read_value().await?;
 
         self.state.parse_value(tag, name, value)
     }
 
     async fn parse_header_attributes(&mut self) -> Result<IppHeader, IppParseError> {
-        let header = self.reader.read_header().await?;
+        let header = self.get_or_parse_header().await?;
         trace!("IPP header: {header:?}");
 
         loop {
@@ -191,13 +205,13 @@ where
         Ok(header)
     }
 
-    /// Parse IPP stream without reading beyond the end of the attributes. The payload stays untouched.
+    /// Parse the IPP stream without reading beyond the end of the attributes. The payload stays untouched.
     pub async fn parse_parts(mut self) -> Result<(IppHeader, IppAttributes, AsyncIppReader<R>), IppParseError> {
         let header = self.parse_header_attributes().await?;
         Ok((header, self.state.attributes, self.reader))
     }
 
-    /// Parse IPP stream
+    /// Parse the IPP stream
     pub async fn parse(mut self) -> Result<IppRequestResponse, IppParseError>
     where
         R: 'static,
@@ -210,19 +224,31 @@ where
             payload: self.reader.into_payload(),
         })
     }
+
+    /// Get the IppHeader if it has already been parsed, otherwise parse and return it.
+    pub async fn get_or_parse_header(&mut self) -> Result<IppHeader, IppParseError> {
+        match self.parsed_header {
+            Some(header) => Ok(header),
+            None => {
+                self.parsed_header = Some(self.reader.read_header().await?);
+                Ok(self.parsed_header.unwrap())
+            }
+        }
+    }
 }
 
 /// Synchronous IPP parser
 pub struct IppParser<R> {
     reader: IppReader<R>,
     state: ParserState,
+    parsed_header: Option<IppHeader>,
 }
 
 impl<R> IppParser<R>
 where
-    R: 'static + Read + Send + Sync,
+    R: 'static + Read + Send,
 {
-    /// Create IPP parser from IppReader
+    /// Create an IPP parser from IppReader
     pub fn new<T>(reader: T) -> IppParser<R>
     where
         T: Into<IppReader<R>>,
@@ -230,19 +256,20 @@ where
         IppParser {
             reader: reader.into(),
             state: ParserState::new(),
+            parsed_header: None,
         }
     }
 
     fn parse_value(&mut self, tag: u8) -> Result<(), IppParseError> {
         // value tag
-        let name = self.reader.read_name()?;
+        let name: IppName = self.reader.read_name()?;
         let value = self.reader.read_value()?;
 
         self.state.parse_value(tag, name, value)
     }
 
     fn parse_header_attributes(&mut self) -> Result<IppHeader, IppParseError> {
-        let header = self.reader.read_header()?;
+        let header = self.get_or_parse_header()?;
         trace!("IPP header: {header:?}");
 
         loop {
@@ -262,13 +289,13 @@ where
         Ok(header)
     }
 
-    /// Parse IPP stream without reading beyond the end of the attributes. The payload stays untouched.
+    /// Parse the IPP stream without reading beyond the end of the attributes. The payload stays untouched.
     pub fn parse_parts(mut self) -> Result<(IppHeader, IppAttributes, IppReader<R>), IppParseError> {
         let header = self.parse_header_attributes()?;
         Ok((header, self.state.attributes, self.reader))
     }
 
-    /// Parse IPP stream
+    /// Parse the IPP stream
     pub fn parse(mut self) -> Result<IppRequestResponse, IppParseError>
     where
         R: 'static,
@@ -281,13 +308,23 @@ where
             payload: self.reader.into_payload(),
         })
     }
+
+    /// Get the IppHeader if it has already been parsed, otherwise parse and return it.
+    pub fn get_or_parse_header(&mut self) -> Result<IppHeader, IppParseError> {
+        match self.parsed_header {
+            Some(header) => Ok(header),
+            None => {
+                self.parsed_header = Some(self.reader.read_header()?);
+                Ok(self.parsed_header.unwrap())
+            }
+        }
+    }
 }
 
 #[cfg(test)]
 mod tests {
-    use crate::prelude::IppVersion;
-
     use super::*;
+    use crate::prelude::IppVersion;
 
     #[cfg(feature = "async")]
     #[tokio::test]
@@ -373,8 +410,8 @@ mod tests {
         assert_eq!(
             attr.value(),
             &IppValue::Collection(BTreeMap::from([(
-                "abcd".to_string(),
-                IppValue::Keyword("key".to_owned())
+                "abcd".try_into().unwrap(),
+                IppValue::Keyword("key".try_into().unwrap())
             )]))
         );
     }
@@ -509,8 +546,8 @@ mod tests {
         assert_eq!(
             attr.value(),
             &IppValue::Collection(BTreeMap::from([(
-                "abcd".to_string(),
-                IppValue::Keyword("key".to_owned())
+                "abcd".try_into().unwrap(),
+                IppValue::Keyword("key".try_into().expect("failed to create IPP text value"))
             )]))
         );
     }
@@ -579,5 +616,60 @@ mod tests {
 
         assert_eq!(2, res.attributes().groups()[0].attributes().len());
         assert_eq!(1, res.attributes().groups()[1].attributes().len());
+    }
+
+    #[cfg(feature = "async")]
+    #[tokio::test]
+    async fn test_async_parse_header_only() {
+        let data = &[
+            1, 1, 0, 0, 0, 0, 0, 3, 4, 0x21, 0x00, 0x04, b't', b'e', b's', b't', 0x00, 0x04, 0x12, 0x34, 0x56, 0x78, 3,
+        ];
+        let mut parser = AsyncIppParser::new(AsyncIppReader::new(futures_util::io::Cursor::new(data)));
+
+        let header = parser.get_or_parse_header().await.unwrap();
+        assert_eq!(header.version, IppVersion::v1_1());
+        assert_eq!(header.operation_or_status, 0);
+        assert_eq!(header.request_id, 3);
+
+        let header2 = parser.get_or_parse_header().await.unwrap();
+        assert_eq!(header, header2);
+
+        let result = parser.parse().await.unwrap();
+
+        let attrs = result
+            .attributes
+            .groups_of(DelimiterTag::PrinterAttributes)
+            .next()
+            .unwrap()
+            .attributes();
+        let attr = attrs.get("test").unwrap();
+        assert_eq!(attr.value().as_integer(), Some(&0x1234_5678));
+    }
+
+    #[test]
+    fn test_parse_header_only() {
+        let data = &[
+            1, 1, 0, 0, 0, 0, 0, 3, 4, 0x21, 0x00, 0x04, b't', b'e', b's', b't', 0x00, 0x04, 0x12, 0x34, 0x56, 0x78, 3,
+        ];
+        let mut parser = IppParser::new(IppReader::new(io::Cursor::new(data)));
+
+        let header = parser.get_or_parse_header().unwrap();
+        assert_eq!(header.version, IppVersion::v1_1());
+        assert_eq!(header.operation_or_status, 0);
+        assert_eq!(header.request_id, 3);
+
+        let header2 = parser.get_or_parse_header().unwrap();
+        assert_eq!(header, header2);
+
+        let result = parser.parse().unwrap();
+
+        let attrs = result
+            .attributes
+            .groups_of(DelimiterTag::PrinterAttributes)
+            .next()
+            .unwrap()
+            .attributes();
+        let attr = attrs.get("test").unwrap();
+        assert_eq!(attr.value().as_integer(), Some(&0x1234_5678));
     }
 }
