@@ -13,7 +13,7 @@ use crate::{
 pub struct IppOperationBuilder;
 
 impl IppOperationBuilder {
-    /// Create a Print-Job operation
+    /// Create Print-Job operation
     ///
     /// * `printer_uri` - printer URI<br/>
     /// * `payload` - `IppPayload`
@@ -21,14 +21,14 @@ impl IppOperationBuilder {
         PrintJobBuilder::new(printer_uri, payload)
     }
 
-    /// Create a Get-Printer-Attributes operation builder
+    /// Create Get-Printer-Attributes operation builder
     ///
     /// * `printer_uri` - printer URI
     pub fn get_printer_attributes(printer_uri: Uri) -> GetPrinterAttributesBuilder {
         GetPrinterAttributesBuilder::new(printer_uri)
     }
 
-    /// Create a Create-Job operation builder
+    /// Create Create-Job operation builder
     ///
     /// * `printer_uri` - printer URI
     pub fn create_job(printer_uri: Uri) -> CreateJobBuilder {
@@ -40,7 +40,7 @@ impl IppOperationBuilder {
         CupsBuilder::new()
     }
 
-    /// Create a Send-Document operation builder
+    /// Create Send-Document operation builder
     ///
     /// * `printer_uri` - printer URI<br/>
     /// * `job_id` - job id returned by Create-Job operation <br/>
@@ -49,14 +49,14 @@ impl IppOperationBuilder {
         SendDocumentBuilder::new(printer_uri, job_id, payload)
     }
 
-    /// Create a Purge-Jobs operation builder
+    /// Create Purge-Jobs operation builder
     ///
     /// * `printer_uri` - printer URI
     pub fn purge_jobs(printer_uri: Uri) -> PurgeJobsBuilder {
         PurgeJobsBuilder::new(printer_uri)
     }
 
-    /// Create a Cancel-Job operation builder
+    /// Create Cancel-Job operation builder
     ///
     /// * `printer_uri` - printer URI
     /// * `job_id` - job id to cancel <br/>
@@ -64,15 +64,15 @@ impl IppOperationBuilder {
         CancelJobBuilder::new(printer_uri, job_id)
     }
 
-    /// Create a Get-Job-Attributes operation builder
+    /// Create Get-Job-Attributes operation builder
     ///
     /// * `printer_uri` - printer URI
-    /// * `job_id` - job id <br/>
+    /// * `job_id` - job id to cancel <br/>
     pub fn get_job_attributes(printer_uri: Uri, job_id: i32) -> GetJobAttributesBuilder {
         GetJobAttributesBuilder::new(printer_uri, job_id)
     }
 
-    /// Create a Get-Jobs operation builder
+    /// Create Get-Jobs operation builder
     ///
     /// * `printer_uri` - printer URI
     pub fn get_jobs(printer_uri: Uri) -> GetJobsBuilder {
@@ -80,7 +80,7 @@ impl IppOperationBuilder {
     }
 }
 
-/// Builder to create a Print-Job operation
+/// Builder to create Print-Job operation
 pub struct PrintJobBuilder {
     printer_uri: Uri,
     payload: IppPayload,
@@ -101,7 +101,7 @@ impl PrintJobBuilder {
             attributes: Vec::new(),
         }
     }
-    /// Specify the requesting-user-name attribute
+    /// Specify requesting-user-name attribute
     pub fn user_name<S>(mut self, user_name: S) -> Self
     where
         S: AsRef<str>,
@@ -110,7 +110,7 @@ impl PrintJobBuilder {
         self
     }
 
-    /// Specify the job-name attribute
+    /// Specify job-name attribute
     pub fn job_title<S>(mut self, job_title: S) -> Self
     where
         S: AsRef<str>,
@@ -128,13 +128,13 @@ impl PrintJobBuilder {
         self
     }
 
-    /// Specify a custom job attribute
+    /// Specify custom job attribute
     pub fn attribute(mut self, attribute: IppAttribute) -> Self {
         self.attributes.push(attribute);
         self
     }
 
-    /// Specify a custom job attributes
+    /// Specify custom job attributes
     pub fn attributes<I>(mut self, attributes: I) -> Self
     where
         I: IntoIterator<Item = IppAttribute>,
@@ -143,23 +143,23 @@ impl PrintJobBuilder {
         self
     }
 
-    /// Build the operation
-    pub fn build(self) -> Result<impl IppOperation, IppParseError> {
+    /// Build operation
+    pub fn build(self) -> impl IppOperation {
         let op = PrintJob::new(
             self.printer_uri,
             self.payload,
             self.user_name.as_ref(),
             self.job_title.as_ref(),
             self.document_format.as_ref(),
-        )?;
-        Ok(self.attributes.into_iter().fold(op, |mut op, attr| {
+        );
+        self.attributes.into_iter().fold(op, |mut op, attr| {
             op.add_attribute(attr);
             op
-        }))
+        })
     }
 }
 
-/// Builder to create a Get-Printer-Attributes operation
+/// Builder to create Get-Printer-Attributes operation
 pub struct GetPrinterAttributesBuilder {
     printer_uri: Uri,
     attributes: Vec<String>,
@@ -193,13 +193,13 @@ impl GetPrinterAttributesBuilder {
         self
     }
 
-    /// Build the operation
-    pub fn build(self) -> Result<impl IppOperation, IppParseError> {
+    /// Build operation
+    pub fn build(self) -> impl IppOperation {
         GetPrinterAttributes::with_attributes(self.printer_uri, &self.attributes)
     }
 }
 
-/// Builder to create a Create-Job operation
+/// Builder to create Create-Job operation
 pub struct CreateJobBuilder {
     printer_uri: Uri,
     job_name: Option<String>,
@@ -215,7 +215,7 @@ impl CreateJobBuilder {
         }
     }
 
-    /// Specify the job-name attribute
+    /// Specify job-name attribute
     pub fn job_name<S>(mut self, job_name: S) -> Self
     where
         S: AsRef<str>,
@@ -224,13 +224,13 @@ impl CreateJobBuilder {
         self
     }
 
-    /// Specify a custom job attribute
+    /// Specify custom job attribute
     pub fn attribute(mut self, attribute: IppAttribute) -> Self {
         self.attributes.push(attribute);
         self
     }
 
-    /// Specify a custom job attributes
+    /// Specify custom job attributes
     pub fn attributes<I>(mut self, attributes: I) -> Self
     where
         I: IntoIterator<Item = IppAttribute>,
@@ -239,17 +239,17 @@ impl CreateJobBuilder {
         self
     }
 
-    /// Build the operation
-    pub fn build(self) -> Result<impl IppOperation, IppParseError> {
-        let op = CreateJob::new(self.printer_uri, self.job_name.as_ref())?;
-        Ok(self.attributes.into_iter().fold(op, |mut op, attr| {
+    /// Build operation
+    pub fn build(self) -> impl IppOperation {
+        let op = CreateJob::new(self.printer_uri, self.job_name.as_ref());
+        self.attributes.into_iter().fold(op, |mut op, attr| {
             op.add_attribute(attr);
             op
-        }))
+        })
     }
 }
 
-/// Builder to create a Send-Document operation
+/// Builder to create Send-Document operation
 pub struct SendDocumentBuilder {
     printer_uri: Uri,
     job_id: i32,
@@ -271,7 +271,7 @@ impl SendDocumentBuilder {
         }
     }
 
-    /// Specify the originating-user-name attribute
+    /// Specify originating-user-name attribute
     pub fn user_name<S>(mut self, user_name: S) -> Self
     where
         S: AsRef<str>,
@@ -289,14 +289,14 @@ impl SendDocumentBuilder {
         self
     }
 
-    /// Parameter which indicates whether this document is the last one
+    /// Parameter which indicates whether this document is a last one
     pub fn last(mut self, last: bool) -> Self {
         self.is_last = last;
         self
     }
 
-    /// Build the operation
-    pub fn build(self) -> Result<impl IppOperation, IppParseError> {
+    /// Build operation
+    pub fn build(self) -> impl IppOperation {
         SendDocument::new(
             self.printer_uri,
             self.job_id,
@@ -308,7 +308,7 @@ impl SendDocumentBuilder {
     }
 }
 
-/// Builder to create a Purge-Jobs operation
+/// Builder to create Purge-Jobs operation
 pub struct PurgeJobsBuilder {
     printer_uri: Uri,
     user_name: Option<String>,
@@ -322,7 +322,7 @@ impl PurgeJobsBuilder {
         }
     }
 
-    /// Specify the originating-user-name attribute
+    /// Specify originating-user-name attribute
     pub fn user_name<S>(mut self, user_name: S) -> Self
     where
         S: AsRef<str>,
@@ -331,13 +331,13 @@ impl PurgeJobsBuilder {
         self
     }
 
-    /// Build the operation
-    pub fn build(self) -> Result<impl IppOperation, IppParseError> {
+    /// Build operation
+    pub fn build(self) -> impl IppOperation {
         PurgeJobs::new(self.printer_uri, self.user_name)
     }
 }
 
-/// Builder to create a Cancel-Job operation
+/// Builder to create Cancel-Job operation
 pub struct CancelJobBuilder {
     printer_uri: Uri,
     job_id: i32,
@@ -353,7 +353,7 @@ impl CancelJobBuilder {
         }
     }
 
-    /// Specify the originating-user-name attribute
+    /// Specify originating-user-name attribute
     pub fn user_name<S>(mut self, user_name: S) -> Self
     where
         S: AsRef<str>,
@@ -362,13 +362,13 @@ impl CancelJobBuilder {
         self
     }
 
-    /// Build the operation
-    pub fn build(self) -> Result<impl IppOperation, IppParseError> {
+    /// Build operation
+    pub fn build(self) -> impl IppOperation {
         CancelJob::new(self.printer_uri, self.job_id, self.user_name)
     }
 }
 
-/// Builder to create a Get-Job-Attributes operation
+/// Builder to create Get-Job-Attributes operation
 pub struct GetJobAttributesBuilder {
     printer_uri: Uri,
     job_id: i32,
@@ -384,7 +384,7 @@ impl GetJobAttributesBuilder {
         }
     }
 
-    /// Specify the originating-user-name attribute
+    /// Specify originating-user-name attribute
     pub fn user_name<S>(mut self, user_name: S) -> Self
     where
         S: AsRef<str>,
@@ -393,13 +393,13 @@ impl GetJobAttributesBuilder {
         self
     }
 
-    /// Build the operation
-    pub fn build(self) -> Result<impl IppOperation, IppParseError> {
+    /// Build operation
+    pub fn build(self) -> impl IppOperation {
         GetJobAttributes::new(self.printer_uri, self.job_id, self.user_name)
     }
 }
 
-/// Builder to create a Get-Jobs operation
+/// Builder to create Get-Jobs operation
 pub struct GetJobsBuilder {
     printer_uri: Uri,
     user_name: Option<String>,
@@ -413,7 +413,7 @@ impl GetJobsBuilder {
         }
     }
 
-    /// Specify the originating-user-name attribute
+    /// Specify originating-user-name attribute
     pub fn user_name<S>(mut self, user_name: S) -> Self
     where
         S: AsRef<str>,
@@ -422,8 +422,8 @@ impl GetJobsBuilder {
         self
     }
 
-    /// Build the operation
-    pub fn build(self) -> Result<impl IppOperation, IppParseError> {
+    /// Build operation
+    pub fn build(self) -> impl IppOperation {
         GetJobs::new(self.printer_uri, self.user_name)
     }
 }
@@ -437,12 +437,12 @@ impl CupsBuilder {
     }
 
     /// CUPS-Get-Printers operation
-    pub fn get_printers(&self) -> impl IppOperation {
+    pub fn get_printers(&self) -> impl IppOperation + use<> {
         CupsGetPrinters::new()
     }
 
     /// CUPS-Delete-Printer operation
-    pub fn delete_printer(&self, printer_uri: Uri) -> Result<impl IppOperation, IppParseError> {
+    pub fn delete_printer(&self, printer_uri: Uri) -> impl IppOperation + use<> {
         CupsDeletePrinter::new(printer_uri)
     }
 }
