@@ -14,7 +14,7 @@ Portable atomic types including support for 128-bit atomics, atomic float, etc.
 - Provide atomic load/store for targets where atomic is not available at all in the standard library. (RISC-V without A-extension, MSP430, AVR)
 - Provide atomic CAS for targets where atomic CAS is not available in the standard library. (thumbv6m, pre-v6 Arm, RISC-V without A-extension, MSP430, AVR, Xtensa, etc.) (always enabled for MSP430 and AVR, [optional](#optional-features-critical-section) otherwise)
 - Make features that require newer compilers, such as [`fetch_{max,min}`](https://doc.rust-lang.org/std/sync/atomic/struct.AtomicUsize.html#method.fetch_max), [`fetch_update`](https://doc.rust-lang.org/std/sync/atomic/struct.AtomicUsize.html#method.fetch_update), [`as_ptr`](https://doc.rust-lang.org/std/sync/atomic/struct.AtomicUsize.html#method.as_ptr), [`from_ptr`](https://doc.rust-lang.org/std/sync/atomic/struct.AtomicUsize.html#method.from_ptr), [`AtomicBool::fetch_not`](https://doc.rust-lang.org/std/sync/atomic/struct.AtomicBool.html#method.fetch_not), [`AtomicPtr::fetch_*`](https://doc.rust-lang.org/std/sync/atomic/struct.AtomicPtr.html#method.fetch_and), and [stronger CAS failure ordering](https://github.com/rust-lang/rust/pull/98383) available on Rust 1.34+.
-- Provide workaround for bugs in the standard library's atomic-related APIs, such as [rust-lang/rust#100650], `fence`/`compiler_fence` on MSP430 that cause LLVM error, etc.
+- Provide workaround for bugs in the standard library's atomic-related APIs, such as [rust-lang/compiler-builtins#1234], [rust-lang/rust#100650], `fence`/`compiler_fence` on MSP430 that cause LLVM error, etc.
 
 <!-- TODO:
 - mention Atomic{I,U}*::fetch_neg, Atomic{I*,U*,Ptr}::bit_*, etc.
@@ -266,6 +266,7 @@ See also the [`interrupt` module's readme](https://github.com/taiki-e/portable-a
 [atomic-memcpy]: https://github.com/taiki-e/atomic-memcpy
 [critical-section]: https://github.com/rust-embedded/critical-section
 [portable-atomic-util]: https://github.com/taiki-e/portable-atomic-util
+[rust-lang/compiler-builtins#1234]: https://github.com/rust-lang/compiler-builtins/pull/1234
 [rust-lang/rust#100650]: https://github.com/rust-lang/rust/issues/100650
 [serde]: https://github.com/serde-rs/serde
 
@@ -623,7 +624,18 @@ cfg_sel!({
     // LLVM doesn't support fence/compiler_fence for MSP430.
     #[cfg(target_arch = "msp430")]
     {
-        pub use self::imp::msp430::{compiler_fence, fence};
+        pub use self::imp::msp430::compiler_fence;
+    }
+    #[cfg(else)]
+    {
+        pub use core::sync::atomic::compiler_fence;
+    }
+});
+cfg_sel!({
+    // LLVM doesn't support fence/compiler_fence for MSP430.
+    #[cfg(target_arch = "msp430")]
+    {
+        pub use self::imp::msp430::fence;
     }
     // We have optimized fence for x86.
     // Miri and Sanitizer do not support inline assembly.
@@ -634,13 +646,23 @@ cfg_sel!({
         any(not(portable_atomic_no_asm), portable_atomic_unstable_asm),
     ))]
     {
-        pub use core::sync::atomic::compiler_fence;
-
         pub use self::imp::x86::fence;
+    }
+    // We have optimized fence for pre-v6 ARM Linux/Android.
+    // Miri and Sanitizer do not go through __sync_synchronize.
+    #[cfg(all(
+        not(doc),
+        target_arch = "arm",
+        not(any(miri, portable_atomic_sanitize_thread)),
+        any(target_os = "linux", target_os = "android"),
+        not(any(target_feature = "v6", portable_atomic_target_feature = "v6")),
+    ))]
+    {
+        pub use self::imp::arm_linux::fence;
     }
     #[cfg(else)]
     {
-        pub use core::sync::atomic::{compiler_fence, fence};
+        pub use core::sync::atomic::fence;
     }
 });
 
@@ -756,10 +778,10 @@ impl AtomicBool {
 
     // TODO: update docs based on https://github.com/rust-lang/rust/pull/116762
     const_fn! {
-        const_if: #[cfg(not(portable_atomic_no_const_mut_refs))];
+        const_if: #[cfg(not(portable_atomic_no_const_raw_ptr_deref))];
         /// Creates a new `AtomicBool` from a pointer.
         ///
-        /// This is `const fn` on Rust 1.83+.
+        /// This is `const fn` on Rust 1.58+.
         ///
         /// # Safety
         ///
@@ -789,7 +811,7 @@ impl AtomicBool {
         pub const unsafe fn from_ptr<'a>(ptr: *mut bool) -> &'a Self {
             #[allow(clippy::cast_ptr_alignment)]
             // SAFETY: guaranteed by the caller
-            unsafe { &*(ptr as *mut Self) }
+            unsafe { &*(ptr as *mut Self as *const Self) }
         }
     }
 
@@ -1805,10 +1827,10 @@ impl<T> AtomicPtr<T> {
 
     // TODO: update docs based on https://github.com/rust-lang/rust/pull/116762
     const_fn! {
-        const_if: #[cfg(not(portable_atomic_no_const_mut_refs))];
+        const_if: #[cfg(not(portable_atomic_no_const_raw_ptr_deref))];
         /// Creates a new `AtomicPtr` from a pointer.
         ///
-        /// This is `const fn` on Rust 1.83+.
+        /// This is `const fn` on Rust 1.58+.
         ///
         /// # Safety
         ///
@@ -1838,7 +1860,7 @@ impl<T> AtomicPtr<T> {
         pub const unsafe fn from_ptr<'a>(ptr: *mut *mut T) -> &'a Self {
             #[allow(clippy::cast_ptr_alignment)]
             // SAFETY: guaranteed by the caller
-            unsafe { &*(ptr as *mut Self) }
+            unsafe { &*(ptr as *mut Self as *const Self) }
         }
     }
 
@@ -2794,11 +2816,11 @@ let atomic_forty_two = ", stringify!($atomic_type), "::new(42);
             }
 
             // TODO: update docs based on https://github.com/rust-lang/rust/pull/116762
-            #[cfg(not(portable_atomic_no_const_mut_refs))]
+            #[cfg(not(portable_atomic_no_const_raw_ptr_deref))]
             doc_comment! {
                 concat!("Creates a new reference to an atomic integer from a pointer.
 
-This is `const fn` on Rust 1.83+.
+This is `const fn` on Rust 1.58+.
 
 # Safety
 
@@ -2829,14 +2851,14 @@ This is `const fn` on Rust 1.83+.
                 pub const unsafe fn from_ptr<'a>(ptr: *mut $int_type) -> &'a Self {
                     #[allow(clippy::cast_ptr_alignment)]
                     // SAFETY: guaranteed by the caller
-                    unsafe { &*(ptr as *mut Self) }
+                    unsafe { &*(ptr as *mut Self as *const Self) }
                 }
             }
-            #[cfg(portable_atomic_no_const_mut_refs)]
+            #[cfg(portable_atomic_no_const_raw_ptr_deref)]
             doc_comment! {
                 concat!("Creates a new reference to an atomic integer from a pointer.
 
-This is `const fn` on Rust 1.83+.
+This is `const fn` on Rust 1.58+.
 
 # Safety
 
@@ -2867,7 +2889,7 @@ This is `const fn` on Rust 1.83+.
                 pub unsafe fn from_ptr<'a>(ptr: *mut $int_type) -> &'a Self {
                     #[allow(clippy::cast_ptr_alignment)]
                     // SAFETY: guaranteed by the caller
-                    unsafe { &*(ptr as *mut Self) }
+                    unsafe { &*(ptr as *mut Self as *const Self) }
                 }
             }
 
@@ -4227,11 +4249,11 @@ This type has the same in-memory representation as the underlying floating point
             }
 
             // TODO: update docs based on https://github.com/rust-lang/rust/pull/116762
-            #[cfg(not(portable_atomic_no_const_mut_refs))]
+            #[cfg(not(portable_atomic_no_const_raw_ptr_deref))]
             doc_comment! {
                 concat!("Creates a new reference to an atomic float from a pointer.
 
-This is `const fn` on Rust 1.83+.
+This is `const fn` on Rust 1.58+.
 
 # Safety
 
@@ -4262,14 +4284,14 @@ This is `const fn` on Rust 1.83+.
                 pub const unsafe fn from_ptr<'a>(ptr: *mut $float_type) -> &'a Self {
                     #[allow(clippy::cast_ptr_alignment)]
                     // SAFETY: guaranteed by the caller
-                    unsafe { &*(ptr as *mut Self) }
+                    unsafe { &*(ptr as *mut Self as *const Self) }
                 }
             }
-            #[cfg(portable_atomic_no_const_mut_refs)]
+            #[cfg(portable_atomic_no_const_raw_ptr_deref)]
             doc_comment! {
                 concat!("Creates a new reference to an atomic float from a pointer.
 
-This is `const fn` on Rust 1.83+.
+This is `const fn` on Rust 1.58+.
 
 # Safety
 
@@ -4300,7 +4322,7 @@ This is `const fn` on Rust 1.83+.
                 pub unsafe fn from_ptr<'a>(ptr: *mut $float_type) -> &'a Self {
                     #[allow(clippy::cast_ptr_alignment)]
                     // SAFETY: guaranteed by the caller
-                    unsafe { &*(ptr as *mut Self) }
+                    unsafe { &*(ptr as *mut Self as *const Self) }
                 }
             }
 
@@ -4488,8 +4510,6 @@ This is `const fn` on Rust 1.83+.
 
             /// Adds to the current value, returning the previous value.
             ///
-            /// This operation wraps around on overflow.
-            ///
             /// `fetch_add` takes an [`Ordering`] argument which describes the memory ordering
             /// of this operation. All ordering modes are possible. Note that using
             /// [`Acquire`] makes the store part of this operation [`Relaxed`], and
@@ -4501,8 +4521,6 @@ This is `const fn` on Rust 1.83+.
             }
 
             /// Subtracts from the current value, returning the previous value.
-            ///
-            /// This operation wraps around on overflow.
             ///
             /// `fetch_sub` takes an [`Ordering`] argument which describes the memory ordering
             /// of this operation. All ordering modes are possible. Note that using

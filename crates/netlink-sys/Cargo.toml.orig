@@ -1,7 +1,7 @@
 [package]
 authors = ["Corentin Henry <corentinhenry@gmail.com>"]
 name = "netlink-sys"
-version = "0.8.8"
+version = "0.9.0"
 edition = "2021"
 homepage = "https://github.com/rust-netlink/netlink-sys"
 keywords = ["netlink", "ip", "linux"]
@@ -9,6 +9,10 @@ license = "MIT"
 readme = "README.md"
 repository = "https://github.com/rust-netlink/netlink-sys"
 description = "netlink sockets, with optional integration with tokio"
+
+[package.metadata.docs.rs]
+all-features = true
+rustdoc-args = ["--generate-link-to-definition"]
 
 [dependencies]
 bytes = "1.8"
@@ -43,7 +47,7 @@ smol_socket = ["async-io", "futures-util"]
 
 [dev-dependencies]
 netlink-packet-audit = "0.6.1"
-netlink-packet-core = "0.8.0"
+netlink-packet-core = "0.9.0"
 
 [dev-dependencies.tokio]
 version = "1.0.1"

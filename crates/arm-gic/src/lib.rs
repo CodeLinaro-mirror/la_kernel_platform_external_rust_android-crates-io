@@ -30,7 +30,7 @@
 //! let gicr = unsafe { NonNull::new(GICR_BASE_ADDRESS).unwrap() };
 //!
 //! // Initialise the GIC.
-//! let mut gic = unsafe { GicV3::new(gicd, gicr, 1, false) };
+//! let mut gic = unsafe { GicV3::new(gicd, gicr, 1).expect("Failed to initialise GIC") };
 //! gic.setup(0);
 //!
 //! // Configure an SGI and then send it to ourself.
@@ -61,14 +61,15 @@ pub mod gicv3;
 #[cfg(any(test, feature = "fakes", target_arch = "aarch64", target_arch = "arm"))]
 mod sysreg;
 
+#[cfg(any(test, feature = "fakes"))]
+use arm_sysregs::el0::{accessors::write_daif, registers::Daif};
+#[cfg(all(target_arch = "aarch64", not(any(test, feature = "fakes"))))]
+use core::arch::asm;
+use core::fmt::{self, Debug, Formatter};
 pub use safe_mmio::UniqueMmioPointer;
 use safe_mmio::fields::ReadPureWrite;
 use thiserror::Error;
 use zerocopy::{FromZeros, Immutable, IntoBytes, KnownLayout};
-
-#[cfg(all(target_arch = "aarch64", not(feature = "fakes")))]
-use core::arch::asm;
-use core::fmt::{self, Debug, Formatter};
 
 /// The trigger configuration for an interrupt.
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
@@ -346,7 +347,7 @@ impl TryFrom<u32> for IntId {
 }
 
 /// Disables debug, SError, IRQ and FIQ exceptions.
-#[cfg(all(target_arch = "aarch64", not(feature = "fakes")))]
+#[cfg(all(target_arch = "aarch64", not(any(test, feature = "fakes"))))]
 pub fn irq_disable() {
     // SAFETY: Writing to this system register doesn't access memory in any way.
     unsafe {
@@ -356,10 +357,15 @@ pub fn irq_disable() {
 
 /// Disables debug, SError, IRQ and FIQ exceptions.
 #[cfg(any(test, feature = "fakes"))]
-pub fn irq_disable() {}
+pub fn irq_disable() {
+    // SAFETY: This is writing to the fake system register so has no side-effects.
+    unsafe {
+        write_daif(Daif::D | Daif::A | Daif::I | Daif::F);
+    }
+}
 
 /// Enables debug, SError, IRQ and FIQ exceptions.
-#[cfg(all(target_arch = "aarch64", not(feature = "fakes")))]
+#[cfg(all(target_arch = "aarch64", not(any(test, feature = "fakes"))))]
 pub fn irq_enable() {
     // SAFETY: Writing to this system register doesn't access memory in any way.
     unsafe {
@@ -369,10 +375,15 @@ pub fn irq_enable() {
 
 /// Enables debug, SError, IRQ and FIQ exceptions.
 #[cfg(any(test, feature = "fakes"))]
-pub fn irq_enable() {}
+pub fn irq_enable() {
+    // SAFETY: This is writing to the fake system register so has no side-effects.
+    unsafe {
+        write_daif(Daif::empty());
+    }
+}
 
 /// Waits for an interrupt.
-#[cfg(all(target_arch = "aarch64", not(feature = "fakes")))]
+#[cfg(all(target_arch = "aarch64", not(any(test, feature = "fakes"))))]
 pub fn wfi() {
     // SAFETY: This doesn't access memory in any way.
     unsafe {
@@ -416,4 +427,17 @@ fn set_bit<const N: usize>(registers: UniqueMmioPointer<[ReadPureWrite<u32>; N]>
 /// Clears `nth` bit of memory pointed by `registers`.
 fn clear_bit<const N: usize>(registers: UniqueMmioPointer<[ReadPureWrite<u32>; N]>, nth: usize) {
     modify_bit(registers, nth, false);
+}
+
+/// Directly writes `nth` bit of memory pointed by `registers` without a read-modify-write.
+/// Intended strictly for Write-to-Set and Write-to-Clear registers (e.g. ICENABLER).
+fn write_bit<const N: usize>(
+    mut registers: UniqueMmioPointer<[ReadPureWrite<u32>; N]>,
+    nth: usize,
+) {
+    let reg_num: usize = nth / 32;
+    let bit_num: usize = nth % 32;
+    let mut reg_ptr = registers.get(reg_num).unwrap();
+
+    reg_ptr.write(1 << bit_num);
 }

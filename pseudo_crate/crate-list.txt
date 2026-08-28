@@ -31,6 +31,10 @@ arm-gic
 arm-pl011-uart
 arm-psci
 arm-sysregs
+arm-sysregs-aarch32
+arm-sysregs-common
+arm-sysregs-el0
+arm-sysregs-el1
 array-init
 arrayvec
 ash
@@ -38,6 +42,7 @@ askama
 askama_derive
 askama_macros
 askama_parser
+async-nats
 async-stream
 async-stream-impl
 async-task
@@ -88,6 +93,7 @@ cexpr
 cfg-expr
 cfg-if
 cgmath
+chacha20
 chrono
 chunked_transfer
 ciborium
@@ -280,6 +286,7 @@ if-addrs
 ignore
 image
 image-compare
+image-webp
 indexmap
 inotify
 inotify-sys
@@ -314,6 +321,7 @@ libc
 libfuzzer-sys
 libloading
 libm
+libsmpte2094-50
 libsqlite3-sys
 libtest-mimic
 libusb1-sys
@@ -458,6 +466,7 @@ ptr_meta
 ptr_meta_derive
 pxfm
 quiche
+quick-error
 quick-xml
 quickcheck
 quote

@@ -19,5 +19,16 @@
     {
       "name": "rand_core_test_src_lib"
     }
+  ],
+  "postsubmit": [
+    {
+      "name": "rand_core_test_tests_block"
+    },
+    {
+      "name": "rand_core_test_tests_mod"
+    },
+    {
+      "name": "rand_core_test_tests_utils"
+    }
   ]
 }

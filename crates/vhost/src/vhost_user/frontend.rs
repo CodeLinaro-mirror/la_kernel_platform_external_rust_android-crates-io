@@ -5,6 +5,7 @@
 
 use std::fs::File;
 use std::mem;
+use std::os::fd::OwnedFd;
 use std::os::unix::io::{AsRawFd, RawFd};
 use std::os::unix::net::UnixStream;
 use std::path::Path;
@@ -78,6 +79,23 @@ pub trait VhostUserFrontend: VhostBackend {
 
     /// Remove a guest memory mapping from vhost.
     fn remove_mem_region(&mut self, region: &VhostUserMemoryRegionInfo) -> Result<()>;
+
+    /// Get the shared memory region configuration from the backend.
+    fn get_shmem_config(&mut self) -> Result<VhostUserShMemConfig>;
+
+    /// Begin transfer of internal state from/to the back-end
+    /// for the purpose of migration.
+    fn set_device_state_fd(
+        &self,
+        direction: VhostTransferStateDirection,
+        phase: VhostTransferStatePhase,
+        fd: OwnedFd,
+    ) -> Result<Option<File>>;
+
+    /// Inquire the back-end to report any potential errors
+    /// that have occurred after transferring state from/to
+    /// the back-end via vhost_set_device_state_fd().
+    fn check_device_state(&self) -> Result<()>;
 
     /// Sends VHOST_USER_POSTCOPY_ADVISE msg to the backend
     /// initiating the beginning of the postcopy process.
@@ -258,7 +276,8 @@ impl VhostBackend for Frontend {
                 &log,
                 Some(&[region.mmap_handle]),
             )?;
-            node.wait_for_ack(&hdr).map_err(|e| e.into())
+            let _ = node.recv_reply::<VhostUserLog>(&hdr)?;
+            Ok(())
         } else {
             let _ = node.send_request_with_body(FrontendReq::SET_LOG_BASE, &val, None)?;
             Ok(())
@@ -567,6 +586,63 @@ impl VhostUserFrontend for Frontend {
         node.wait_for_ack(&hdr).map_err(|e| e.into())
     }
 
+    fn get_shmem_config(&mut self) -> Result<VhostUserShMemConfig> {
+        let mut node = self.node();
+        node.check_proto_feature(VhostUserProtocolFeatures::SHMEM)?;
+
+        let hdr = node.send_request_header(FrontendReq::GET_SHMEM_CONFIG, None)?;
+        let config = node.recv_reply::<VhostUserShMemConfig>(&hdr)?;
+
+        Ok(config)
+    }
+
+    fn set_device_state_fd(
+        &self,
+        direction: VhostTransferStateDirection,
+        phase: VhostTransferStatePhase,
+        fd: OwnedFd,
+    ) -> Result<Option<File>> {
+        let mut node = self.node();
+        node.check_proto_feature(VhostUserProtocolFeatures::DEVICE_STATE)?;
+
+        let body = VhostUserTransferDeviceState::new(direction, phase);
+        if !body.is_valid() {
+            return error_code(VhostUserError::InvalidParam);
+        }
+
+        let hdr = node.send_request_with_body(
+            FrontendReq::SET_DEVICE_STATE_FD,
+            &body,
+            Some(&[fd.as_raw_fd()]),
+        )?;
+
+        let (body, files) = node.recv_reply_with_optional_files::<VhostUserU64>(&hdr)?;
+        let msg = body.value;
+        if msg == 0x100 && files.is_none() {
+            return Ok(None);
+        } else if msg == 0 && files.is_some() {
+            return match take_single_file(files) {
+                Some(file) => Ok(Some(file)),
+                None => error_code(VhostUserError::IncorrectFds),
+            };
+        }
+
+        error_code(VhostUserError::BackendInternalError)
+    }
+
+    fn check_device_state(&self) -> Result<()> {
+        let mut node = self.node();
+        node.check_proto_feature(VhostUserProtocolFeatures::DEVICE_STATE)?;
+        let hdr = node.send_request_header(FrontendReq::CHECK_DEVICE_STATE, None)?;
+        let body = node.recv_reply::<VhostUserU64>(&hdr)?;
+
+        if body.value != 0 {
+            return error_code(VhostUserError::BackendInternalError);
+        }
+
+        Ok(())
+    }
+
     #[cfg(feature = "postcopy")]
     fn postcopy_advise(&mut self) -> Result<File> {
         let mut node = self.node();
@@ -736,7 +812,7 @@ impl FrontendInternal {
         Ok(body)
     }
 
-    fn recv_reply_with_files<T: ByteValued + Sized + VhostUserMsgValidator + Default>(
+    fn recv_reply_with_optional_files<T: ByteValued + Sized + VhostUserMsgValidator + Default>(
         &mut self,
         hdr: &VhostUserMsgHeader<FrontendReq>,
     ) -> VhostUserResult<(T, Option<Vec<File>>)> {
@@ -746,9 +822,21 @@ impl FrontendInternal {
         self.check_state()?;
 
         let (reply, body, files) = self.main_sock.recv_body::<T>()?;
-        if !reply.is_reply_for(hdr) || files.is_none() || !body.is_valid() {
+        if !reply.is_reply_for(hdr) || !body.is_valid() {
             return Err(VhostUserError::InvalidMessage);
         }
+        Ok((body, files))
+    }
+
+    fn recv_reply_with_files<T: ByteValued + Sized + VhostUserMsgValidator + Default>(
+        &mut self,
+        hdr: &VhostUserMsgHeader<FrontendReq>,
+    ) -> VhostUserResult<(T, Option<Vec<File>>)> {
+        let (body, files) = self.recv_reply_with_optional_files(hdr)?;
+        if files.is_none() {
+            return Err(VhostUserError::InvalidMessage);
+        }
+
         Ok((body, files))
     }
 
@@ -1200,5 +1288,117 @@ mod tests {
         frontend.set_mem_table(&[]).unwrap_err();
         let tables = vec![VhostUserMemoryRegionInfo::default(); MAX_ATTACHED_FD_ENTRIES + 1];
         frontend.set_mem_table(&tables).unwrap_err();
+    }
+
+    #[test]
+    fn test_frontend_get_shmem_config() {
+        let (mut frontend, mut peer) = create_pair2();
+
+        let expected_config = VhostUserShMemConfig::new(2, &[0x1000, 0x2000]);
+        let hdr = VhostUserMsgHeader::new(
+            FrontendReq::GET_SHMEM_CONFIG,
+            0x4,
+            std::mem::size_of::<VhostUserShMemConfig>() as u32,
+        );
+        peer.send_message(&hdr, &expected_config, None).unwrap();
+
+        let config = frontend.get_shmem_config().unwrap();
+        assert_eq!(config.nregions, 2);
+        assert_eq!(config.memory_sizes[0], 0x1000);
+        assert_eq!(config.memory_sizes[1], 0x2000);
+
+        let (recv_hdr, rfds) = peer.recv_header().unwrap();
+        assert_eq!(recv_hdr.get_code().unwrap(), FrontendReq::GET_SHMEM_CONFIG);
+        assert!(rfds.is_none());
+    }
+
+    #[test]
+    fn test_frontend_get_shmem_config_no_regions() {
+        let (mut frontend, mut peer) = create_pair2();
+
+        let expected_config = VhostUserShMemConfig::default();
+        let hdr = VhostUserMsgHeader::new(
+            FrontendReq::GET_SHMEM_CONFIG,
+            0x4,
+            std::mem::size_of::<VhostUserShMemConfig>() as u32,
+        );
+        peer.send_message(&hdr, &expected_config, None).unwrap();
+
+        let config = frontend.get_shmem_config().unwrap();
+        assert_eq!(config.nregions, 0);
+        for i in 0..256 {
+            assert_eq!(config.memory_sizes[i], 0);
+        }
+    }
+
+    #[test]
+    fn test_frontend_set_device_state_fd_no_return_fd() {
+        let (frontend, mut peer) = create_pair2();
+
+        // Backend replies: success + "invalid FD" flag (bit 8 set), no returned FD.
+        let reply_hdr = VhostUserMsgHeader::new(
+            FrontendReq::SET_DEVICE_STATE_FD,
+            0x4,
+            std::mem::size_of::<VhostUserU64>() as u32,
+        );
+        let reply_body = VhostUserU64::new(0x100);
+        peer.send_message(&reply_hdr, &reply_body, None).unwrap();
+
+        let file = File::open("/dev/null").unwrap();
+        let owned_fd = file.into();
+        let res = frontend
+            .set_device_state_fd(
+                VhostTransferStateDirection::SAVE,
+                VhostTransferStatePhase::STOPPED,
+                owned_fd,
+            )
+            .unwrap();
+        assert!(res.is_none());
+    }
+
+    #[test]
+    fn test_frontend_set_device_state_fd_with_return_fd() {
+        let (frontend, mut peer) = create_pair2();
+
+        // Backend replies: success + returns a single FD.
+        let reply_hdr = VhostUserMsgHeader::new(
+            FrontendReq::SET_DEVICE_STATE_FD,
+            0x4,
+            std::mem::size_of::<VhostUserU64>() as u32,
+        );
+        let reply_body = VhostUserU64::new(0);
+        let return_file = File::open("/dev/null").unwrap();
+        peer.send_message(&reply_hdr, &reply_body, Some(&[return_file.as_raw_fd()]))
+            .unwrap();
+
+        let file = File::open("/dev/null").unwrap();
+        let owned_fd = file.into();
+        let res = frontend
+            .set_device_state_fd(
+                VhostTransferStateDirection::LOAD,
+                VhostTransferStatePhase::STOPPED,
+                owned_fd,
+            )
+            .unwrap();
+        let returned = res.unwrap();
+        assert!(returned.as_raw_fd() > 0);
+    }
+
+    #[test]
+    fn test_frontend_check_device_state() {
+        let (frontend, mut peer) = create_pair2();
+
+        let reply_hdr = VhostUserMsgHeader::new(
+            FrontendReq::CHECK_DEVICE_STATE,
+            0x4,
+            std::mem::size_of::<VhostUserU64>() as u32,
+        );
+        let reply_body = VhostUserU64::new(123);
+        peer.send_message(&reply_hdr, &reply_body, None).unwrap();
+        assert!(frontend.check_device_state().is_err());
+
+        let reply_body = VhostUserU64::new(0);
+        peer.send_message(&reply_hdr, &reply_body, None).unwrap();
+        assert!(frontend.check_device_state().is_ok());
     }
 }

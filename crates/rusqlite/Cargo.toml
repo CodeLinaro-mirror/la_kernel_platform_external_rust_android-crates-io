@@ -12,7 +12,7 @@
 [package]
 edition = "2021"
 name = "rusqlite"
-version = "0.40.1"
+version = "0.40.2"
 authors = ["The rusqlite developers"]
 build = false
 exclude = [
@@ -360,7 +360,7 @@ version = "0.2.104"
 version = "0.3.54"
 
 [target.'cfg(not(all(target_family = "wasm", target_os = "unknown")))'.dependencies.libsqlite3-sys]
-version = "0.38.1"
+version = "0.38.2"
 
 [lints.clippy]
 ref_option = "warn"

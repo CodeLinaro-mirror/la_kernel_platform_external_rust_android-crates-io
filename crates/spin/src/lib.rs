@@ -187,6 +187,11 @@ pub mod lock_api {
     #[cfg_attr(docsrs, doc(cfg(feature = "mutex")))]
     pub type MutexGuard<'a, T> = lock_api_crate::MutexGuard<'a, crate::Mutex<()>, T>;
 
+    /// A guard that provides mutable data access via a mapping (compatible with [`lock_api`](https://crates.io/crates/lock_api)).
+    #[cfg(feature = "mutex")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "mutex")))]
+    pub type MappedMutexGuard<'a, T> = lock_api_crate::MappedMutexGuard<'a, crate::Mutex<()>, T>;
+
     /// A lock that provides data access to either one writer or many readers (compatible with [`lock_api`](https://crates.io/crates/lock_api)).
     #[cfg(feature = "rwlock")]
     #[cfg_attr(docsrs, doc(cfg(feature = "rwlock")))]

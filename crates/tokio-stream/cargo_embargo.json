@@ -3,6 +3,7 @@
     "fs",
     "io-util",
     "net",
+    "rt",
     "sync",
     "time"
   ],

@@ -13,6 +13,9 @@
   "postsubmit": [
     {
       "name": "getrandom_test_tests_mod"
+    },
+    {
+      "name": "getrandom_test_tests_sys_rng"
     }
   ]
 }
