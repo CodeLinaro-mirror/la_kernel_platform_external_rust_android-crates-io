@@ -12,7 +12,7 @@
 [package]
 edition = "2024"
 name = "ipp"
-version = "6.0.1"
+version = "5.4.0"
 authors = ["Dmitry Pankratov <dmitry@pankratov.net>"]
 build = false
 autolib = false
@@ -35,10 +35,13 @@ repository = "https://github.com/ancwrd1/ipp.rs"
 resolver = "2"
 
 [package.metadata.docs.rs]
-all-features = true
+features = [
+    "async-client-tls",
+    "client-tls",
+    "serde",
+]
 
 [features]
-__tls = []
 async = [
     "futures-util",
     "futures-executor",
@@ -52,12 +55,11 @@ async-client = [
 async-client-rustls = [
     "async-client",
     "reqwest/rustls",
-    "__tls",
+    "reqwest/rustls-native-certs",
 ]
 async-client-tls = [
     "async-client",
     "reqwest/native-tls",
-    "__tls",
 ]
 client = [
     "ureq",
@@ -67,13 +69,13 @@ client-rustls = [
     "client",
     "rustls-native-certs",
     "ureq/rustls",
-    "__tls",
+    "once_cell",
 ]
 client-tls = [
     "client",
     "rustls-native-certs",
     "ureq/native-tls",
-    "__tls",
+    "once_cell",
 ]
 default = ["async-client-rustls"]
 serde = [
@@ -93,7 +95,7 @@ optional = true
 version = "1"
 
 [dependencies.enum-as-inner]
-version = "0.7"
+version = "0.6"
 
 [dependencies.enum-primitive-derive]
 version = "0.3"
@@ -116,6 +118,10 @@ version = "0.4"
 
 [dependencies.num-traits]
 version = "0.2"
+
+[dependencies.once_cell]
+version = "1"
+optional = true
 
 [dependencies.reqwest]
 version = "0.13"
@@ -147,9 +153,6 @@ optional = true
 version = "3"
 optional = true
 default-features = false
-
-[dev-dependencies.serde_json]
-version = "1"
 
 [dev-dependencies.tokio]
 version = "1"

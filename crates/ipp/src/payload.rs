@@ -14,8 +14,8 @@ use {
 
 enum PayloadKind {
     #[cfg(feature = "async")]
-    Async(Box<dyn AsyncRead + Send + Unpin>),
-    Sync(Box<dyn Read + Send>),
+    Async(Box<dyn AsyncRead + Send + Sync + Unpin>),
+    Sync(Box<dyn Read + Send + Sync>),
     Empty,
 }
 
@@ -25,7 +25,7 @@ pub struct IppPayload {
 }
 
 impl IppPayload {
-    /// Create an empty payload
+    /// Create empty payload
     pub fn empty() -> Self {
         IppPayload {
             inner: PayloadKind::Empty,
@@ -36,7 +36,7 @@ impl IppPayload {
     /// Create an async payload from the AsyncRead object
     pub fn new_async<R>(r: R) -> Self
     where
-        R: 'static + AsyncRead + Send + Unpin,
+        R: 'static + AsyncRead + Send + Sync + Unpin,
     {
         IppPayload {
             inner: PayloadKind::Async(Box::new(r)),
@@ -46,7 +46,7 @@ impl IppPayload {
     /// Create a sync payload from the Read object
     pub fn new<R>(r: R) -> Self
     where
-        R: 'static + Read + Send,
+        R: 'static + Read + Send + Sync,
     {
         IppPayload {
             inner: PayloadKind::Sync(Box::new(r)),

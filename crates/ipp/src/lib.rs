@@ -34,7 +34,7 @@
 //!         IppVersion::v1_1(),
 //!         Operation::GetPrinterAttributes,
 //!         Some(uri.clone())
-//!     ).expect("failed to create request");
+//!     );
 //!     let client = AsyncIppClient::new(uri);
 //!     let resp = client.send(req).await?;
 //!     if resp.header().status_code().is_success() {
@@ -49,7 +49,7 @@
 //!
 //! fn main() -> Result<(), Box<dyn std::error::Error>> {
 //!     let uri: Uri = "http://localhost:631/printers/test-printer".parse()?;
-//!     let operation = IppOperationBuilder::get_printer_attributes(uri.clone()).build()?;
+//!     let operation = IppOperationBuilder::get_printer_attributes(uri.clone()).build();
 //!     let client = IppClient::new(uri);
 //!     let resp = client.send(operation)?;
 //!     if resp.header().status_code().is_success() {
@@ -63,6 +63,7 @@
 
 use bytes::{BufMut, Bytes, BytesMut};
 use num_traits::FromPrimitive;
+
 #[cfg(feature = "serde")]
 use serde::{Deserialize, Serialize};
 
@@ -88,11 +89,6 @@ pub mod prelude {
     pub use http::Uri;
     pub use num_traits::FromPrimitive as _;
 
-    #[cfg(feature = "client")]
-    pub use super::client::blocking::IppClient;
-    #[cfg(feature = "async-client")]
-    pub use super::client::non_blocking::AsyncIppClient;
-    pub use super::{IppHeader, error::IppError};
     pub use crate::{
         attribute::{IppAttribute, IppAttributeGroup, IppAttributes},
         model::*,
@@ -101,11 +97,21 @@ pub mod prelude {
         request::IppRequestResponse,
         value::IppValue,
     };
+
+    pub use super::error::IppError;
+
+    #[cfg(feature = "async-client")]
+    pub use super::client::non_blocking::AsyncIppClient;
+
+    #[cfg(feature = "client")]
+    pub use super::client::blocking::IppClient;
+
+    pub use super::IppHeader;
 }
 
 /// IPP request and response header
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug)]
 pub struct IppHeader {
     /// IPP protocol version
     pub version: IppVersion,
@@ -116,7 +122,7 @@ pub struct IppHeader {
 }
 
 impl IppHeader {
-    /// Create an IPP header
+    /// Create IPP header
     pub fn new(version: IppVersion, operation_or_status: u16, request_id: u32) -> IppHeader {
         IppHeader {
             version,
@@ -125,7 +131,7 @@ impl IppHeader {
         }
     }
 
-    /// Write the header to a given writer
+    /// Write header to a given writer
     pub fn to_bytes(&self) -> Bytes {
         let mut buffer = BytesMut::new();
         buffer.put_u16(self.version.0);
@@ -135,7 +141,7 @@ impl IppHeader {
         buffer.freeze()
     }
 
-    /// Decode and get the IPP status code from the header
+    /// Decode and get IPP status code from the header
     pub fn status_code(&self) -> StatusCode {
         StatusCode::from_u16(self.operation_or_status).unwrap_or(StatusCode::UnknownStatusCode)
     }
