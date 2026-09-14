@@ -702,7 +702,7 @@ zerotrie = "=0.2.4"
 zerovec = "=0.11.8"
 zerovec-derive = "=0.11.6"
 zip = "=0.6.6"
-zlib-rs = "=0.6.6"
+zlib-rs = "=0.6.7"
 zmij = "=1.0.23"
 zune-inflate = "=0.2.54"
 # go/keep-sorted end
