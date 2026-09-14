@@ -1,6 +1,12 @@
-use std::io;
+use std::error::Error;
+use std::fs;
+use std::path::Path;
 use std::path::PathBuf;
 
+use goblin::elf::program_header::PF_X;
+use goblin::elf::program_header::PT_LOAD;
+use goblin::elf::sym;
+use goblin::elf::Elf;
 use libbpf_rs::Map;
 use libbpf_rs::MapCore;
 use libbpf_rs::MapMut;
@@ -26,21 +32,6 @@ pub fn open_test_object(filename: &str) -> OpenObject {
         .open_file(obj_path)
         .expect("failed to open object");
     obj
-}
-
-pub fn bump_rlimit_mlock() {
-    let rlimit = libc::rlimit {
-        rlim_cur: 128 << 20,
-        rlim_max: 128 << 20,
-    };
-
-    let ret = unsafe { libc::setrlimit(libc::RLIMIT_MEMLOCK, &rlimit) };
-    assert_eq!(
-        ret,
-        0,
-        "Setting RLIMIT_MEMLOCK failed with errno: {}",
-        io::Error::last_os_error()
-    );
 }
 
 pub fn get_test_object(filename: &str) -> Object {
@@ -100,4 +91,80 @@ where
     }
 
     value
+}
+
+pub fn get_symbol_offset(binary_path: &Path, symbol_name: &str) -> Result<usize, Box<dyn Error>> {
+    let buffer = fs::read(binary_path)?;
+    let elf = Elf::parse(&buffer)?;
+
+    // Check dynamic symbols
+    for sym in elf.dynsyms.iter() {
+        if sym.st_type() != sym::STT_FUNC {
+            continue;
+        }
+        if let Some(name) = elf.dynstrtab.get_at(sym.st_name) {
+            if name == symbol_name {
+                if let Some(offset) = check_symbol_offset(&elf, &sym) {
+                    return Ok(offset);
+                }
+            }
+        }
+    }
+
+    // Check regular symbols
+    for sym in elf.syms.iter() {
+        if sym.st_type() != sym::STT_FUNC {
+            continue;
+        }
+        if let Some(name) = elf.strtab.get_at(sym.st_name) {
+            if name == symbol_name {
+                if let Some(offset) = check_symbol_offset(&elf, &sym) {
+                    return Ok(offset);
+                }
+            }
+        }
+    }
+
+    Err(format!("Symbol `{symbol_name}` not found in binary {binary_path:?}").into())
+}
+
+fn check_symbol_offset(elf: &Elf, sym: &sym::Sym) -> Option<usize> {
+    for phdr in elf.program_headers.iter() {
+        if phdr.p_type != PT_LOAD {
+            continue;
+        }
+        if phdr.p_flags & PF_X == 0 {
+            continue;
+        }
+        if (phdr.p_vaddr..phdr.p_vaddr + phdr.p_memsz).contains(&sym.st_value) {
+            let offset = sym.st_value - phdr.p_vaddr + phdr.p_offset;
+            return Some(offset as usize);
+        }
+    }
+    None
+}
+
+pub(crate) fn resolve_ksym_addr(sym_name: &str) -> Option<u64> {
+    let kallsyms = fs::read_to_string("/proc/kallsyms").ok()?;
+
+    for line in kallsyms.split('\n') {
+        let mut parts = line.split_whitespace();
+        let Some(addr) = parts.next() else {
+            continue;
+        };
+        if parts.next().is_none() {
+            continue;
+        }
+        let Some(sym) = parts.next() else {
+            continue;
+        };
+
+        if sym_name == sym {
+            return Some(
+                u64::from_str_radix(addr, 16).expect("ksym found but could not resolve addr"),
+            );
+        }
+    }
+
+    None
 }

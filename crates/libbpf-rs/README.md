@@ -1,5 +1,5 @@
 [![CI](https://github.com/libbpf/libbpf-rs/actions/workflows/test.yml/badge.svg?branch=master)](https://github.com/libbpf/libbpf-rs/actions/workflows/test.yml)
-[![rustc](https://img.shields.io/badge/rustc-1.71+-blue.svg)](https://blog.rust-lang.org/2023/07/13/Rust-1.71.0.html)
+[![rustc](https://img.shields.io/badge/rustc-1.82+-blue.svg)](https://blog.rust-lang.org/2024/10/17/Rust-1.82.0/)
 
 # libbpf-rs
 
@@ -12,7 +12,7 @@ Idiomatic Rust wrapper around [libbpf](https://github.com/libbpf/libbpf).
 To use in your project, add into your `Cargo.toml`:
 ```toml
 [dependencies]
-libbpf-rs = "0.24"
+libbpf-rs = "0.26.0"
 ```
 
 See [full documentation here](https://docs.rs/libbpf-rs).

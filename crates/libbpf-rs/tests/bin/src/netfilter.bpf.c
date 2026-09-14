@@ -9,8 +9,8 @@ struct {
 } ringbuf SEC(".maps");
 
 SEC("netfilter")
-int handle_netfilter(struct bpf_nf_ctx *ctx) {
-
+int handle_netfilter(struct bpf_nf_ctx *ctx)
+{
     int *value;
 
     value = bpf_ringbuf_reserve(&ringbuf, sizeof(int), 0);

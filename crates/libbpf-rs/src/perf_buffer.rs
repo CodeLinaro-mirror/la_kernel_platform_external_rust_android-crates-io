@@ -72,7 +72,7 @@ where
     /// [`plain`](https://crates.io/crates/plain) helpful.
     ///
     /// Callback arguments are: `(cpu, data)`.
-    pub fn sample_cb<F>(self, cb: F) -> PerfBufferBuilder<'a, 'b, M>
+    pub fn sample_cb<F>(self, cb: F) -> Self
     where
         F: FnMut(i32, &[u8]) + 'b,
     {
@@ -87,7 +87,7 @@ where
     /// Callback to run when a sample is received.
     ///
     /// Callback arguments are: `(cpu, lost_count)`.
-    pub fn lost_cb<F>(self, cb: F) -> PerfBufferBuilder<'a, 'b, M>
+    pub fn lost_cb<F>(self, cb: F) -> Self
     where
         F: FnMut(i32, u64) + 'b,
     {
@@ -100,7 +100,7 @@ where
     }
 
     /// The number of pages to size the ring buffer.
-    pub fn pages(self, pages: usize) -> PerfBufferBuilder<'a, 'b, M> {
+    pub fn pages(self, pages: usize) -> Self {
         PerfBufferBuilder {
             map: self.map,
             pages,
@@ -142,7 +142,7 @@ where
                 self.pages as libbpf_sys::size_t,
                 c_sample_cb,
                 c_lost_cb,
-                callback_struct_ptr as *mut _,
+                callback_struct_ptr.cast(),
                 ptr::null(),
             )
         };
@@ -155,7 +155,7 @@ where
     }
 
     unsafe extern "C" fn call_sample_cb(ctx: *mut c_void, cpu: i32, data: *mut c_void, size: u32) {
-        let callback_struct = ctx as *mut CbStruct<'_>;
+        let callback_struct = ctx.cast::<CbStruct<'_>>();
 
         if let Some(cb) = unsafe { &mut (*callback_struct).sample_cb } {
             let slice = unsafe { slice::from_raw_parts(data as *const u8, size as usize) };
@@ -164,7 +164,7 @@ where
     }
 
     unsafe extern "C" fn call_lost_cb(ctx: *mut c_void, cpu: i32, count: u64) {
-        let callback_struct = ctx as *mut CbStruct<'_>;
+        let callback_struct = ctx.cast::<CbStruct<'_>>();
 
         if let Some(cb) = unsafe { &mut (*callback_struct).lost_cb } {
             cb(cpu, count);
@@ -202,7 +202,7 @@ pub struct PerfBuffer<'b> {
 }
 
 // TODO: Document methods.
-#[allow(missing_docs)]
+#[expect(missing_docs)]
 impl PerfBuffer<'_> {
     pub fn epoll_fd(&self) -> i32 {
         unsafe { libbpf_sys::perf_buffer__epoll_fd(self.ptr.as_ptr()) }
