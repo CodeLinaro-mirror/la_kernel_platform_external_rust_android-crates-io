@@ -11303,9 +11303,9 @@ dependencies = [
 
 [[package]]
 name = "virtio-drivers-and-devices"
-version = "0.3.0"
+version = "0.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c421ffcbd795ab3fafd3c82541edbb73da157cce1fdc8bf69f5c60dcdeec6a1a"
+checksum = "e5333a26e7b51894a5f2d6a42f453ac408af664cff5e3c508cfd9ec7fa209d1b"
 dependencies = [
  "bitflags 2.13.1",
  "embedded-io 0.6.1",
