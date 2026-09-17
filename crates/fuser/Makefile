@@ -6,10 +6,10 @@ build: pre
 	cargo build --examples --features=experimental
 
 format:
-	cargo +nightly fmt --all
+	cargo fmt --all
 
 pre:
-	cargo +nightly fmt --all -- --check
+	cargo fmt --all -- --check
 	cargo deny check licenses
 	cargo clippy --all-targets
 	cargo clippy --all-targets --no-default-features
@@ -63,8 +63,9 @@ mount_tests:
 	 fuser:mount_tests_libfuse3 bash -c "cd /code/fuser && cargo run -p fuser-tests -- linux-mount-libfuse3"
 
 test_passthrough:
-	cargo build --example passthrough
+	cargo build --example passthrough --example passthrough_fork
 	sudo tests/test_passthrough.sh target/debug/examples/passthrough
+	sudo tests/test_passthrough.sh target/debug/examples/passthrough_fork
 
 test: pre mount_tests pjdfs_tests xfstests
 	cargo test

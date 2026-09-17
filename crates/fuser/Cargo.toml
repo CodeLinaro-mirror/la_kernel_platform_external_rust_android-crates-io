@@ -13,7 +13,7 @@
 edition = "2024"
 rust-version = "1.85"
 name = "fuser"
-version = "0.17.0"
+version = "0.18.0"
 authors = ["Christopher Berner <me@cberner.com>"]
 build = "build.rs"
 autolib = false
@@ -41,20 +41,6 @@ license = "MIT"
 repository = "https://github.com/cberner/fuser"
 
 [features]
-abi-7-20 = []
-abi-7-21 = []
-abi-7-22 = []
-abi-7-23 = []
-abi-7-24 = []
-abi-7-25 = []
-abi-7-26 = []
-abi-7-27 = []
-abi-7-28 = []
-abi-7-29 = []
-abi-7-30 = []
-abi-7-31 = []
-abi-7-36 = []
-abi-7-40 = []
 default = []
 experimental = [
     "async-trait",
@@ -101,6 +87,10 @@ name = "passthrough"
 path = "examples/passthrough.rs"
 
 [[example]]
+name = "passthrough_fork"
+path = "examples/passthrough_fork.rs"
+
+[[example]]
 name = "poll"
 path = "examples/poll.rs"
 
@@ -129,7 +119,7 @@ version = "0.4.6"
 version = "2.7.2"
 
 [dependencies.nix]
-version = "0.30.0"
+version = "0.31.0"
 features = [
     "fs",
     "user",
@@ -190,7 +180,7 @@ features = [
 version = "0.11.7"
 
 [dev-dependencies.nix]
-version = "0.30.0"
+version = "0.31.0"
 features = [
     "poll",
     "fs",

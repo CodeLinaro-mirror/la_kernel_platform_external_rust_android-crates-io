@@ -1,0 +1,11 @@
+--- a/src/mnt/mount_options.rs
++++ b/src/mnt/mount_options.rs
+@@ -197,7 +197,7 @@ impl MountOption {
+     }
+ }
+ 
+-#[cfg(target_os = "linux")]
++#[cfg(any(target_os = "linux", target_os = "android"))]
+ #[allow(dead_code)]
+ pub(crate) fn option_to_flag(option: &MountOption) -> io::Result<nix::mount::MsFlags> {
+     match option {

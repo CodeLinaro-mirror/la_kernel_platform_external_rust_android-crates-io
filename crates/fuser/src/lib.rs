@@ -49,7 +49,6 @@ pub use crate::ll::request::LockOwner;
 pub use crate::ll::request::Version;
 pub use crate::mnt::mount_options::Config;
 pub use crate::mnt::mount_options::MountOption;
-use crate::mnt::mount_options::check_option_conflicts;
 pub use crate::notify::Notifier;
 pub use crate::notify::PollHandle;
 pub use crate::notify::PollNotifier;
@@ -1049,13 +1048,12 @@ pub trait Filesystem: Send + Sync + 'static {
 /// # Errors
 /// Returns an error if the options are incorrect, or if the fuse device can't be mounted,
 /// and any final error when the session comes to an end.
-pub fn mount2<FS: Filesystem, P: AsRef<Path>>(
+pub fn mount<FS: Filesystem, P: AsRef<Path>>(
     filesystem: FS,
     mountpoint: P,
     options: &Config,
 ) -> io::Result<()> {
-    check_option_conflicts(options)?;
-    Session::new(filesystem, mountpoint.as_ref(), options).and_then(|se| se.run())
+    Session::new(filesystem, mountpoint.as_ref(), options).and_then(session::Session::run)
 }
 
 /// Mount the given filesystem to the given mountpoint. This function spawns
@@ -1067,11 +1065,14 @@ pub fn mount2<FS: Filesystem, P: AsRef<Path>>(
 /// NOTE: This is the corresponding function to mount2.
 /// # Errors
 /// Returns an error if the options are incorrect, or if the fuse device can't be mounted.
-pub fn spawn_mount2<'a, FS: Filesystem + Send + 'static + 'a, P: AsRef<Path>>(
+pub fn spawn_mount<'a, FS: Filesystem + Send + 'static + 'a, P: AsRef<Path>>(
     filesystem: FS,
     mountpoint: P,
     options: &Config,
 ) -> io::Result<BackgroundSession> {
-    check_option_conflicts(options)?;
     Session::new(filesystem, mountpoint.as_ref(), options).and_then(session::Session::spawn)
 }
+
+pub use mount as mount2;
+pub use spawn_mount as spawn_mount2;
+
