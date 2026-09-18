@@ -19,10 +19,13 @@ rust_library {
     host_supported: true,
     crate_name: "log",
     cargo_env_compat: true,
-    cargo_pkg_version: "0.4.33",
+    cargo_pkg_version: "0.4.34",
     crate_root: "src/lib.rs",
     edition: "2021",
-    features: ["std"],
+    features: [
+        "alloc",
+        "std",
+    ],
     target: {
         windows: {
             enabled: true,
@@ -48,10 +51,11 @@ rust_library {
     host_supported: true,
     crate_name: "log",
     cargo_env_compat: true,
-    cargo_pkg_version: "0.4.33",
+    cargo_pkg_version: "0.4.34",
     crate_root: "src/lib.rs",
     edition: "2021",
     features: [
+        "alloc",
         "max_level_info",
         "release_max_level_info",
         "std",
@@ -77,10 +81,11 @@ rust_library {
     host_supported: true,
     crate_name: "log",
     cargo_env_compat: true,
-    cargo_pkg_version: "0.4.33",
+    cargo_pkg_version: "0.4.34",
     crate_root: "src/lib.rs",
     edition: "2021",
     features: [
+        "alloc",
         "max_level_off",
         "release_max_level_off",
         "std",
