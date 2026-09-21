@@ -1,4 +1,5 @@
 use core::ffi::c_void;
+use std::cell::OnceCell;
 use std::ffi::CStr;
 use std::ffi::CString;
 use std::ffi::OsStr;
@@ -6,7 +7,6 @@ use std::mem;
 use std::os::unix::ffi::OsStrExt as _;
 use std::path::Path;
 use std::ptr;
-use std::ptr::addr_of;
 use std::ptr::NonNull;
 
 use crate::map::map_fd;
@@ -106,47 +106,83 @@ pub trait AsRawLibbpf {
 pub struct ObjectBuilder {
     name: Option<CString>,
     pin_root_path: Option<CString>,
+    btf_custom_path: Option<CString>,
 
-    opts: libbpf_sys::bpf_object_open_opts,
+    opts: OnceCell<libbpf_sys::bpf_object_open_opts>,
 }
 
 impl Default for ObjectBuilder {
     fn default() -> Self {
-        let opts = libbpf_sys::bpf_object_open_opts {
-            sz: mem::size_of::<libbpf_sys::bpf_object_open_opts>() as libbpf_sys::size_t,
-            object_name: ptr::null(),
-            relaxed_maps: false,
-            pin_root_path: ptr::null(),
-            kconfig: ptr::null(),
-            btf_custom_path: ptr::null(),
-            kernel_log_buf: ptr::null_mut(),
-            kernel_log_size: 0,
-            kernel_log_level: 0,
-            ..Default::default()
-        };
         Self {
             name: None,
             pin_root_path: None,
-            opts,
+            btf_custom_path: None,
+            opts: OnceCell::new(),
         }
     }
 }
 
+impl PartialEq for ObjectBuilder {
+    fn eq(&self, other: &Self) -> bool {
+        let Self {
+            name,
+            pin_root_path,
+            btf_custom_path,
+            opts,
+        } = self;
+
+        // `bpf_object_open_opts` doesn't implement `PartialEq` and we
+        // don't want to manually compare fields. Just render our
+        // objects "uncomparable" if it is present.
+        opts.get().is_none()
+            && other.opts.get().is_none()
+            && name == &other.name
+            && pin_root_path == &other.pin_root_path
+            && btf_custom_path == &other.btf_custom_path
+    }
+}
+
 impl ObjectBuilder {
+    fn opts(&self) -> &libbpf_sys::bpf_object_open_opts {
+        self.opts.get_or_init(|| libbpf_sys::bpf_object_open_opts {
+            sz: mem::size_of::<libbpf_sys::bpf_object_open_opts>() as libbpf_sys::size_t,
+            ..Default::default()
+        })
+    }
+
+    fn opts_mut(&mut self) -> &mut libbpf_sys::bpf_object_open_opts {
+        let _opts = self.opts();
+        // SANITY: We just made sure to initialize the object above.
+        self.opts.get_mut().unwrap()
+    }
+
     /// Override the generated name that would have been inferred from the constructor.
     pub fn name<T: AsRef<str>>(&mut self, name: T) -> Result<&mut Self> {
         self.name = Some(util::str_to_cstring(name.as_ref())?);
-        self.opts.object_name = self.name.as_ref().map_or(ptr::null(), |p| p.as_ptr());
+        self.opts_mut().object_name = self.name.as_ref().map_or(ptr::null(), |p| p.as_ptr());
         Ok(self)
     }
 
-    /// Set the pin_root_path for maps that are pinned by name.
+    /// Set the `pin_root_path` for maps that are pinned by name.
     ///
-    /// By default, this is NULL which bpf translates to /sys/fs/bpf
+    /// By default no path is set, which causes BPF to use `/sys/fs/bpf`.
     pub fn pin_root_path<T: AsRef<Path>>(&mut self, path: T) -> Result<&mut Self> {
         self.pin_root_path = Some(util::path_to_cstring(path)?);
-        self.opts.pin_root_path = self
+        self.opts_mut().pin_root_path = self
             .pin_root_path
+            .as_ref()
+            .map_or(ptr::null(), |p| p.as_ptr());
+        Ok(self)
+    }
+
+    /// Set the `btf_custom_path`.
+    ///
+    /// By default, no path is set and libbpf probes to find the BTF file in a set
+    /// of well-known paths.
+    pub fn btf_custom_path<T: AsRef<Path>>(&mut self, path: T) -> Result<&mut Self> {
+        self.btf_custom_path = Some(util::path_to_cstring(path)?);
+        self.opts_mut().btf_custom_path = self
+            .btf_custom_path
             .as_ref()
             .map_or(ptr::null(), |p| p.as_ptr());
         Ok(self)
@@ -154,7 +190,7 @@ impl ObjectBuilder {
 
     /// Option to parse map definitions non-strictly, allowing extra attributes/data
     pub fn relaxed_maps(&mut self, relaxed_maps: bool) -> &mut Self {
-        self.opts.relaxed_maps = relaxed_maps;
+        self.opts_mut().relaxed_maps = relaxed_maps;
         self
     }
 
@@ -191,7 +227,7 @@ impl ObjectBuilder {
         let opts_ptr = self.as_libbpf_object().as_ptr();
         let ptr = unsafe {
             libbpf_sys::bpf_object__open_mem(
-                mem.as_ptr() as *const c_void,
+                mem.as_ptr().cast::<c_void>(),
                 mem.len() as libbpf_sys::size_t,
                 opts_ptr,
             )
@@ -208,7 +244,7 @@ impl AsRawLibbpf for ObjectBuilder {
     /// Retrieve the underlying [`libbpf_sys::bpf_object_open_opts`].
     fn as_libbpf_object(&self) -> NonNull<Self::LibbpfType> {
         // SAFETY: A reference is always a valid pointer.
-        unsafe { NonNull::new_unchecked(addr_of!(self.opts).cast_mut()) }
+        unsafe { NonNull::new_unchecked(ptr::from_ref(self.opts()).cast_mut()) }
     }
 }
 
@@ -253,7 +289,7 @@ impl OpenObject {
         // SAFETY: We ensured `ptr` is valid during construction.
         let name_ptr = unsafe { libbpf_sys::bpf_object__name(self.ptr.as_ptr()) };
         // SAFETY: `libbpf_get_error` is always safe to call.
-        let err = unsafe { libbpf_sys::libbpf_get_error(name_ptr as *const _) };
+        let err = unsafe { libbpf_sys::libbpf_get_error(name_ptr.cast()) };
         if err != 0 {
             return None
         }
@@ -296,6 +332,11 @@ impl OpenObject {
     }
 }
 
+// SAFETY: `bpf_object` is freely transferable between threads.
+unsafe impl Send for OpenObject {}
+// SAFETY: `bpf_object` has no interior mutability.
+unsafe impl Sync for OpenObject {}
+
 impl AsRawLibbpf for OpenObject {
     type LibbpfType = libbpf_sys::bpf_object;
 
@@ -313,6 +354,7 @@ impl Drop for OpenObject {
         }
     }
 }
+
 
 /// Represents a loaded BPF object file.
 ///
@@ -347,7 +389,7 @@ impl Object {
         // SAFETY: We ensured `ptr` is valid during construction.
         let name_ptr = unsafe { libbpf_sys::bpf_object__name(self.ptr.as_ptr()) };
         // SAFETY: `libbpf_get_error` is always safe to call.
-        let err = unsafe { libbpf_sys::libbpf_get_error(name_ptr as *const _) };
+        let err = unsafe { libbpf_sys::libbpf_get_error(name_ptr.cast()) };
         if err != 0 {
             return None
         }
@@ -386,6 +428,11 @@ impl Object {
             .map(|mut ptr| unsafe { ProgramMut::new_mut(ptr.as_mut()) })
     }
 }
+
+// SAFETY: `bpf_object` is freely transferable between threads.
+unsafe impl Send for Object {}
+// SAFETY: `bpf_object` has no interior mutability.
+unsafe impl Sync for Object {}
 
 impl AsRawLibbpf for Object {
     type LibbpfType = libbpf_sys::bpf_object;

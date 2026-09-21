@@ -1,3 +1,99 @@
+0.27.0
+------
+- Added `KprobeMultiLinkInfo` & `UprobeMultiLinkInfo` fields that required a
+  second info call.
+- Added `key_size`, `value_size` and more getters to `OpenMap{,Mut}`
+- Added specific `IterLinkInfo` fields for `LinkTypeInfo::Iter`.
+- Added `ErrorKind::TooBig` variant, surfaced when the underlying
+  operation fails with `E2BIG` (e.g., a map reaching `max_entries`).
+- Added `MapHandle::from_pinned_path_with_file_flags` for opening maps 
+  with custom file flags.
+- Changed name members of `query` info types to be `OsString` instead of
+  `CString`
+- Made various `query::*Info` types non-exhaustive
+
+
+0.26.2
+------
+- Added `ProgramMut::assoc_struct_ops` for associating non-struct_ops programs
+  with struct_ops maps
+- Added `IterOpts::None` variant for `attach_iter_with_opts()`
+- Updated `libbpf-sys` dependency to `1.7.0`
+
+
+0.26.1
+------
+- Added `MapCore::query_fdinfo` for querying map fdinfo
+- Added `ProgramType::Netfilter` variant
+- Adjusted `Program::attach_uprobe_multi_with_opts` to work with empty
+  `func_pattern`
+
+
+0.26.0
+------
+- Added `Link::info` method for retrieving `LinkInfo`
+- Extended `LinkTypeInfo::PerfEvent` variant to contain newly added
+  `PerfEventLinkInfo` object
+- Added `Linker::add_buf` method for adding in-memory ELF files to
+  the set of objects to link
+- Added `Program::attach_iter_with_opts` for attaching to iterators with
+  additional options
+- Added `Program::attach_uprobe_multi` & `Program::attach_uprobe_multi_opts`
+  to enable attachments of multi uprobes at once
+- Added `Program::{stdout,stderr}` for accessing BPF stdout and stderr
+  streams
+- Added `OpenProgram::autoload` getter
+- Added `OpenMap::autocreate` and `Map::autocreate` getters
+- Added `MapCore::lookup_into` for looking up values into preallocated
+  buffers
+- Added `verified_insns` attribute to `query::ProgramInfo` type
+- Made `query::ProgramInfo` non-exhaustive
+- Added `ObjectBuilder::btf_custom_path` setter
+
+
+0.26.0-beta.0
+-------------
+- Added `target_obj_id` and `target_btf_id` fields to `TracingLinkInfo`
+  to expose BTF information directly from kernel queries
+- Removed previously deprecated `Program::get_id_by_fd` method
+- Bumped minimum Rust version to `1.82`
+
+
+0.25.0
+------
+- Added kprobe multi support for attaching programs, with and without
+  providing additional options
+- Added `Program::attach_perf_event_with_opts` for attaching to perf
+  events with additional options
+- Allow to provide additional options when attaching programs to raw
+  tracepoints
+- Allow to provide additional options when attaching programs to kprobes
+- Introduced `TracepointCategory` enum for specifying tracepoint
+  categories
+- Added `max_entries` getter to various map types
+- Added `OpenProgramMut::set_autoattach`
+- Added additional `ProgramAttachType` and `query::LinkTypeInfo` variants
+- Adjusted `UprobeOpts::func_name` to be an `Option`
+- Implemented `Sync` for `Link`
+- Updated `libbpf-sys` dependency to `1.5.0`
+- Added `ProgramInput::repeat` field to run a test multiple times
+- Added `ProgramOutput::duration` field which represent the average
+  duration per repetition
+- Added `RingBuffer::consume_raw_n` method to consume up to N items
+
+
+0.25.0-beta.1
+-------------
+- Adjusted `btf::types::EnumMember` to store value as `i64`
+- Adjusted `btf::types::Enum64Member` to store value as `i128`
+
+
+0.25.0-beta.0
+-------------
+- Added `Map::lookup_batch` and `Map::lookup_and_delete_batch` method
+- Added `Send` & `Sync` impl for `OpenObject` & `Object` types
+
+
 0.24.8
 ------
 - Added `Program::attach_netfilter_with_opts` for attaching to netfilter
