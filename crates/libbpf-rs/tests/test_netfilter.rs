@@ -1,5 +1,4 @@
-#[allow(dead_code)]
-mod common;
+//! Tests for the NetFilter functionality.
 
 use std::net::IpAddr;
 use std::net::Ipv4Addr;
@@ -16,7 +15,6 @@ use libbpf_rs::NFPROTO_IPV6;
 use libbpf_rs::NF_INET_POST_ROUTING;
 use libbpf_rs::NF_INET_PRE_ROUTING;
 
-use crate::common::bump_rlimit_mlock;
 use crate::common::get_map_mut;
 use crate::common::get_prog_mut;
 use crate::common::get_test_object;
@@ -35,8 +33,7 @@ fn test_attach_and_detach(obj: &mut Object, protocol_family: i32, hooknum: i32, 
         .attach_netfilter_with_opts(netfilter_opt)
         .unwrap_or_else(|err| {
             panic!(
-                "Failed to attach netfilter protocol {}, hook: {}: {err}",
-                protocol_family, hook_desc
+                "Failed to attach netfilter protocol {protocol_family}, hook: {hook_desc}: {err}"
             )
         });
 
@@ -54,7 +51,7 @@ fn test_attach_and_detach(obj: &mut Object, protocol_family: i32, hooknum: i32, 
     let result = match hooknum {
         NF_INET_PRE_ROUTING | NF_INET_POST_ROUTING => {
             let action = || {
-                let _ = TcpStream::connect(trigger_addr);
+                let _stream = TcpStream::connect(trigger_addr);
             };
             with_ringbuffer(&map, action)
         }
@@ -67,8 +64,11 @@ fn test_attach_and_detach(obj: &mut Object, protocol_family: i32, hooknum: i32, 
 #[tag(root)]
 #[test]
 fn test_netfilter() {
-    bump_rlimit_mlock();
     let mut obj = get_test_object("netfilter.bpf.o");
+
+    for prog in obj.progs() {
+        assert_eq!(prog.prog_type(), libbpf_rs::ProgramType::Netfilter);
+    }
 
     // We don't test all hooks here, because support for some may be
     // more limited.

@@ -4,7 +4,11 @@
 
 use std::ffi::c_void;
 use std::ffi::CStr;
+use std::ffi::CString;
 use std::ffi::OsStr;
+use std::ffi::OsString;
+use std::fs::remove_file;
+use std::io::Read;
 use std::marker::PhantomData;
 use std::mem;
 use std::mem::size_of;
@@ -21,10 +25,12 @@ use std::path::Path;
 use std::ptr;
 use std::ptr::NonNull;
 use std::slice;
+use std::time::Duration;
 
 use libbpf_sys::bpf_func_id;
 
 use crate::netfilter;
+use crate::streams::Stream;
 use crate::util;
 use crate::util::validate_bpf_ret;
 use crate::util::BpfObjectType;
@@ -32,8 +38,12 @@ use crate::AsRawLibbpf;
 use crate::Error;
 use crate::ErrorExt as _;
 use crate::Link;
+use crate::Map;
 use crate::Mut;
+use crate::RawTracepointOpts;
 use crate::Result;
+use crate::TracepointCategory;
+use crate::TracepointOpts;
 
 /// Options to optionally be provided when attaching to a uprobe.
 #[derive(Clone, Debug, Default)]
@@ -50,9 +60,31 @@ pub struct UprobeOpts {
     /// To specify function entry, `func_name` should be set while `func_offset`
     /// argument to should be 0. To trace an offset within a function, specify
     /// `func_name` and use `func_offset` argument to specify offset within the
-    /// function. Shared library functions must specify the shared library
-    /// binary_path.
-    pub func_name: String,
+    /// function. Shared library functions must specify the shared library path.
+    ///
+    /// If `func_name` is `None`, `func_offset` will be treated as the
+    /// absolute offset of the symbol to attach to, rather than a
+    /// relative one.
+    pub func_name: Option<String>,
+    #[doc(hidden)]
+    pub _non_exhaustive: (),
+}
+
+/// Options to optionally be provided when attaching to a uprobe.
+#[derive(Clone, Debug, Default)]
+pub struct UprobeMultiOpts {
+    /// Optional, array of function symbols to attach to
+    pub syms: Vec<String>,
+    /// Optional, array of function addresses to attach to
+    pub offsets: Vec<usize>,
+    /// Optional, array of associated ref counter offsets
+    pub ref_ctr_offsets: Vec<usize>,
+    /// Optional, array of associated BPF cookies
+    pub cookies: Vec<u64>,
+    /// Create return uprobes
+    pub retprobe: bool,
+    /// Create session uprobes
+    pub session: bool,
     #[doc(hidden)]
     pub _non_exhaustive: (),
 }
@@ -73,7 +105,7 @@ impl From<UsdtOpts> for libbpf_sys::bpf_usdt_opts {
             _non_exhaustive,
         } = opts;
         #[allow(clippy::needless_update)]
-        libbpf_sys::bpf_usdt_opts {
+        Self {
             sz: size_of::<Self>() as _,
             usdt_cookie: cookie,
             // bpf_usdt_opts might have padding fields on some platform
@@ -82,30 +114,147 @@ impl From<UsdtOpts> for libbpf_sys::bpf_usdt_opts {
     }
 }
 
-/// Options to optionally be provided when attaching to a tracepoint.
+/// Options to optionally be provided when attaching to a kprobe.
 #[derive(Clone, Debug, Default)]
-pub struct TracepointOpts {
+pub struct KprobeOpts {
     /// Custom user-provided value accessible through `bpf_get_attach_cookie`.
     pub cookie: u64,
     #[doc(hidden)]
     pub _non_exhaustive: (),
 }
 
-impl From<TracepointOpts> for libbpf_sys::bpf_tracepoint_opts {
-    fn from(opts: TracepointOpts) -> Self {
-        let TracepointOpts {
+impl From<KprobeOpts> for libbpf_sys::bpf_kprobe_opts {
+    fn from(opts: KprobeOpts) -> Self {
+        let KprobeOpts {
             cookie,
             _non_exhaustive,
         } = opts;
 
         #[allow(clippy::needless_update)]
-        libbpf_sys::bpf_tracepoint_opts {
+        Self {
             sz: size_of::<Self>() as _,
             bpf_cookie: cookie,
-            // bpf_tracepoint_opts might have padding fields on some platform
+            // bpf_kprobe_opts might have padding fields on some platform
             ..Default::default()
         }
     }
+}
+
+/// Options to optionally be provided when attaching to multiple kprobes.
+#[derive(Clone, Debug, Default)]
+pub struct KprobeMultiOpts {
+    /// List of symbol names to attach to.
+    pub symbols: Vec<String>,
+    /// Array of custom user-provided values accessible through `bpf_get_attach_cookie`.
+    pub cookies: Vec<u64>,
+    /// kprobes are return probes, invoked at function return time.
+    pub retprobe: bool,
+    #[doc(hidden)]
+    pub _non_exhaustive: (),
+}
+
+/// Options to optionally be provided when attaching to a perf event.
+#[derive(Clone, Debug, Default)]
+pub struct PerfEventOpts {
+    /// Custom user-provided value accessible through `bpf_get_attach_cookie`.
+    pub cookie: u64,
+    /// Force use of the old style ioctl attachment instead of the newer BPF link method.
+    pub force_ioctl_attach: bool,
+    #[doc(hidden)]
+    pub _non_exhaustive: (),
+}
+
+impl From<PerfEventOpts> for libbpf_sys::bpf_perf_event_opts {
+    fn from(opts: PerfEventOpts) -> Self {
+        let PerfEventOpts {
+            cookie,
+            force_ioctl_attach,
+            _non_exhaustive,
+        } = opts;
+
+        #[allow(clippy::needless_update)]
+        Self {
+            sz: size_of::<Self>() as _,
+            bpf_cookie: cookie,
+            force_ioctl_attach,
+            // bpf_perf_event_opts might have padding fields on some platform
+            ..Default::default()
+        }
+    }
+}
+
+
+/// Options used when iterating over a map.
+#[derive(Clone, Debug)]
+pub struct MapIterOpts<'fd> {
+    /// The file descriptor of the map.
+    pub fd: BorrowedFd<'fd>,
+    #[doc(hidden)]
+    pub _non_exhaustive: (),
+}
+
+impl<'fd> MapIterOpts<'fd> {
+    /// Create a [`MapIterOpts`] object using the given file descriptor.
+    pub fn from_fd(fd: BorrowedFd<'fd>) -> Self {
+        Self {
+            fd,
+            _non_exhaustive: (),
+        }
+    }
+}
+
+
+/// Iteration order for cgroups.
+#[non_exhaustive]
+#[repr(u32)]
+#[derive(Clone, Debug, Default)]
+pub enum CgroupIterOrder {
+    /// Use the default iteration order.
+    #[default]
+    Default = libbpf_sys::BPF_CGROUP_ITER_ORDER_UNSPEC,
+    /// Process only a single object.
+    SelfOnly = libbpf_sys::BPF_CGROUP_ITER_SELF_ONLY,
+    /// Walk descendants in pre-order.
+    DescendantsPre = libbpf_sys::BPF_CGROUP_ITER_DESCENDANTS_PRE,
+    /// Walk descendants in post-order.
+    DescendantsPost = libbpf_sys::BPF_CGROUP_ITER_DESCENDANTS_POST,
+    /// Walk ancestors upward.
+    AncestorsUp = libbpf_sys::BPF_CGROUP_ITER_ANCESTORS_UP,
+}
+
+/// Options used when iterating over a cgroup.
+#[derive(Clone, Debug)]
+pub struct CgroupIterOpts<'fd> {
+    /// The file descriptor of the cgroup.
+    pub fd: BorrowedFd<'fd>,
+    /// The iteration order to use on the cgroup.
+    pub order: CgroupIterOrder,
+    #[doc(hidden)]
+    pub _non_exhaustive: (),
+}
+
+impl<'fd> CgroupIterOpts<'fd> {
+    /// Create a [`CgroupIterOpts`] object using the given file descriptor.
+    pub fn from_fd(fd: BorrowedFd<'fd>) -> Self {
+        Self {
+            fd,
+            order: CgroupIterOrder::default(),
+            _non_exhaustive: (),
+        }
+    }
+}
+
+
+/// Options to optionally be provided when attaching to an iterator.
+#[non_exhaustive]
+#[derive(Clone, Debug)]
+pub enum IterOpts<'fd> {
+    /// No options used.
+    None,
+    /// Iterate over a map.
+    Map(MapIterOpts<'fd>),
+    /// Iterate over a group.
+    Cgroup(CgroupIterOpts<'fd>),
 }
 
 
@@ -113,6 +262,7 @@ impl From<TracepointOpts> for libbpf_sys::bpf_tracepoint_opts {
 pub type OpenProgram<'obj> = OpenProgramImpl<'obj>;
 /// A mutable parsed but not yet loaded BPF program.
 pub type OpenProgramMut<'obj> = OpenProgramImpl<'obj, Mut>;
+
 
 /// Represents a parsed but not yet loaded BPF program.
 ///
@@ -141,7 +291,7 @@ impl<'obj> OpenProgram<'obj> {
     }
 
     /// Retrieve the name of this `OpenProgram`.
-    pub fn name(&self) -> &OsStr {
+    pub fn name(&self) -> &'obj OsStr {
         let name_ptr = unsafe { libbpf_sys::bpf_program__name(self.ptr.as_ptr()) };
         let name_c_str = unsafe { CStr::from_ptr(name_ptr) };
         // SAFETY: `bpf_program__name` always returns a non-NULL pointer.
@@ -149,7 +299,7 @@ impl<'obj> OpenProgram<'obj> {
     }
 
     /// Retrieve the name of the section this `OpenProgram` belongs to.
-    pub fn section(&self) -> &OsStr {
+    pub fn section(&self) -> &'obj OsStr {
         // SAFETY: The program is always valid.
         let p = unsafe { libbpf_sys::bpf_program__section_name(self.ptr.as_ptr()) };
         // SAFETY: `bpf_program__section_name` will always return a non-NULL
@@ -177,10 +327,15 @@ impl<'obj> OpenProgram<'obj> {
     /// instructions will be CO-RE-relocated, BPF subprograms instructions will be appended, ldimm64
     /// instructions will have FDs embedded, etc. So instructions returned before load and after it
     /// might be quite different.
-    pub fn insns(&self) -> &[libbpf_sys::bpf_insn] {
+    pub fn insns(&self) -> &'obj [libbpf_sys::bpf_insn] {
         let count = self.insn_cnt();
         let ptr = unsafe { libbpf_sys::bpf_program__insns(self.ptr.as_ptr()) };
         unsafe { slice::from_raw_parts(ptr, count) }
+    }
+
+    /// Return `true` if the bpf program is set to autoload, `false` otherwise.
+    pub fn autoload(&self) -> bool {
+        unsafe { libbpf_sys::bpf_program__autoload(self.ptr.as_ptr()) }
     }
 }
 
@@ -234,30 +389,26 @@ impl<'obj> OpenProgramMut<'obj> {
         debug_assert!(util::parse_ret(rc).is_ok(), "{rc}");
     }
 
-    #[allow(missing_docs)]
+    /// Set whether a bpf program should be automatically attached by default
+    /// when the bpf object is loaded.
+    pub fn set_autoattach(&mut self, autoattach: bool) {
+        unsafe { libbpf_sys::bpf_program__set_autoattach(self.ptr.as_ptr(), autoattach) };
+    }
+
+    #[expect(missing_docs)]
     pub fn set_attach_target(
         &mut self,
         attach_prog_fd: i32,
         attach_func_name: Option<String>,
     ) -> Result<()> {
-        let ret = if let Some(name) = attach_func_name {
-            // NB: we must hold onto a CString otherwise our pointer dangles
-            let name_c = util::str_to_cstring(&name)?;
-            unsafe {
-                libbpf_sys::bpf_program__set_attach_target(
-                    self.ptr.as_ptr(),
-                    attach_prog_fd,
-                    name_c.as_ptr(),
-                )
-            }
+        let name_c = if let Some(name) = attach_func_name {
+            Some(util::str_to_cstring(&name)?)
         } else {
-            unsafe {
-                libbpf_sys::bpf_program__set_attach_target(
-                    self.ptr.as_ptr(),
-                    attach_prog_fd,
-                    ptr::null(),
-                )
-            }
+            None
+        };
+        let name_ptr = name_c.as_ref().map_or(ptr::null(), |name| name.as_ptr());
+        let ret = unsafe {
+            libbpf_sys::bpf_program__set_attach_target(self.ptr.as_ptr(), attach_prog_fd, name_ptr)
         };
         util::parse_ret(ret)
     }
@@ -291,9 +442,9 @@ impl<T> AsRawLibbpf for OpenProgramImpl<'_, T> {
 /// Type of a [`Program`]. Maps to `enum bpf_prog_type` in kernel uapi.
 #[non_exhaustive]
 #[repr(u32)]
-#[derive(Copy, Clone, Debug)]
+#[derive(Copy, Clone, PartialEq, Eq, Debug)]
 // TODO: Document variants.
-#[allow(missing_docs)]
+#[expect(missing_docs)]
 pub enum ProgramType {
     Unspec = 0,
     SocketFilter = libbpf_sys::BPF_PROG_TYPE_SOCKET_FILTER,
@@ -327,6 +478,7 @@ pub enum ProgramType {
     Lsm = libbpf_sys::BPF_PROG_TYPE_LSM,
     SkLookup = libbpf_sys::BPF_PROG_TYPE_SK_LOOKUP,
     Syscall = libbpf_sys::BPF_PROG_TYPE_SYSCALL,
+    Netfilter = libbpf_sys::BPF_PROG_TYPE_NETFILTER,
     /// See [`MapType::Unknown`][crate::MapType::Unknown]
     Unknown = u32::MAX,
 }
@@ -346,7 +498,7 @@ impl ProgramType {
     }
 
     /// Detects if host kernel supports the use of a given BPF helper from this BPF program type.
-    /// * `helper_id` - BPF helper ID (enum bpf_func_id) to check support for
+    /// * `helper_id` - BPF helper ID (enum `bpf_func_id`) to check support for
     ///
     /// Make sure the process has required set of CAP_* permissions (or runs as
     /// root) when performing feature checking.
@@ -398,6 +550,7 @@ impl From<u32> for ProgramType {
             x if x == Lsm as u32 => Lsm,
             x if x == SkLookup as u32 => SkLookup,
             x if x == Syscall as u32 => Syscall,
+            x if x == Netfilter as u32 => Netfilter,
             _ => Unknown,
         }
     }
@@ -408,7 +561,7 @@ impl From<u32> for ProgramType {
 #[repr(u32)]
 #[derive(Clone, Debug)]
 // TODO: Document variants.
-#[allow(missing_docs)]
+#[expect(missing_docs)]
 pub enum ProgramAttachType {
     CgroupInetIngress = libbpf_sys::BPF_CGROUP_INET_INGRESS,
     CgroupInetEgress = libbpf_sys::BPF_CGROUP_INET_EGRESS,
@@ -452,6 +605,21 @@ pub enum ProgramAttachType {
     SkReuseportSelect = libbpf_sys::BPF_SK_REUSEPORT_SELECT,
     SkReuseportSelectOrMigrate = libbpf_sys::BPF_SK_REUSEPORT_SELECT_OR_MIGRATE,
     PerfEvent = libbpf_sys::BPF_PERF_EVENT,
+    KprobeMulti = libbpf_sys::BPF_TRACE_KPROBE_MULTI,
+    NetkitPeer = libbpf_sys::BPF_NETKIT_PEER,
+    TraceUprobeMulti = libbpf_sys::BPF_TRACE_UPROBE_MULTI,
+    LsmCgroup = libbpf_sys::BPF_LSM_CGROUP,
+    TraceKprobeSession = libbpf_sys::BPF_TRACE_KPROBE_SESSION,
+    TcxIngress = libbpf_sys::BPF_TCX_INGRESS,
+    TcxEgress = libbpf_sys::BPF_TCX_EGRESS,
+    Netfilter = libbpf_sys::BPF_NETFILTER,
+    CgroupUnixGetsockname = libbpf_sys::BPF_CGROUP_UNIX_GETSOCKNAME,
+    CgroupUnixSendmsg = libbpf_sys::BPF_CGROUP_UNIX_SENDMSG,
+    NetkitPrimary = libbpf_sys::BPF_NETKIT_PRIMARY,
+    CgroupUnixRecvmsg = libbpf_sys::BPF_CGROUP_UNIX_RECVMSG,
+    CgroupUnixConnect = libbpf_sys::BPF_CGROUP_UNIX_CONNECT,
+    CgroupUnixGetpeername = libbpf_sys::BPF_CGROUP_UNIX_GETPEERNAME,
+    StructOps = libbpf_sys::BPF_STRUCT_OPS,
     /// See [`MapType::Unknown`][crate::MapType::Unknown]
     Unknown = u32::MAX,
 }
@@ -503,6 +671,21 @@ impl From<u32> for ProgramAttachType {
             x if x == SkReuseportSelect as u32 => SkReuseportSelect,
             x if x == SkReuseportSelectOrMigrate as u32 => SkReuseportSelectOrMigrate,
             x if x == PerfEvent as u32 => PerfEvent,
+            x if x == KprobeMulti as u32 => KprobeMulti,
+            x if x == NetkitPeer as u32 => NetkitPeer,
+            x if x == TraceUprobeMulti as u32 => TraceUprobeMulti,
+            x if x == LsmCgroup as u32 => LsmCgroup,
+            x if x == TraceKprobeSession as u32 => TraceKprobeSession,
+            x if x == TcxIngress as u32 => TcxIngress,
+            x if x == TcxEgress as u32 => TcxEgress,
+            x if x == Netfilter as u32 => Netfilter,
+            x if x == CgroupUnixGetsockname as u32 => CgroupUnixGetsockname,
+            x if x == CgroupUnixSendmsg as u32 => CgroupUnixSendmsg,
+            x if x == NetkitPrimary as u32 => NetkitPrimary,
+            x if x == CgroupUnixRecvmsg as u32 => CgroupUnixRecvmsg,
+            x if x == CgroupUnixConnect as u32 => CgroupUnixConnect,
+            x if x == CgroupUnixGetpeername as u32 => CgroupUnixGetpeername,
+            x if x == StructOps as u32 => StructOps,
             _ => Unknown,
         }
     }
@@ -528,6 +711,9 @@ pub struct Input<'dat> {
     pub cpu: u32,
     /// The 'flags' value passed to the kernel.
     pub flags: u32,
+    /// How many times to repeat the test run. A value of 0 will result in 1 run.
+    // 0 being forced to 1 by the kernel: https://elixir.bootlin.com/linux/v6.2.11/source/net/bpf/test_run.c#L352
+    pub repeat: u32,
     /// The struct is non-exhaustive and open to extension.
     #[doc(hidden)]
     pub _non_exhaustive: (),
@@ -545,6 +731,8 @@ pub struct Output<'dat> {
     pub context: Option<&'dat mut [u8]>,
     /// Output data filled by the program.
     pub data: Option<&'dat mut [u8]>,
+    /// Average duration per repetition.
+    pub duration: Duration,
     /// The struct is non-exhaustive and open to extension.
     #[doc(hidden)]
     pub _non_exhaustive: (),
@@ -554,7 +742,6 @@ pub struct Output<'dat> {
 pub type Program<'obj> = ProgramImpl<'obj>;
 /// A mutable loaded BPF program.
 pub type ProgramMut<'obj> = ProgramImpl<'obj, Mut>;
-
 
 /// Represents a loaded [`Program`].
 ///
@@ -582,7 +769,7 @@ impl<'obj> Program<'obj> {
     }
 
     /// Retrieve the name of this `Program`.
-    pub fn name(&self) -> &OsStr {
+    pub fn name(&self) -> &'obj OsStr {
         let name_ptr = unsafe { libbpf_sys::bpf_program__name(self.ptr.as_ptr()) };
         let name_c_str = unsafe { CStr::from_ptr(name_ptr) };
         // SAFETY: `bpf_program__name` always returns a non-NULL pointer.
@@ -590,7 +777,7 @@ impl<'obj> Program<'obj> {
     }
 
     /// Retrieve the name of the section this `Program` belongs to.
-    pub fn section(&self) -> &OsStr {
+    pub fn section(&self) -> &'obj OsStr {
         // SAFETY: The program is always valid.
         let p = unsafe { libbpf_sys::bpf_program__section_name(self.ptr.as_ptr()) };
         // SAFETY: `bpf_program__section_name` will always return a non-NULL
@@ -606,7 +793,7 @@ impl<'obj> Program<'obj> {
     }
 
     #[deprecated = "renamed to Program::fd_from_id"]
-    #[allow(missing_docs)]
+    #[expect(missing_docs)]
     #[inline]
     pub fn get_fd_by_id(id: u32) -> Result<OwnedFd> {
         Self::fd_from_id(id)
@@ -622,14 +809,6 @@ impl<'obj> Program<'obj> {
         Ok(unsafe { OwnedFd::from_raw_fd(fd) })
     }
 
-    // TODO: Remove once 0.25 is cut.
-    #[deprecated = "renamed to Program::id_from_fd"]
-    #[allow(missing_docs)]
-    #[inline]
-    pub fn get_id_by_fd(fd: BorrowedFd<'_>) -> Result<u32> {
-        Self::id_from_fd(fd)
-    }
-
     /// Returns program ID given a file descriptor.
     pub fn id_from_fd(fd: BorrowedFd<'_>) -> Result<u32> {
         let mut prog_info = libbpf_sys::bpf_prog_info::default();
@@ -638,7 +817,7 @@ impl<'obj> Program<'obj> {
         let ret = unsafe {
             libbpf_sys::bpf_obj_get_info_by_fd(
                 fd.as_raw_fd(),
-                prog_info_ptr as *mut c_void,
+                prog_info_ptr.cast::<c_void>(),
                 &mut len,
             )
         };
@@ -669,8 +848,7 @@ impl<'obj> Program<'obj> {
         match fd_type {
             BpfObjectType::Program => Ok(fd),
             other => Err(Error::with_invalid_data(format!(
-                "retrieved BPF fd is not a program fd: {:#?}",
-                other
+                "retrieved BPF fd is not a program fd: {other:#?}"
             ))),
         }
     }
@@ -707,7 +885,7 @@ impl<'obj> Program<'obj> {
     /// Gives read-only access to BPF program's underlying BPF instructions.
     ///
     /// Please see note in [`OpenProgram::insns`].
-    pub fn insns(&self) -> &[libbpf_sys::bpf_insn] {
+    pub fn insns(&self) -> &'obj [libbpf_sys::bpf_insn] {
         let count = self.insn_cnt();
         let ptr = unsafe { libbpf_sys::bpf_program__insns(self.ptr.as_ptr()) };
         unsafe { slice::from_raw_parts(ptr, count) }
@@ -771,6 +949,19 @@ impl<'obj> ProgramMut<'obj> {
         Ok(link)
     }
 
+    /// Attach this program to a [perf event](https://linux.die.net/man/2/perf_event_open),
+    /// providing additional options.
+    pub fn attach_perf_event_with_opts(&self, pfd: i32, opts: PerfEventOpts) -> Result<Link> {
+        let libbpf_opts = libbpf_sys::bpf_perf_event_opts::from(opts);
+        let ptr = unsafe {
+            libbpf_sys::bpf_program__attach_perf_event_opts(self.ptr.as_ptr(), pfd, &libbpf_opts)
+        };
+        let ptr = validate_bpf_ret(ptr).context("failed to attach perf event")?;
+        // SAFETY: the pointer came from libbpf and has been checked for errors.
+        let link = unsafe { Link::new(ptr) };
+        Ok(link)
+    }
+
     /// Attach this program to a [userspace
     /// probe](https://www.kernel.org/doc/html/latest/trace/uprobetracer.html).
     pub fn attach_uprobe<T: AsRef<Path>>(
@@ -817,13 +1008,20 @@ impl<'obj> ProgramMut<'obj> {
             _non_exhaustive,
         } = opts;
 
-        let func_name = util::str_to_cstring(&func_name)?;
+        let func_name: Option<CString> = if let Some(func_name) = func_name {
+            Some(util::str_to_cstring(&func_name)?)
+        } else {
+            None
+        };
+        let ptr = func_name
+            .as_ref()
+            .map_or(ptr::null(), |func_name| func_name.as_ptr());
         let opts = libbpf_sys::bpf_uprobe_opts {
             sz: size_of::<libbpf_sys::bpf_uprobe_opts>() as _,
             ref_ctr_offset: ref_ctr_offset as libbpf_sys::size_t,
             bpf_cookie: cookie,
             retprobe,
-            func_name: func_name.as_ptr(),
+            func_name: ptr,
             ..Default::default()
         };
 
@@ -842,6 +1040,124 @@ impl<'obj> ProgramMut<'obj> {
         Ok(link)
     }
 
+    /// Attach this program to multiple
+    /// [uprobes](https://www.kernel.org/doc/html/latest/trace/uprobetracer.html) at once.
+    pub fn attach_uprobe_multi(
+        &self,
+        pid: i32,
+        binary_path: impl AsRef<Path>,
+        func_pattern: impl AsRef<str>,
+        retprobe: bool,
+        session: bool,
+    ) -> Result<Link> {
+        let opts = UprobeMultiOpts {
+            syms: Vec::new(),
+            offsets: Vec::new(),
+            ref_ctr_offsets: Vec::new(),
+            cookies: Vec::new(),
+            retprobe,
+            session,
+            _non_exhaustive: (),
+        };
+
+        self.attach_uprobe_multi_with_opts(pid, binary_path, func_pattern, opts)
+    }
+
+    /// Attach this program to multiple
+    /// [uprobes](https://www.kernel.org/doc/html/latest/trace/uprobetracer.html)
+    /// at once, providing additional options.
+    pub fn attach_uprobe_multi_with_opts(
+        &self,
+        pid: i32,
+        binary_path: impl AsRef<Path>,
+        func_pattern: impl AsRef<str>,
+        opts: UprobeMultiOpts,
+    ) -> Result<Link> {
+        let path = util::path_to_cstring(binary_path)?;
+        let path_ptr = path.as_ptr();
+
+        let UprobeMultiOpts {
+            syms,
+            offsets,
+            ref_ctr_offsets,
+            cookies,
+            retprobe,
+            session,
+            _non_exhaustive,
+        } = opts;
+
+        let pattern = util::str_to_cstring(func_pattern.as_ref())?;
+        // TODO: We should push optionality into method signature.
+        let pattern_ptr = if pattern.is_empty() {
+            ptr::null()
+        } else {
+            pattern.as_ptr()
+        };
+
+        let syms_cstrings = syms
+            .iter()
+            .map(|s| util::str_to_cstring(s))
+            .collect::<Result<Vec<_>>>()?;
+        let syms_ptrs = syms_cstrings
+            .iter()
+            .map(|cs| cs.as_ptr())
+            .collect::<Vec<_>>();
+        let syms_ptr = if !syms_ptrs.is_empty() {
+            syms_ptrs.as_ptr()
+        } else {
+            ptr::null()
+        };
+        let offsets_ptr = if !offsets.is_empty() {
+            offsets.as_ptr()
+        } else {
+            ptr::null()
+        };
+        let ref_ctr_offsets_ptr = if !ref_ctr_offsets.is_empty() {
+            ref_ctr_offsets.as_ptr()
+        } else {
+            ptr::null()
+        };
+        let cookies_ptr = if !cookies.is_empty() {
+            cookies.as_ptr()
+        } else {
+            ptr::null()
+        };
+        let cnt = if !syms.is_empty() {
+            syms.len()
+        } else if !offsets.is_empty() {
+            offsets.len()
+        } else {
+            0
+        };
+
+        let c_opts = libbpf_sys::bpf_uprobe_multi_opts {
+            sz: size_of::<libbpf_sys::bpf_uprobe_multi_opts>() as _,
+            syms: syms_ptr.cast_mut(),
+            offsets: offsets_ptr.cast(),
+            ref_ctr_offsets: ref_ctr_offsets_ptr.cast(),
+            cookies: cookies_ptr.cast(),
+            cnt: cnt as libbpf_sys::size_t,
+            retprobe,
+            session,
+            ..Default::default()
+        };
+
+        let ptr = unsafe {
+            libbpf_sys::bpf_program__attach_uprobe_multi(
+                self.ptr.as_ptr(),
+                pid,
+                path_ptr,
+                pattern_ptr,
+                &c_opts as *const _,
+            )
+        };
+
+        let ptr = validate_bpf_ret(ptr).context("failed to attach uprobe multi")?;
+        // SAFETY: the pointer came from libbpf and has been checked for errors.
+        let link = unsafe { Link::new(ptr) };
+        Ok(link)
+    }
+
     /// Attach this program to a [kernel
     /// probe](https://www.kernel.org/doc/html/latest/trace/kprobetrace.html).
     pub fn attach_kprobe<T: AsRef<str>>(&self, retprobe: bool, func_name: T) -> Result<Link> {
@@ -854,6 +1170,126 @@ impl<'obj> ProgramMut<'obj> {
         // SAFETY: the pointer came from libbpf and has been checked for errors.
         let link = unsafe { Link::new(ptr) };
         Ok(link)
+    }
+
+    /// Attach this program to a [kernel
+    /// probe](https://www.kernel.org/doc/html/latest/trace/kprobetrace.html),
+    /// providing additional options.
+    pub fn attach_kprobe_with_opts<T: AsRef<str>>(
+        &self,
+        retprobe: bool,
+        func_name: T,
+        opts: KprobeOpts,
+    ) -> Result<Link> {
+        let func_name = util::str_to_cstring(func_name.as_ref())?;
+        let func_name_ptr = func_name.as_ptr();
+
+        let mut opts = libbpf_sys::bpf_kprobe_opts::from(opts);
+        opts.retprobe = retprobe;
+
+        let ptr = unsafe {
+            libbpf_sys::bpf_program__attach_kprobe_opts(
+                self.ptr.as_ptr(),
+                func_name_ptr,
+                &opts as *const _,
+            )
+        };
+        let ptr = validate_bpf_ret(ptr).context("failed to attach kprobe")?;
+        // SAFETY: the pointer came from libbpf and has been checked for errors.
+        let link = unsafe { Link::new(ptr) };
+        Ok(link)
+    }
+
+    fn check_kprobe_multi_args<T: AsRef<str>>(symbols: &[T], cookies: &[u64]) -> Result<usize> {
+        if symbols.is_empty() {
+            return Err(Error::with_invalid_input("Symbols list cannot be empty"));
+        }
+
+        if !cookies.is_empty() && symbols.len() != cookies.len() {
+            return Err(Error::with_invalid_input(
+                "Symbols and cookies list must have the same size",
+            ));
+        }
+
+        Ok(symbols.len())
+    }
+
+    fn attach_kprobe_multi_impl(&self, opts: libbpf_sys::bpf_kprobe_multi_opts) -> Result<Link> {
+        let ptr = unsafe {
+            libbpf_sys::bpf_program__attach_kprobe_multi_opts(
+                self.ptr.as_ptr(),
+                ptr::null(),
+                &opts as *const _,
+            )
+        };
+        let ptr = validate_bpf_ret(ptr).context("failed to attach kprobe multi")?;
+        // SAFETY: the pointer came from libbpf and has been checked for errors.
+        let link = unsafe { Link::new(ptr) };
+        Ok(link)
+    }
+
+    /// Attach this program to multiple [kernel
+    /// probes](https://www.kernel.org/doc/html/latest/trace/kprobetrace.html)
+    /// at once.
+    pub fn attach_kprobe_multi<T: AsRef<str>>(
+        &self,
+        retprobe: bool,
+        symbols: Vec<T>,
+    ) -> Result<Link> {
+        let cnt = Self::check_kprobe_multi_args(&symbols, &[])?;
+
+        let csyms = symbols
+            .iter()
+            .map(|s| util::str_to_cstring(s.as_ref()))
+            .collect::<Result<Vec<_>>>()?;
+        let mut syms = csyms.iter().map(|s| s.as_ptr()).collect::<Vec<_>>();
+
+        let opts = libbpf_sys::bpf_kprobe_multi_opts {
+            sz: size_of::<libbpf_sys::bpf_kprobe_multi_opts>() as _,
+            syms: syms.as_mut_ptr().cast(),
+            cnt: cnt as libbpf_sys::size_t,
+            retprobe,
+            // bpf_kprobe_multi_opts might have padding fields on some platform
+            ..Default::default()
+        };
+
+        self.attach_kprobe_multi_impl(opts)
+    }
+
+    /// Attach this program to multiple [kernel
+    /// probes](https://www.kernel.org/doc/html/latest/trace/kprobetrace.html)
+    /// at once, providing additional options.
+    pub fn attach_kprobe_multi_with_opts(&self, opts: KprobeMultiOpts) -> Result<Link> {
+        let KprobeMultiOpts {
+            symbols,
+            mut cookies,
+            retprobe,
+            _non_exhaustive,
+        } = opts;
+
+        let cnt = Self::check_kprobe_multi_args(&symbols, &cookies)?;
+
+        let csyms = symbols
+            .iter()
+            .map(|s| util::str_to_cstring(s.as_ref()))
+            .collect::<Result<Vec<_>>>()?;
+        let mut syms = csyms.iter().map(|s| s.as_ptr()).collect::<Vec<_>>();
+
+        let opts = libbpf_sys::bpf_kprobe_multi_opts {
+            sz: size_of::<libbpf_sys::bpf_kprobe_multi_opts>() as _,
+            syms: syms.as_mut_ptr().cast(),
+            cookies: if !cookies.is_empty() {
+                cookies.as_mut_ptr().cast()
+            } else {
+                ptr::null()
+            },
+            cnt: cnt as libbpf_sys::size_t,
+            retprobe,
+            // bpf_kprobe_multi_opts might have padding fields on some platform
+            ..Default::default()
+        };
+
+        self.attach_kprobe_multi_impl(opts)
     }
 
     /// Attach this program to the specified syscall
@@ -886,24 +1322,15 @@ impl<'obj> ProgramMut<'obj> {
         let tp_name = util::str_to_cstring(tp_name)?;
         let tp_name_ptr = tp_name.as_ptr();
 
-        let ptr = if let Some(tp_opts) = tp_opts {
-            let tp_opts = libbpf_sys::bpf_tracepoint_opts::from(tp_opts);
-            unsafe {
-                libbpf_sys::bpf_program__attach_tracepoint_opts(
-                    self.ptr.as_ptr(),
-                    tp_category_ptr,
-                    tp_name_ptr,
-                    &tp_opts as *const _,
-                )
-            }
-        } else {
-            unsafe {
-                libbpf_sys::bpf_program__attach_tracepoint(
-                    self.ptr.as_ptr(),
-                    tp_category_ptr,
-                    tp_name_ptr,
-                )
-            }
+        let tp_opts = tp_opts.map(libbpf_sys::bpf_tracepoint_opts::from);
+        let opts = tp_opts.as_ref().map_or(ptr::null(), |opts| opts);
+        let ptr = unsafe {
+            libbpf_sys::bpf_program__attach_tracepoint_opts(
+                self.ptr.as_ptr(),
+                tp_category_ptr,
+                tp_name_ptr,
+                opts.cast(),
+            )
         };
 
         let ptr = validate_bpf_ret(ptr).context("failed to attach tracepoint")?;
@@ -916,7 +1343,7 @@ impl<'obj> ProgramMut<'obj> {
     /// tracepoint](https://www.kernel.org/doc/html/latest/trace/tracepoints.html).
     pub fn attach_tracepoint(
         &self,
-        tp_category: impl AsRef<str>,
+        tp_category: TracepointCategory,
         tp_name: impl AsRef<str>,
     ) -> Result<Link> {
         self.attach_tracepoint_impl(tp_category.as_ref(), tp_name.as_ref(), None)
@@ -927,7 +1354,7 @@ impl<'obj> ProgramMut<'obj> {
     /// providing additional options.
     pub fn attach_tracepoint_with_opts(
         &self,
-        tp_category: impl AsRef<str>,
+        tp_category: TracepointCategory,
         tp_name: impl AsRef<str>,
         tp_opts: TracepointOpts,
     ) -> Result<Link> {
@@ -941,6 +1368,30 @@ impl<'obj> ProgramMut<'obj> {
         let tp_name_ptr = tp_name.as_ptr();
         let ptr = unsafe {
             libbpf_sys::bpf_program__attach_raw_tracepoint(self.ptr.as_ptr(), tp_name_ptr)
+        };
+        let ptr = validate_bpf_ret(ptr).context("failed to attach raw tracepoint")?;
+        // SAFETY: the pointer came from libbpf and has been checked for errors.
+        let link = unsafe { Link::new(ptr) };
+        Ok(link)
+    }
+
+    /// Attach this program to a [raw kernel
+    /// tracepoint](https://lwn.net/Articles/748352/), providing additional
+    /// options.
+    pub fn attach_raw_tracepoint_with_opts<T: AsRef<str>>(
+        &self,
+        tp_name: T,
+        tp_opts: RawTracepointOpts,
+    ) -> Result<Link> {
+        let tp_name = util::str_to_cstring(tp_name.as_ref())?;
+        let tp_name_ptr = tp_name.as_ptr();
+        let mut tp_opts = libbpf_sys::bpf_raw_tracepoint_opts::from(tp_opts);
+        let ptr = unsafe {
+            libbpf_sys::bpf_program__attach_raw_tracepoint_opts(
+                self.ptr.as_ptr(),
+                tp_name_ptr,
+                &mut tp_opts as *mut _,
+            )
         };
         let ptr = validate_bpf_ret(ptr).context("failed to attach raw tracepoint")?;
         // SAFETY: the pointer came from libbpf and has been checked for errors.
@@ -1096,11 +1547,55 @@ impl<'obj> ProgramMut<'obj> {
     /// [BPF Iterator](https://www.kernel.org/doc/html/latest/bpf/bpf_iterators.html).
     /// The entry point of the program must be defined with `SEC("iter")` or `SEC("iter.s")`.
     pub fn attach_iter(&self, map_fd: BorrowedFd<'_>) -> Result<Link> {
-        let mut linkinfo = libbpf_sys::bpf_iter_link_info::default();
-        linkinfo.map.map_fd = map_fd.as_raw_fd() as _;
+        let map_opts = MapIterOpts {
+            fd: map_fd,
+            _non_exhaustive: (),
+        };
+        self.attach_iter_with_opts(IterOpts::Map(map_opts))
+    }
+
+    /// Attach this program to a
+    /// [BPF Iterator](https://www.kernel.org/doc/html/latest/bpf/bpf_iterators.html),
+    /// providing additional options.
+    ///
+    /// The entry point of the program must be defined with `SEC("iter")` or `SEC("iter.s")`.
+    pub fn attach_iter_with_opts(&self, opts: IterOpts<'_>) -> Result<Link> {
+        let mut linkinfo = match opts {
+            IterOpts::None => None,
+            IterOpts::Map(map_opts) => {
+                let MapIterOpts {
+                    fd,
+                    _non_exhaustive: (),
+                } = map_opts;
+
+                let mut linkinfo = libbpf_sys::bpf_iter_link_info::default();
+                linkinfo.map.map_fd = fd.as_raw_fd() as _;
+                Some(linkinfo)
+            }
+            IterOpts::Cgroup(cgroup_opts) => {
+                let CgroupIterOpts {
+                    fd,
+                    order,
+                    _non_exhaustive: (),
+                } = cgroup_opts;
+
+                let mut linkinfo = libbpf_sys::bpf_iter_link_info::default();
+                linkinfo.cgroup.order = order as libbpf_sys::bpf_cgroup_iter_order;
+                linkinfo.cgroup.cgroup_fd = fd.as_raw_fd() as _;
+                Some(linkinfo)
+            }
+        };
+        let (linkinfo_ptr, linkinfo_len) = match &mut linkinfo {
+            Some(info) => (
+                info as *mut _,
+                size_of::<libbpf_sys::bpf_iter_link_info>() as _,
+            ),
+            None => (ptr::null_mut(), 0),
+        };
+
         let attach_opt = libbpf_sys::bpf_iter_attach_opts {
-            link_info: &mut linkinfo as *mut libbpf_sys::bpf_iter_link_info,
-            link_info_len: size_of::<libbpf_sys::bpf_iter_link_info>() as _,
+            link_info: linkinfo_ptr,
+            link_info_len: linkinfo_len,
             sz: size_of::<libbpf_sys::bpf_iter_attach_opts>() as _,
             ..Default::default()
         };
@@ -1115,6 +1610,25 @@ impl<'obj> ProgramMut<'obj> {
         // SAFETY: the pointer came from libbpf and has been checked for errors.
         let link = unsafe { Link::new(ptr) };
         Ok(link)
+    }
+
+    /// Associate this program with a `struct_ops` map.
+    ///
+    /// This allows a non-struct_ops BPF program to be used as a callback
+    /// implementation within a `struct_ops` map. Both the program and map
+    /// must be loaded.
+    ///
+    /// This program must not be of type [`ProgramType::StructOps`], and
+    /// the map must be of type [`MapType::StructOps`][crate::MapType::StructOps].
+    pub fn assoc_struct_ops(&self, map: &Map<'_>) -> Result<()> {
+        let ret = unsafe {
+            libbpf_sys::bpf_program__assoc_struct_ops(
+                self.ptr.as_ptr(),
+                map.as_libbpf_object().as_ptr(),
+                ptr::null_mut(),
+            )
+        };
+        util::parse_ret(ret).context("failed to associate program with struct_ops map")
     }
 
     /// Test run the program with the given input data.
@@ -1138,6 +1652,7 @@ impl<'obj> ProgramMut<'obj> {
             mut data_out,
             cpu,
             flags,
+            repeat,
             _non_exhaustive: (),
         } = input;
 
@@ -1164,6 +1679,9 @@ impl<'obj> ProgramMut<'obj> {
         opts.data_size_out = data_out.map(|data| data.len() as _).unwrap_or(0);
         opts.cpu = cpu;
         opts.flags = flags;
+        // safe to cast back to an i32. While the API uses an `int`: https://elixir.bootlin.com/linux/v6.2.11/source/tools/lib/bpf/bpf.h#L446
+        // the kernel user api uses __u32: https://elixir.bootlin.com/linux/v6.2.11/source/include/uapi/linux/bpf.h#L1430
+        opts.repeat = repeat as i32;
 
         let rc = unsafe { libbpf_sys::bpf_prog_test_run_opts(self.as_fd().as_raw_fd(), &mut opts) };
         let () = util::parse_ret(rc)?;
@@ -1171,9 +1689,20 @@ impl<'obj> ProgramMut<'obj> {
             return_value: opts.retval,
             context: unsafe { slice_from_array(opts.ctx_out.cast(), opts.ctx_size_out as _) },
             data: unsafe { slice_from_array(opts.data_out.cast(), opts.data_size_out as _) },
+            duration: Duration::from_nanos(opts.duration.into()),
             _non_exhaustive: (),
         };
         Ok(output)
+    }
+
+    /// Get the stdout BPF stream of the program.
+    pub fn stdout(&self) -> impl Read + '_ {
+        Stream::new(self.as_fd(), Stream::BPF_STDOUT)
+    }
+
+    /// Get the stderr BPF stream of the program.
+    pub fn stderr(&self) -> impl Read + '_ {
+        Stream::new(self.as_fd(), Stream::BPF_STDERR)
     }
 }
 
@@ -1200,6 +1729,137 @@ impl<T> AsRawLibbpf for ProgramImpl<'_, T> {
     /// Retrieve the underlying [`libbpf_sys::bpf_program`].
     fn as_libbpf_object(&self) -> NonNull<Self::LibbpfType> {
         self.ptr
+    }
+}
+
+/// An owned handle to a loaded BPF program.
+///
+/// Similar to [`MapHandle`][crate::MapHandle] for maps: owns the file descriptor
+/// and caches metadata, so it can outlive the [`Object`][crate::Object] it came from.
+#[derive(Debug)]
+pub struct ProgramHandle {
+    fd: OwnedFd,
+    name: OsString,
+    ty: ProgramType,
+    tag: [u8; 8],
+    id: u32,
+}
+
+impl ProgramHandle {
+    fn from_fd(fd: OwnedFd) -> Result<Self> {
+        let mut info = libbpf_sys::bpf_prog_info::default();
+        let mut len = size_of::<libbpf_sys::bpf_prog_info>() as u32;
+        let ret = unsafe {
+            libbpf_sys::bpf_obj_get_info_by_fd(
+                fd.as_raw_fd(),
+                (&mut info as *mut libbpf_sys::bpf_prog_info).cast::<c_void>(),
+                &mut len,
+            )
+        };
+        util::parse_ret(ret)?;
+
+        let name_cstr = util::c_char_slice_to_cstr(&info.name)
+            .ok_or_else(|| Error::with_invalid_data("program name not NUL-terminated"))?;
+        let name = OsStr::from_bytes(name_cstr.to_bytes()).to_os_string();
+
+        Ok(Self {
+            fd,
+            name,
+            ty: ProgramType::from(info.type_),
+            tag: info.tag,
+            id: info.id,
+        })
+    }
+
+    /// Open a loaded program by its kernel ID.
+    pub fn from_prog_id(id: u32) -> Result<Self> {
+        Self::from_fd(Program::fd_from_id(id)?)
+    }
+
+    /// Open a previously pinned program from its bpffs path.
+    pub fn from_pinned_path<P: AsRef<Path>>(path: P) -> Result<Self> {
+        let fd = Program::fd_from_pinned_path(path)?;
+        Self::from_fd(fd)
+    }
+
+    /// The program's name.
+    #[inline]
+    pub fn name(&self) -> &OsStr {
+        &self.name
+    }
+
+    /// The `ProgramType` of this handle.
+    #[inline]
+    pub fn prog_type(&self) -> ProgramType {
+        self.ty
+    }
+
+    /// The 8-byte tag (instruction hash) of the program.
+    #[inline]
+    pub fn tag(&self) -> [u8; 8] {
+        self.tag
+    }
+
+    /// The kernel ID of this program.
+    #[inline]
+    pub fn id(&self) -> u32 {
+        self.id
+    }
+
+    /// [Pin](https://facebookmicrosites.github.io/bpf/blog/2018/08/31/object-lifetime.html#bpffs)
+    /// this program to bpffs.
+    pub fn pin<P: AsRef<Path>>(&self, path: P) -> Result<()> {
+        let path_c = util::path_to_cstring(path)?;
+        let ret = unsafe { libbpf_sys::bpf_obj_pin(self.fd.as_raw_fd(), path_c.as_ptr()) };
+        util::parse_ret(ret)
+    }
+
+    /// [Unpin](https://facebookmicrosites.github.io/bpf/blog/2018/08/31/object-lifetime.html#bpffs)
+    /// this program from bpffs.
+    pub fn unpin<P: AsRef<Path>>(&self, path: P) -> Result<()> {
+        remove_file(path).context("failed to remove pinned program")
+    }
+}
+
+impl AsFd for ProgramHandle {
+    #[inline]
+    fn as_fd(&self) -> BorrowedFd<'_> {
+        self.fd.as_fd()
+    }
+}
+
+impl<'obj, T> TryFrom<&ProgramImpl<'obj, T>> for ProgramHandle
+where
+    ProgramImpl<'obj, T>: Deref<Target = Program<'obj>>,
+{
+    type Error = Error;
+
+    fn try_from(prog: &ProgramImpl<'obj, T>) -> Result<Self> {
+        let fd = prog
+            .as_fd()
+            .try_clone_to_owned()
+            .context("failed to duplicate program file descriptor")?;
+        Ok(Self {
+            name: prog.name().to_os_string(),
+            ..Self::from_fd(fd)?
+        })
+    }
+}
+
+impl TryFrom<&Self> for ProgramHandle {
+    type Error = Error;
+
+    fn try_from(other: &Self) -> Result<Self> {
+        Ok(Self {
+            fd: other
+                .as_fd()
+                .try_clone_to_owned()
+                .context("failed to duplicate program file descriptor")?,
+            name: other.name.clone(),
+            ty: other.ty,
+            tag: other.tag,
+            id: other.id,
+        })
     }
 }
 
@@ -1246,6 +1906,7 @@ mod tests {
             Lsm,
             SkLookup,
             Syscall,
+            Netfilter,
             Unknown,
         ] {
             // check if discriminants match after a roundtrip conversion

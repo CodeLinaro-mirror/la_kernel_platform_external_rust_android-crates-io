@@ -31,22 +31,22 @@ use crate::Result;
 #[derive(Debug)]
 struct MapSkelConfig {
     name: String,
-    p: Box<*mut bpf_map>,
+    map: Box<*mut bpf_map>,
     mmaped: Option<Box<*mut c_void>>,
 }
 
 #[derive(Debug)]
 struct ProgSkelConfig {
     name: String,
-    p: Box<*mut bpf_program>,
+    prog: Box<*mut bpf_program>,
     link: Box<*mut bpf_link>,
 }
 
-#[allow(missing_docs)]
+#[expect(missing_docs)]
 #[derive(Debug)]
 pub struct ObjectSkeletonConfigBuilder<'dat> {
     data: &'dat [u8],
-    p: Box<*mut bpf_object>,
+    obj: Box<*mut bpf_object>,
     name: Option<String>,
     maps: Vec<MapSkelConfig>,
     progs: Vec<ProgSkelConfig>,
@@ -70,14 +70,14 @@ impl<'dat> ObjectSkeletonConfigBuilder<'dat> {
     pub fn new(object_data: &'dat [u8]) -> Self {
         Self {
             data: object_data,
-            p: Box::new(ptr::null_mut()),
+            obj: Box::new(ptr::null_mut()),
             name: None,
             maps: Vec::new(),
             progs: Vec::new(),
         }
     }
 
-    #[allow(missing_docs)]
+    #[expect(missing_docs)]
     pub fn name<T: AsRef<str>>(&mut self, name: T) -> &mut Self {
         self.name = Some(name.as_ref().to_string());
         self
@@ -95,7 +95,7 @@ impl<'dat> ObjectSkeletonConfigBuilder<'dat> {
 
         self.maps.push(MapSkelConfig {
             name: name.as_ref().to_string(),
-            p: Box::new(ptr::null_mut()),
+            map: Box::new(ptr::null_mut()),
             mmaped: m,
         });
 
@@ -106,7 +106,7 @@ impl<'dat> ObjectSkeletonConfigBuilder<'dat> {
     pub fn prog<T: AsRef<str>>(&mut self, name: T) -> &mut Self {
         self.progs.push(ProgSkelConfig {
             name: name.as_ref().to_string(),
-            p: Box::new(ptr::null_mut()),
+            prog: Box::new(ptr::null_mut()),
             link: Box::new(ptr::null_mut()),
         });
 
@@ -129,7 +129,7 @@ impl<'dat> ObjectSkeletonConfigBuilder<'dat> {
             .expect("Failed to allocate memory for maps skeleton");
 
         unsafe {
-            s.maps = alloc_zeroed(layout) as *mut bpf_map_skeleton;
+            s.maps = alloc_zeroed(layout).cast::<bpf_map_skeleton>();
             for (i, map) in maps.iter_mut().enumerate() {
                 let current_map = s.maps.add(i);
 
@@ -137,7 +137,7 @@ impl<'dat> ObjectSkeletonConfigBuilder<'dat> {
                 // leak. Extremely unlikely to have invalid unicode anyways.
                 (*current_map).name = str_to_cstring_and_pool(&map.name, string_pool)
                     .expect("Invalid unicode in map name");
-                (*current_map).map = &mut *map.p;
+                (*current_map).map = &mut *map.map;
                 (*current_map).mmaped = if let Some(ref mut mmaped) = map.mmaped {
                     &mut **mmaped
                 } else {
@@ -165,14 +165,14 @@ impl<'dat> ObjectSkeletonConfigBuilder<'dat> {
             .expect("Failed to allocate memory for progs skeleton");
 
         unsafe {
-            s.progs = alloc_zeroed(layout) as *mut bpf_prog_skeleton;
+            s.progs = alloc_zeroed(layout).cast::<bpf_prog_skeleton>();
             for (i, prog) in progs.iter_mut().enumerate() {
                 let current_prog = s.progs.add(i);
 
                 // See above for `expect()` rationale
                 (*current_prog).name = str_to_cstring_and_pool(&prog.name, string_pool)
                     .expect("Invalid unicode in prog name");
-                (*current_prog).prog = &mut *prog.p;
+                (*current_prog).prog = &mut *prog.prog;
                 (*current_prog).link = &mut *prog.link;
             }
         }
@@ -180,7 +180,7 @@ impl<'dat> ObjectSkeletonConfigBuilder<'dat> {
         Some(layout)
     }
 
-    #[allow(missing_docs)]
+    #[expect(missing_docs)]
     pub fn build(mut self) -> Result<ObjectSkeletonConfig<'dat>> {
         // Holds `CString`s alive so pointers to them stay valid
         let mut string_pool = Vec::new();
@@ -195,11 +195,11 @@ impl<'dat> ObjectSkeletonConfigBuilder<'dat> {
         }
 
         // libbpf_sys will use it as const despite the signature
-        s.data = self.data.as_ptr() as *mut c_void;
+        s.data = self.data.as_ptr().cast_mut().cast();
         s.data_sz = self.data.len() as c_ulong;
 
         // Give s ownership over the box
-        s.obj = Box::into_raw(self.p);
+        s.obj = Box::into_raw(self.obj);
 
         let maps_layout = Self::build_maps(&mut self.maps, &mut s, &mut string_pool);
         let progs_layout = Self::build_progs(&mut self.progs, &mut s, &mut string_pool);
@@ -304,17 +304,17 @@ impl Drop for ObjectSkeletonConfig<'_> {
 
         if let Some(layout) = self.maps_layout {
             unsafe {
-                dealloc(self.inner.maps as _, layout);
+                dealloc(self.inner.maps.cast(), layout);
             }
         }
 
         if let Some(layout) = self.progs_layout {
             unsafe {
-                dealloc(self.inner.progs as _, layout);
+                dealloc(self.inner.progs.cast(), layout);
             }
         }
 
-        let _ = unsafe { Box::from_raw(self.inner.obj) };
+        let () = drop(unsafe { Box::from_raw(self.inner.obj) });
     }
 }
 
