@@ -647,7 +647,7 @@ dependencies = [
  "regex-automata",
  "regex-lite",
  "regex-syntax",
- "region 4.0.0",
+ "region 4.0.1",
  "relative-path 2.0.1",
  "remain",
  "reqwest 0.12.28",
@@ -8631,9 +8631,9 @@ dependencies = [
 
 [[package]]
 name = "region"
-version = "4.0.0"
+version = "4.0.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "430988f137a23121407b362bf10b09df302ed5092ffeb9af90a549edcc849115"
+checksum = "9bc10200af9f8297cb52df7e0e1db8d9ad3e8782981d69b25eedf858f5455ca2"
 dependencies = [
  "bitflags 2.13.2",
  "libc 0.2.189",
