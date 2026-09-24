@@ -55,15 +55,30 @@ impl Mat2 {
     }
 
     /// Creates a 2x2 matrix from two column vectors.
+    ///
+    /// See also [`Self::from_rows`] when the data is in row major order.
     #[inline(always)]
     #[must_use]
     pub const fn from_cols(x_axis: Vec2, y_axis: Vec2) -> Self {
         Self(f32x4(x_axis.x, x_axis.y, y_axis.x, y_axis.y))
     }
 
+    /// Creates a 2x2 matrix from two row vectors.
+    ///
+    /// Matrices are stored in column major order, so the given rows are permuted into
+    /// the matrix layout. Use [`Self::from_cols`] instead when the data is already in
+    /// column major order.
+    #[inline(always)]
+    #[must_use]
+    pub const fn from_rows(row0: Vec2, row1: Vec2) -> Self {
+        let [m00, m01] = row0.to_array();
+        let [m10, m11] = row1.to_array();
+        Self::new(m00, m10, m01, m11)
+    }
+
     /// Creates a 2x2 matrix from a `[f32; 4]` array stored in column major order.
-    /// If your data is stored in row major you will need to `transpose` the returned
-    /// matrix.
+    ///
+    /// If the data is in row major order use [`Self::from_rows_array`] instead.
     #[inline]
     #[must_use]
     pub const fn from_cols_array(m: &[f32; 4]) -> Self {
@@ -71,7 +86,8 @@ impl Mat2 {
     }
 
     /// Creates a `[f32; 4]` array storing data in column major order.
-    /// If you require data in row major order `transpose` the matrix first.
+    ///
+    /// If you require the data in row major order use [`Self::to_rows_array`] instead.
     #[inline]
     #[must_use]
     pub const fn to_cols_array(&self) -> [f32; 4] {
@@ -79,8 +95,8 @@ impl Mat2 {
     }
 
     /// Creates a 2x2 matrix from a `[[f32; 2]; 2]` 2D array stored in column major order.
-    /// If your data is in row major order you will need to `transpose` the returned
-    /// matrix.
+    ///
+    /// If the data is in row major order `transpose` the returned matrix.
     #[inline]
     #[must_use]
     pub const fn from_cols_array_2d(m: &[[f32; 2]; 2]) -> Self {
@@ -88,11 +104,35 @@ impl Mat2 {
     }
 
     /// Creates a `[[f32; 2]; 2]` 2D array storing data in column major order.
-    /// If you require data in row major order `transpose` the matrix first.
+    ///
+    /// If you require row major order `transpose` the matrix first.
     #[inline]
     #[must_use]
     pub const fn to_cols_array_2d(&self) -> [[f32; 2]; 2] {
         unsafe { *(self as *const Self as *const [[f32; 2]; 2]) }
+    }
+
+    /// Creates a 2x2 matrix from a `[f32; 4]` array stored in row major order.
+    ///
+    /// Matrices are stored in column major order, so the array is permuted into the
+    /// matrix layout. Use [`Self::from_cols_array`] instead when the data is already in
+    /// column major order.
+    #[inline]
+    #[must_use]
+    pub const fn from_rows_array(m: &[f32; 4]) -> Self {
+        Self::new(m[0], m[2], m[1], m[3])
+    }
+
+    /// Creates a `[f32; 4]` array storing data in row major order.
+    ///
+    /// Matrices are stored in column major order, so the array is permuted out of the
+    /// column major storage. Use [`Self::to_cols_array`] instead when you want data in
+    /// column major order.
+    #[inline]
+    #[must_use]
+    pub const fn to_rows_array(&self) -> [f32; 4] {
+        let m = self.to_cols_array();
+        [m[0], m[2], m[1], m[3]]
     }
 
     /// Creates a 2x2 matrix with its diagonal set to `diagonal` and all other entries set to 0.
@@ -182,6 +222,8 @@ impl Mat2 {
 
     /// Creates a 2x2 matrix from the first 4 values in `slice`.
     ///
+    /// See also [`Self::from_rows_slice`] when the slice is in row major order.
+    ///
     /// # Panics
     ///
     /// Panics if `slice` is less than 4 elements long.
@@ -202,6 +244,22 @@ impl Mat2 {
         slice[1] = self.x_axis.y;
         slice[2] = self.y_axis.x;
         slice[3] = self.y_axis.y;
+    }
+
+    /// Creates a 2x2 matrix from the first 4 values in `slice`, stored in row
+    /// major order.
+    ///
+    /// Matrices are stored in column major order, so the slice is permuted into the
+    /// matrix layout. Use [`Self::from_cols_slice`] instead when the slice is already in
+    /// column major order.
+    ///
+    /// # Panics
+    ///
+    /// Panics if `slice` is less than 4 elements long.
+    #[inline]
+    #[must_use]
+    pub const fn from_rows_slice(slice: &[f32]) -> Self {
+        Self::new(slice[0], slice[2], slice[1], slice[3])
     }
 
     /// Returns the matrix column for the given `index`.
@@ -235,6 +293,8 @@ impl Mat2 {
 
     /// Returns the matrix row for the given `index`.
     ///
+    /// See also [`Self::set_row`] when you need to change the row.
+    ///
     /// # Panics
     ///
     /// Panics if `index` is greater than 1.
@@ -244,6 +304,30 @@ impl Mat2 {
         match index {
             0 => Vec2::new(self.x_axis.x, self.y_axis.x),
             1 => Vec2::new(self.x_axis.y, self.y_axis.y),
+            _ => panic!("index out of bounds"),
+        }
+    }
+
+    /// Sets the matrix row for the given `index`.
+    ///
+    /// Matrices are stored in column major order, so the row is spread across all
+    /// 2 columns and writing it touches every column. Use [`Self::col_mut`]
+    /// instead when you can work with columns. See also [`Self::row`].
+    ///
+    /// # Panics
+    ///
+    /// Panics if `index` is greater than 1.
+    #[inline]
+    pub fn set_row(&mut self, index: usize, row: Vec2) {
+        match index {
+            0 => {
+                self.x_axis.x = row.x;
+                self.y_axis.x = row.y;
+            }
+            1 => {
+                self.x_axis.y = row.x;
+                self.y_axis.y = row.y;
+            }
             _ => panic!("index out of bounds"),
         }
     }

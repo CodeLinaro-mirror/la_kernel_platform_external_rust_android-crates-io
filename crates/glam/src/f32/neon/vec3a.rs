@@ -287,7 +287,7 @@ impl Vec3A {
             let rhs_yzx = vsetq_lane_f32(vgetq_lane_f32(rhs, 0), rhs_yzwx, 2);
 
             // result = part_a - (a.zxy * b.yzx)
-            let result = vmlsq_f32(part_a, lhs_zxy, rhs_yzx);
+            let result = vfmsq_f32(part_a, lhs_zxy, rhs_yzx);
             Self(result)
         }
     }
@@ -814,7 +814,7 @@ impl Vec3A {
     #[inline]
     #[must_use]
     pub fn round(self) -> Self {
-        Self(unsafe { vrndnq_f32(self.0) })
+        Self(unsafe { vrndaq_f32(self.0) })
     }
 
     /// Returns a vector containing the largest integer less than or equal to a number for each
@@ -1326,9 +1326,16 @@ impl Vec3A {
             // Angle between the vectors [0, +π]
             let theta = math::acos_approx(dot);
             // Sine of the angle between vectors [0, 1]
-            let sin_theta = math::sin(theta);
-            let t1 = math::sin(theta * (1.0 - s));
-            let t2 = math::sin(theta * s);
+            let coefs = [1.0 - s, s, 1.0, 0.0];
+            let (sin_theta, t1, t2) = unsafe {
+                let tmp = vmulq_f32(vdupq_n_f32(theta), vld1q_f32(coefs.as_ptr()));
+                let tmp = f32x4_sin(tmp);
+                (
+                    vgetq_lane_f32(tmp, 2), // sin(theta)
+                    vgetq_lane_f32(tmp, 0), // sin(theta * (1.0 - s))
+                    vgetq_lane_f32(tmp, 1), // sin(theta * s)
+                )
+            };
 
             // Interpolate vector lengths
             let result_length = self_length.lerp(rhs_length, s);
