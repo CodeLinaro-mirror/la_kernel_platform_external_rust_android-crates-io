@@ -411,7 +411,7 @@ use core::alloc::Layout;
 // Used by `KnownLayout`.
 #[doc(hidden)]
 pub use crate::layout::*;
-// Used by `TryFromBytes::is_bit_valid`.
+// Used by `TryFromBytes::is_safe`.
 #[doc(hidden)]
 pub use crate::pointer::{invariant::BecauseImmutable, Maybe, Ptr};
 // For each trait polyfill, as soon as the corresponding feature is stable, the
@@ -1073,29 +1073,85 @@ unsafe impl<T> KnownLayout for [T] {
 
     #[inline(always)]
     fn pointer_to_metadata(ptr: *mut [T]) -> usize {
-        #[allow(clippy::as_conversions)]
-        let slc = ptr as *const [()];
+        #[cfg(not(no_zerocopy_slice_ptr_len_1_79_0))]
+        {
+            ptr.len()
+        }
 
-        // SAFETY:
-        // - `()` has alignment 1, so `slc` is trivially aligned.
-        // - `slc` was derived from a non-null pointer.
-        // - The size is 0 regardless of the length, so it is sound to
-        //   materialize a reference regardless of location.
-        // - By invariant, `self.ptr` has valid provenance.
-        let slc = unsafe { &*slc };
+        #[cfg(no_zerocopy_slice_ptr_len_1_79_0)]
+        {
+            // `*mut [T]::len` was not stable before Rust 1.79. In every Rust
+            // version from our 1.56 MSRV through 1.78, `Hash for *mut T`
+            // decomposes a raw pointer and passes its address and metadata to
+            // the hasher in that order [1]. `Hash for usize` passes its value
+            // to `Hasher::write_usize` [2]. Capture those two values to obtain
+            // a candidate for the slice length without dereferencing `ptr` or
+            // constructing a reference.
+            //
+            // This historical `Hash` implementation is only used to produce a
+            // candidate. Before returning it, we reconstruct a raw slice and
+            // authenticate the candidate with `ptr::eq`, which compares slice
+            // lengths as well as addresses [3]. Thus, an unexpected `Hash`
+            // implementation cannot cause us to return incorrect metadata; it
+            // can only fail to produce an authenticated candidate.
+            //
+            // [1] Per https://doc.rust-lang.org/1.56.0/src/core/hash/mod.rs.html#776-782:
+            //
+            //   let (address, metadata) = self.to_raw_parts();
+            //   state.write_usize(address as usize);
+            //   metadata.hash(state);
+            //
+            // [2] Per https://doc.rust-lang.org/1.56.0/src/core/hash/mod.rs.html#628-656:
+            //
+            //   fn hash<H: Hasher>(&self, state: &mut H) {
+            //       state.$meth(*self)
+            //   }
+            //   ...
+            //   (usize, write_usize),
+            //
+            // [3] Per https://doc.rust-lang.org/1.56.0/std/ptr/fn.eq.html:
+            //
+            //   Slices are also compared by their length (fat pointers).
+            struct MetadataHasher {
+                values: [usize; 2],
+                writes: usize,
+                valid: bool,
+            }
 
-        // This is correct because the preceding `as` cast preserves the number
-        // of slice elements. [1]
-        //
-        // [1] Per https://doc.rust-lang.org/reference/expressions/operator-expr.html#pointer-to-pointer-cast:
-        //
-        //   For slice types like `[T]` and `[U]`, the raw pointer types `*const
-        //   [T]`, `*mut [T]`, `*const [U]`, and `*mut [U]` encode the number of
-        //   elements in this slice. Casts between these raw pointer types
-        //   preserve the number of elements. ... The same holds for `str` and
-        //   any compound type whose unsized tail is a slice type, such as
-        //   struct `Foo(i32, [u8])` or `(u64, Foo)`.
-        slc.len()
+            impl Hasher for MetadataHasher {
+                #[inline(always)]
+                fn finish(&self) -> u64 {
+                    0
+                }
+
+                #[inline(always)]
+                fn write(&mut self, _bytes: &[u8]) {
+                    self.valid = false;
+                }
+
+                #[inline(always)]
+                fn write_usize(&mut self, value: usize) {
+                    match self.values.get_mut(self.writes) {
+                        Some(slot) => *slot = value,
+                        None => self.valid = false,
+                    }
+                    self.writes = self.writes.saturating_add(1);
+                }
+            }
+
+            let mut hasher = MetadataHasher { values: [0; 2], writes: 0, valid: true };
+            core::hash::Hash::hash(&ptr, &mut hasher);
+            assert!(
+                hasher.valid && hasher.writes == 2,
+                "unexpected raw-pointer Hash implementation"
+            );
+
+            let elems = hasher.values[1];
+            #[allow(clippy::as_conversions)]
+            let reconstructed = ptr::slice_from_raw_parts_mut(ptr as *mut T, elems);
+            assert!(ptr::eq(ptr, reconstructed), "captured value is not raw-slice metadata");
+            elems
+        }
     }
 }
 
@@ -1182,11 +1238,29 @@ pub const UNION_VARIANT_ID: i128 = -2;
 #[doc(hidden)]
 pub const REPR_C_UNION_VARIANT_ID: i128 = -3;
 
+/// Marker types used to disambiguate implementations of projection traits that
+/// would otherwise conflict.
+#[doc(hidden)]
+#[allow(missing_copy_implementations, missing_debug_implementations)]
+pub mod project_clients {
+    pub enum TryFromBytesDerive {}
+
+    pub enum ProjectDerive {}
+}
+
+#[cfg(any(feature = "derive", test))]
+#[cfg_attr(doc_cfg, doc(cfg(feature = "derive")))]
+#[doc(hidden)]
+pub use zerocopy_derive::Project;
+
 /// # Safety
 ///
-/// `Self::ProjectToTag` must satisfy its safety invariant.
+/// `<Self as HasTag<Client>>::ProjectToTag` must satisfy its safety invariant.
+///
+/// The `Client` parameter exists solely to disambiguate between implementations
+/// of `HasTag` that would otherwise conflict.
 #[doc(hidden)]
-pub unsafe trait HasTag {
+pub unsafe trait HasTag<Client = project_clients::TryFromBytesDerive> {
     fn only_derive_is_allowed_to_implement_this_trait()
     where
         Self: Sized;
@@ -1198,28 +1272,35 @@ pub unsafe trait HasTag {
     ///
     /// # Safety
     ///
-    /// It must be the case that, for all `slf: Ptr<'_, Self, I>`, it is sound
-    /// to project from `slf` to `Ptr<'_, Self::Tag, I>` using this projection.
+    /// It must be the case that, for all `slf: Ptr<'_, Self, I>` where
+    /// `I::Aliasing` is `Shared`, it is sound to project it using this
+    /// projection to a `Ptr<'_, Self::Tag, (Shared, I::Alignment,
+    /// I::Validity)>`.
     type ProjectToTag: pointer::cast::Project<Self, Self::Tag>;
 }
 
 /// Projects a given field from `Self`.
 ///
-/// All implementations of `HasField` for a particular field `f` in `Self`
-/// should use the same `Field` type; this ensures that `Field` is inferable
-/// given an explicit `VARIANT_ID` and `FIELD_ID`.
+/// All implementations of `HasField` for a particular `Client` and field `f`
+/// in `Self` should use the same `Field` type; this ensures that `Field` is
+/// inferable given an explicit `Client`, `VARIANT_ID`, and `FIELD_ID`.
+///
+/// The `Client` parameter exists solely to disambiguate between implementations
+/// of `HasField` that would otherwise conflict.
 ///
 /// # Safety
 ///
 /// A field `f` is `HasField` for `Self` if and only if:
 ///
-/// - If `Self` has the layout of a struct or union type, then `VARIANT_ID` is
-///   `STRUCT_VARIANT_ID` or `UNION_VARIANT_ID` respectively; otherwise, if
-///   `Self` has the layout of an enum type, `VARIANT_ID` is the numerical index
-///   of the enum variant in which `f` appears. Note that `Self` does not need
-///   to actually *be* such a type – it just needs to have the same layout as
-///   such a type. For example, a `#[repr(transparent)]` wrapper around an enum
-///   has the same layout as that enum.
+/// - If `Self` has the layout of a struct type, `VARIANT_ID` is
+///   `STRUCT_VARIANT_ID`. If `Self` has the layout of a `repr(C)` union type,
+///   `VARIANT_ID` is `REPR_C_UNION_VARIANT_ID`; for other union layouts, it is
+///   `UNION_VARIANT_ID`. Otherwise, if `Self` has the layout of an enum type and
+///   `f` appears in a variant named `v`, `VARIANT_ID` is
+///   `zerocopy::ident_id!(v)`. Note that `Self` does not need to actually *be*
+///   such a type – it just needs to have the same layout as such a type. For
+///   example, a `#[repr(transparent)]` wrapper around an enum has the same
+///   layout as that enum.
 /// - If `f` has name `n`, `FIELD_ID` is `zerocopy::ident_id!(n)`; otherwise,
 ///   if `f` is at index `i`, `FIELD_ID` is `zerocopy::ident_id!(i)`.
 /// - `Field` is a type with the same visibility as `f`.
@@ -1232,8 +1313,8 @@ pub unsafe trait HasTag {
 ///
 /// The implementation of `project` must satisfy its safety post-condition.
 #[doc(hidden)]
-pub unsafe trait HasField<Field, const VARIANT_ID: i128, const FIELD_ID: i128>:
-    HasTag
+pub unsafe trait HasField<Client, Field, const VARIANT_ID: i128, const FIELD_ID: i128>:
+    HasTag<Client>
 {
     fn only_derive_is_allowed_to_implement_this_trait()
     where
@@ -1263,15 +1344,20 @@ pub unsafe trait HasField<Field, const VARIANT_ID: i128, const FIELD_ID: i128>:
 /// other words, it is a type-level function over invariants; `I` goes in,
 /// `Self::Invariants` comes out.
 ///
+/// The `Client` parameter exists solely to disambiguate between implementations
+/// of `ProjectField` (and their corresponding `HasField` implementations) that
+/// would otherwise conflict.
+///
 /// # Safety
 ///
-/// `T: ProjectField<Field, I, VARIANT_ID, FIELD_ID>` if, for a
-/// `ptr: Ptr<'_, T, I>` such that `T::is_projectable(ptr).is_ok()`,
-/// `<T as HasField<Field, VARIANT_ID, FIELD_ID>>::project(ptr.as_inner())`
+/// `T: ProjectField<Client, Field, I, VARIANT_ID, FIELD_ID>` if, for a
+/// `ptr: Ptr<'_, T, I>` such that `T::is_projectable` returns `Ok(())`
+/// when passed the tag pointer projected from `ptr`,
+/// `<T as HasField<Client, Field, VARIANT_ID, FIELD_ID>>::project(ptr.as_inner())`
 /// conforms to `T::Invariants`.
 #[doc(hidden)]
-pub unsafe trait ProjectField<Field, I, const VARIANT_ID: i128, const FIELD_ID: i128>:
-    HasField<Field, VARIANT_ID, FIELD_ID>
+pub unsafe trait ProjectField<Client, Field, I, const VARIANT_ID: i128, const FIELD_ID: i128>:
+    HasField<Client, Field, VARIANT_ID, FIELD_ID>
 where
     I: invariant::Invariants,
 {
@@ -1290,29 +1376,35 @@ where
 
     /// Is the given field projectable from `ptr`?
     ///
-    /// If a field with [`Self::Invariants`] is projectable from the referent,
-    /// this function produces an `Ok(ptr)` from which the projection can be
-    /// made; otherwise `Err`.
+    /// If a field with [`Self::Invariants`] is projectable from the containing
+    /// value whose projected tag is `ptr`, this function produces `Ok(())`;
+    /// otherwise it produces `Err`.
     ///
     /// This method must be overriden if the field's projectability depends on
     /// the value of the bytes in `ptr`.
     #[inline(always)]
-    fn is_projectable<'a>(_ptr: Ptr<'a, Self::Tag, I>) -> Result<(), Self::Error> {
+    fn is_projectable<'a>(
+        _ptr: Ptr<
+            'a,
+            <Self as HasTag<Client>>::Tag,
+            (invariant::Shared, I::Alignment, I::Validity),
+        >,
+    ) -> Result<(), Self::Error> {
         trait IsInfallible {
             const IS_INFALLIBLE: bool;
         }
 
-        struct Projection<T, Field, I, const VARIANT_ID: i128, const FIELD_ID: i128>(
-            PhantomData<(Field, I, T)>,
+        struct Projection<T, Client, Field, I, const VARIANT_ID: i128, const FIELD_ID: i128>(
+            PhantomData<(Client, Field, I, T)>,
         )
         where
-            T: ?Sized + HasField<Field, VARIANT_ID, FIELD_ID>,
+            T: ?Sized + HasField<Client, Field, VARIANT_ID, FIELD_ID>,
             I: invariant::Invariants;
 
-        impl<T, Field, I, const VARIANT_ID: i128, const FIELD_ID: i128> IsInfallible
-            for Projection<T, Field, I, VARIANT_ID, FIELD_ID>
+        impl<T, Client, Field, I, const VARIANT_ID: i128, const FIELD_ID: i128> IsInfallible
+            for Projection<T, Client, Field, I, VARIANT_ID, FIELD_ID>
         where
-            T: ?Sized + HasField<Field, VARIANT_ID, FIELD_ID>,
+            T: ?Sized + HasField<Client, Field, VARIANT_ID, FIELD_ID>,
             I: invariant::Invariants,
         {
             const IS_INFALLIBLE: bool = {
@@ -1323,7 +1415,9 @@ where
                     // referent. This default implementation of `is_projectable`
                     // is non-destructive, as it does not overwrite any part of
                     // the referent.
-                    crate::STRUCT_VARIANT_ID | crate::UNION_VARIANT_ID => true,
+                    crate::STRUCT_VARIANT_ID
+                    | crate::UNION_VARIANT_ID
+                    | crate::REPR_C_UNION_VARIANT_ID => true,
                     _enum_variant => {
                         use crate::invariant::{Validity, ValidityKind};
                         match I::Validity::KIND {
@@ -1336,9 +1430,9 @@ where
                             // type – the type itself is irrelevant.
                             ValidityKind::Uninit | ValidityKind::Initialized => true,
                             // The projectability of an enum field from an
-                            // `AsInitialized` or `Valid` state is a dynamic
+                            // `AsInitialized` or `Safe` state is a dynamic
                             // property of its tag.
-                            ValidityKind::AsInitialized | ValidityKind::Valid => false,
+                            ValidityKind::AsInitialized | ValidityKind::Safe => false,
                         }
                     }
                 };
@@ -1348,7 +1442,7 @@ where
         }
 
         const_assert!(
-            <Projection<Self, Field, I, VARIANT_ID, FIELD_ID> as IsInfallible>::IS_INFALLIBLE
+            <Projection<Self, Client, Field, I, VARIANT_ID, FIELD_ID> as IsInfallible>::IS_INFALLIBLE
         );
 
         Ok(())
@@ -1614,6 +1708,62 @@ pub unsafe trait Immutable {
 /// }
 /// ```
 ///
+#[cfg_attr(
+    zerocopy_unstable_ptr,
+    doc = r#"
+# Field invariants
+
+This experimental feature requires `--cfg zerocopy_unstable_ptr`.
+
+Named fields of structs, enum variants, and unions can specify additional
+runtime checks using `#[zerocopy(invariant(expression))]`:
+
+```
+# use zerocopy_derive::TryFromBytes;
+#[derive(TryFromBytes)]
+struct Foo {
+    a: u8,
+    #[zerocopy(invariant((**a.unaligned_as_ref() % 2) == (**b.unaligned_as_ref() as u8)))]
+    b: bool,
+    #[zerocopy(invariant(**c.unaligned_as_ref() > 0))]
+    c: i8,
+}
+```
+
+Each expression must return a `bool`. It has access to validated, read-only
+[`Ptr`]s to the current field and all preceding fields of the struct or
+variant, using their field names. A union's invariants have access only to
+the current field. The expression can use the existing [`Ptr`] APIs to
+inspect those fields. In this example, all fields are accessed by reference.
+
+Rust's usual restrictions on local bindings apply; for example, a field name
+cannot shadow an in-scope constant.
+
+Fields are checked in declaration order. Each field's bit validity is
+checked before its invariants run. Multiple invariants on a field run in
+attribute order. For structs and enums, validation stops at the first invalid
+field or invariant that returns `false`. For unions, a failed bit-validity
+check or invariant causes validation to try the next field; validation
+succeeds as soon as one field and all its invariants pass. Each expression
+runs in its own closure; `return` returns from that expression, and panics
+propagate to the caller. Only the selected enum variant's fields and
+invariants are checked. Expressions may have arbitrary side effects, even
+when the conversion fails or its result is discarded.
+
+These predicates are additional acceptance checks beyond Rust's bit validity;
+bit-valid bytes may still be rejected. See [What is a "valid instance"?] for
+the distinction.
+
+[What is a "valid instance"?]: trait@TryFromBytes#what-is-a-valid-instance
+
+Invariants are not supported on tuple fields. Types with invariants cannot
+derive [`FromZeros`] or [`FromBytes`], whose conversions do not perform runtime
+validation. These checks apply to conversions through [`TryFromBytes`]; they
+do not restrict ordinary construction or mutation of Rust values.
+
+"#
+)]
+///
 /// # Portability
 ///
 /// To ensure consistent endianness for enums with multi-byte representations,
@@ -1708,6 +1858,14 @@ pub use zerocopy_derive::TryFromBytes;
 /// If you are negatively affected by lack of support for a particular type,
 /// we encourage you to let us know by [filing an issue][github-repo].
 ///
+/// In this trait's conversion methods, a "valid instance" must also pass any
+/// configured field invariants, including those on nested fields. Rust bit
+/// validity alone does not guarantee that a conversion succeeds: an invariant
+/// may reject otherwise bit-valid bytes. Such predicates check acceptance at
+/// conversion time; they do not constrain subsequent mutation or ordinary Rust
+/// construction. See the [derive's field invariants][derive] documentation for
+/// the experimental attribute's syntax, evaluation order, and side effects.
+///
 /// # `TryFromBytes` is not symmetrical with [`IntoBytes`]
 ///
 /// There are some types which implement both `TryFromBytes` and [`IntoBytes`],
@@ -1754,25 +1912,25 @@ pub unsafe trait TryFromBytes {
     ///
     /// # Safety
     ///
-    /// Unsafe code may assume that, if `is_bit_valid(candidate)` returns true,
+    /// Unsafe code may assume that, if `is_safe(candidate)` returns true,
     /// `*candidate` contains a valid `Self`.
     ///
     /// # Panics
     ///
-    /// `is_bit_valid` may panic. Callers are responsible for ensuring that any
-    /// `unsafe` code remains sound even in the face of `is_bit_valid`
-    /// panicking. (We support user-defined validation routines; so long as
-    /// these routines are not required to be `unsafe`, there is no way to
-    /// ensure that these do not generate panics.)
+    /// `is_safe` may panic. Callers are responsible for ensuring that any
+    /// `unsafe` code remains sound even in the face of `is_safe` panicking. (We
+    /// support user-defined validation routines; so long as these routines are
+    /// not required to be `unsafe`, there is no way to ensure that these do not
+    /// generate panics.)
     ///
-    /// Besides user-defined validation routines panicking, `is_bit_valid` will
-    /// either panic or fail to compile if called on a pointer with [`Shared`]
-    /// aliasing when `Self: !Immutable`.
+    /// Besides user-defined validation routines panicking, `is_safe` will either
+    /// panic or fail to compile if called on a pointer with [`Shared`] aliasing
+    /// when `Self: !Immutable`.
     ///
     /// [`UnsafeCell`]: core::cell::UnsafeCell
     /// [`Shared`]: invariant::Shared
     #[doc(hidden)]
-    fn is_bit_valid<A>(candidate: Maybe<'_, Self, A>) -> bool
+    fn is_safe<A>(candidate: Maybe<'_, Self, A>) -> bool
     where
         A: invariant::Alignment;
 
@@ -1872,7 +2030,7 @@ pub unsafe trait TryFromBytes {
             @variant "dynamic_padding"
         ]
     )]
-    #[must_use = "has no side effects"]
+    #[must_use = "the conversion result must be checked"]
     #[cfg_attr(zerocopy_inline_always, inline(always))]
     #[cfg_attr(not(zerocopy_inline_always), inline)]
     fn try_ref_from_bytes(source: &[u8]) -> Result<&Self, TryCastError<&[u8], Self>>
@@ -1885,7 +2043,7 @@ pub unsafe trait TryFromBytes {
                 // This call may panic. If that happens, it doesn't cause any soundness
                 // issues, as we have not generated any invalid state which we need to
                 // fix before returning.
-                match source.try_into_valid() {
+                match source.try_into_safe() {
                     Ok(valid) => Ok(valid.as_ref()),
                     Err(e) => {
                         Err(e.map_src(|src| src.as_bytes::<BecauseImmutable>().as_ref()).into())
@@ -1995,7 +2153,7 @@ pub unsafe trait TryFromBytes {
             @variant "dynamic_padding"
         ]
     )]
-    #[must_use = "has no side effects"]
+    #[must_use = "the conversion result must be checked"]
     #[cfg_attr(zerocopy_inline_always, inline(always))]
     #[cfg_attr(not(zerocopy_inline_always), inline)]
     fn try_ref_from_prefix(source: &[u8]) -> Result<(&Self, &[u8]), TryCastError<&[u8], Self>>
@@ -2105,7 +2263,7 @@ pub unsafe trait TryFromBytes {
             @variant "dynamic_padding"
         ]
     )]
-    #[must_use = "has no side effects"]
+    #[must_use = "the conversion result must be checked"]
     #[cfg_attr(zerocopy_inline_always, inline(always))]
     #[cfg_attr(not(zerocopy_inline_always), inline)]
     fn try_ref_from_suffix(source: &[u8]) -> Result<(&[u8], &Self), TryCastError<&[u8], Self>>
@@ -2199,7 +2357,7 @@ pub unsafe trait TryFromBytes {
     #[doc = codegen_header!("h5", "try_mut_from_bytes")]
     ///
     /// See [`TryFromBytes::try_ref_from_bytes`](#method.try_ref_from_bytes.codegen).
-    #[must_use = "has no side effects"]
+    #[must_use = "the conversion result must be checked"]
     #[cfg_attr(zerocopy_inline_always, inline(always))]
     #[cfg_attr(not(zerocopy_inline_always), inline)]
     fn try_mut_from_bytes(bytes: &mut [u8]) -> Result<&mut Self, TryCastError<&mut [u8], Self>>
@@ -2212,7 +2370,7 @@ pub unsafe trait TryFromBytes {
                 // This call may panic. If that happens, it doesn't cause any soundness
                 // issues, as we have not generated any invalid state which we need to
                 // fix before returning.
-                match source.try_into_valid() {
+                match source.try_into_safe() {
                     Ok(source) => Ok(source.as_mut()),
                     Err(e) => Err(e.map_src(|src| src.as_bytes().as_mut()).into()),
                 }
@@ -2308,7 +2466,7 @@ pub unsafe trait TryFromBytes {
     #[doc = codegen_header!("h5", "try_mut_from_prefix")]
     ///
     /// See [`TryFromBytes::try_ref_from_prefix`](#method.try_ref_from_prefix.codegen).
-    #[must_use = "has no side effects"]
+    #[must_use = "the conversion result must be checked"]
     #[cfg_attr(zerocopy_inline_always, inline(always))]
     #[cfg_attr(not(zerocopy_inline_always), inline)]
     fn try_mut_from_prefix(
@@ -2408,7 +2566,7 @@ pub unsafe trait TryFromBytes {
     #[doc = codegen_header!("h5", "try_mut_from_suffix")]
     ///
     /// See [`TryFromBytes::try_ref_from_suffix`](#method.try_ref_from_suffix.codegen).
-    #[must_use = "has no side effects"]
+    #[must_use = "the conversion result must be checked"]
     #[cfg_attr(zerocopy_inline_always, inline(always))]
     #[cfg_attr(not(zerocopy_inline_always), inline)]
     fn try_mut_from_suffix(
@@ -2513,7 +2671,7 @@ pub unsafe trait TryFromBytes {
             @variant "dynamic_padding"
         ]
     )]
-    #[must_use = "has no side effects"]
+    #[must_use = "the conversion result must be checked"]
     #[cfg_attr(zerocopy_inline_always, inline(always))]
     #[cfg_attr(not(zerocopy_inline_always), inline)]
     fn try_ref_from_bytes_with_elems(
@@ -2529,7 +2687,7 @@ pub unsafe trait TryFromBytes {
                 // This call may panic. If that happens, it doesn't cause any soundness
                 // issues, as we have not generated any invalid state which we need to
                 // fix before returning.
-                match source.try_into_valid() {
+                match source.try_into_safe() {
                     Ok(source) => Ok(source.as_ref()),
                     Err(e) => {
                         Err(e.map_src(|src| src.as_bytes::<BecauseImmutable>().as_ref()).into())
@@ -2634,7 +2792,7 @@ pub unsafe trait TryFromBytes {
             @variant "dynamic_padding"
         ]
     )]
-    #[must_use = "has no side effects"]
+    #[must_use = "the conversion result must be checked"]
     #[cfg_attr(zerocopy_inline_always, inline(always))]
     #[cfg_attr(not(zerocopy_inline_always), inline)]
     fn try_ref_from_prefix_with_elems(
@@ -2742,7 +2900,7 @@ pub unsafe trait TryFromBytes {
             @variant "dynamic_padding"
         ]
     )]
-    #[must_use = "has no side effects"]
+    #[must_use = "the conversion result must be checked"]
     #[cfg_attr(zerocopy_inline_always, inline(always))]
     #[cfg_attr(not(zerocopy_inline_always), inline)]
     fn try_ref_from_suffix_with_elems(
@@ -2838,7 +2996,7 @@ pub unsafe trait TryFromBytes {
     #[doc = codegen_header!("h5", "try_mut_from_bytes_with_elems")]
     ///
     /// See [`TryFromBytes::try_ref_from_bytes_with_elems`](#method.try_ref_from_bytes_with_elems.codegen).
-    #[must_use = "has no side effects"]
+    #[must_use = "the conversion result must be checked"]
     #[cfg_attr(zerocopy_inline_always, inline(always))]
     #[cfg_attr(not(zerocopy_inline_always), inline)]
     fn try_mut_from_bytes_with_elems(
@@ -2854,7 +3012,7 @@ pub unsafe trait TryFromBytes {
                 // This call may panic. If that happens, it doesn't cause any soundness
                 // issues, as we have not generated any invalid state which we need to
                 // fix before returning.
-                match source.try_into_valid() {
+                match source.try_into_safe() {
                     Ok(source) => Ok(source.as_mut()),
                     Err(e) => Err(e.map_src(|src| src.as_bytes().as_mut()).into()),
                 }
@@ -2949,7 +3107,7 @@ pub unsafe trait TryFromBytes {
     #[doc = codegen_header!("h5", "try_mut_from_prefix_with_elems")]
     ///
     /// See [`TryFromBytes::try_ref_from_prefix_with_elems`](#method.try_ref_from_prefix_with_elems.codegen).
-    #[must_use = "has no side effects"]
+    #[must_use = "the conversion result must be checked"]
     #[cfg_attr(zerocopy_inline_always, inline(always))]
     #[cfg_attr(not(zerocopy_inline_always), inline)]
     fn try_mut_from_prefix_with_elems(
@@ -3049,7 +3207,7 @@ pub unsafe trait TryFromBytes {
     #[doc = codegen_header!("h5", "try_mut_from_suffix_with_elems")]
     ///
     /// See [`TryFromBytes::try_ref_from_suffix_with_elems`](#method.try_ref_from_suffix_with_elems.codegen).
-    #[must_use = "has no side effects"]
+    #[must_use = "the conversion result must be checked"]
     #[cfg_attr(zerocopy_inline_always, inline(always))]
     #[cfg_attr(not(zerocopy_inline_always), inline)]
     fn try_mut_from_suffix_with_elems(
@@ -3116,7 +3274,7 @@ pub unsafe trait TryFromBytes {
         bench = "try_read_from_bytes",
         format = "coco_static_size",
     )]
-    #[must_use = "has no side effects"]
+    #[must_use = "the conversion result must be checked"]
     #[cfg_attr(zerocopy_inline_always, inline(always))]
     #[cfg_attr(not(zerocopy_inline_always), inline)]
     fn try_read_from_bytes(source: &[u8]) -> Result<Self, TryReadError<&[u8], Self>>
@@ -3194,7 +3352,7 @@ pub unsafe trait TryFromBytes {
         bench = "try_read_from_prefix",
         format = "coco_static_size",
     )]
-    #[must_use = "has no side effects"]
+    #[must_use = "the conversion result must be checked"]
     #[cfg_attr(zerocopy_inline_always, inline(always))]
     #[cfg_attr(not(zerocopy_inline_always), inline)]
     fn try_read_from_prefix(source: &[u8]) -> Result<(Self, &[u8]), TryReadError<&[u8], Self>>
@@ -3273,7 +3431,7 @@ pub unsafe trait TryFromBytes {
         bench = "try_read_from_suffix",
         format = "coco_static_size",
     )]
-    #[must_use = "has no side effects"]
+    #[must_use = "the conversion result must be checked"]
     #[cfg_attr(zerocopy_inline_always, inline(always))]
     #[cfg_attr(not(zerocopy_inline_always), inline)]
     fn try_read_from_suffix(source: &[u8]) -> Result<(&[u8], Self), TryReadError<&[u8], Self>>
@@ -3305,7 +3463,7 @@ fn try_ref_from_prefix_suffix<T: TryFromBytes + KnownLayout + Immutable + ?Sized
             // This call may panic. If that happens, it doesn't cause any soundness
             // issues, as we have not generated any invalid state which we need to
             // fix before returning.
-            match source.try_into_valid() {
+            match source.try_into_safe() {
                 Ok(valid) => Ok((valid.as_ref(), prefix_suffix.as_ref())),
                 Err(e) => Err(e.map_src(|src| src.as_bytes::<BecauseImmutable>().as_ref()).into()),
             }
@@ -3325,7 +3483,7 @@ fn try_mut_from_prefix_suffix<T: IntoBytes + TryFromBytes + KnownLayout + ?Sized
             // This call may panic. If that happens, it doesn't cause any soundness
             // issues, as we have not generated any invalid state which we need to
             // fix before returning.
-            match candidate.try_into_valid() {
+            match candidate.try_into_safe() {
                 Ok(valid) => Ok((valid.as_mut(), prefix_suffix.as_mut())),
                 Err(e) => Err(e.map_src(|src| src.as_bytes().as_mut()).into()),
             }
@@ -3366,14 +3524,14 @@ unsafe fn try_read_from<S, T: TryFromBytes>(
     // This call may panic. If that happens, it doesn't cause any soundness
     // issues, as we have not generated any invalid state which we need to fix
     // before returning.
-    if !Wrapping::<T>::is_bit_valid(c_ptr.reborrow_shared().forget_aligned()) {
+    if !Wrapping::<T>::is_safe(c_ptr.reborrow_shared().forget_aligned()) {
         return Err(ValidityError::new(source).into());
     }
 
     fn _assert_same_size_and_validity<T>()
     where
-        Wrapping<T>: pointer::TransmuteFrom<T, invariant::Valid, invariant::Valid>,
-        T: pointer::TransmuteFrom<Wrapping<T>, invariant::Valid, invariant::Valid>,
+        Wrapping<T>: pointer::TransmuteFrom<T, invariant::Safe, invariant::Safe>,
+        T: pointer::TransmuteFrom<Wrapping<T>, invariant::Safe, invariant::Safe>,
     {
     }
 
@@ -6535,6 +6693,58 @@ mod tests {
         test!([()], layout(0, 1, Some(0), true));
         test!([u8], layout(0, 1, Some(1), true));
         test!(str, layout(0, 1, Some(1), true));
+    }
+
+    #[test]
+    fn test_known_layout_pointer_to_metadata() {
+        fn test<T>(data: *mut T, elems: usize) {
+            let ptr = ptr::slice_from_raw_parts_mut(data, elems);
+            assert_eq!(<[T] as KnownLayout>::pointer_to_metadata(ptr), elems);
+        }
+
+        for elems in [0, 1, usize::MAX] {
+            test(ptr::null_mut::<u8>(), elems);
+        }
+
+        test(NonNull::<u8>::dangling().as_ptr(), 0);
+
+        let mut bytes = [1, 2, 3];
+        test(bytes.as_mut_ptr(), bytes.len());
+        assert_eq!(bytes, [1, 2, 3]);
+
+        test(NonNull::<()>::dangling().as_ptr(), usize::MAX);
+
+        // Retaining and inspecting a raw pointer after freeing its allocation
+        // is safe so long as the pointer is not dereferenced.
+        let deallocated = {
+            let mut byte = Box::new(0u8);
+            let ptr: *mut u8 = &mut *byte;
+            drop(byte);
+            ptr
+        };
+        test(deallocated, 3);
+
+        // Metadata extraction requires neither element storage nor alignment
+        // for `T`; it does not access the pointer's referent.
+        test(NonNull::<u8>::dangling().as_ptr().cast::<u64>(), usize::MAX);
+    }
+
+    #[cfg(feature = "derive")]
+    #[test]
+    fn test_known_layout_pointer_to_metadata_derive() {
+        #[derive(KnownLayout)]
+        #[repr(C)]
+        struct Dst {
+            prefix: u8,
+            trailing: [u8],
+        }
+
+        for elems in [0, 1, usize::MAX] {
+            let ptr = ptr::slice_from_raw_parts_mut(ptr::null_mut::<u8>(), elems);
+            #[allow(clippy::as_conversions)]
+            let ptr = ptr as *mut Dst;
+            assert_eq!(Dst::pointer_to_metadata(ptr), elems);
+        }
     }
 
     #[cfg(feature = "derive")]
