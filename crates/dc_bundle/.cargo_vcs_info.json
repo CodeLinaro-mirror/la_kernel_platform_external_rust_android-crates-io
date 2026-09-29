@@ -1,6 +1,6 @@
 {
   "git": {
-    "sha1": "8cc880b3e2cca5c6f2450bb1c25d6f37037048f3"
+    "sha1": "57a7d6d45616d5666986b136acb161a972d99465"
   },
   "path_in_vcs": "crates/dc_bundle"
 }
