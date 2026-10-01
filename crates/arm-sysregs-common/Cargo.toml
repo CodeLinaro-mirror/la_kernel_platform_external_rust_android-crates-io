@@ -13,7 +13,7 @@
 edition = "2024"
 rust-version = "1.88"
 name = "arm-sysregs-common"
-version = "0.4.0"
+version = "0.5.1"
 authors = ["Andrew Walbran <qwandor@google.com>"]
 build = false
 autolib = false
@@ -57,5 +57,5 @@ path = "src/lib.rs"
 version = "0.7.5"
 default-features = false
 
-[dependencies.paste]
-version = "1.0.14"
+[dependencies.pastey]
+version = "0.2.3"

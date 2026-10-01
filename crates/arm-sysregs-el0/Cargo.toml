@@ -13,7 +13,7 @@
 edition = "2024"
 rust-version = "1.88"
 name = "arm-sysregs-el0"
-version = "0.4.0"
+version = "0.5.1"
 authors = ["Andrew Walbran <qwandor@google.com>"]
 build = false
 autolib = false
@@ -57,20 +57,20 @@ name = "arm_sysregs_el0"
 path = "src/lib.rs"
 
 [dependencies.arm-sysregs-aarch32]
-version = "=0.4.0"
+version = "=0.5.1"
 
 [dependencies.arm-sysregs-common]
-version = "=0.4.0"
+version = "=0.5.1"
 
 [dependencies.bitflags]
 version = "2.13.1"
 
 [dev-dependencies.arm-sysregs-aarch32]
-version = "=0.4.0"
+version = "=0.5.1"
 features = ["fakes"]
 
 [dev-dependencies.arm-sysregs-common]
-version = "=0.4.0"
+version = "=0.5.1"
 features = ["fakes"]
 
 [dev-dependencies.log]

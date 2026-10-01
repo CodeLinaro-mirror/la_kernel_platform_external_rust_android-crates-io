@@ -136,6 +136,9 @@ impl IdAa64mmfr0El1 {
 impl IdAa64mmfr1El1 {
     const VH_IMPLEMENTED: u8 = 0b0001;
     const HCX_IMPLEMENTED: u8 = 0b0001;
+    const PAN_IMPLEMENTED: u8 = 0b0001;
+    const PAN2_IMPLEMENTED: u8 = 0b0010;
+    const PAN3_IMPLEMENTED: u8 = 0b0011;
 
     /// Indicates presence of FEAT_VHE.
     pub fn is_feat_vhe_present(self) -> bool {
@@ -146,14 +149,31 @@ impl IdAa64mmfr1El1 {
     pub fn is_feat_hcx_present(self) -> bool {
         self.hcx() >= Self::HCX_IMPLEMENTED
     }
+
+    /// Indicates presence of FEAT_PAN.
+    pub fn is_feat_pan_present(self) -> bool {
+        self.pan() >= Self::PAN_IMPLEMENTED
+    }
+
+    /// Indicates presence of FEAT_PAN2.
+    pub fn is_feat_pan2_present(self) -> bool {
+        self.pan() >= Self::PAN2_IMPLEMENTED
+    }
+
+    /// Indicates presence of FEAT_PAN3.
+    pub fn is_feat_pan3_present(self) -> bool {
+        self.pan() >= Self::PAN3_IMPLEMENTED
+    }
 }
 
 impl IdAa64mmfr2El1 {
-    const CCIDX_64_BIT: u8 = 0b0001;
+    const CCIDX_IMPLEMENTED: u8 = 0b0001;
 
-    /// Checks whether 64-bit format is implemented for all levels of the CCSIDR_EL1.
-    pub fn has_64_bit_ccsidr_el1(self) -> bool {
-        self.ccidx() >= Self::CCIDX_64_BIT
+    /// Indicates the presence of FEAT_CCIDX.
+    ///
+    /// If FEAT_CCIDX is present, 64-bit format is implemented for all levels of CCSIDR_EL1.
+    pub fn is_feat_ccidx_present(self) -> bool {
+        self.ccidx() >= Self::CCIDX_IMPLEMENTED
     }
 }
 
@@ -212,6 +232,9 @@ impl IdAa64mmfr4El1 {
 }
 
 impl IdAa64pfr0El1 {
+    const CSV2_IMPLEMENTED: u8 = 0b0001;
+    const CSV2_2_IMPLEMENTED: u8 = 0b0010;
+    const CSV2_3_IMPLEMENTED: u8 = 0b0011;
     const SVE_IMPLEMENTED: u8 = 0b0001;
     const MPAM_IMPLEMENTED: u8 = 0b0001;
     const AMUV1_IMPLEMENTED: u8 = 0b0001;
@@ -221,6 +244,21 @@ impl IdAa64pfr0El1 {
     const RME_GPC2_IMPLEMENTED: u8 = 0b0010;
     const RME_GPC3_IMPLEMENTED: u8 = 0b0011;
     const SEL2_IMPLEMENTED: u8 = 0b0001;
+
+    /// Indicates whether CSV2 Extension is implemented.
+    pub fn is_feat_csv2_present(self) -> bool {
+        self.csv2() >= Self::CSV2_IMPLEMENTED
+    }
+
+    /// Indicates whether CSV2_2 Extension is implemented.
+    pub fn is_feat_csv2_2_present(self) -> bool {
+        self.csv2() >= Self::CSV2_2_IMPLEMENTED
+    }
+
+    /// Indicates whether CSV2_3 Extension is implemented.
+    pub fn is_feat_csv2_3_present(self) -> bool {
+        self.csv2() >= Self::CSV2_3_IMPLEMENTED
+    }
 
     /// Indicates whether DIT Extension is implemented.
     pub fn is_feat_dit_present(self) -> bool {
@@ -353,11 +391,9 @@ impl SpsrEl1 {
 
 #[cfg(test)]
 mod tests {
-
     use super::*;
 
     #[test]
-
     fn debug_mpidr_el1() {
         assert_eq!(format!("{:?}", MpidrEl1::empty()), "MpidrEl1(0x0)");
         assert_eq!(
