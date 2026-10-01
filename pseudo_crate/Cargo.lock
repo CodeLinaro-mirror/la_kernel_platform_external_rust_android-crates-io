@@ -6025,9 +6025,9 @@ dependencies = [
 
 [[package]]
 name = "libsmpte2094-50"
-version = "0.1.9"
+version = "0.1.10"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "93dbf94c89c4dc2622bc52dbda5c92f74427cb368014f0989c98001a7215b547"
+checksum = "b88dcf61a4b8003642547f224897d4c2373d128dfa36e6635a2d98259b49bdd3"
 
 [[package]]
 name = "libsqlite3-sys"
