@@ -21,13 +21,13 @@
 use std::os::unix::io::{AsFd, BorrowedFd, OwnedFd};
 use std::sync::Arc;
 
-use rustix::event::{eventfd, EventfdFlags};
-use rustix::io::{read, write, Errno};
+use rustix::event::{EventfdFlags, eventfd};
+use rustix::io::{Errno, read, write};
 use tracing::warn;
 
 use super::PingError;
 use crate::{
-    generic::Generic, EventSource, Interest, Mode, Poll, PostAction, Readiness, Token, TokenFactory,
+    EventSource, Interest, Mode, Poll, PostAction, Readiness, Token, TokenFactory, generic::Generic,
 };
 
 // These are not bitfields! They are increments to add to the eventfd counter.
@@ -105,6 +105,7 @@ impl AsFd for ArcAsFd {
 }
 
 // The event source is simply a generic source with one of the eventfds.
+#[allow(missing_docs)] // Documented in re-export
 #[derive(Debug)]
 pub struct PingSource {
     event: Generic<ArcAsFd>,
@@ -165,6 +166,7 @@ impl EventSource for PingSource {
     }
 }
 
+#[allow(missing_docs)] // Documented in re-export
 #[derive(Clone, Debug)]
 pub struct Ping {
     // This is an Arc because it's potentially shared with clones. The last one

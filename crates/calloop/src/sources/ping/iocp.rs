@@ -11,8 +11,8 @@
 
 use crate::sources::EventSource;
 
-use polling::os::iocp::{CompletionPacket, PollerIocpExt};
 use polling::Poller;
+use polling::os::iocp::{CompletionPacket, PollerIocpExt};
 use tracing::{trace, warn};
 
 use std::fmt;
@@ -36,7 +36,7 @@ pub fn make_ping() -> io::Result<(Ping, PingSource)> {
     ))
 }
 
-/// The event to trigger.
+#[allow(missing_docs)] // Documented in re-export
 #[derive(Clone)]
 pub struct Ping {
     state: Arc<State>,
@@ -49,7 +49,7 @@ impl fmt::Debug for Ping {
     }
 }
 
-/// The event source.
+#[allow(missing_docs)] // Documented in re-export
 pub struct PingSource {
     state: Arc<State>,
 }
@@ -300,13 +300,13 @@ fn debug_ping(state: &State, name: &str, f: &mut fmt::Formatter) -> fmt::Result 
             return f
                 .debug_tuple("Ping")
                 .field(&format_args!("<locked>"))
-                .finish()
+                .finish();
         }
         Err(TryLockError::Poisoned(_)) => {
             return f
                 .debug_tuple("Ping")
                 .field(&format_args!("<poisoned>"))
-                .finish()
+                .finish();
         }
     };
 

@@ -7,7 +7,7 @@ use std::{
 use tracing::trace;
 
 pub use crate::loop_logic::EventIterator;
-use crate::{sys::TokenFactory, Poll, Readiness, RegistrationToken, Token};
+use crate::{Poll, Readiness, RegistrationToken, Token, sys::TokenFactory};
 
 pub mod channel;
 #[cfg(feature = "executor")]
@@ -44,11 +44,11 @@ pub enum PostAction {
     Reregister,
     /// Disable this source
     ///
-    /// Has the same effect as [`LoopHandle::disable`](crate::LoopHandle#method.disable)
+    /// Has the same effect as [`LoopHandle::disable`][crate::LoopHandle::disable]
     Disable,
     /// Remove this source from the eventloop
     ///
-    /// Has the same effect as [`LoopHandle::kill`](crate::LoopHandle#method.kill)
+    /// Has the same effect as [`LoopHandle::remove`][crate::LoopHandle::remove]
     Remove,
 }
 
@@ -145,17 +145,17 @@ pub trait EventSource {
 
     /// Register yourself to this poll instance
     ///
-    /// You should register all your relevant file descriptors to the provided [`Poll`](crate::Poll)
-    /// using its [`Poll::register`](crate::Poll#method.register) method.
+    /// You should register all your relevant file descriptors to the provided [`Poll`][crate::Poll]
+    /// using its [`Poll::register`][crate::Poll::register[ method.
     ///
     /// If you need to register more than one file descriptor, you can change the
-    /// `sub_id` field of the [`Token`](crate::Token) to differentiate between them.
+    /// `sub_id` field of the [`Token`][crate::Token] to differentiate between them.
     fn register(&mut self, poll: &mut Poll, token_factory: &mut TokenFactory) -> crate::Result<()>;
 
     /// Re-register your file descriptors
     ///
     /// Your should update the registration of all your relevant file descriptor to
-    /// the provided [`Poll`](crate::Poll) using its [`Poll::reregister`](crate::Poll#method.reregister),
+    /// the provided [`Poll`](crate::Poll) using its [`Poll::reregister`][crate::Poll::reregister],
     /// if necessary.
     fn reregister(
         &mut self,
@@ -166,7 +166,7 @@ pub trait EventSource {
     /// Unregister your file descriptors
     ///
     /// You should unregister all your file descriptors from this [`Poll`](crate::Poll) using its
-    /// [`Poll::unregister`](crate::Poll#method.unregister) method.
+    /// [`Poll::unregister`][crate::Poll::unregister] method.
     fn unregister(&mut self, poll: &mut Poll) -> crate::Result<()>;
 
     /// Whether this source needs to be sent the [`EventSource::before_sleep`]
@@ -486,7 +486,7 @@ where
 pub struct Dispatcher<'a, S, Data>(Rc<dyn ErasedDispatcher<'a, S, Data> + 'a>);
 
 impl<S, Data> std::fmt::Debug for Dispatcher<'_, S, Data> {
-    #[cfg_attr(feature = "nightly_coverage", coverage(off))]
+    #[cfg_attr(unstable_coverage, coverage(off))]
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.write_str("Dispatcher { ... }")
     }
@@ -563,7 +563,7 @@ pub struct Idle<'i> {
 }
 
 impl std::fmt::Debug for Idle<'_> {
-    #[cfg_attr(feature = "nightly_coverage", coverage(off))]
+    #[cfg_attr(unstable_coverage, coverage(off))]
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.write_str("Idle { ... }")
     }
@@ -605,7 +605,7 @@ where
 mod tests {
     use std::time::Duration;
 
-    use crate::{ping::make_ping, EventLoop};
+    use crate::{EventLoop, ping::make_ping};
 
     // Test event source boxing.
     #[test]

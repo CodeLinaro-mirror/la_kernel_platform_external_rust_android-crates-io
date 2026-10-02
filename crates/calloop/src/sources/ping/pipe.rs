@@ -5,18 +5,24 @@
 use std::os::unix::io::{AsFd, BorrowedFd, OwnedFd};
 use std::sync::Arc;
 
-use rustix::io::{read, write, Errno};
+use rustix::io::{Errno, read, write};
 use tracing::warn;
 
 use super::PingError;
 use crate::{
-    generic::Generic, EventSource, Interest, Mode, Poll, PostAction, Readiness, Token, TokenFactory,
+    EventSource, Interest, Mode, Poll, PostAction, Readiness, Token, TokenFactory, generic::Generic,
 };
 
-#[cfg(target_os = "macos")]
+#[cfg(any(
+    target_os = "macos",
+    target_os = "ios",
+    target_os = "tvos",
+    target_os = "visionos",
+    target_os = "watchos"
+))]
 #[inline]
 fn make_ends() -> std::io::Result<(OwnedFd, OwnedFd)> {
-    use rustix::fs::{fcntl_getfl, fcntl_setfl, OFlags};
+    use rustix::fs::{OFlags, fcntl_getfl, fcntl_setfl};
     use rustix::pipe::pipe;
 
     let (read, write) = pipe()?;
@@ -29,10 +35,16 @@ fn make_ends() -> std::io::Result<(OwnedFd, OwnedFd)> {
     Ok((read, write))
 }
 
-#[cfg(not(target_os = "macos"))]
+#[cfg(not(any(
+    target_os = "macos",
+    target_os = "ios",
+    target_os = "tvos",
+    target_os = "visionos",
+    target_os = "watchos"
+)))]
 #[inline]
 fn make_ends() -> std::io::Result<(OwnedFd, OwnedFd)> {
-    use rustix::pipe::{pipe_with, PipeFlags};
+    use rustix::pipe::{PipeFlags, pipe_with};
     Ok(pipe_with(PipeFlags::CLOEXEC | PipeFlags::NONBLOCK)?)
 }
 
@@ -59,6 +71,7 @@ fn send_ping(fd: BorrowedFd<'_>) -> std::io::Result<()> {
 
 // The event source is simply a generic source with the FD of the read end of
 // the pipe.
+#[allow(missing_docs)] // Documented in re-export
 #[derive(Debug)]
 pub struct PingSource {
     pipe: Generic<OwnedFd>,
@@ -131,6 +144,7 @@ impl EventSource for PingSource {
 }
 
 // The sending end of the ping writes zeroes to the write end of the pipe.
+#[allow(missing_docs)] // Documented in re-export
 #[derive(Clone, Debug)]
 pub struct Ping {
     pipe: Arc<OwnedFd>,
