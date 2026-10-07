@@ -11,6 +11,7 @@
     "liblibbpf_rs": [
       "//frameworks/native/libs/cpucycleperuid",
       "//frameworks/native/services/cpustats",
+      "//frameworks/native/services/cpustatsd",
       "//packages/modules/UprobeStats:__subpackages__",
       "//system/bpf/loader",
       "//system/security/security_telemetry"
