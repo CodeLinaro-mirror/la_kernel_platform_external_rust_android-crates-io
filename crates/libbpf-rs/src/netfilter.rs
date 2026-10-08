@@ -38,7 +38,7 @@ pub struct NetfilterOpts {
     pub priority: i32,
 
     /// Bitmask of flags for the netfilter hook.
-    /// - `NF_IP_PRI_CONNTRACK_DEFRAG` - Enables defragmentation of IP fragments. This hook will
+    /// - `BPF_F_NETFILTER_IP_DEFRAG` - Enables defragmentation of IP fragments. This hook will
     ///   only see defragmented packets.
     pub flags: u32,
     #[doc(hidden)]
@@ -56,7 +56,7 @@ impl From<NetfilterOpts> for libbpf_sys::bpf_netfilter_opts {
         } = opts;
 
         #[allow(clippy::needless_update)]
-        libbpf_sys::bpf_netfilter_opts {
+        Self {
             sz: size_of::<Self>() as _,
             pf: protocol_family as u32,
             hooknum: hooknum as u32,

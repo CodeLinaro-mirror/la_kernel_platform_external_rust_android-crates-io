@@ -61,9 +61,9 @@ checksum = "9330f8b2ff13f34540b44e946ef35111825727b38d33286ef986142615121801"
 
 [[package]]
 name = "dc_bundle"
-version = "0.39.5"
+version = "0.39.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "56fb0c5ae0620eda58872400bf336285f690d363b1c60d4be5201bff214e59a8"
+checksum = "0f5e85fdecae9eff85dd2c3361c49c23218ae12990362a12fb1dd4f0be2cf654"
 dependencies = [
  "log",
  "protobuf",
@@ -75,7 +75,7 @@ dependencies = [
 
 [[package]]
 name = "dc_layout"
-version = "0.39.5"
+version = "0.39.6"
 dependencies = [
  "android_logger",
  "dc_bundle",
@@ -115,7 +115,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "39cab71617ae0d63f51a36d69f866391735b51691dbda63cf6f96d042b63efeb"
 dependencies = [
  "libc",
- "windows-sys 0.61.2",
+ "windows-sys 0.59.0",
 ]
 
 [[package]]
@@ -391,7 +391,7 @@ dependencies = [
  "errno",
  "libc",
  "linux-raw-sys 0.12.1",
- "windows-sys 0.61.2",
+ "windows-sys 0.59.0",
 ]
 
 [[package]]
@@ -496,7 +496,7 @@ dependencies = [
  "getrandom",
  "once_cell",
  "rustix 1.1.4",
- "windows-sys 0.61.2",
+ "windows-sys 0.59.0",
 ]
 
 [[package]]

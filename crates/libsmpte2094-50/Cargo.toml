@@ -12,7 +12,7 @@
 [package]
 edition = "2021"
 name = "libsmpte2094-50"
-version = "0.1.9"
+version = "0.1.10"
 build = false
 autolib = false
 autobins = false

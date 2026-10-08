@@ -302,7 +302,7 @@ impl From<u32> for Linkage {
 
 impl From<Linkage> for u32 {
     fn from(value: Linkage) -> Self {
-        value as u32
+        value as Self
     }
 }
 
@@ -312,10 +312,10 @@ impl Display for Linkage {
             f,
             "{}",
             match self {
-                Linkage::Static => "static",
-                Linkage::Global => "global",
-                Linkage::Extern => "extern",
-                Linkage::Unknown => "(unknown)",
+                Self::Static => "static",
+                Self::Global => "global",
+                Self::Extern => "extern",
+                Self::Unknown => "(unknown)",
             }
         )
     }
@@ -323,7 +323,7 @@ impl Display for Linkage {
 
 // Void
 gen_fieldless_concrete_type! {
-    /// The representation of the c_void type.
+    /// The representation of the [`c_void`][std::ffi::c_void] type.
     Void
 }
 
@@ -351,7 +351,7 @@ pub enum IntEncoding {
     None,
     /// Signed.
     Signed,
-    /// It's a c_char.
+    /// It's a `c_char`.
     Char,
     /// It's a bool.
     Bool,
@@ -619,14 +619,29 @@ gen_collection_concrete_type! {
         /// The name of this enum variant.
         pub name: Option<&'btf OsStr>,
         /// The numeric value of this enum variant.
-        pub value: i32,
+        pub value: i64,
     }
 
-    |btf, member| EnumMember {
-        name: btf.name_at(member.name_off),
-        value: member.val,
+    |btf, member, signed| {
+        EnumMember {
+            name: btf.name_at(member.name_off),
+            value: if signed {
+                member.val.into()
+            } else {
+                u32::from_ne_bytes(member.val.to_ne_bytes()).into()
+            }
+        }
     }
 }
+
+impl Enum<'_> {
+    /// Check whether the enum is signed or not.
+    #[inline]
+    pub fn is_signed(&self) -> bool {
+        self.kind_flag()
+    }
+}
+
 
 // Fwd
 gen_fieldless_concrete_type! {
@@ -713,7 +728,7 @@ gen_collection_concrete_type! {
     /// See also [libbpf docs](https://www.kernel.org/doc/html/latest/bpf/btf.html#btf-kind-func-proto)
     btf_param as FuncProto with ReferencesType;
 
-    /// A parameter of a [FuncProto].
+    /// A parameter of a [`FuncProto`].
     struct FuncProtoParam<'btf> {
         /// The parameter's name
         pub name: Option<&'btf OsStr>,
@@ -792,7 +807,7 @@ gen_concrete_type! {
 impl DeclTag<'_> {
     /// The component index is present only when the tag points to a struct/union member or a
     /// function argument.
-    /// And component_idx indicates which member or argument, this decl tag refers to.
+    /// And `component_idx` indicates which member or argument, this decl tag refers to.
     #[inline]
     pub fn component_index(&self) -> Option<u32> {
         self.ptr.component_idx.try_into().ok()
@@ -819,18 +834,32 @@ gen_collection_concrete_type! {
         /// The name of this enum variant.
         pub name: Option<&'btf OsStr>,
         /// The numeric value of this enum variant.
-        pub value: u64,
+        pub value: i128,
     }
 
-    |btf, member| Enum64Member {
+    |btf, member, signed| Enum64Member {
         name: btf.name_at(member.name_off),
         value: {
             let hi: u64 = member.val_hi32.into();
             let lo: u64 = member.val_lo32.into();
-            hi << 32 | lo
+            let val = (hi << 32) | lo;
+            if signed {
+                i64::from_ne_bytes(val.to_ne_bytes()).into()
+            } else {
+                val.into()
+            }
         },
     }
 }
+
+impl Enum64<'_> {
+    /// Check whether the enum is signed or not.
+    #[inline]
+    pub fn is_signed(&self) -> bool {
+        self.kind_flag()
+    }
+}
+
 
 /// A macro that allows matching on the type of a [`BtfType`] as if it was an enum.
 ///
@@ -861,7 +890,7 @@ gen_collection_concrete_type! {
 ///     }
 /// ```
 ///
-/// NonBinding.
+/// Non-binding.
 ///
 /// ```compile_fail
 ///     BtfKind::Int => {

@@ -49,7 +49,7 @@ impl Deref for UserRingBufferSample<'_> {
 
 impl DerefMut for UserRingBufferSample<'_> {
     fn deref_mut(&mut self) -> &mut Self::Target {
-        unsafe { from_raw_parts_mut(self.ptr.as_ptr() as *mut u8, self.size) }
+        unsafe { from_raw_parts_mut(self.ptr.as_ptr().cast::<u8>(), self.size) }
     }
 }
 
@@ -92,7 +92,7 @@ impl UserRingBuffer {
             io::Error::last_os_error()
         })?;
 
-        Ok(UserRingBuffer { ptr })
+        Ok(Self { ptr })
     }
 
     /// Reserve a sample in the user ring buffer.
