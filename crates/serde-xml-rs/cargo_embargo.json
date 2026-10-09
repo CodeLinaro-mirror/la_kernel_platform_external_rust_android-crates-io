@@ -5,6 +5,7 @@
     "com.android.virt"
   ],
   "module_blocklist": [
+    "serde-xml-rs_test_tests_api",
     "serde-xml-rs_test_tests_datatypes",
     "serde-xml-rs_test_tests_failures",
     "serde-xml-rs_test_tests_migrated",
@@ -15,6 +16,7 @@
     "serde-xml-rs": {
       "dep_blocklist": [
         "libdocmatic",
+        "libindoc",
         "librstest",
         "libsimple_logger"
       ]
