@@ -67,7 +67,8 @@ impl<'slf, 'cb: 'slf> RingBufferBuilder<'slf, 'cb> {
     /// manager. The callback should take one argument, a slice of raw bytes,
     /// and return an i32.
     ///
-    /// Non-zero return values in the callback will stop ring buffer consumption early.
+    /// Negative return values in the callback will stop ring buffer consumption early and
+    /// propagate the error code to the polling caller.
     ///
     /// The callback provides a raw byte slice. You may find libraries such as
     /// [`plain`](https://crates.io/crates/plain) helpful.
@@ -101,7 +102,7 @@ impl<'slf, 'cb: 'slf> RingBufferBuilder<'slf, 'cb> {
                         libbpf_sys::ring_buffer__new(
                             fd.as_raw_fd(),
                             c_sample_cb,
-                            sample_cb.deref_mut() as *mut _ as *mut _,
+                            (&raw mut *sample_cb.deref_mut()).cast(),
                             null_mut(),
                         )
                     };
@@ -118,7 +119,7 @@ impl<'slf, 'cb: 'slf> RingBufferBuilder<'slf, 'cb> {
                             ptr.as_ptr(),
                             fd.as_raw_fd(),
                             c_sample_cb,
-                            sample_cb.deref_mut() as *mut _ as *mut _,
+                            (&raw mut *sample_cb.deref_mut()).cast(),
                         )
                     };
 
@@ -143,7 +144,7 @@ impl<'slf, 'cb: 'slf> RingBufferBuilder<'slf, 'cb> {
     }
 
     unsafe extern "C" fn call_sample_cb(ctx: *mut c_void, data: *mut c_void, size: c_ulong) -> i32 {
-        let callback_struct = ctx as *mut RingBufferCallback<'_>;
+        let callback_struct = ctx.cast::<RingBufferCallback<'_>>();
         let callback = unsafe { (*callback_struct).cb.as_mut() };
         let slice = unsafe { slice::from_raw_parts(data as *const u8, size as usize) };
 
@@ -159,14 +160,14 @@ impl<'slf, 'cb: 'slf> RingBufferBuilder<'slf, 'cb> {
 #[derive(Debug)]
 pub struct RingBuffer<'cb> {
     ptr: NonNull<libbpf_sys::ring_buffer>,
-    #[allow(clippy::vec_box)]
+    #[expect(clippy::vec_box)]
     _cbs: Vec<Box<RingBufferCallback<'cb>>>,
 }
 
 impl RingBuffer<'_> {
     /// Poll from all open ring buffers, calling the registered callback for
     /// each one. Polls continually until we either run out of events to consume
-    /// or `timeout` is reached. If `timeout` is Duration::MAX, this will block
+    /// or `timeout` is reached. If `timeout` is `Duration::MAX`, this will block
     /// indefinitely until an event occurs.
     ///
     /// Return the amount of events consumed, or a negative value in case of error.
@@ -181,7 +182,7 @@ impl RingBuffer<'_> {
 
     /// Poll from all open ring buffers, calling the registered callback for
     /// each one. Polls continually until we either run out of events to consume
-    /// or `timeout` is reached. If `timeout` is Duration::MAX, this will block
+    /// or `timeout` is reached. If `timeout` is `Duration::MAX`, this will block
     /// indefinitely until an event occurs.
     pub fn poll(&self, timeout: Duration) -> Result<()> {
         let ret = self.poll_raw(timeout);
@@ -196,6 +197,15 @@ impl RingBuffer<'_> {
     /// Return the amount of events consumed, or a negative value in case of error.
     pub fn consume_raw(&self) -> i32 {
         unsafe { libbpf_sys::ring_buffer__consume(self.ptr.as_ptr()) }
+    }
+
+    /// Greedily consume from all open ring buffers, calling the registered
+    /// callback for each one. Continues until `len` items have been consumed,
+    /// no more events are available, or a callback returns a non-zero value.
+    ///
+    /// Return the amount of events consumed, or a negative value in case of error.
+    pub fn consume_raw_n(&self, len: usize) -> i32 {
+        unsafe { libbpf_sys::ring_buffer__consume_n(self.ptr.as_ptr(), len as libbpf_sys::size_t) }
     }
 
     /// Greedily consume from all open ring buffers, calling the registered

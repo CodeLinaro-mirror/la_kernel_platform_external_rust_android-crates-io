@@ -39,7 +39,7 @@ pub type PrintCallback = fn(PrintLevel, String);
 /// previous callback had been set, with the intention of restoring it, everything will behave as
 /// expected.
 fn default_callback(_lvl: PrintLevel, msg: String) {
-    let _ = io::stderr().write(msg.as_bytes());
+    let _count = io::stderr().write(msg.as_bytes());
 }
 
 // While we can't say that set_print is thread-safe, because we shouldn't assume that of
@@ -123,7 +123,7 @@ pub fn set_print(
 ) -> Option<(PrintLevel, PrintCallback)> {
     // # Safety
     // outer_print_cb has the same function signature as libbpf_print_fn_t
-    #[allow(clippy::missing_transmute_annotations)]
+    #[expect(clippy::missing_transmute_annotations)]
     let real_cb: libbpf_sys::libbpf_print_fn_t =
         unsafe { Some(mem::transmute(outer_print_cb as *const ())) };
     let real_cb: libbpf_sys::libbpf_print_fn_t = callback.as_ref().and(real_cb);

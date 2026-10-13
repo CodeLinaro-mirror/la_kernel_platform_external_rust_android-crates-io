@@ -66,18 +66,6 @@
 //!
 //! [See example here](https://github.com/libbpf/libbpf-rs/tree/master/examples/runqslower).
 
-#![allow(clippy::let_and_return, clippy::let_unit_value)]
-#![warn(
-    elided_lifetimes_in_paths,
-    missing_debug_implementations,
-    missing_docs,
-    single_use_lifetimes,
-    clippy::absolute_paths,
-    clippy::wildcard_imports,
-    rustdoc::broken_intra_doc_links
-)]
-#![deny(unsafe_op_in_unsafe_fn)]
-
 pub mod btf;
 mod error;
 mod iter;
@@ -92,7 +80,9 @@ mod program;
 pub mod query;
 mod ringbuf;
 mod skeleton;
+mod streams;
 mod tc;
+mod tracepoint;
 mod user_ringbuf;
 mod util;
 mod xdp;
@@ -109,8 +99,10 @@ pub use crate::error::Result;
 pub use crate::iter::Iter;
 pub use crate::link::Link;
 pub use crate::linker::Linker;
+pub use crate::map::BatchedMapIter;
 pub use crate::map::Map;
 pub use crate::map::MapCore;
+pub use crate::map::MapFdInfo;
 pub use crate::map::MapFlags;
 pub use crate::map::MapHandle;
 pub use crate::map::MapImpl;
@@ -141,17 +133,25 @@ pub use crate::print::get_print;
 pub use crate::print::set_print;
 pub use crate::print::PrintCallback;
 pub use crate::print::PrintLevel;
+pub use crate::program::CgroupIterOpts;
+pub use crate::program::CgroupIterOrder;
 pub use crate::program::Input as ProgramInput;
+pub use crate::program::IterOpts;
+pub use crate::program::KprobeMultiOpts;
+pub use crate::program::KprobeOpts;
+pub use crate::program::MapIterOpts;
 pub use crate::program::OpenProgram;
 pub use crate::program::OpenProgramImpl;
 pub use crate::program::OpenProgramMut;
 pub use crate::program::Output as ProgramOutput;
+pub use crate::program::PerfEventOpts;
 pub use crate::program::Program;
 pub use crate::program::ProgramAttachType;
+pub use crate::program::ProgramHandle;
 pub use crate::program::ProgramImpl;
 pub use crate::program::ProgramMut;
 pub use crate::program::ProgramType;
-pub use crate::program::TracepointOpts;
+pub use crate::program::UprobeMultiOpts;
 pub use crate::program::UprobeOpts;
 pub use crate::program::UsdtOpts;
 pub use crate::ringbuf::RingBuffer;
@@ -166,6 +166,9 @@ pub use crate::tc::TC_H_INGRESS;
 pub use crate::tc::TC_H_MIN_EGRESS;
 pub use crate::tc::TC_H_MIN_INGRESS;
 pub use crate::tc::TC_INGRESS;
+pub use crate::tracepoint::RawTracepointOpts;
+pub use crate::tracepoint::TracepointCategory;
+pub use crate::tracepoint::TracepointOpts;
 pub use crate::user_ringbuf::UserRingBuffer;
 pub use crate::user_ringbuf::UserRingBufferSample;
 pub use crate::util::num_possible_cpus;

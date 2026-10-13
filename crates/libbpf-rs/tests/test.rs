@@ -1,20 +1,32 @@
-#![allow(clippy::let_unit_value)]
-#![warn(clippy::absolute_paths)]
+//! End-to-end tests for `libbpf-rs`.
 
 mod common;
 
+mod test_netfilter;
+mod test_print;
+mod test_streams;
+mod test_tc;
+mod test_xdp;
+
+use std::collections::HashMap;
 use std::collections::HashSet;
 use std::env::current_exe;
 use std::ffi::c_int;
 use std::ffi::c_void;
 use std::ffi::OsStr;
+use std::ffi::OsString;
 use std::fs;
 use std::hint;
 use std::io;
 use std::io::Read;
+use std::iter::zip;
 use std::mem::size_of;
 use std::mem::size_of_val;
 use std::os::unix::io::AsFd;
+use std::os::unix::io::AsRawFd as _;
+use std::os::unix::io::FromRawFd as _;
+use std::os::unix::io::OwnedFd;
+use std::os::unix::io::RawFd;
 use std::path::Path;
 use std::path::PathBuf;
 use std::ptr;
@@ -26,8 +38,18 @@ use std::sync::mpsc::channel;
 use std::time::Duration;
 
 use libbpf_rs::num_possible_cpus;
+use libbpf_rs::query::IterLinkInfo;
+use libbpf_rs::query::IterType;
+use libbpf_rs::query::KprobeMultiLinkInfo;
+use libbpf_rs::query::LinkTypeInfo;
+use libbpf_rs::query::PerfEventType;
+use libbpf_rs::query::ProgInfoIter;
+use libbpf_rs::query::UprobeMultiLinkInfo;
 use libbpf_rs::AsRawLibbpf;
+use libbpf_rs::ErrorKind;
 use libbpf_rs::Iter;
+use libbpf_rs::KprobeMultiOpts;
+use libbpf_rs::KprobeOpts;
 use libbpf_rs::Linker;
 use libbpf_rs::MapCore;
 use libbpf_rs::MapFlags;
@@ -36,10 +58,15 @@ use libbpf_rs::MapInfo;
 use libbpf_rs::MapType;
 use libbpf_rs::Object;
 use libbpf_rs::ObjectBuilder;
+use libbpf_rs::PerfEventOpts;
 use libbpf_rs::Program;
+use libbpf_rs::ProgramHandle;
 use libbpf_rs::ProgramInput;
 use libbpf_rs::ProgramType;
+use libbpf_rs::RawTracepointOpts;
+use libbpf_rs::TracepointCategory;
 use libbpf_rs::TracepointOpts;
+use libbpf_rs::UprobeMultiOpts;
 use libbpf_rs::UprobeOpts;
 use libbpf_rs::UsdtOpts;
 use libbpf_rs::UserRingBuffer;
@@ -49,21 +76,18 @@ use scopeguard::defer;
 use tempfile::NamedTempFile;
 use test_tag::tag;
 
-use crate::common::bump_rlimit_mlock;
 use crate::common::get_map;
 use crate::common::get_map_mut;
 use crate::common::get_prog_mut;
+use crate::common::get_symbol_offset;
 use crate::common::get_test_object;
 use crate::common::get_test_object_path;
 use crate::common::open_test_object;
 use crate::common::with_ringbuffer;
 
-
 #[tag(root)]
 #[test]
 fn test_object_build_and_load() {
-    bump_rlimit_mlock();
-
     get_test_object("runqslower.bpf.o");
 }
 
@@ -126,9 +150,27 @@ fn test_object_name() {
 
 #[tag(root)]
 #[test]
-fn test_object_maps() {
-    bump_rlimit_mlock();
+fn test_valid_btf_custom_path() {
+    let obj_path = get_test_object_path("runqslower.bpf.o");
+    let mut builder = ObjectBuilder::default();
+    builder.btf_custom_path("/sys/kernel/btf/vmlinux").unwrap();
+    let obj = builder.open_file(obj_path).expect("failed to build object");
+    obj.load().expect("failed to load object");
+}
 
+#[tag(root)]
+#[test]
+fn test_invalid_btf_custom_path() {
+    let obj_path = get_test_object_path("runqslower.bpf.o");
+    let mut builder = ObjectBuilder::default();
+    builder.btf_custom_path("/").unwrap();
+    let obj = builder.open_file(obj_path).expect("failed to build object");
+    assert!(obj.load().is_err());
+}
+
+#[tag(root)]
+#[test]
+fn test_object_maps() {
     let mut obj = get_test_object("runqslower.bpf.o");
     let _map = get_map_mut(&mut obj, "start");
     let _map = get_map_mut(&mut obj, "events");
@@ -138,8 +180,6 @@ fn test_object_maps() {
 #[tag(root)]
 #[test]
 fn test_object_maps_iter() {
-    bump_rlimit_mlock();
-
     let obj = get_test_object("runqslower.bpf.o");
     for map in obj.maps() {
         eprintln!("{:?}", map.name());
@@ -151,8 +191,6 @@ fn test_object_maps_iter() {
 #[tag(root)]
 #[test]
 fn test_object_map_key_value_size() {
-    bump_rlimit_mlock();
-
     let mut obj = get_test_object("runqslower.bpf.o");
     let start = get_map_mut(&mut obj, "start");
 
@@ -167,8 +205,6 @@ fn test_object_map_key_value_size() {
 #[tag(root)]
 #[test]
 fn test_object_map_update_batch() {
-    bump_rlimit_mlock();
-
     let mut obj = get_test_object("runqslower.bpf.o");
     let start = get_map_mut(&mut obj, "start");
 
@@ -255,9 +291,67 @@ fn test_object_map_update_batch() {
 
 #[tag(root)]
 #[test]
-fn test_object_map_delete_batch() {
-    bump_rlimit_mlock();
+fn test_object_map_lookup_batch() {
+    let mut obj = get_test_object("runqslower.bpf.o");
+    let start = get_map_mut(&mut obj, "start");
+    let data = HashMap::from([
+        (1u32, 9999u64),
+        (2u32, 42u64),
+        (3u32, 18u64),
+        (4u32, 1337u64),
+    ]);
 
+    for (key, val) in data.iter() {
+        assert!(start
+            .update(&key.to_ne_bytes(), &val.to_ne_bytes(), MapFlags::ANY)
+            .is_ok());
+    }
+
+    let elems = start
+        .lookup_batch(2, MapFlags::ANY, MapFlags::ANY)
+        .expect("failed to lookup batch")
+        .collect::<Vec<_>>();
+    assert_eq!(elems.len(), 4);
+
+    for (key, val) in elems.into_iter() {
+        let key = u32::from_ne_bytes(key.try_into().unwrap());
+        let val = u64::from_ne_bytes(val.try_into().unwrap());
+        assert_eq!(val, data[&key]);
+    }
+
+    // test lookup with batch size larger than the number of keys
+    let elems = start
+        .lookup_batch(5, MapFlags::ANY, MapFlags::ANY)
+        .expect("failed to lookup batch")
+        .collect::<Vec<_>>();
+    assert_eq!(elems.len(), 4);
+
+    for (key, val) in elems.into_iter() {
+        let key = u32::from_ne_bytes(key.try_into().unwrap());
+        let val = u64::from_ne_bytes(val.try_into().unwrap());
+        assert_eq!(val, data[&key]);
+    }
+
+    // test lookup and delete with batch size that does not divide total count
+    let elems = start
+        .lookup_and_delete_batch(3, MapFlags::ANY, MapFlags::ANY)
+        .expect("failed to lookup batch")
+        .collect::<Vec<_>>();
+    assert_eq!(elems.len(), 4);
+
+    for (key, val) in elems.into_iter() {
+        let key = u32::from_ne_bytes(key.try_into().unwrap());
+        let val = u64::from_ne_bytes(val.try_into().unwrap());
+        assert_eq!(val, data[&key]);
+    }
+
+    // Map should be empty now.
+    assert!(start.keys().collect::<Vec<_>>().is_empty())
+}
+
+#[tag(root)]
+#[test]
+fn test_object_map_delete_batch() {
     let mut obj = get_test_object("runqslower.bpf.o");
     let start = get_map_mut(&mut obj, "start");
 
@@ -303,7 +397,6 @@ fn test_object_map_delete_batch() {
 #[tag(root)]
 #[test]
 pub fn test_map_info() {
-    #[allow(clippy::needless_update)]
     let opts = libbpf_sys::bpf_map_create_opts {
         sz: size_of::<libbpf_sys::bpf_map_create_opts>() as libbpf_sys::size_t,
         map_flags: libbpf_sys::BPF_ANY,
@@ -338,11 +431,32 @@ pub fn test_map_info() {
     assert_eq!(map_info.ifindex, 0);
 }
 
+/// Check that inserting elements beyond a map's `max_entries` should
+/// surface as [`ErrorKind::TooBig`].
+#[tag(root)]
+#[test]
+fn test_map_update_max_entries_exceeded() {
+    let opts = libbpf_sys::bpf_map_create_opts {
+        sz: size_of::<libbpf_sys::bpf_map_create_opts>() as libbpf_sys::size_t,
+        ..Default::default()
+    };
+    let max_entries = 1;
+    let map = MapHandle::create(MapType::Hash, Some("full_map"), 4, 4, max_entries, &opts).unwrap();
+
+    let value = 0u32.to_ne_bytes();
+    let () = map
+        .update(&1u32.to_ne_bytes(), &value, MapFlags::ANY)
+        .unwrap();
+
+    let err = map
+        .update(&2u32.to_ne_bytes(), &value, MapFlags::ANY)
+        .unwrap_err();
+    assert_eq!(err.kind(), ErrorKind::TooBig, "{err:?}");
+}
+
 #[tag(root)]
 #[test]
 fn test_object_percpu_lookup() {
-    bump_rlimit_mlock();
-
     let mut obj = get_test_object("percpu_map.bpf.o");
     let map = get_map_mut(&mut obj, "percpu_map");
     let res = map
@@ -360,8 +474,6 @@ fn test_object_percpu_lookup() {
 #[tag(root)]
 #[test]
 fn test_object_percpu_invalid_lookup_fn() {
-    bump_rlimit_mlock();
-
     let mut obj = get_test_object("percpu_map.bpf.o");
     let map = get_map_mut(&mut obj, "percpu_map");
 
@@ -371,8 +483,6 @@ fn test_object_percpu_invalid_lookup_fn() {
 #[tag(root)]
 #[test]
 fn test_object_percpu_update() {
-    bump_rlimit_mlock();
-
     let mut obj = get_test_object("percpu_map.bpf.o");
     let map = get_map_mut(&mut obj, "percpu_map");
     let key = (0_u32).to_ne_bytes();
@@ -396,8 +506,6 @@ fn test_object_percpu_update() {
 #[tag(root)]
 #[test]
 fn test_object_percpu_invalid_update_fn() {
-    bump_rlimit_mlock();
-
     let mut obj = get_test_object("percpu_map.bpf.o");
     let map = get_map_mut(&mut obj, "percpu_map");
     let key = (0_u32).to_ne_bytes();
@@ -410,8 +518,6 @@ fn test_object_percpu_invalid_update_fn() {
 #[tag(root)]
 #[test]
 fn test_object_percpu_lookup_update() {
-    bump_rlimit_mlock();
-
     let mut obj = get_test_object("percpu_map.bpf.o");
     let map = get_map_mut(&mut obj, "percpu_map");
     let key = (0_u32).to_ne_bytes();
@@ -439,8 +545,6 @@ fn test_object_percpu_lookup_update() {
 #[tag(root)]
 #[test]
 fn test_object_map_empty_lookup() {
-    bump_rlimit_mlock();
-
     let mut obj = get_test_object("runqslower.bpf.o");
     let start = get_map_mut(&mut obj, "start");
 
@@ -454,8 +558,6 @@ fn test_object_map_empty_lookup() {
 #[tag(root)]
 #[test]
 fn test_object_map_queue_crud() {
-    bump_rlimit_mlock();
-
     let mut obj = get_test_object("tracepoint.bpf.o");
     let queue = get_map_mut(&mut obj, "queue");
 
@@ -502,8 +604,6 @@ fn test_object_map_queue_crud() {
 #[tag(root)]
 #[test]
 fn test_object_map_bloom_filter_crud() {
-    bump_rlimit_mlock();
-
     let mut obj = get_test_object("tracepoint.bpf.o");
     let bloom_filter = get_map_mut(&mut obj, "bloom_filter");
 
@@ -553,8 +653,6 @@ fn test_object_map_bloom_filter_crud() {
 #[tag(root)]
 #[test]
 fn test_object_map_stack_crud() {
-    bump_rlimit_mlock();
-
     let mut obj = get_test_object("tracepoint.bpf.o");
     let stack = get_map_mut(&mut obj, "stack");
 
@@ -600,8 +698,6 @@ fn test_object_map_stack_crud() {
 #[tag(root)]
 #[test]
 fn test_object_map_mutation() {
-    bump_rlimit_mlock();
-
     let mut obj = get_test_object("runqslower.bpf.o");
     let start = get_map_mut(&mut obj, "start");
     start
@@ -624,9 +720,166 @@ fn test_object_map_mutation() {
 
 #[tag(root)]
 #[test]
-fn test_object_map_lookup_flags() {
-    bump_rlimit_mlock();
+fn test_object_map_lookup_into() {
+    let mut obj = get_test_object("runqslower.bpf.o");
+    let start = get_map_mut(&mut obj, "start");
 
+    // Insert a test value
+    start
+        .update(&[1, 2, 3, 4], &[1, 2, 3, 4, 5, 6, 7, 8], MapFlags::empty())
+        .expect("failed to write");
+
+    // Test successful lookup with pre-allocated buffer
+    let mut value = [0u8; 8];
+    let found = start
+        .lookup_into(&[1, 2, 3, 4], &mut value, MapFlags::empty())
+        .expect("failed to lookup_into");
+
+    assert!(found, "key should be found");
+    assert_eq!(value, [1, 2, 3, 4, 5, 6, 7, 8]);
+
+    // Test lookup of non-existent key
+    let mut value2 = [0u8; 8];
+    let found2 = start
+        .lookup_into(&[5, 6, 7, 8], &mut value2, MapFlags::empty())
+        .expect("failed to lookup_into for non-existent key");
+
+    assert!(!found2, "key should not be found");
+    // Buffer should remain unchanged when key is not found
+    assert_eq!(value2, [0u8; 8]);
+}
+
+#[tag(root)]
+#[test]
+fn test_object_map_lookup_into_wrong_size() {
+    let mut obj = get_test_object("runqslower.bpf.o");
+    let start = get_map_mut(&mut obj, "start");
+
+    // Insert a test value
+    start
+        .update(&[1, 2, 3, 4], &[1, 2, 3, 4, 5, 6, 7, 8], MapFlags::empty())
+        .expect("failed to write");
+
+    // Test with wrong buffer size (too small)
+    let mut value_small = [0u8; 4];
+    let result = start.lookup_into(&[1, 2, 3, 4], &mut value_small, MapFlags::empty());
+    assert!(result.is_err(), "should fail with wrong buffer size");
+
+    // Test with wrong buffer size (too large)
+    let mut value_large = [0u8; 16];
+    let result = start.lookup_into(&[1, 2, 3, 4], &mut value_large, MapFlags::empty());
+    assert!(result.is_err(), "should fail with wrong buffer size");
+}
+
+#[tag(root)]
+#[test]
+fn test_object_map_lookup_into_consistency() {
+    let mut obj = get_test_object("runqslower.bpf.o");
+    let start = get_map_mut(&mut obj, "start");
+
+    // Insert a test value
+    let test_value = [10, 20, 30, 40, 50, 60, 70, 80];
+    start
+        .update(&[1, 2, 3, 4], &test_value, MapFlags::empty())
+        .expect("failed to write");
+
+    // Compare results from lookup() and lookup_into()
+    let lookup_result = start
+        .lookup(&[1, 2, 3, 4], MapFlags::empty())
+        .expect("failed to lookup")
+        .expect("key not found");
+
+    let mut value_buffer = [0u8; 8];
+    let found = start
+        .lookup_into(&[1, 2, 3, 4], &mut value_buffer, MapFlags::empty())
+        .expect("failed to lookup_into");
+
+    assert!(found, "key should be found");
+    assert_eq!(
+        lookup_result.as_slice(),
+        &value_buffer,
+        "lookup() and lookup_into() should return the same value"
+    );
+}
+
+/// Test `lookup_and_delete` on a regular HASH map. The kernel grew support for
+/// `bpf_map_lookup_and_delete_elem` on hash maps in v5.14 (commit 3e87f192b405);
+/// before that, only Queue and Stack were covered (already exercised in
+/// `test_object_map_queue_crud` / `test_object_map_stack_crud`).
+#[tag(root)]
+#[test]
+fn test_object_map_lookup_and_delete_hash() {
+    let mut obj = get_test_object("runqslower.bpf.o");
+    let start = get_map_mut(&mut obj, "start");
+
+    start
+        .update(&[1, 2, 3, 4], &[1, 2, 3, 4, 5, 6, 7, 8], MapFlags::empty())
+        .expect("failed to write");
+
+    let val = start
+        .lookup_and_delete(&[1, 2, 3, 4])
+        .expect("failed to lookup_and_delete")
+        .expect("key should exist");
+    assert_eq!(val, &[1, 2, 3, 4, 5, 6, 7, 8]);
+
+    // The entry must be gone after lookup_and_delete.
+    assert!(start
+        .lookup(&[1, 2, 3, 4], MapFlags::empty())
+        .expect("failed to lookup")
+        .is_none());
+
+    // A second lookup_and_delete reports the missing key as Ok(None).
+    assert!(start
+        .lookup_and_delete(&[1, 2, 3, 4])
+        .expect("failed to lookup_and_delete on missing key")
+        .is_none());
+}
+
+#[tag(root)]
+#[test]
+fn test_object_map_lookup_into_and_delete() {
+    let mut obj = get_test_object("runqslower.bpf.o");
+    let start = get_map_mut(&mut obj, "start");
+
+    start
+        .update(&[1, 2, 3, 4], &[1, 2, 3, 4, 5, 6, 7, 8], MapFlags::empty())
+        .expect("failed to write");
+
+    let mut value = [0u8; 8];
+    let found = start
+        .lookup_into_and_delete(&[1, 2, 3, 4], &mut value)
+        .expect("failed to lookup_into_and_delete");
+    assert!(found, "key should be found");
+    assert_eq!(value, [1, 2, 3, 4, 5, 6, 7, 8]);
+
+    // The entry must be gone afterwards.
+    assert!(start
+        .lookup(&[1, 2, 3, 4], MapFlags::empty())
+        .expect("failed to lookup")
+        .is_none());
+
+    // Missing keys return Ok(false) and leave the buffer untouched.
+    let mut value2 = [42u8; 8];
+    let found2 = start
+        .lookup_into_and_delete(&[1, 2, 3, 4], &mut value2)
+        .expect("failed to lookup_into_and_delete on missing key");
+    assert!(!found2);
+    assert_eq!(value2, [42u8; 8]);
+
+    // Wrong-sized buffers and wrong-sized keys must error.
+    let mut value_small = [0u8; 4];
+    assert!(start
+        .lookup_into_and_delete(&[1, 2, 3, 4], &mut value_small)
+        .is_err());
+    let mut value_ok = [0u8; 8];
+    assert!(start
+        .lookup_into_and_delete(&[1, 2, 3, 4, 5], &mut value_ok)
+        .is_err());
+}
+
+#[tag(root)]
+#[test]
+fn test_object_map_lookup_flags() {
     let mut obj = get_test_object("runqslower.bpf.o");
     let start = get_map_mut(&mut obj, "start");
     start
@@ -640,8 +893,6 @@ fn test_object_map_lookup_flags() {
 #[tag(root)]
 #[test]
 fn test_object_map_key_iter() {
-    bump_rlimit_mlock();
-
     let mut obj = get_test_object("runqslower.bpf.o");
     let start = get_map_mut(&mut obj, "start");
 
@@ -672,8 +923,6 @@ fn test_object_map_key_iter() {
 #[tag(root)]
 #[test]
 fn test_object_map_key_iter_empty() {
-    bump_rlimit_mlock();
-
     let mut obj = get_test_object("runqslower.bpf.o");
     let start = get_map_mut(&mut obj, "start");
     let mut count = 0;
@@ -686,8 +935,6 @@ fn test_object_map_key_iter_empty() {
 #[tag(root)]
 #[test]
 fn test_object_map_pin() {
-    bump_rlimit_mlock();
-
     let mut obj = get_test_object("runqslower.bpf.o");
     let mut map = get_map_mut(&mut obj, "start");
     let path = "/sys/fs/bpf/mymap_test_object_map_pin";
@@ -706,8 +953,6 @@ fn test_object_map_pin() {
 #[tag(root)]
 #[test]
 fn test_object_loading_pinned_map_from_path() {
-    bump_rlimit_mlock();
-
     let mut obj = get_test_object("runqslower.bpf.o");
     let mut map = get_map_mut(&mut obj, "start");
     let path = "/sys/fs/bpf/mymap_test_pin_to_load_from_path";
@@ -726,9 +971,40 @@ fn test_object_loading_pinned_map_from_path() {
 
 #[tag(root)]
 #[test]
-fn test_program_loading_fd_from_pinned_path() {
-    bump_rlimit_mlock();
+fn test_object_loading_pinned_map_from_path_read_only() {
+    let mut obj = get_test_object("runqslower.bpf.o");
+    let mut map = get_map_mut(&mut obj, "start");
+    let path = "/sys/fs/bpf/mymap_test_pin_to_load_from_path_read_only";
+    let key = 1u32.to_ne_bytes();
+    let value = 42u64.to_ne_bytes();
 
+    map.update(&key, &value, MapFlags::ANY)
+        .expect("failed to update map before pinning");
+    map.pin(path).expect("pinning map failed");
+    defer! {
+        map.unpin(path).expect("unpinning map failed");
+    }
+
+    let pinned_map = MapHandle::from_pinned_path_with_file_flags(path, libbpf_sys::BPF_F_RDONLY)
+        .expect("loading a read-only map from a path failed");
+
+    assert_eq!(
+        pinned_map
+            .lookup(&key, MapFlags::ANY)
+            .expect("failed to lookup key")
+            .as_deref(),
+        Some(value.as_slice())
+    );
+
+    let err = pinned_map
+        .update(&key, &43u64.to_ne_bytes(), MapFlags::ANY)
+        .expect_err("read-only map handle allowed update");
+    assert_eq!(err.kind(), ErrorKind::PermissionDenied, "{err:?}");
+}
+
+#[tag(root)]
+#[test]
+fn test_program_loading_fd_from_pinned_path() {
     let path = "/sys/fs/bpf/myprog_test_pin_to_load_from_path";
     let prog_name = "handle__sched_switch";
 
@@ -750,8 +1026,6 @@ fn test_program_loading_fd_from_pinned_path() {
 #[tag(root)]
 #[test]
 fn test_program_loading_fd_from_pinned_path_with_wrong_pin_type() {
-    bump_rlimit_mlock();
-
     let path = "/sys/fs/bpf/mymap_test_pin_to_load_from_path";
     let map_name = "events";
 
@@ -760,7 +1034,7 @@ fn test_program_loading_fd_from_pinned_path_with_wrong_pin_type() {
     map.pin(path).expect("pinning map failed");
 
     // Must fail, as the pinned path points to a map, not program.
-    let _ = Program::fd_from_pinned_path(path).expect_err("program fd obtained from pinned map");
+    let _err = Program::fd_from_pinned_path(path).expect_err("program fd obtained from pinned map");
 
     map.unpin(path).expect("unpinning program failed");
 }
@@ -768,8 +1042,6 @@ fn test_program_loading_fd_from_pinned_path_with_wrong_pin_type() {
 #[tag(root)]
 #[test]
 fn test_object_loading_loaded_map_from_id() {
-    bump_rlimit_mlock();
-
     let mut obj = get_test_object("runqslower.bpf.o");
     let map = get_map_mut(&mut obj, "start");
     let id = map.info().expect("to get info from map 'start'").info.id;
@@ -786,8 +1058,6 @@ fn test_object_loading_loaded_map_from_id() {
 #[tag(root)]
 #[test]
 fn test_object_programs() {
-    bump_rlimit_mlock();
-
     let mut obj = get_test_object("runqslower.bpf.o");
     let _prog = get_prog_mut(&mut obj, "handle__sched_wakeup");
     let _prog = get_prog_mut(&mut obj, "handle__sched_wakeup_new");
@@ -798,8 +1068,6 @@ fn test_object_programs() {
 #[tag(root)]
 #[test]
 fn test_object_programs_iter_mut() {
-    bump_rlimit_mlock();
-
     let obj = get_test_object("runqslower.bpf.o");
     assert!(obj.progs().count() == 3);
 }
@@ -807,8 +1075,6 @@ fn test_object_programs_iter_mut() {
 #[tag(root)]
 #[test]
 fn test_object_program_pin() {
-    bump_rlimit_mlock();
-
     let mut obj = get_test_object("runqslower.bpf.o");
     let mut prog = get_prog_mut(&mut obj, "handle__sched_wakeup");
     let path = "/sys/fs/bpf/myprog";
@@ -823,7 +1089,7 @@ fn test_object_program_pin() {
 
     // Backup cleanup method in case test errors
     defer! {
-        let _ = fs::remove_file(path);
+        let _unused = fs::remove_file(path);
     }
 
     // Unpin should be successful
@@ -834,8 +1100,6 @@ fn test_object_program_pin() {
 #[tag(root)]
 #[test]
 fn test_object_link_pin() {
-    bump_rlimit_mlock();
-
     let mut obj = get_test_object("runqslower.bpf.o");
     let prog = get_prog_mut(&mut obj, "handle__sched_wakeup");
     let mut link = prog.attach().expect("failed to attach prog");
@@ -852,7 +1116,7 @@ fn test_object_link_pin() {
 
     // Backup cleanup method in case test errors
     defer! {
-        let _ = fs::remove_file(path);
+        let _unused = fs::remove_file(path);
     }
 
     // Unpin should be successful
@@ -863,8 +1127,6 @@ fn test_object_link_pin() {
 #[tag(root)]
 #[test]
 fn test_object_reuse_pined_map() {
-    bump_rlimit_mlock();
-
     let path = "/sys/fs/bpf/mymap_test_object_reuse_pined_map";
     let key = vec![1, 2, 3, 4];
     let val = vec![1, 2, 3, 4, 5, 6, 7, 8];
@@ -883,7 +1145,7 @@ fn test_object_reuse_pined_map() {
 
     // Backup cleanup method in case test errors somewhere
     defer! {
-        let _ = fs::remove_file(path);
+        let _unused = fs::remove_file(path);
     }
 
     // Reuse the pinned map
@@ -914,8 +1176,6 @@ fn test_object_reuse_pined_map() {
 #[tag(root)]
 #[test]
 fn test_object_ringbuf_raw() {
-    bump_rlimit_mlock();
-
     let mut obj = get_test_object("ringbuf.bpf.o");
     let prog = get_prog_mut(&mut obj, "handle__sys_enter_getpid");
     let _link = prog.attach().expect("failed to attach prog");
@@ -984,13 +1244,28 @@ fn test_object_ringbuf_raw() {
     // Consume from a (potentially) empty ring buffer using poll()
     let ret = mgr.poll_raw(Duration::from_millis(100));
     assert!(ret >= 0);
+
+    // Call getpid multiple times, to refill the ring buffer.
+    for _ in 1..=10 {
+        unsafe { libc::getpid() };
+    }
+
+    // Consume exactly one item
+    let ret = mgr.consume_raw_n(1);
+    assert!(ret == 1);
+
+    // Consume two items
+    let ret = mgr.consume_raw_n(2);
+    assert!(ret == 2);
+
+    // Consume all the remaining items, but no more than 10
+    let ret = mgr.consume_raw_n(10);
+    assert!((7..=10).contains(&ret));
 }
 
 #[tag(root)]
 #[test]
 fn test_object_ringbuf_err_callback() {
-    bump_rlimit_mlock();
-
     let mut obj = get_test_object("ringbuf.bpf.o");
     let prog = get_prog_mut(&mut obj, "handle__sys_enter_getpid");
     let _link = prog.attach().expect("failed to attach prog");
@@ -1051,8 +1326,6 @@ fn test_object_ringbuf_err_callback() {
 #[tag(root)]
 #[test]
 fn test_object_ringbuf() {
-    bump_rlimit_mlock();
-
     let mut obj = get_test_object("ringbuf.bpf.o");
     let prog = get_prog_mut(&mut obj, "handle__sys_enter_getpid");
     let _link = prog.attach().expect("failed to attach prog");
@@ -1130,8 +1403,6 @@ fn test_object_ringbuf() {
 #[tag(root)]
 #[test]
 fn test_object_ringbuf_closure() {
-    bump_rlimit_mlock();
-
     let mut obj = get_test_object("ringbuf.bpf.o");
     let prog = get_prog_mut(&mut obj, "handle__sys_enter_getpid");
     let _link = prog.attach().expect("failed to attach prog");
@@ -1200,8 +1471,6 @@ fn test_object_ringbuf_closure() {
 #[tag(root)]
 #[test]
 fn test_object_ringbuf_with_closed_map() {
-    bump_rlimit_mlock();
-
     fn test(poll_fn: impl FnOnce(&libbpf_rs::RingBuffer)) {
         let mut value = 0i32;
 
@@ -1209,7 +1478,7 @@ fn test_object_ringbuf_with_closed_map() {
             let mut obj = get_test_object("tracepoint.bpf.o");
             let prog = get_prog_mut(&mut obj, "handle__tracepoint");
             let _link = prog
-                .attach_tracepoint("syscalls", "sys_enter_getpid")
+                .attach_tracepoint(TracepointCategory::Syscalls, "sys_enter_getpid")
                 .expect("failed to attach prog");
 
             let map = get_map_mut(&mut obj, "ringbuf");
@@ -1254,8 +1523,6 @@ fn test_object_user_ringbuf() {
 
     unsafe impl Plain for MyStruct {}
 
-    bump_rlimit_mlock();
-
     let mut obj = get_test_object("user_ringbuf.bpf.o");
     let prog = get_prog_mut(&mut obj, "handle__sys_enter_getpid");
     let _link = prog.attach().expect("failed to attach prog");
@@ -1295,8 +1562,6 @@ fn test_object_user_ringbuf() {
 #[tag(root)]
 #[test]
 fn test_object_user_ringbuf_reservation_too_big() {
-    bump_rlimit_mlock();
-
     let mut obj = get_test_object("user_ringbuf.bpf.o");
     let prog = get_prog_mut(&mut obj, "handle__sys_enter_getpid");
     let _link = prog.attach().expect("failed to attach prog");
@@ -1312,14 +1577,12 @@ fn test_object_user_ringbuf_reservation_too_big() {
 #[tag(root)]
 #[test]
 fn test_object_user_ringbuf_not_enough_space() {
-    bump_rlimit_mlock();
-
     let mut obj = get_test_object("user_ringbuf.bpf.o");
     let prog = get_prog_mut(&mut obj, "handle__sys_enter_getpid");
     let _link = prog.attach().expect("failed to attach prog");
     let urb_map = get_map_mut(&mut obj, "user_ringbuf");
     let user_ringbuf = UserRingBuffer::new(&urb_map).expect("failed to create user ringbuf");
-    let _ = user_ringbuf
+    let _sample = user_ringbuf
         .reserve(1024 * 3)
         .expect("failed to reserve space");
     let err = user_ringbuf.reserve(1024 * 3).unwrap_err();
@@ -1333,13 +1596,6 @@ fn test_object_user_ringbuf_not_enough_space() {
 #[tag(root)]
 #[test]
 fn test_object_task_iter() {
-    bump_rlimit_mlock();
-
-    let mut obj = get_test_object("taskiter.bpf.o");
-    let prog = get_prog_mut(&mut obj, "dump_pid");
-    let link = prog.attach().expect("failed to attach prog");
-    let mut iter = Iter::new(&link).expect("failed to create iterator");
-
     #[repr(C)]
     #[derive(Clone, Copy)]
     struct IndexPidPair {
@@ -1349,28 +1605,61 @@ fn test_object_task_iter() {
 
     unsafe impl Plain for IndexPidPair {}
 
-    let mut buf = Vec::new();
-    let bytes_read = iter
-        .read_to_end(&mut buf)
-        .expect("failed to read from iterator");
+    fn test_iter(link: libbpf_rs::Link) {
+        let mut iter = Iter::new(&link).expect("failed to create iterator");
 
-    assert!(bytes_read > 0);
-    assert_eq!(bytes_read % size_of::<IndexPidPair>(), 0);
-    let items: &[IndexPidPair] =
-        plain::slice_from_bytes(buf.as_slice()).expect("Input slice cannot satisfy length");
+        let mut buf = Vec::new();
+        let bytes_read = iter
+            .read_to_end(&mut buf)
+            .expect("failed to read from iterator");
+        assert!(bytes_read > 0);
+        assert_eq!(bytes_read % size_of::<IndexPidPair>(), 0);
 
-    assert!(!items.is_empty());
-    assert_eq!(items[0].i, 0);
-    assert!(items.windows(2).all(|w| w[0].i + 1 == w[1].i));
-    // Check for init
-    assert!(items.iter().any(|&item| item.pid == 1));
+        let items: &[IndexPidPair] =
+            plain::slice_from_bytes(buf.as_slice()).expect("Input slice cannot satisfy length");
+        assert!(!items.is_empty());
+        assert_eq!(items[0].i, 0);
+        assert!(items.windows(2).all(|w| w[0].i + 1 == w[1].i));
+        // Check for init
+        assert!(items.iter().any(|&item| item.pid == 1));
+
+        let link_info = link.info().expect("failed to get iter link info");
+        let LinkTypeInfo::Iter(iter_info) = link_info.info else {
+            panic!("Expected LinkTypeInfo::Iter, got: {:?}", link_info.info);
+        };
+
+        let IterLinkInfo {
+            target_name,
+            iter_type,
+            ..
+        } = iter_info;
+        assert_eq!(target_name, OsStr::new("task"));
+
+        let IterType::Task { tid, pid } = iter_type else {
+            panic!("Expected IterType::Task, got: {iter_type:?}");
+        };
+        assert_eq!(tid, 0); // all threads
+        assert_eq!(pid, 0); // all processes
+    }
+
+    // Test using auto-attachment.
+    let mut obj = get_test_object("taskiter.bpf.o");
+    let prog = get_prog_mut(&mut obj, "dump_pid");
+    let link_autoattach = prog.attach().expect("failed to auto-attach prog");
+    test_iter(link_autoattach);
+
+    // Test using attach_iter with no options.
+    let mut obj = get_test_object("taskiter.bpf.o");
+    let prog = get_prog_mut(&mut obj, "dump_pid");
+    let link_noopts = prog
+        .attach_iter_with_opts(libbpf_rs::IterOpts::None)
+        .expect("failed to attach prog with no opts");
+    test_iter(link_noopts);
 }
 
 #[tag(root)]
 #[test]
 fn test_object_map_iter() {
-    bump_rlimit_mlock();
-
     // Create a map for iteration test.
     let opts = libbpf_sys::bpf_map_create_opts {
         sz: size_of::<libbpf_sys::bpf_map_create_opts>() as libbpf_sys::size_t,
@@ -1416,13 +1705,28 @@ fn test_object_map_iter() {
     assert!(buf.contains(&0));
     assert!(buf.contains(&1));
     assert!(buf.contains(&2));
+
+    let link_info = link.info().expect("failed to get iter link info");
+    let LinkTypeInfo::Iter(iter_info) = link_info.info else {
+        panic!("Expected LinkTypeInfo::Iter, got: {:?}", link_info.info);
+    };
+
+    let IterLinkInfo {
+        target_name,
+        iter_type,
+        ..
+    } = iter_info;
+    assert_eq!(target_name, OsStr::new("bpf_map_elem"));
+
+    let IterType::Map { map_id } = iter_type else {
+        panic!("Expected IterType::Map, got: {iter_type:?}");
+    };
+    assert_eq!(map_id, map.info().unwrap().info.id);
 }
 
 #[tag(root)]
 #[test]
 fn test_object_map_create_and_pin() {
-    bump_rlimit_mlock();
-
     let opts = libbpf_sys::bpf_map_create_opts {
         sz: size_of::<libbpf_sys::bpf_map_create_opts>() as libbpf_sys::size_t,
         map_flags: libbpf_sys::BPF_F_NO_PREALLOC,
@@ -1467,9 +1771,6 @@ fn test_object_map_create_and_pin() {
 #[tag(root)]
 #[test]
 fn test_object_map_create_without_name() {
-    bump_rlimit_mlock();
-
-    #[allow(clippy::needless_update)]
     let opts = libbpf_sys::bpf_map_create_opts {
         sz: size_of::<libbpf_sys::bpf_map_create_opts>() as libbpf_sys::size_t,
         map_flags: libbpf_sys::BPF_F_NO_PREALLOC,
@@ -1501,12 +1802,10 @@ fn test_object_map_create_without_name() {
     assert_eq!(val, res);
 }
 
-/// Test whether we can obtain multiple `MapHandle`s from a `Map
+/// Test whether we can obtain multiple `MapHandle`s from a `Map`.
 #[tag(root)]
 #[test]
 fn test_object_map_handle_clone() {
-    bump_rlimit_mlock();
-
     let mut obj = get_test_object("runqslower.bpf.o");
     let map = get_map_mut(&mut obj, "events");
     let handle1 = MapHandle::try_from(&map).expect("failed to create handle from Map");
@@ -1514,12 +1813,14 @@ fn test_object_map_handle_clone() {
     assert_eq!(map.map_type(), handle1.map_type());
     assert_eq!(map.key_size(), handle1.key_size());
     assert_eq!(map.value_size(), handle1.value_size());
+    assert_eq!(map.max_entries(), handle1.max_entries());
 
     let handle2 = MapHandle::try_from(&handle1).expect("failed to duplicate existing handle");
     assert_eq!(handle1.name(), handle2.name());
     assert_eq!(handle1.map_type(), handle2.map_type());
     assert_eq!(handle1.key_size(), handle2.key_size());
     assert_eq!(handle1.value_size(), handle2.value_size());
+    assert_eq!(handle1.max_entries(), handle2.max_entries());
 
     let info1 = map.info().expect("failed to get map info from map");
     let info2 = handle2.info().expect("failed to get map info from handle");
@@ -1532,8 +1833,6 @@ fn test_object_map_handle_clone() {
 #[tag(root)]
 #[test]
 fn test_object_usdt() {
-    bump_rlimit_mlock();
-
     let mut obj = get_test_object("usdt.bpf.o");
     let prog = get_prog_mut(&mut obj, "handle__usdt");
 
@@ -1560,8 +1859,6 @@ fn test_object_usdt() {
 #[tag(root)]
 #[test]
 fn test_object_usdt_cookie() {
-    bump_rlimit_mlock();
-
     let cookie_val = 1337u16;
     let mut obj = get_test_object("usdt.bpf.o");
     let prog = get_prog_mut(&mut obj, "handle__usdt_with_cookie");
@@ -1593,8 +1890,6 @@ fn test_object_usdt_cookie() {
 #[tag(root)]
 #[test]
 fn test_map_probes() {
-    bump_rlimit_mlock();
-
     let supported = MapType::Array
         .is_supported()
         .expect("failed to query if Array map is supported");
@@ -1606,8 +1901,6 @@ fn test_map_probes() {
 #[tag(root)]
 #[test]
 fn test_program_probes() {
-    bump_rlimit_mlock();
-
     let supported = ProgramType::SocketFilter
         .is_supported()
         .expect("failed to query if SocketFilter program is supported");
@@ -1619,8 +1912,6 @@ fn test_program_probes() {
 #[tag(root)]
 #[test]
 fn test_program_helper_probes() {
-    bump_rlimit_mlock();
-
     let supported = ProgramType::SocketFilter
         .is_helper_supported(libbpf_sys::BPF_FUNC_map_lookup_elem)
         .expect("failed to query if helper supported");
@@ -1637,8 +1928,6 @@ fn test_program_helper_probes() {
 #[tag(root)]
 #[test]
 fn test_object_open_program_insns() {
-    bump_rlimit_mlock();
-
     let open_obj = open_test_object("usdt.bpf.o");
     let prog = open_obj
         .progs()
@@ -1652,24 +1941,143 @@ fn test_object_open_program_insns() {
 #[tag(root)]
 #[test]
 fn test_object_program_insns() {
-    bump_rlimit_mlock();
-
     let mut obj = get_test_object("usdt.bpf.o");
     let prog = get_prog_mut(&mut obj, "handle__usdt");
     let insns = prog.insns();
     assert!(!insns.is_empty());
 }
 
+#[tag(root)]
+#[test]
+fn test_object_program_autoload() {
+    let mut open_obj = open_test_object("kprobe.bpf.o");
+    let prog_name = "handle__kprobe";
+    let mut open_prog = open_obj
+        .progs_mut()
+        .find(|prog| prog.name() == prog_name)
+        .expect("failed to find `handle__kprobe` program");
+
+    assert!(open_prog.autoload());
+    open_prog.set_autoload(false);
+    assert!(!open_prog.autoload());
+
+    let mut obj = open_obj.load().expect("failed to load object");
+    let prog = get_prog_mut(&mut obj, prog_name);
+    assert!(!prog.autoload());
+    assert!(prog.as_fd().as_raw_fd() < 0); // not loaded
+}
+
+/// Check that we can attach a BPF program to a kernel kprobe.
+#[tag(root)]
+#[test]
+fn test_object_kprobe() {
+    let mut obj = get_test_object("kprobe.bpf.o");
+    let prog = get_prog_mut(&mut obj, "handle__kprobe");
+    let _link = prog
+        .attach_kprobe(false, "bpf_fentry_test1")
+        .expect("failed to attach prog");
+}
+
+/// Check that we can attach a BPF program to a kernel kprobe, providing
+/// additional options.
+#[tag(root)]
+#[test]
+fn test_object_kprobe_with_opts() {
+    let mut obj = get_test_object("kprobe.bpf.o");
+    let prog = get_prog_mut(&mut obj, "handle__kprobe");
+    let opts = KprobeOpts::default();
+    let _link = prog
+        .attach_kprobe_with_opts(false, "bpf_fentry_test1", opts)
+        .expect("failed to attach prog");
+}
+
+/// Check that we can attach a BPF program to multiple kernel kprobes using
+/// `kprobe_multi`.
+#[tag(root)]
+#[test]
+#[ignore = "requires kernel with kprobe multi support"]
+fn test_object_kprobe_multi() {
+    let mut open_obj = open_test_object("kprobe.bpf.o");
+    open_obj
+        .progs_mut()
+        .find(|prog| prog.name() == "handle__kprobe")
+        .expect("failed to find `handle__kprobe` program")
+        .set_attach_type(libbpf_rs::ProgramAttachType::KprobeMulti);
+
+    let mut obj = open_obj.load().expect("failed to load object");
+    let prog = get_prog_mut(&mut obj, "handle__kprobe");
+    let _link = prog
+        .attach_kprobe_multi(false, vec!["bpf_fentry_test1", "bpf_fentry_test2"])
+        .expect("failed to attach prog");
+}
+
+/// Check that we can attach a BPF program to multiple kernel kprobes using
+/// `kprobe_multi`, providing additional options.
+#[tag(root)]
+#[test]
+#[ignore = "requires kernel with kprobe multi support"]
+fn test_object_kprobe_multi_with_opts() {
+    let mut open_obj = open_test_object("kprobe.bpf.o");
+    open_obj
+        .progs_mut()
+        .find(|prog| prog.name() == "handle__kprobe")
+        .expect("failed to find `handle__kprobe` program")
+        .set_attach_type(libbpf_rs::ProgramAttachType::KprobeMulti);
+
+    let mut obj = open_obj.load().expect("failed to load object");
+    let prog = get_prog_mut(&mut obj, "handle__kprobe");
+
+    let syms_opt = vec![
+        "bpf_fentry_test1".to_string(),
+        "bpf_fentry_test2".to_string(),
+    ];
+    let cookies_opt = vec![6, 7];
+    let opts = KprobeMultiOpts {
+        symbols: syms_opt.clone(),
+        cookies: cookies_opt.clone(),
+        ..Default::default()
+    };
+
+    let link = prog
+        .attach_kprobe_multi_with_opts(opts)
+        .expect("failed to attach prog");
+
+    let link_info = link.info().expect("failed to get kprobe_multi link info");
+    let LinkTypeInfo::KprobeMulti(kprobe_multi) = link_info.info else {
+        panic!(
+            "Expected LinkTypeInfo::KprobeMulti for kprobe_multi, got: {:?}",
+            link_info.info
+        );
+    };
+
+    let KprobeMultiLinkInfo {
+        count,
+        addrs,
+        cookies,
+        ..
+    } = kprobe_multi;
+    assert_eq!(count, syms_opt.len() as u32);
+    for (actual, sym) in zip(addrs, syms_opt) {
+        let Some(expected) = common::resolve_ksym_addr(&sym) else {
+            // requires reading `/proc/kallsyms`
+            break;
+        };
+
+        assert_eq!(actual, expected);
+    }
+    for (actual, expected) in zip(cookies, cookies_opt) {
+        assert_eq!(actual, expected);
+    }
+}
+
 /// Check that we can attach a BPF program to a kernel tracepoint.
 #[tag(root)]
 #[test]
 fn test_object_tracepoint() {
-    bump_rlimit_mlock();
-
     let mut obj = get_test_object("tracepoint.bpf.o");
     let prog = get_prog_mut(&mut obj, "handle__tracepoint");
     let _link = prog
-        .attach_tracepoint("syscalls", "sys_enter_getpid")
+        .attach_tracepoint(TracepointCategory::Syscalls, "sys_enter_getpid")
         .expect("failed to attach prog");
 
     let map = get_map_mut(&mut obj, "ringbuf");
@@ -1686,8 +2094,6 @@ fn test_object_tracepoint() {
 #[tag(root)]
 #[test]
 fn test_object_tracepoint_with_opts() {
-    bump_rlimit_mlock();
-
     let cookie_val = 42u16;
     let mut obj = get_test_object("tracepoint.bpf.o");
     let prog = get_prog_mut(&mut obj, "handle__tracepoint_with_cookie");
@@ -1697,7 +2103,68 @@ fn test_object_tracepoint_with_opts() {
         ..TracepointOpts::default()
     };
     let _link = prog
-        .attach_tracepoint_with_opts("syscalls", "sys_enter_getpid", opts)
+        .attach_tracepoint_with_opts(TracepointCategory::Syscalls, "sys_enter_getpid", opts)
+        .expect("failed to attach prog");
+
+    let map = get_map_mut(&mut obj, "ringbuf");
+    let action = || {
+        let _pid = unsafe { libc::getpid() };
+    };
+    let result = with_ringbuffer(&map, action);
+
+    assert_eq!(result, cookie_val.into());
+}
+
+/// Check that we can attach a BPF program to a kernel raw tracepoint.
+#[tag(root)]
+#[test]
+fn test_object_raw_tracepoint() {
+    let mut open_obj = open_test_object("tracepoint.bpf.o");
+    open_obj
+        .progs_mut()
+        .find(|prog| prog.name() == "handle__tracepoint")
+        .expect("failed to find `handle__tracepoint` program")
+        .set_prog_type(libbpf_rs::ProgramType::RawTracepoint);
+
+    let mut obj = open_obj.load().expect("failed to load object");
+    let prog = get_prog_mut(&mut obj, "handle__tracepoint");
+    let _link = prog
+        .attach_raw_tracepoint("sys_enter")
+        .expect("failed to attach prog");
+
+    let map = get_map_mut(&mut obj, "ringbuf");
+    let action = || {
+        let _pid = unsafe { libc::getpid() };
+    };
+    let result = with_ringbuffer(&map, action);
+
+    assert_eq!(result, 1);
+}
+
+/// Check that we can attach a BPF program to a kernel raw tracepoint, providing
+/// additional options.
+#[tag(root)]
+#[test]
+#[ignore = "requires kernel with bpf_get_attach_cookie for raw tracepoints"]
+fn test_object_raw_tracepoint_with_opts() {
+    let cookie_val = 42u16;
+
+    let mut open_obj = open_test_object("tracepoint.bpf.o");
+    open_obj
+        .progs_mut()
+        .find(|prog| prog.name() == "handle__tracepoint_with_cookie")
+        .expect("failed to find `handle__tracepoint` program")
+        .set_prog_type(libbpf_rs::ProgramType::RawTracepoint);
+
+    let mut obj = open_obj.load().expect("failed to load object");
+    let prog = get_prog_mut(&mut obj, "handle__tracepoint_with_cookie");
+
+    let opts = RawTracepointOpts {
+        cookie: cookie_val.into(),
+        ..Default::default()
+    };
+    let _link = prog
+        .attach_raw_tracepoint_with_opts("sys_enter", opts)
         .expect("failed to attach prog");
 
     let map = get_map_mut(&mut obj, "ringbuf");
@@ -1711,17 +2178,199 @@ fn test_object_tracepoint_with_opts() {
 
 #[inline(never)]
 #[no_mangle]
-extern "C" fn uprobe_target() -> usize {
+extern "C" fn uprobe_multi_func_1() -> usize {
     // Use `black_box` here as an additional barrier to inlining.
     hint::black_box(42)
 }
 
+#[inline(never)]
+#[no_mangle]
+extern "C" fn uprobe_multi_func_2() -> usize {
+    // Use `black_box` here as an additional barrier to inlining.
+    hint::black_box(43)
+}
+
+#[inline(never)]
+#[no_mangle]
+extern "C" fn multi_uprobe_func_with_opts_func_1() -> usize {
+    // Use `black_box` here as an additional barrier to inlining.
+    hint::black_box(44)
+}
+
+#[inline(never)]
+#[no_mangle]
+extern "C" fn multi_uprobe_func_with_opts_func_2() -> usize {
+    // Use `black_box` here as an additional barrier to inlining.
+    hint::black_box(45)
+}
+
+#[inline(never)]
+#[no_mangle]
+extern "C" fn non_default_opts_multi_uprobe_func_with_opts_func_1() -> usize {
+    // Use `black_box` here as an additional barrier to inlining.
+    hint::black_box(46)
+}
+
+#[inline(never)]
+#[no_mangle]
+extern "C" fn non_default_opts_multi_uprobe_func_with_opts_func_2() -> usize {
+    // Use `black_box` here as an additional barrier to inlining.
+    hint::black_box(47)
+}
+
+#[tag(root)]
+#[test]
+fn test_object_uprobe_multi_with_opts() {
+    let mut obj = get_test_object("uprobe_multi.bpf.o");
+    let prog = get_prog_mut(&mut obj, "handle__uprobe_multi_with_opts");
+    let func_pattern = "multi_uprobe_func_*";
+
+    let pid = unsafe { libc::getpid() };
+    let path = current_exe().expect("failed to find executable name");
+    let opts = UprobeMultiOpts::default();
+
+    let _link = prog
+        .attach_uprobe_multi_with_opts(pid, path, func_pattern, opts)
+        .expect("failed to attach uprobe multi");
+
+    multi_uprobe_func_with_opts_func_1();
+    multi_uprobe_func_with_opts_func_2();
+
+    let map = get_map_mut(&mut obj, "hash_map");
+    let result_bytes = map
+        .lookup(&(1_u32).to_ne_bytes(), MapFlags::ANY)
+        .expect("failed to lookup")
+        .expect("failed to find value for key");
+
+    let result = i32::from_ne_bytes(
+        result_bytes
+            .as_slice()
+            .try_into()
+            .expect("invalid value size"),
+    );
+
+    assert_eq!(result, 2);
+}
+
+#[tag(root)]
+#[test]
+fn test_object_uprobe_multi_with_non_default_opts() {
+    let mut obj = get_test_object("uprobe_multi.bpf.o");
+    let prog = get_prog_mut(&mut obj, "handle__uprobe_multi_with_non_default_opts");
+    let func_pattern = "";
+
+    let current_pid = unsafe { libc::getpid() };
+    let current_path = current_exe().expect("failed to find executable name");
+    let syms_opt = vec![
+        "non_default_opts_multi_uprobe_func_with_opts_func_1".to_string(),
+        "non_default_opts_multi_uprobe_func_with_opts_func_2".to_string(),
+    ];
+    let ref_ctr_offsets_opt = vec![2, 4];
+    let cookies_opt = vec![5, 2];
+    let opts = UprobeMultiOpts {
+        syms: syms_opt.clone(),
+        ref_ctr_offsets: ref_ctr_offsets_opt.clone(),
+        cookies: cookies_opt.clone(),
+        ..Default::default()
+    };
+
+    let link = prog
+        .attach_uprobe_multi_with_opts(current_pid, &current_path, func_pattern, opts)
+        .expect("failed to attach uprobe multi");
+
+    non_default_opts_multi_uprobe_func_with_opts_func_1();
+    non_default_opts_multi_uprobe_func_with_opts_func_2();
+
+    let map = get_map_mut(&mut obj, "hash_map");
+    let result_bytes = map
+        .lookup(&(1_u32).to_ne_bytes(), MapFlags::ANY)
+        .expect("failed to lookup")
+        .expect("failed to find value for key");
+
+    let result = i32::from_ne_bytes(
+        result_bytes
+            .as_slice()
+            .try_into()
+            .expect("invalid value size"),
+    );
+
+    assert_eq!(result, 2);
+
+    let link_info = link.info().expect("failed to get uprobe_multi link info");
+    let LinkTypeInfo::UprobeMulti(uprobe_multi) = link_info.info else {
+        panic!(
+            "Expected LinkTypeInfo::UprobeMulti for uprobe_multi, got: {:?}",
+            link_info.info
+        );
+    };
+
+    let UprobeMultiLinkInfo {
+        path,
+        count,
+        pid,
+        offsets,
+        ref_ctr_offsets,
+        cookies,
+        ..
+    } = uprobe_multi;
+    assert_eq!(path.as_ref(), Some(&current_path));
+    assert_eq!(pid, current_pid as u32);
+    assert_eq!(count, syms_opt.len() as u32);
+    for (actual, sym) in zip(offsets, syms_opt) {
+        let expected = get_symbol_offset(&current_path, &sym).unwrap();
+        assert_eq!(actual, expected as u64);
+    }
+    for (actual, expected) in zip(ref_ctr_offsets, ref_ctr_offsets_opt) {
+        assert_eq!(actual, expected as u64);
+    }
+    for (actual, expected) in zip(cookies, cookies_opt) {
+        assert_eq!(actual, expected);
+    }
+}
+
+#[tag(root)]
+#[test]
+fn test_object_uprobe_multi() {
+    let mut obj = get_test_object("uprobe_multi.bpf.o");
+    let prog = get_prog_mut(&mut obj, "handle__uprobe_multi");
+    let func_pattern = "uprobe_multi_func_*";
+
+    let pid = unsafe { libc::getpid() };
+    let path = current_exe().expect("failed to find executable name");
+
+    let _link = prog
+        .attach_uprobe_multi(pid, path, func_pattern, false, false)
+        .expect("failed to attach uprobe multi");
+
+    uprobe_multi_func_1();
+    uprobe_multi_func_2();
+
+    let map = get_map_mut(&mut obj, "hash_map");
+    let result_bytes = map
+        .lookup(&(0_u32).to_ne_bytes(), MapFlags::ANY)
+        .expect("failed to lookup")
+        .expect("failed to find value for key");
+
+    let result = i32::from_ne_bytes(
+        result_bytes
+            .as_slice()
+            .try_into()
+            .expect("invalid value size"),
+    );
+
+    assert_eq!(result, 2);
+}
+
+#[inline(never)]
+#[no_mangle]
+extern "C" fn uprobe_target() -> usize {
+    // Use `black_box` here as an additional barrier to inlining.
+    hint::black_box(42)
+}
 /// Check that we can attach a BPF program to a uprobe.
 #[tag(root)]
 #[test]
 fn test_object_uprobe_with_opts() {
-    bump_rlimit_mlock();
-
     let mut obj = get_test_object("uprobe.bpf.o");
     let prog = get_prog_mut(&mut obj, "handle__uprobe");
 
@@ -1729,11 +2378,33 @@ fn test_object_uprobe_with_opts() {
     let path = current_exe().expect("failed to find executable name");
     let func_offset = 0;
     let opts = UprobeOpts {
-        func_name: "uprobe_target".to_string(),
+        func_name: Some("uprobe_target".into()),
         ..Default::default()
     };
     let _link = prog
         .attach_uprobe_with_opts(pid, path, func_offset, opts)
+        .expect("failed to attach prog");
+
+    let map = get_map_mut(&mut obj, "ringbuf");
+    let action = || {
+        let _ = uprobe_target();
+    };
+    let result = with_ringbuffer(&map, action);
+
+    assert_eq!(result, 1);
+}
+
+#[tag(root)]
+#[test]
+fn test_object_uprobe_with_func_offset() {
+    let mut obj = get_test_object("uprobe.bpf.o");
+    let prog = get_prog_mut(&mut obj, "handle__uprobe");
+
+    let pid = unsafe { libc::getpid() };
+    let path = current_exe().expect("failed to find executable name");
+    let func_offset = get_symbol_offset(&path, "uprobe_target").unwrap();
+    let _link = prog
+        .attach_uprobe_with_opts(pid, path, func_offset, Default::default())
         .expect("failed to attach prog");
 
     let map = get_map_mut(&mut obj, "ringbuf");
@@ -1750,8 +2421,6 @@ fn test_object_uprobe_with_opts() {
 #[tag(root)]
 #[test]
 fn test_object_uprobe_with_cookie() {
-    bump_rlimit_mlock();
-
     let cookie_val = 5u16;
     let mut obj = get_test_object("uprobe.bpf.o");
     let prog = get_prog_mut(&mut obj, "handle__uprobe_with_cookie");
@@ -1760,7 +2429,7 @@ fn test_object_uprobe_with_cookie() {
     let path = current_exe().expect("failed to find executable name");
     let func_offset = 0;
     let opts = UprobeOpts {
-        func_name: "uprobe_target".to_string(),
+        func_name: Some("uprobe_target".into()),
         cookie: cookie_val.into(),
         ..Default::default()
     };
@@ -1777,16 +2446,24 @@ fn test_object_uprobe_with_cookie() {
     assert_eq!(result, cookie_val.into());
 }
 
-/// Check that we can link multiple object files.
+/// Check that we can link multiple object files and buffers.
 #[test]
-fn test_object_link_files() {
-    fn test(files: Vec<PathBuf>) {
+fn test_object_link_files_buffers() {
+    fn test(files: Vec<&PathBuf>, buffers_files: Vec<&PathBuf>) {
         let output_file = NamedTempFile::new().unwrap();
 
         let mut linker = Linker::new(output_file.path()).unwrap();
         let () = files
             .into_iter()
             .try_for_each(|file| linker.add_file(file))
+            .unwrap();
+        let buffers: Vec<Vec<u8>> = buffers_files
+            .into_iter()
+            .map(|path| fs::read(path).expect("failed to read object file"))
+            .collect();
+        let () = buffers
+            .iter()
+            .try_for_each(|buf| linker.add_buf(buf))
             .unwrap();
         let () = linker.link().unwrap();
 
@@ -1800,8 +2477,286 @@ fn test_object_link_files() {
     let obj_path1 = get_test_object_path("usdt.bpf.o");
     let obj_path2 = get_test_object_path("ringbuf.bpf.o");
 
-    test(vec![obj_path1.clone()]);
-    test(vec![obj_path1, obj_path2]);
+    // File only.
+    test(vec![&obj_path1], vec![]);
+    test(vec![&obj_path1, &obj_path2], vec![]);
+    // Buffers only.
+    test(vec![], vec![&obj_path1]);
+    test(vec![], vec![&obj_path1, &obj_path2]);
+    // Mixed.
+    test(vec![&obj_path1], vec![&obj_path2]);
+}
+
+/// Test that `perf_event` link info is properly parsed for tracepoint.
+#[tag(root)]
+#[test]
+fn test_perf_event_link_info_tracepoint() {
+    // Attach a tracepoint
+    let mut tp_obj = get_test_object("tracepoint.bpf.o");
+    let tp_prog = get_prog_mut(&mut tp_obj, "handle__tracepoint");
+    let tp_link = tp_prog
+        .attach_tracepoint(TracepointCategory::Syscalls, "sys_enter_getpid")
+        .expect("failed to attach tracepoint");
+
+    // Test tracepoint link info
+    let tp_info = tp_link.info().expect("failed to get tracepoint link info");
+    let LinkTypeInfo::PerfEvent(perf_info) = &tp_info.info else {
+        panic!(
+            "Expected LinkTypeInfo::PerfEvent for tracepoint, got: {:?}",
+            tp_info.info
+        );
+    };
+    let PerfEventType::Tracepoint { name, .. } = &perf_info.event_type else {
+        panic!(
+            "Expected PerfEventType::Tracepoint, got: {:?}",
+            perf_info.event_type
+        );
+    };
+
+    let tp_name = name.as_ref().expect("tracepoint should have a name");
+    assert_eq!(tp_name, OsStr::new("sys_enter_getpid"));
+}
+
+/// Test that `perf_event` link info is properly parsed for kprobe.
+#[tag(root)]
+#[test]
+fn test_perf_event_link_info_kprobe() {
+    // Attach a kprobe
+    let mut kprobe_obj = get_test_object("kprobe.bpf.o");
+    let kprobe_prog = get_prog_mut(&mut kprobe_obj, "handle__kprobe");
+    let kprobe_link = kprobe_prog
+        .attach_kprobe(false, "bpf_fentry_test1")
+        .expect("failed to attach kprobe");
+
+    // Test kprobe link info
+    let kprobe_info = kprobe_link.info().expect("failed to get kprobe link info");
+    let LinkTypeInfo::PerfEvent(perf_info) = &kprobe_info.info else {
+        panic!(
+            "Expected LinkTypeInfo::PerfEvent for kprobe, got: {:?}",
+            kprobe_info.info
+        );
+    };
+    let PerfEventType::Kprobe {
+        func_name,
+        is_retprobe,
+        ..
+    } = &perf_info.event_type
+    else {
+        panic!(
+            "Expected PerfEventType::Kprobe, got: {:?}",
+            perf_info.event_type
+        );
+    };
+
+    assert!(!is_retprobe, "Expected kprobe (not retprobe)");
+    let name = func_name
+        .as_ref()
+        .expect("kprobe should have a function name");
+    assert_eq!(name, OsStr::new("bpf_fentry_test1"));
+}
+
+/// Test that `perf_event` link info is properly parsed for kretprobe.
+#[tag(root)]
+#[test]
+fn test_perf_event_link_info_kretprobe() {
+    // Attach a kretprobe
+    let mut kretprobe_obj = get_test_object("kprobe.bpf.o");
+    let kretprobe_prog = get_prog_mut(&mut kretprobe_obj, "handle__kprobe");
+    let kretprobe_link = kretprobe_prog
+        .attach_kprobe(true, "bpf_fentry_test1")
+        .expect("failed to attach kretprobe");
+
+    // Test kretprobe link info
+    let kretprobe_info = kretprobe_link
+        .info()
+        .expect("failed to get kretprobe link info");
+    let LinkTypeInfo::PerfEvent(perf_info) = &kretprobe_info.info else {
+        panic!(
+            "Expected LinkTypeInfo::PerfEvent for kretprobe, got: {:?}",
+            kretprobe_info.info
+        );
+    };
+
+    let PerfEventType::Kprobe {
+        func_name,
+        is_retprobe,
+        ..
+    } = &perf_info.event_type
+    else {
+        panic!(
+            "Expected PerfEventType::Kprobe, got: {:?}",
+            perf_info.event_type
+        );
+    };
+
+    assert!(*is_retprobe, "Expected kretprobe");
+    let name = func_name
+        .as_ref()
+        .expect("kretprobe should have a function name");
+    assert_eq!(name, OsStr::new("bpf_fentry_test1"));
+}
+
+/// Attaches uprobe with given params and returns the link info.
+fn attach_uprobe_get_info(
+    prog: &libbpf_rs::ProgramMut,
+    path: &PathBuf,
+    offset: usize,
+    opts: &UprobeOpts,
+) -> (Option<OsString>, bool, u32, u64, u64) {
+    // SAFETY: `getpid` is always safe to call.
+    let pid = unsafe { libc::getpid() };
+    let link = prog
+        .attach_uprobe_with_opts(pid, path, offset, opts.clone())
+        .expect("failed to attach uprobe");
+
+    let link_info = link.info().expect("failed to get uprobe link info");
+    let LinkTypeInfo::PerfEvent(perf_info) = link_info.info else {
+        panic!(
+            "Expected LinkTypeInfo::PerfEvent for uprobe, got: {:?}",
+            link_info.info
+        );
+    };
+    let PerfEventType::Uprobe {
+        file_name,
+        is_retprobe,
+        offset,
+        cookie,
+        ref_ctr_offset,
+    } = perf_info.event_type
+    else {
+        panic!(
+            "Expected PerfEventType::Uprobe, got: {:?}",
+            perf_info.event_type
+        );
+    };
+    (file_name, is_retprobe, offset, cookie, ref_ctr_offset)
+}
+
+/// Test that `perf_event` link info is properly parsed for uprobe and uretprobe.
+#[tag(root)]
+#[test]
+fn test_perf_event_link_info_uprobe_uretprobe() {
+    // Load uprobe program.
+    let mut obj = get_test_object("uprobe.bpf.o");
+    let prog: libbpf_rs::ProgramMut = get_prog_mut(&mut obj, "handle__uprobe");
+
+    let path = current_exe().expect("failed to find executable name");
+    let path_os = Some(path.clone().into_os_string());
+    let func_name = "uprobe_target";
+    let func_offset = get_symbol_offset(&path, func_name).unwrap();
+
+    // Attach uprobe with only function name.
+    let uprobe_opts = UprobeOpts {
+        ref_ctr_offset: 0,
+        cookie: 5,
+        func_name: Some(func_name.into()),
+        retprobe: false,
+        ..Default::default()
+    };
+    let (up_file, up_is_retprobe, up_offset, up_cookie, up_ref_ctr_offset) =
+        attach_uprobe_get_info(&prog, &path, 0, &uprobe_opts);
+
+    // Test uprobe link info.
+    assert_eq!(up_file, path_os);
+    assert_eq!(
+        up_is_retprobe, uprobe_opts.retprobe,
+        "Expected uprobe (not retprobe)"
+    );
+    assert_eq!(up_offset, func_offset as u32);
+    assert_eq!(up_cookie, uprobe_opts.cookie);
+    assert_eq!(up_ref_ctr_offset, uprobe_opts.ref_ctr_offset as u64);
+
+    // Attach uretprobe with only function offset.
+    let uretprobe_opts = UprobeOpts {
+        ref_ctr_offset: 0,
+        cookie: 13,
+        func_name: None,
+        retprobe: true,
+        ..Default::default()
+    };
+    let (uretp_file, uretp_is_retprobe, uretp_offset, uretp_cookie, uretp_ref_ctr_offset) =
+        attach_uprobe_get_info(&prog, &path, func_offset, &uretprobe_opts);
+
+    // Test uretprobe link info.
+    assert_eq!(uretp_file, path_os);
+    assert_eq!(
+        uretp_is_retprobe, uretprobe_opts.retprobe,
+        "Expected uretprobe (not uprobe)"
+    );
+    assert_eq!(uretp_offset, func_offset as u32);
+    assert_eq!(uretp_cookie, uretprobe_opts.cookie);
+    assert_eq!(uretp_ref_ctr_offset, uretprobe_opts.ref_ctr_offset as u64);
+}
+
+/// Test that `perf_event` link info is properly parsed for perf event.
+#[tag(root)]
+#[test]
+fn test_perf_event_link_info_event() {
+    // Load perf_event program.
+    let mut obj = get_test_object("perf_event.bpf.o");
+    let prog = get_prog_mut(&mut obj, "handle__perf_event");
+
+    // The `type` and `config` params depends on what the host supports, so this will only test for
+    // `PERF_TYPE_SOFTWARE`.
+    let mut attr = libbpf_sys::perf_event_attr {
+        type_: libbpf_sys::PERF_TYPE_SOFTWARE,
+        size: size_of::<libbpf_sys::perf_event_attr>() as u32,
+        config: libbpf_sys::PERF_COUNT_SW_DUMMY as u64,
+        ..Default::default()
+    };
+    attr.set_disabled(1);
+
+    let pid = 0;
+    let cpu = -1;
+    let group_fd = -1;
+    let flags = 0;
+    // SAFETY: `perf_event_open` is a valid syscall with the proper args.
+    let pfd =
+        match unsafe { libc::syscall(libc::SYS_perf_event_open, &attr, pid, cpu, group_fd, flags) }
+        {
+            // SAFETY: A file descriptor coming from the `from_raw_fd` function is always suitable
+            // for ownership and can be cleaned up with close.
+            fd_raw @ 0.. => unsafe { OwnedFd::from_raw_fd(fd_raw as RawFd) },
+            _ => panic!(
+                "`perf_event_open` syscall failed: {:?}",
+                io::Error::last_os_error()
+            ),
+        };
+
+    const PERF_COOKIE: u64 = 5;
+    let opts = PerfEventOpts {
+        cookie: PERF_COOKIE,
+        ..Default::default()
+    };
+    let mut link = prog
+        .attach_perf_event_with_opts(pfd.as_raw_fd(), opts)
+        .expect("failed to attach perf_event");
+
+    // Retrieve and test perf event link info.
+    let link_info = link.info().expect("failed to get perf_event link info");
+    // Releases ownership of `pfd` to avoid "owned file descriptor already closed" error.
+    link.disconnect();
+    let LinkTypeInfo::PerfEvent(perf_info) = link_info.info else {
+        panic!(
+            "Expected LinkTypeInfo::PerfEvent for perf_event, got: {:?}",
+            link_info.info
+        );
+    };
+    let PerfEventType::Event {
+        config,
+        event_type,
+        cookie,
+    } = perf_info.event_type
+    else {
+        panic!(
+            "Expected PerfEventType::PerfEvent, got: {:?}",
+            perf_info.event_type
+        );
+    };
+
+    assert_eq!(event_type, libbpf_sys::PERF_TYPE_SOFTWARE);
+    assert_eq!(config, libbpf_sys::PERF_COUNT_SW_DUMMY as u64);
+    assert_eq!(cookie, PERF_COOKIE);
 }
 
 /// Get access to the underlying per-cpu ring buffer data.
@@ -1814,7 +2769,7 @@ fn buffer<'a>(perf: &'a libbpf_rs::PerfBuffer, buf_idx: usize) -> &'a [u8] {
             perf_buff_ptr.as_ptr(),
             buf_idx as i32,
             ptr::addr_of_mut!(buffer_data_ptr),
-            ptr::addr_of_mut!(buffer_size) as *mut libbpf_sys::size_t,
+            ptr::addr_of_mut!(buffer_size).cast(),
         )
     };
     assert!(ret >= 0);
@@ -1829,8 +2784,6 @@ fn test_object_perf_buffer_raw() {
     use memmem::Searcher;
     use memmem::TwoWaySearcher;
 
-    bump_rlimit_mlock();
-
     let cookie_val = 42u16;
     let mut obj = get_test_object("tracepoint.bpf.o");
     let prog = get_prog_mut(&mut obj, "handle__tracepoint_with_cookie_pb");
@@ -1840,7 +2793,7 @@ fn test_object_perf_buffer_raw() {
         ..TracepointOpts::default()
     };
     let _link = prog
-        .attach_tracepoint_with_opts("syscalls", "sys_enter_getpid", opts)
+        .attach_tracepoint_with_opts(TracepointCategory::Syscalls, "sys_enter_getpid", opts)
         .expect("failed to attach prog");
 
     let map = get_map_mut(&mut obj, "pb");
@@ -1866,8 +2819,6 @@ fn test_object_perf_buffer_raw() {
 #[tag(root)]
 #[test]
 fn test_map_pinned_status() {
-    bump_rlimit_mlock();
-
     let mut obj = get_test_object("map_auto_pin.bpf.o");
     let map = get_map_mut(&mut obj, "auto_pin_map");
     let is_pinned = map.is_pinned();
@@ -1876,15 +2827,13 @@ fn test_map_pinned_status() {
     let get_path = map.get_pin_path().expect("get map pin path failed");
     assert_eq!(expected_path, get_path.to_str().unwrap());
     // cleanup
-    let _ = fs::remove_file(expected_path);
+    let _unused = fs::remove_file(expected_path);
 }
 
-/// Change the root_pin_path and see if it works.
+/// Change the `root_pin_path` and see if it works.
 #[tag(root)]
 #[test]
 fn test_map_pinned_status_with_pin_root_path() {
-    bump_rlimit_mlock();
-
     let obj_path = get_test_object_path("map_auto_pin.bpf.o");
     let mut obj = ObjectBuilder::default()
         .debug(true)
@@ -1894,24 +2843,24 @@ fn test_map_pinned_status_with_pin_root_path() {
         .expect("failed to open object")
         .load()
         .expect("failed to load object");
+    let expected_path = "/sys/fs/bpf/test_namespace/auto_pin_map";
+
+    defer! {
+      let _unused = fs::remove_file(expected_path);
+      let _unused = fs::remove_dir("/sys/fs/bpf/test_namespace");
+    }
 
     let map = get_map_mut(&mut obj, "auto_pin_map");
     let is_pinned = map.is_pinned();
     assert!(is_pinned);
-    let expected_path = "/sys/fs/bpf/test_namespace/auto_pin_map";
     let get_path = map.get_pin_path().expect("get map pin path failed");
     assert_eq!(expected_path, get_path.to_str().unwrap());
-    // cleanup
-    let _ = fs::remove_file(expected_path);
-    let _ = fs::remove_dir("/sys/fs/bpf/test_namespace");
 }
 
 /// Check that we can get program fd by id and vice versa.
 #[tag(root)]
 #[test]
 fn test_program_get_fd_and_id() {
-    bump_rlimit_mlock();
-
     let mut obj = get_test_object("runqslower.bpf.o");
     let prog = get_prog_mut(&mut obj, "handle__sched_wakeup");
     let prog_fd = prog.as_fd();
@@ -1923,8 +2872,6 @@ fn test_program_get_fd_and_id() {
 #[tag(root)]
 #[test]
 fn test_map_autocreate_disable() {
-    bump_rlimit_mlock();
-
     let mut open_obj = open_test_object("map_auto_pin.bpf.o");
     let mut auto_pin_map = open_obj
         .maps_mut()
@@ -1937,12 +2884,98 @@ fn test_map_autocreate_disable() {
     open_obj.load().expect("failed to load object");
 }
 
-/// Check that we can resize a map.
+/// Check that `autocreate()` getter works on `OpenMap` and `Map`.
 #[tag(root)]
 #[test]
-fn test_map_resize() {
-    bump_rlimit_mlock();
+fn test_map_autocreate_getter() {
+    let mut open_obj = open_test_object("map_auto_pin.bpf.o");
 
+    // OpenMap: autocreate=true by default
+    let map = open_obj
+        .maps()
+        .find(|m| m.name() == OsStr::new("auto_pin_map"))
+        .expect("failed to find `auto_pin_map` map");
+    assert!(map.autocreate());
+
+    // OpenMap: autocreate=false after set_autocreate(false)
+    let mut map = open_obj
+        .maps_mut()
+        .find(|m| m.name() == OsStr::new("auto_pin_map"))
+        .expect("failed to find `auto_pin_map` map");
+    map.set_autocreate(false).expect("set_autocreate() failed");
+    assert!(!map.autocreate());
+
+    let obj = open_obj.load().expect("failed to load object");
+
+    // Map (post-load): autocreate=false (the map wasn't created, but we can still query)
+    let map = obj
+        .maps()
+        .find(|m| m.name() == OsStr::new("auto_pin_map"))
+        .expect("failed to find `auto_pin_map` map");
+    assert!(!map.autocreate());
+
+    // Test autocreate=true post-load with a fresh object
+    let open_obj2 = open_test_object("map_auto_pin.bpf.o");
+    let obj2 = open_obj2.load().expect("failed to load object");
+    let map = obj2
+        .maps()
+        .find(|m| m.name() == OsStr::new("auto_pin_map"))
+        .expect("failed to find `auto_pin_map` map");
+    assert!(map.autocreate());
+}
+
+/// Check that `query_fdinfo` returns valid map information.
+#[tag(root)]
+#[test]
+fn test_map_query_fdinfo() {
+    let open_obj = open_test_object("runqslower.bpf.o");
+    let obj = open_obj.load().expect("failed to load object");
+    let map = obj
+        .maps()
+        .find(|m| m.name() == OsStr::new("start"))
+        .expect("failed to find `start` map");
+
+    let info = map.info().expect("info() failed");
+    let fdinfo = map.query_fdinfo().expect("query_fdinfo() failed");
+
+    assert_eq!(fdinfo.map_type, map.map_type());
+    assert_eq!(fdinfo.key_size, map.key_size());
+    assert_eq!(fdinfo.value_size, map.value_size());
+    assert_eq!(fdinfo.max_entries, map.max_entries());
+    assert_eq!(fdinfo.map_flags.unwrap(), info.info.map_flags);
+    assert_eq!(fdinfo.map_extra.unwrap(), info.info.map_extra);
+    assert!(fdinfo.memlock.unwrap() > 0);
+    assert_eq!(fdinfo.map_id.unwrap(), info.info.id);
+    assert!(!fdinfo.frozen.unwrap());
+    // owner_prog_type and owner_jited are only set for prog_array maps.
+    assert_eq!(fdinfo.owner_prog_type, None);
+    assert_eq!(fdinfo.owner_jited, None);
+}
+
+/// Check that `OpenMap` gets information correctly.
+#[tag(root)]
+#[test]
+fn test_map_get_info() {
+    let obj = open_test_object("runqslower.bpf.o");
+
+    let start = obj
+        .maps()
+        .find(|map| map.name() == OsStr::new("start"))
+        .expect("failed to find `start` map");
+
+    assert!(start.autocreate());
+    assert_eq!(start.key_size(), size_of::<u32>() as _);
+    assert_eq!(start.value_size(), size_of::<u64>() as _);
+    assert_eq!(start.map_flags(), 0);
+    assert_eq!(start.map_type(), MapType::Hash);
+    assert_eq!(start.max_entries(), 10240);
+    assert_eq!(start.numa_node(), 0);
+}
+
+/// Check that we can adjust a map's value size.
+#[tag(root)]
+#[test]
+fn test_map_adjust_value_size() {
     let mut open_obj = open_test_object("map_auto_pin.bpf.o");
     let mut resizable = open_obj
         .maps_mut()
@@ -1959,12 +2992,43 @@ fn test_map_resize() {
     assert_eq!(new_len, len * 2);
 }
 
+/// Check that we can adjust a map's maximum entries.
+#[tag(root)]
+#[test]
+fn test_object_map_max_entries() {
+    let mut obj = open_test_object("runqslower.bpf.o");
+
+    // resize the map to have twice the number of entries
+    let mut start = obj
+        .maps_mut()
+        .find(|map| map.name() == OsStr::new("start"))
+        .expect("failed to find `start` map");
+    let initial_max_entries = start.max_entries();
+    let new_max_entries = initial_max_entries * 2;
+    start
+        .set_max_entries(new_max_entries)
+        .expect("failed to set max entries");
+    // check that it reflects on the open map
+    assert_eq!(start.max_entries(), new_max_entries);
+
+    // check that it reflects after loading the map
+    let obj = obj.load().expect("failed to load object");
+    let start = obj
+        .maps()
+        .find(|map| map.name() == OsStr::new("start"))
+        .expect("failed to find `start` map");
+    assert_eq!(start.max_entries(), new_max_entries);
+
+    // check that it reflects after recreating the map handle from map id
+    let start = MapHandle::from_map_id(start.info().expect("failed to get map info").info.id)
+        .expect("failed to get map handle from id");
+    assert!(start.max_entries() == new_max_entries);
+}
+
 /// Check that we are able to attach using ksyscall
 #[tag(root)]
 #[test]
 fn test_attach_ksyscall() {
-    bump_rlimit_mlock();
-
     let mut obj = get_test_object("ksyscall.bpf.o");
     let prog = get_prog_mut(&mut obj, "handle__ksyscall");
     let _link = prog
@@ -1988,8 +3052,6 @@ fn test_attach_ksyscall() {
 #[tag(root)]
 #[test]
 fn test_run_prog_success() {
-    bump_rlimit_mlock();
-
     let mut obj = get_test_object("run_prog.bpf.o");
     let prog = get_prog_mut(&mut obj, "test_1");
 
@@ -2003,7 +3065,7 @@ fn test_run_prog_success() {
     let mut args = [addr_of!(state) as u64];
     let input = ProgramInput {
         context_in: Some(unsafe {
-            slice::from_raw_parts_mut(&mut args as *mut _ as *mut u8, size_of_val(&args))
+            slice::from_raw_parts_mut((&raw mut args).cast(), size_of_val(&args))
         }),
         ..Default::default()
     };
@@ -2015,11 +3077,228 @@ fn test_run_prog_success() {
 #[tag(root)]
 #[test]
 fn test_run_prog_fail() {
-    bump_rlimit_mlock();
-
     let mut obj = get_test_object("run_prog.bpf.o");
     let prog = get_prog_mut(&mut obj, "test_2");
 
     let input = ProgramInput::default();
     let _err = prog.test_run(input).unwrap_err();
+}
+
+/// Check that we can run a program with `test_run` with `repeat` set.
+///
+/// We set a counter in the program which we bump each time we run the
+/// program.
+/// We check that the counter is equal to the value of `repeat`.
+/// We also check that the duration is non-zero.
+#[tag(root)]
+#[test]
+fn test_run_prog_repeat_and_duration() {
+    let repeat = 100;
+    let payload: [u8; 16] = [
+        0xAA, 0xBB, 0xCC, 0xDD, 0xEE, 0xFF, // src mac
+        0x11, 0x22, 0x33, 0x44, 0x55, 0x66, // dst mac
+        0x08, 0x00, // ethertype
+        0x00, 0x00, // payload
+    ];
+    let mut obj = get_test_object("run_prog.bpf.o");
+    let prog = get_prog_mut(&mut obj, "xdp_counter");
+
+    let input: ProgramInput<'_> = ProgramInput {
+        data_in: Some(&payload),
+        repeat,
+        ..Default::default()
+    };
+
+    let output = prog.test_run(input).unwrap();
+
+    let map = get_map(&obj, "test_counter_map");
+
+    let counter = map
+        .lookup(&0u32.to_ne_bytes(), MapFlags::ANY)
+        .expect("failed to lookup counter")
+        .expect("failed to retrieve value");
+
+    assert_eq!(output.return_value, libbpf_sys::XDP_PASS);
+    assert_eq!(
+        counter,
+        repeat.to_ne_bytes(),
+        "counter {} != repeat {repeat}",
+        u32::from_ne_bytes(counter.clone().try_into().unwrap())
+    );
+    assert_ne!(
+        output.duration,
+        Duration::ZERO,
+        "duration should be non-zero"
+    );
+}
+
+/// Check that we can associate a non-struct_ops program with a `struct_ops` map.
+#[tag(root)]
+#[test]
+#[ignore = "requires kernel with struct_ops association support"]
+fn test_assoc_struct_ops() {
+    let obj_for_map = get_test_object("run_prog.bpf.o");
+    let map = get_map(&obj_for_map, "dummy_1");
+
+    let mut obj_for_prog = get_test_object("run_prog.bpf.o");
+    let prog = get_prog_mut(&mut obj_for_prog, "xdp_counter");
+
+    prog.assoc_struct_ops(&map).unwrap();
+}
+
+/// Test that `ProgramInfo::verified_insns` is populated for loaded programs.
+#[tag(root)]
+#[test]
+fn test_prog_info_verified_insns() {
+    let obj = get_test_object("tracepoint.bpf.o");
+    let prog = obj
+        .progs()
+        .next()
+        .expect("should have at least one program");
+    let prog_id = Program::id_from_fd(prog.as_fd()).expect("failed to get program ID");
+
+    let info = ProgInfoIter::default()
+        .find(|p| p.id == prog_id)
+        .unwrap_or_else(|| panic!("failed to find program with ID {prog_id} via ProgInfoIter"));
+
+    assert!(
+        info.verified_insns > 0,
+        "expected verified_insns > 0, got {}",
+        info.verified_insns,
+    );
+}
+
+#[tag(root)]
+#[test]
+fn test_program_handle_from_prog_id() {
+    let mut obj = get_test_object("runqslower.bpf.o");
+    let prog = get_prog_mut(&mut obj, "handle__sched_switch");
+    let prog_id = Program::id_from_fd(prog.as_fd()).expect("failed to get program id");
+
+    let handle = ProgramHandle::from_prog_id(prog_id).expect("failed to create handle from id");
+    // bpf_prog_info.name is [c_char; 16], so kernel truncates to 15 chars.
+    assert_eq!(handle.name(), "handle__sched_s");
+    assert_eq!(handle.prog_type(), prog.prog_type());
+    assert_eq!(handle.id(), prog_id);
+}
+
+#[tag(root)]
+#[test]
+fn test_program_handle_from_pinned_path() {
+    let path = "/sys/fs/bpf/test_prog_handle_pinned";
+
+    let mut obj = get_test_object("runqslower.bpf.o");
+    let mut prog = get_prog_mut(&mut obj, "handle__sched_wakeup");
+    let prog_id = Program::id_from_fd(prog.as_fd()).expect("failed to get program id");
+    prog.pin(path).expect("failed to pin program");
+
+    defer! {
+        let _unused = fs::remove_file(path);
+    }
+
+    let handle =
+        ProgramHandle::from_pinned_path(path).expect("failed to create handle from pinned path");
+    assert_eq!(handle.id(), prog_id);
+    assert_eq!(handle.name(), "handle__sched_w");
+}
+
+#[tag(root)]
+#[test]
+fn test_program_handle_try_from_program() {
+    let mut obj = get_test_object("runqslower.bpf.o");
+    let prog = get_prog_mut(&mut obj, "handle__sched_switch");
+
+    let handle = ProgramHandle::try_from(&prog).expect("failed to create handle from program");
+    assert_eq!(handle.name(), "handle__sched_switch");
+    assert_eq!(handle.name(), prog.name());
+    assert_eq!(handle.prog_type(), prog.prog_type());
+}
+
+/// Check that cloning a `ProgramHandle` via `TryFrom<&Self>` gives a distinct fd
+/// with the same metadata.
+#[tag(root)]
+#[test]
+fn test_program_handle_clone() {
+    let mut obj = get_test_object("runqslower.bpf.o");
+    let prog = get_prog_mut(&mut obj, "handle__sched_wakeup_new");
+    let handle1 = ProgramHandle::try_from(&prog).expect("failed to create handle");
+    let handle2 = ProgramHandle::try_from(&handle1).expect("failed to clone handle");
+
+    assert_eq!(handle1.name(), handle2.name());
+    assert_eq!(handle1.prog_type(), handle2.prog_type());
+    assert_eq!(handle1.tag(), handle2.tag());
+    assert_eq!(handle1.id(), handle2.id());
+    // The cloned handle must hold its own fd.
+    assert_ne!(handle1.as_fd().as_raw_fd(), handle2.as_fd().as_raw_fd());
+}
+
+#[tag(root)]
+#[test]
+fn test_program_handle_pin_unpin() {
+    let path = "/sys/fs/bpf/test_prog_handle_pin_unpin";
+
+    let mut obj = get_test_object("runqslower.bpf.o");
+    let prog = get_prog_mut(&mut obj, "handle__sched_switch");
+    let handle = ProgramHandle::try_from(&prog).expect("failed to create handle");
+
+    defer! {
+        let _unused = fs::remove_file(path);
+    }
+
+    handle.pin(path).expect("failed to pin program handle");
+    assert!(Path::new(path).exists());
+
+    handle.unpin(path).expect("failed to unpin program handle");
+    assert!(!Path::new(path).exists());
+}
+
+/// Check that a `ProgramHandle` is independent of the original
+/// program's object is dropped.
+#[tag(root)]
+#[test]
+fn test_program_handle_outlives_object() {
+    let mut obj = get_test_object("runqslower.bpf.o");
+    let prog = get_prog_mut(&mut obj, "handle__sched_switch");
+    let handle = ProgramHandle::try_from(&prog).expect("failed to create handle");
+    let expected_id = handle.id();
+
+    drop(obj);
+
+    assert_eq!(handle.id(), expected_id);
+    assert_eq!(handle.name(), "handle__sched_switch");
+    // Check that the duplicated fd is still live and refers to the same
+    // program.
+    let id = Program::id_from_fd(handle.as_fd()).unwrap();
+    assert_eq!(id, expected_id);
+}
+
+/// Verify that opening a `ProgramHandle` for a non-existent program ID
+/// fails.
+#[tag(root)]
+#[test]
+fn test_program_handle_from_invalid_prog_id() {
+    assert!(ProgramHandle::from_prog_id(u32::MAX).is_err());
+}
+
+/// Make sure that opening a handle from a bpffs path that was never
+/// pinned returns an error.
+#[tag(root)]
+#[test]
+fn test_program_handle_from_nonexistent_pinned_path() {
+    let path = "/sys/fs/bpf/test_prog_handle_does_not_exist";
+    assert!(!Path::new(path).exists());
+    assert!(ProgramHandle::from_pinned_path(path).is_err());
+}
+
+/// Ensure that unpinning a path that was never pinned returns an error.
+#[tag(root)]
+#[test]
+fn test_program_handle_unpin_not_pinned() {
+    let mut obj = get_test_object("runqslower.bpf.o");
+    let prog = get_prog_mut(&mut obj, "handle__sched_switch");
+    let handle = ProgramHandle::try_from(&prog).expect("failed to create handle");
+
+    let path = "/sys/fs/bpf/test_prog_handle_never_pinned";
+    assert!(!Path::new(path).exists());
+    assert!(handle.unpin(path).is_err());
 }

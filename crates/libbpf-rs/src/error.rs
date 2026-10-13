@@ -104,11 +104,11 @@ enum ErrorImpl {
     // enough.
     ContextOwned {
         context: Box<str>,
-        source: Box<ErrorImpl>,
+        source: Box<Self>,
     },
     ContextStatic {
         context: &'static str,
-        source: Box<ErrorImpl>,
+        source: Box<Self>,
     },
 }
 
@@ -128,6 +128,9 @@ impl ErrorImpl {
                 io::ErrorKind::Unsupported => ErrorKind::Unsupported,
                 io::ErrorKind::UnexpectedEof => ErrorKind::UnexpectedEof,
                 io::ErrorKind::OutOfMemory => ErrorKind::OutOfMemory,
+                // TODO: Use `io::ErrorKind::ArgumentListTooLong` once
+                //       stable.
+                _ if error.raw_os_error() == Some(libc::E2BIG) => ErrorKind::TooBig,
                 _ => ErrorKind::Other,
             },
             Self::ContextOwned { source, .. } | Self::ContextStatic { source, .. } => {
@@ -241,7 +244,7 @@ pub enum ErrorKind {
     /// The I/O operation's timeout expired, causing it to be canceled.
     TimedOut,
     /// An error returned when an operation could not be completed
-    /// because a call to [`write`] returned [`Ok(0)`].
+    /// because a call to [`write`] returned [`Ok(0)`][Result::Ok].
     WriteZero,
     /// This operation was interrupted.
     ///
@@ -255,6 +258,14 @@ pub enum ErrorKind {
     /// An operation could not be completed, because it failed
     /// to allocate enough memory.
     OutOfMemory,
+    /// An argument exceeded a size limit imposed by the kernel.
+    ///
+    /// Corresponds to `E2BIG` from the underlying syscall. For BPF map
+    /// operations such as [`MapCore::update`][crate::MapCore::update]
+    /// this typically means the map has reached its `max_entries`
+    /// limit. The same code can also indicate that a BPF program is too
+    /// large to load.
+    TooBig,
     /// A custom error that does not fall under any other I/O error
     /// kind.
     Other,
@@ -354,6 +365,14 @@ impl Error {
         Self::with_io_error(io::ErrorKind::InvalidData, error)
     }
 
+    #[inline]
+    pub(crate) fn with_invalid_input<E>(error: E) -> Self
+    where
+        E: ToString,
+    {
+        Self::with_io_error(io::ErrorKind::InvalidInput, error)
+    }
+
     /// Retrieve a rough error classification in the form of an
     /// [`ErrorKind`].
     #[inline]
@@ -432,7 +451,7 @@ pub trait ErrorExt: private::Sealed {
 }
 
 impl ErrorExt for Error {
-    type Output = Error;
+    type Output = Self;
 
     fn context<C>(self, context: C) -> Self::Output
     where
@@ -609,5 +628,15 @@ Caused by:
     some invalid data"#;
         assert_eq!(format!("{err:?}"), expected);
         assert_ne!(format!("{err:#?}"), "");
+    }
+
+    /// Check that `E2BIG` is reported as [`ErrorKind::TooBig`].
+    #[test]
+    fn e2big_maps_to_too_big() {
+        let err = Error::from_raw_os_error(libc::E2BIG);
+        assert_eq!(err.kind(), ErrorKind::TooBig);
+
+        let err = err.context("inserting key into map");
+        assert_eq!(err.kind(), ErrorKind::TooBig);
     }
 }

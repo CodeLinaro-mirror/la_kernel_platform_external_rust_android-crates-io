@@ -33,7 +33,8 @@ int handle__usdt_with_cookie(void *ctx)
 
     value = bpf_ringbuf_reserve(&ringbuf, sizeof(int), 0);
     if (!value) {
-        bpf_printk("handle__usdt_with_cookie: failed to reserve ring buffer space");
+        bpf_printk(
+            "handle__usdt_with_cookie: failed to reserve ring buffer space");
         return 1;
     }
 

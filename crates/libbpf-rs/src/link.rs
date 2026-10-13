@@ -5,6 +5,7 @@ use std::path::Path;
 use std::path::PathBuf;
 use std::ptr::NonNull;
 
+use crate::query::LinkInfo;
 use crate::util;
 use crate::util::validate_bpf_ret;
 use crate::AsRawLibbpf;
@@ -29,7 +30,7 @@ impl Link {
     ///
     /// `ptr` must point to a correctly initialized [`libbpf_sys::bpf_link`].
     pub(crate) unsafe fn new(ptr: NonNull<libbpf_sys::bpf_link>) -> Self {
-        Link { ptr }
+        Self { ptr }
     }
 
     /// Create link from BPF FS file.
@@ -60,7 +61,7 @@ impl Link {
 
     /// Release "ownership" of underlying BPF resource (typically, a BPF program
     /// attached to some BPF hook, e.g., tracepoint, kprobe, etc). Disconnected
-    /// links, when destructed through bpf_link__destroy() call won't attempt to
+    /// links, when destructed through `bpf_link__destroy()` call won't attempt to
     /// detach/unregistered that BPF resource. This is useful in situations where,
     /// say, attached BPF program has to outlive userspace program that attached it
     /// in the system. Depending on type of BPF program, though, there might be
@@ -108,6 +109,11 @@ impl Link {
         let ret = unsafe { libbpf_sys::bpf_link__detach(self.ptr.as_ptr()) };
         util::parse_ret(ret)
     }
+
+    /// Get information about this link.
+    pub fn info(&self) -> Result<LinkInfo> {
+        LinkInfo::from_fd(self.as_fd())
+    }
 }
 
 impl AsRawLibbpf for Link {
@@ -121,6 +127,8 @@ impl AsRawLibbpf for Link {
 
 // SAFETY: `bpf_link` objects can safely be sent to a different thread.
 unsafe impl Send for Link {}
+// SAFETY: `bpf_link` has no interior mutability.
+unsafe impl Sync for Link {}
 
 impl AsFd for Link {
     #[inline]
