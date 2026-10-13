@@ -233,9 +233,12 @@ impl<S: AsRawFd + ReadVolatile + Write + WriteVolatile + IsHybridVsock> VsockCon
             VSOCK_OP_RESPONSE => {
                 if self.stream.is_hybrid_vsock() {
                     // Confirmation for a host initiated connection
-                    // TODO: Handle stream write error in a better manner
                     let response = format!("OK {}\n", self.peer_port);
-                    self.stream.write_all(response.as_bytes()).unwrap();
+                    if let Err(err) = self.stream.write_all(response.as_bytes()) {
+                        log::debug!("Error writing confirmation to stream: {err:?}");
+                        self.rx_queue.enqueue(RxOps::Reset);
+                        return Ok(());
+                    }
                 }
                 self.connect = true;
             }
