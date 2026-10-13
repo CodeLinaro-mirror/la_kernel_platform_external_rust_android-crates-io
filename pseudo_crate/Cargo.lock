@@ -348,6 +348,7 @@ dependencies = [
  "drm 0.15.0",
  "drm-ffi",
  "drm-fourcc",
+ "dtoolkit",
  "either",
  "elf",
  "encoding_rs",
@@ -3354,6 +3355,17 @@ checksum = "ecc8e1361066d91f5ffccff060a3c3be9c3ecde15be2959c1937595f7a82a9f8"
 dependencies = [
  "libc 0.2.189",
  "linux-raw-sys 0.9.4",
+]
+
+[[package]]
+name = "dtoolkit"
+version = "0.4.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "fc532741bd339dc67baa30dbd95257824a92f2aec4c5726062c7a811f072532d"
+dependencies = [
+ "thiserror 2.0.18",
+ "zerocopy",
+ "zerocopy-derive",
 ]
 
 [[package]]
@@ -8634,7 +8646,7 @@ version = "4.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "430988f137a23121407b362bf10b09df302ed5092ffeb9af90a549edcc849115"
 dependencies = [
- "bitflags 2.13.1",
+ "bitflags 2.13.2",
  "libc 0.2.189",
  "mach2",
  "windows-sys 0.61.2",
@@ -10979,7 +10991,7 @@ version = "0.16.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "0b86018f5a44661f30db808298ccfcbe326279239c4d17a347c5476065ff72c0"
 dependencies = [
- "bitflags 2.13.1",
+ "bitflags 2.13.2",
  "uguid",
 ]
 
