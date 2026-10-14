@@ -42,6 +42,7 @@ fn main() {
             .allowlist_function("libbpf_.+")
             .allowlist_function("perf_.+")
             .allowlist_function("ring_buffer_.+")
+            .allowlist_function("ring__.+")
             .allowlist_function("user_ring_buffer_.+")
             .allowlist_function("vdprintf")
             .allowlist_type("bpf_.+")
