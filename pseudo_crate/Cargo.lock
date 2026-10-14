@@ -8893,9 +8893,9 @@ checksum = "b74b56ffa8bb2830709a538c2cbcae9aa062db0d2a42563bfb09bdaae44020eb"
 
 [[package]]
 name = "rustc-demangle-capi"
-version = "0.1.1"
+version = "0.1.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7180ceac372f8b64d3e24dd259bafc1bb156d552a1e7fd22b2b1fd50a792fd7d"
+checksum = "897344b08f3bda18892427320e65af3adb2203f29fc9a70f40e81dd4e398f819"
 dependencies = [
  "rustc-demangle",
 ]
