@@ -11,9 +11,9 @@
 
 [package]
 edition = "2024"
-rust-version = "1.85"
+rust-version = "1.88"
 name = "safe-mmio"
-version = "0.3.1"
+version = "0.3.2"
 authors = ["Andrew Walbran <qwandor@google.com>"]
 build = false
 autolib = false
@@ -52,3 +52,8 @@ path = "tests/custom_mmio.rs"
 [dependencies.zerocopy]
 version = "0.8.50"
 features = ["derive"]
+
+[lints.rust.unexpected_cfgs]
+level = "warn"
+priority = 0
+check-cfg = ["cfg(kani)"]
