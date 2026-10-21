@@ -13,14 +13,26 @@
 edition = "2021"
 rust-version = "1.68.2"
 name = "glam"
-version = "0.33.6"
+version = "0.33.9"
 build = false
+include = [
+    "/src/**/*.rs",
+    "/tests/**",
+    "/benches/*.rs",
+    "/benches/support/*.rs",
+    "/ATTRIBUTION.md",
+    "/README.md",
+    "/CHANGELOG.md",
+    "/LICENSE-APACHE",
+    "/LICENSE-MIT",
+]
 autolib = false
 autobins = false
 autoexamples = false
 autotests = false
 autobenches = false
 description = "A simple and fast 3D math library for games and graphics"
+documentation = "https://docs.rs/glam"
 readme = "README.md"
 keywords = [
     "gamedev",
@@ -53,6 +65,9 @@ default = [
     "std",
     "all-types",
 ]
+encase = ["encase-012"]
+encase-012 = ["dep:encase-012"]
+encase-013 = ["dep:encase-013"]
 f64 = []
 fast-math = []
 float-types = ["f64"]
@@ -281,10 +296,17 @@ features = [
 optional = true
 default-features = false
 
-[dependencies.encase]
+[dependencies.encase-012]
 version = "0.12"
 optional = true
 default-features = false
+package = "encase"
+
+[dependencies.encase-013]
+version = "0.13"
+optional = true
+default-features = false
+package = "encase"
 
 [dependencies.float_eq]
 version = "1.0.1"
