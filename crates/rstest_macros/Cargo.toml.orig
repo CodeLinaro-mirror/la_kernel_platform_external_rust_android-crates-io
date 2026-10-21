@@ -6,13 +6,12 @@ Rust fixture based test framework. It use procedural macro
 to implement fixtures and table based tests.
 """
 edition = "2021"
-homepage = "https://github.com/la10736/rstest"
 keywords = ["test", "fixture"]
 license = "MIT OR Apache-2.0"
 name = "rstest_macros"
 repository = "https://github.com/la10736/rstest"
-rust-version = "1.70.0"
-version = "0.26.1"
+rust-version = "1.85"
+version = "0.27.0"
 
 [lib]
 proc-macro = true
@@ -37,12 +36,12 @@ syn = { version = "2.0.79", features = [
     "visit-mut",
 ] }
 unicode-ident = "1.0.13"
-proc-macro-crate = { version = "3.2.0", optional = true }
+proc-macro-crate = { version = "3.4.0", optional = true }
 
 [dev-dependencies]
 maplit = "1.0.2"
 pretty_assertions = "1.4.1"
-rstest = { version = "0.26.0", default-features = false }
+rstest = { version = "0.25.0", default-features = false }
 rstest_reuse = { path = "../rstest_reuse" }
 rstest_test = { path = "../rstest_test" }
 
