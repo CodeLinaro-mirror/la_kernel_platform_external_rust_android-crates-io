@@ -568,7 +568,7 @@ dependencies = [
  "openssh-sftp-client",
  "openssh-sftp-client-lowlevel",
  "openssh-sftp-error",
- "openssh-sftp-protocol",
+ "openssh-sftp-protocol 0.25.0",
  "openssh-sftp-protocol-error",
  "openssl-macros",
  "openssl-probe",
@@ -7285,7 +7285,7 @@ dependencies = [
  "concurrent_arena",
  "derive_destructure2",
  "openssh-sftp-error",
- "openssh-sftp-protocol",
+ "openssh-sftp-protocol 0.24.2",
  "pin-project",
  "tokio",
  "tokio-io-utility",
@@ -7309,6 +7309,21 @@ name = "openssh-sftp-protocol"
 version = "0.24.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "ea33c59ea7b894dffbdb420b01e53dfc8e2a19eaa3237e5aeb333dd788d60fa9"
+dependencies = [
+ "bitflags 2.13.2",
+ "num-derive 0.5.1",
+ "num-traits",
+ "openssh-sftp-protocol-error",
+ "serde",
+ "ssh_format",
+ "vec-strings",
+]
+
+[[package]]
+name = "openssh-sftp-protocol"
+version = "0.25.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f2a9349d08c847adbb89ff16c507ef5876c05c317ffcb5fd992986db26bc69b3"
 dependencies = [
  "bitflags 2.13.2",
  "num-derive 0.5.1",
