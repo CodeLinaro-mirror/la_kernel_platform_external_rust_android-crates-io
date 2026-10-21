@@ -14,9 +14,9 @@ use std::os::windows::io::{AsRawSocket, AsSocket, BorrowedSocket as Borrowed, Ra
 
 use polling::{Event, Events, PollMode, Poller};
 
+use crate::RegistrationToken;
 use crate::sources::timer::TimerWheel;
 use crate::token::TokenInner;
-use crate::RegistrationToken;
 
 /// Possible modes for registering a file descriptor
 #[derive(Copy, Clone, Debug)]
@@ -193,7 +193,7 @@ pub struct Poll {
 }
 
 impl std::fmt::Debug for Poll {
-    #[cfg_attr(feature = "nightly_coverage", coverage(off))]
+    #[cfg_attr(unstable_coverage, coverage(off))]
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.write_str("Poll { ... }")
     }
