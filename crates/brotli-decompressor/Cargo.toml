@@ -11,7 +11,7 @@
 
 [package]
 name = "brotli-decompressor"
-version = "6.0.0"
+version = "6.0.1"
 authors = [
     "Daniel Reiter Horn <danielrh@dropbox.com>",
     "The Brotli Authors",
@@ -63,6 +63,10 @@ doc = false
 [[example]]
 name = "decompress"
 path = "examples/decompress.rs"
+
+[[test]]
+name = "ffi_default_allocator_failure"
+path = "tests/ffi_default_allocator_failure.rs"
 
 [[test]]
 name = "serialized_dictionary_cli"
