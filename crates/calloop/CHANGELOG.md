@@ -2,6 +2,15 @@
 
 ## Unreleased
 
+## 0.14.5 - 2026-10-01
+
+#### Bugfixes
+- Unregister source when `Async` is dropped.
+
+#### Changes
+- Bump MSRV to 1.86.0
+- Replace the `pin-utils` dependency with `std::pin::pin!`.
+
 ## 0.14.4 - 2025-02-13
 
 #### Additions
