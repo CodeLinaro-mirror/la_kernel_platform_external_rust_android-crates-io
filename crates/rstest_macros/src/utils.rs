@@ -36,7 +36,7 @@ pub(crate) fn fn_args(item_fn: &ItemFn) -> impl Iterator<Item = &FnArg> {
 }
 
 pub(crate) fn attr_ends_with(attr: &Attribute, segment: &syn::PathSegment) -> bool {
-    attr.path().segments.iter().last() == Some(segment)
+    attr.path().segments.iter().next_back() == Some(segment)
 }
 
 pub(crate) fn attr_starts_with(attr: &Attribute, segment: &syn::PathSegment) -> bool {
@@ -418,6 +418,7 @@ mod test {
     )]
     #[case(r#"'x'"#, "__x__")]
     #[case::ops(r#"a*b+c/d-e%f^g"#, "a_b_c_d_e_f_g")]
+    #[case(r#"filter whitespace"#, "filterwhitespace")]
     fn sanitaze_ident_name(#[case] expression: impl AsRef<str>, #[case] expected: impl AsRef<str>) {
         assert_eq!(expected.as_ref(), sanitize_ident(expression.as_ref()));
     }
