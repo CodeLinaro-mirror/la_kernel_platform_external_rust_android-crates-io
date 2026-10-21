@@ -86,7 +86,7 @@ pub unsafe fn set_image_handle(image_handle: Handle) {
     IMAGE_HANDLE.store(image_handle.as_ptr(), Ordering::Release);
 }
 
-/// Return true if boot services are active, false otherwise.
+/// Returns `true` if boot services are active and `false` otherwise.
 pub(crate) fn are_boot_services_active() -> bool {
     let Some(st) = table::system_table_raw() else {
         return false;
@@ -325,7 +325,7 @@ pub(crate) fn memory_map_size() -> MemoryMapMeta {
     mmm
 }
 
-/// Stores the current UEFI memory map in an UEFI-heap allocated buffer
+/// Stores the current UEFI memory map in a UEFI-heap-allocated buffer
 /// and returns a [`MemoryMapOwned`].
 ///
 /// The implementation tries to mitigate some UEFI pitfalls, such as getting
@@ -1269,7 +1269,7 @@ pub fn test_protocol<P: ProtocolPointer + ?Sized>(params: OpenProtocolParams) ->
     }
 }
 
-/// Loads a UEFI image into memory and return a [`Handle`] to the image.
+/// Loads a UEFI image into memory and returns a [`Handle`] to the image.
 ///
 /// There are two ways to load the image: by copying raw image data
 /// from a source buffer, or by loading the image via the
@@ -1535,7 +1535,7 @@ pub unsafe fn install_configuration_table(
 
 /// Sets the watchdog timer.
 ///
-/// UEFI will start a 5-minute countdown after an UEFI image is loaded.  The
+/// UEFI will start a 5-minute countdown after a UEFI image is loaded. The
 /// image must either successfully load an OS and exit boot services in that
 /// time, or disable the watchdog.
 ///
@@ -1567,18 +1567,19 @@ pub fn set_watchdog_timer(
     // SAFETY: The pointer is not null and we assume it to be initialized.
     let bt = unsafe { bt.as_ref() };
 
-    let (data_len, data) = data
+    let (data_size, data) = data
         .map(|d| {
             assert!(
                 d.contains(&0),
                 "Watchdog data must start with a null-terminated string"
             );
-            (d.len(), d.as_mut_ptr())
+            // The spec defines the data size in bytes, not in u16 units.
+            (size_of_val(d), d.as_mut_ptr())
         })
         .unwrap_or((0, ptr::null_mut()));
 
     // SAFETY: The memory is valid.
-    unsafe { (bt.set_watchdog_timer)(timeout_in_seconds, watchdog_code, data_len, data) }
+    unsafe { (bt.set_watchdog_timer)(timeout_in_seconds, watchdog_code, data_size, data) }
         .to_result()
 }
 
@@ -1882,7 +1883,7 @@ pub enum OpenProtocolAttributes {
     /// attribute of `ByDriver`, then an attempt will be made to remove
     /// them by calling the driver's `Stop` function.
     ///
-    /// # Warning
+    /// # Warnings
     ///
     /// Opening an interface in exclusive mode can have surprising side
     /// effects. For example:
@@ -1907,7 +1908,7 @@ pub enum OpenProtocolAttributes {
     /// opened with an attribute of `ByDriver`, then an attempt will be
     /// made to remove them with `DisconnectController`.
     ///
-    /// # Warning
+    /// # Warnings
     ///
     /// See warning section of [`Exclusive`].
     ///
@@ -1984,28 +1985,20 @@ impl LoadImageSource<'_> {
         *const u8, /* buffer */
         usize,     /* buffer length */
     ) {
-        let boot_policy;
-        let device_path;
-        let source_buffer;
-        let source_size;
-        match self {
+        let (boot_policy, device_path, source_buffer, source_size) = match self {
             LoadImageSource::FromBuffer { buffer, file_path } => {
                 // Boot policy is ignored when loading from source buffer.
-                boot_policy = BootPolicy::default();
-
-                device_path = file_path.map(|p| p.as_ffi_ptr()).unwrap_or(ptr::null());
-                source_buffer = buffer.as_ptr();
-                source_size = buffer.len();
+                (
+                    BootPolicy::default(),
+                    file_path.map(|p| p.as_ffi_ptr()).unwrap_or(ptr::null()),
+                    buffer.as_ptr(),
+                    buffer.len(),
+                )
             }
             LoadImageSource::FromDevicePath {
                 device_path: d_path,
                 boot_policy: b_policy,
-            } => {
-                boot_policy = *b_policy;
-                device_path = d_path.as_ffi_ptr();
-                source_buffer = ptr::null();
-                source_size = 0;
-            }
+            } => (*b_policy, d_path.as_ffi_ptr(), ptr::null(), 0),
         };
         (boot_policy, device_path, source_buffer, source_size)
     }

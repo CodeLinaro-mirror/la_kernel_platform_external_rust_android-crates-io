@@ -1,8 +1,40 @@
 # uefi - [Unreleased]
 
+
+# uefi - v0.40.0 (2026-08-25)
+
 ## Added
+- Added `proto::pi::mp::{CpuPhysicalLocation2, CPU_V2_EXTENDED_TOPOLOGY}` for
+  the extended processor topology.
 
 ## Changed
+- Added `char16!` const-compatible macro as convenient replacement for `Char16::try_from().unwrap()`
+- `proto::debug::SystemContextARM` now contains the trailing `IFAR` field
+  mandated by the spec.
+- **Breaking:** The `GptPartitionAttributes::TYPE_SPECIFIC_BIT_*` constants
+  now cover bits 48 to 63 as mandated by the spec, instead of bits 47 to 62.
+- `boot::set_watchdog_timer` now passes the watchdog data size in bytes, as
+  mandated by the spec. Previously, firmware only saw half of the data.
+- `proto::usb::io::UsbIo::supported_languages` no longer returns a slice with
+  twice the actual number of language IDs, whose second half was an
+  out-of-bounds read.
+- `proto::network::pxe::DiscoverInfo::new_in_buffer` now accounts for the
+  alignment padding before the server list in its buffer size check.
+  Previously, an exactly-sized buffer was written 2 bytes out of bounds.
+- **Breaking:** `proto::pi::mp::ProcessorInformation` now contains the
+  `extended_information` field mandated by the PI specification. Previously,
+  the struct was 24 bytes too small, which firmware could write past.
+- **Breaking:** The revision-gated media fields `lowest_aligned_lba`,
+  `logical_blocks_per_physical_block`, and
+  `optimal_transfer_length_granularity` moved from `BlockIOMedia` to
+  `BlockIO` and return `None` if the protocol revision does not include
+  them. Previously, they read past the media structure on old revisions.
+- `DevicePath::to_pool`, `append_path`, and `append_node` now locate the
+  `DevicePathUtilities` protocol by its own GUID instead of the
+  `DevicePathToText` GUID.
+- `UnicodeCollation::str_to_fat` now zeroes the output buffer before the
+  conversion. Previously, the result could contain garbage from the
+  uninitialized buffer, or reference one byte past its end.
 
 ## Removed
 
