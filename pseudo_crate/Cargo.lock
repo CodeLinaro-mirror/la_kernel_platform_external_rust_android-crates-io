@@ -385,7 +385,7 @@ dependencies = [
  "foreign-types-macros",
  "foreign-types-shared 0.1.1",
  "form_urlencoded",
- "fragile",
+ "fragile 3.0.0",
  "fs-err",
  "funty",
  "fuser",
@@ -4004,6 +4004,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "fragile"
+version = "3.0.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "fdb2ef9571de3fe79fb6b3b7f0567ddcce6b6c9cefdbc76af63895cf97b54649"
+dependencies = [
+ "futures-core",
+]
+
+[[package]]
 name = "freetype-sys"
 version = "0.20.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -6473,7 +6482,7 @@ checksum = "1a6ceddfe3ce334925e96bf420fdb2dcee5bed6c632a168ece622676dadeaf8a"
 dependencies = [
  "cfg-if",
  "downcast",
- "fragile",
+ "fragile 2.1.0",
  "mockall_derive",
  "predicates",
  "predicates-tree",
