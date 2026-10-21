@@ -13,7 +13,7 @@
 edition = "2024"
 rust-version = "1.88"
 name = "selinux-sys"
-version = "0.7.0"
+version = "0.7.1"
 authors = ["Koutheir Attouchi <koutheir@gmail.com>"]
 build = "build.rs"
 links = "selinux"
@@ -114,7 +114,7 @@ name = "selinux_sys"
 path = "src/lib.rs"
 
 [build-dependencies.bindgen]
-version = "0.72"
+version = "0.73"
 
 [build-dependencies.cc]
 version = "1"

@@ -138,11 +138,8 @@ glam = { default-features = false, features = ["nostd-libm"] }
   of parameters passed to `glam` to help catch runtime errors
 * `glam-assert` - adds validation assertions to all builds
 * `cuda` - forces `glam` types to match expected [cuda alignment]
-* `fast-math` - By default, glam attempts to provide bit-for-bit identical
-  results on all platforms. Using this feature will enable platform specific
-  optimizations that may not be identical to other platforms. **Intermediate
-  libraries should not use this feature and defer the decision to the final
-  binary build**.
+* `fast-math` - **Deprecated.** This feature no longer has any effect and will
+  be removed in a future release.
 * `core-simd` - enables SIMD support via the [portable simd] module. This is an
   unstable feature which requires a nightly Rust toolchain and `std` support.
 
@@ -225,11 +222,12 @@ performance.
 * All dependencies are optional (e.g. `mint`, `rand` and `serde`)
 * Follows the [Rust API Guidelines] where possible
 * Aiming for 100% test [coverage]
-* Common functionality is benchmarked using [Criterion.rs]
+* Common functionality is benchmarked using [Criterion.rs] and [Gungraun]
 
 [Rust API Guidelines]: https://rust-lang-nursery.github.io/api-guidelines/
 [coverage]: coveralls.io
-[Criterion.rs]: https://bheisler.github.io/criterion.rs/book/index.html
+[Criterion.rs]: https://criterion-rs.github.io/book/index.html
+[Gungraun]: https://gungraun.github.io/gungraun/
 
 ## Architecture
 

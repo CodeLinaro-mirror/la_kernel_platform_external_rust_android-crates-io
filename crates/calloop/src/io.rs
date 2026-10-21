@@ -1,10 +1,8 @@
 //! Adapters for async IO objects
 //!
 //! This module mainly hosts the [`Async`] adapter for making IO objects async with readiness
-//! monitoring backed by an [`EventLoop`](crate::EventLoop). See [`LoopHandle::adapt_io`] for
-//! how to create them.
-//!
-//! [`LoopHandle::adapt_io`]: crate::LoopHandle#method.adapt_io
+//! monitoring backed by an [`EventLoop`](crate::EventLoop). See
+//! [`LoopHandle::adapt_io`][crate::LoopHandle::adapt_io] for how to create them.
 
 use std::cell::RefCell;
 use std::pin::Pin;
@@ -22,11 +20,11 @@ use std::os::windows::io::{
 use futures_io::{AsyncRead, AsyncWrite, IoSlice, IoSliceMut};
 
 use crate::loop_logic::EventIterator;
-use crate::{
-    loop_logic::LoopInner, sources::EventDispatcher, Interest, Mode, Poll, PostAction, Readiness,
-    Token, TokenFactory,
-};
 use crate::{AdditionalLifecycleEventsSet, RegistrationToken};
+use crate::{
+    Interest, Mode, Poll, PostAction, Readiness, Token, TokenFactory, loop_logic::LoopInner,
+    sources::EventDispatcher,
+};
 
 /// Adapter for async IO manipulations
 ///
@@ -52,7 +50,7 @@ pub struct Async<'l, F: AsFd> {
 }
 
 impl<F: AsFd + std::fmt::Debug> std::fmt::Debug for Async<'_, F> {
-    #[cfg_attr(feature = "nightly_coverage", coverage(off))]
+    #[cfg_attr(unstable_coverage, coverage(off))]
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("Async").field("fd", &self.fd).finish()
     }
@@ -201,30 +199,63 @@ trait IoLoopInner {
 
 impl<Data> IoLoopInner for LoopInner<'_, Data> {
     unsafe fn register(&self, dispatcher: &RefCell<IoDispatcher>) -> crate::Result<()> {
-        let disp = dispatcher.borrow();
-        self.poll.borrow_mut().register(
-            unsafe { BorrowedFd::borrow_raw(disp.fd) },
-            Interest::EMPTY,
-            Mode::OneShot,
-            disp.token.expect("No token for IO dispatcher"),
-        )
+        let result = {
+            let disp = dispatcher.borrow();
+            unsafe {
+                self.poll.borrow_mut().register(
+                    BorrowedFd::borrow_raw(disp.fd),
+                    Interest::EMPTY,
+                    Mode::OneShot,
+                    disp.token.expect("No token for IO dispatcher"),
+                )
+            }
+        };
+
+        if result.is_ok() {
+            dispatcher.borrow_mut().is_registered = true
+        }
+
+        result
     }
 
     fn reregister(&self, dispatcher: &RefCell<IoDispatcher>) -> crate::Result<()> {
-        let disp = dispatcher.borrow();
-        self.poll.borrow_mut().reregister(
-            unsafe { BorrowedFd::borrow_raw(disp.fd) },
-            disp.interest,
-            Mode::OneShot,
-            disp.token.expect("No token for IO dispatcher"),
-        )
+        let result = {
+            let disp = dispatcher.borrow();
+            self.poll.borrow_mut().reregister(
+                unsafe { BorrowedFd::borrow_raw(disp.fd) },
+                disp.interest,
+                Mode::OneShot,
+                disp.token.expect("No token for IO dispatcher"),
+            )
+        };
+
+        if result.is_ok() {
+            dispatcher.borrow_mut().is_registered = true;
+        }
+
+        result
     }
 
     fn kill(&self, dispatcher: &RefCell<IoDispatcher>) {
-        let token = dispatcher
-            .borrow()
-            .token
-            .expect("No token for IO dispatcher");
+        let (token, fd, registered) = {
+            let disp = dispatcher.borrow();
+            (
+                disp.token.expect("No token for IO dispatcher"),
+                disp.fd,
+                disp.is_registered,
+            )
+        };
+
+        if registered
+            && self
+                .poll
+                .borrow_mut()
+                .unregister(unsafe { BorrowedFd::borrow_raw(fd) })
+                .is_ok()
+        {
+            dispatcher.borrow_mut().is_registered = false;
+        }
+
         if let Ok(slot) = self.sources.borrow_mut().get_mut(token.inner) {
             slot.source = None;
         }
@@ -409,6 +440,10 @@ fn set_nonblocking(fd: BorrowedFd<'_>, is_nonblocking: bool) -> std::io::Result<
 
 #[cfg(all(test, unix, feature = "executor", feature = "futures-io"))]
 mod tests {
+    use std::io;
+    use std::os::unix::net::UnixStream;
+    use std::rc::Rc;
+
     use futures::io::{AsyncReadExt, AsyncWriteExt};
 
     use crate::sources::futures::executor;
@@ -609,5 +644,26 @@ mod tests {
         while !dispatched {
             event_loop.dispatch(None, &mut dispatched).unwrap();
         }
+    }
+
+    #[test]
+    fn double_adapt_io() {
+        let event_loop = crate::EventLoop::<()>::try_new().unwrap();
+        let handle = event_loop.handle();
+
+        let socket = Rc::new(UnixStream::pair().unwrap().0);
+        handle.adapt_io(socket.clone()).unwrap();
+        handle.adapt_io(socket).unwrap();
+    }
+
+    #[test]
+    fn double_adapt_io_error() {
+        let event_loop = crate::EventLoop::<()>::try_new().unwrap();
+        let handle = event_loop.handle();
+
+        let socket = Rc::new(UnixStream::pair().unwrap().0);
+        let _async = handle.adapt_io(socket.clone()).unwrap();
+        assert!(matches!(handle.adapt_io(socket).unwrap_err(),
+                crate::Error::IoError(err) if err.kind() == io::ErrorKind::AlreadyExists));
     }
 }

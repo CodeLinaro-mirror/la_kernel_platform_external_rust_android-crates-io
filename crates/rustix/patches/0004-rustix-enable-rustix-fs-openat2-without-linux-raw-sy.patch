@@ -1,0 +1,80 @@
+From 04c2e61f1854c6583cf45849be051c1f31d24110 Mon Sep 17 00:00:00 2001
+From: Tyler Saunders <tylersaunders@google.com>
+Date: Mon, 19 Oct 2026 09:59:58 +0000
+Subject: [PATCH 4/4] fix(fs): enable openat2 without linux-raw-sys
+
+`rustix::fs::openat2` and its libc backend implementation were gated on
+`#[cfg(linux_raw_dep)]` in commit fda7cbe6 ("rustix: on Linux, support
+a build without linux-raw-sys (#1478)") because
+`backend::fs::syscalls::openat2` imported
+`linux_raw_sys::general::open_how`. Meanwhile, the supporting
+`ResolveFlags` bitflags and `SYS_OPENAT2` constant in the libc backend
+remained gated on `#[cfg(linux_kernel)]`.
+
+Because `libc::open_how` is not defined for `target_os = "android"` and
+is marked `#[non_exhaustive]` on `target_os = "linux"`, define
+`#[repr(C)] struct open_how` locally in `backend::fs::syscalls::openat2`
+when `#[cfg(not(linux_raw_dep))]` and gate `openat2` on
+`#[cfg(linux_kernel)]`. This makes `rustix::fs::openat2` usable on
+Android and Linux when building with `--cfg=rustix_no_linux_raw`.
+---
+ src/backend/libc/fs/syscalls.rs | 12 +++++++++++-
+ src/fs/mod.rs                   |  4 ++--
+ 2 files changed, 13 insertions(+), 3 deletions(-)
+
+diff --git a/src/backend/libc/fs/syscalls.rs b/src/backend/libc/fs/syscalls.rs
+index 1c687cc30..f1b056d69 100644
+--- a/src/backend/libc/fs/syscalls.rs
++++ b/src/backend/libc/fs/syscalls.rs
+@@ -1858,7 +1858,7 @@ pub(crate) fn memfd_create(name: &CStr, flags: MemfdFlags) -> io::Result<OwnedFd
+     unsafe { ret_owned_fd(memfd_create(c_str(name), bitflags_bits!(flags))) }
+ }
+ 
+-#[cfg(linux_raw_dep)]
++#[cfg(linux_kernel)]
+ pub(crate) fn openat2(
+     dirfd: BorrowedFd<'_>,
+     path: &CStr,
+@@ -1866,8 +1866,18 @@ pub(crate) fn openat2(
+     mode: Mode,
+     resolve: ResolveFlags,
+ ) -> io::Result<OwnedFd> {
++    #[cfg(linux_raw_dep)]
+     use linux_raw_sys::general::open_how;
+ 
++    #[cfg(not(linux_raw_dep))]
++    #[repr(C)]
++    #[derive(Debug, Copy, Clone)]
++    struct open_how {
++        flags: u64,
++        mode: u64,
++        resolve: u64,
++    }
++
+     syscall! {
+         fn openat2(
+             base_dirfd: c::c_int,
+diff --git a/src/fs/mod.rs b/src/fs/mod.rs
+index 5dbd7cbb8..35f7d787a 100644
+--- a/src/fs/mod.rs
++++ b/src/fs/mod.rs
+@@ -43,7 +43,7 @@ mod ioctl;
+ mod makedev;
+ #[cfg(any(linux_kernel, target_os = "freebsd"))]
+ mod memfd_create;
+-#[cfg(linux_raw_dep)]
++#[cfg(linux_kernel)]
+ mod openat2;
+ #[cfg(linux_kernel)]
+ mod raw_dir;
+@@ -106,7 +106,7 @@ pub use ioctl::*;
+ pub use makedev::*;
+ #[cfg(any(linux_kernel, target_os = "freebsd"))]
+ pub use memfd_create::memfd_create;
+-#[cfg(linux_raw_dep)]
++#[cfg(linux_kernel)]
+ pub use openat2::openat2;
+ #[cfg(linux_kernel)]
+ pub use raw_dir::{RawDir, RawDirEntry};
+-- 
+2.54.0.545.g6539524ca2-goog

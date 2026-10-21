@@ -8,17 +8,52 @@ project adheres to [Semantic Versioning](https://semver.org/).
 ## [Unreleased]
 
 ### Added
-
-* Add `exclusive` configuration option to `SerialPortBuilder` to control
-  whether ports are opened with exclusive access locks.
-  [#319](https://github.com/serialport/serialport-rs/pull/319)
-
 ### Changed
 ### Fixed
 ### Removed
 
 
-## [4.9.0] -- 2026-03-12
+## [4.10.1] - 2620-09-08
+
+### Fixed
+
+* Fix builds for Linux/PowerPC which got broken with [4.10.0].
+  [#375](https://github.com/serialport/serialport-rs/issues/375)
+  [#376](https://github.com/serialport/serialport-rs/pull/376)
+
+
+## [4.10.0] - 2026-08-24
+
+### Added
+
+* Provide USB port location in terms of bus and port chain via `UsbPortInfo`
+  and `Location`.
+  [#222](https://github.com/serialport/serialport-rs/issues/222)
+  [#350](https://github.com/serialport/serialport-rs/pull/350)
+  [#360](https://github.com/serialport/serialport-rs/pull/360)
+* Add new target illumos.
+  [#347](https://github.com/serialport/serialport-rs/pull/347)
+
+### Changed
+
+* Return error instead of panicking when reading inconsistent input/output
+  baudrates on some POSIX targets.
+  [#368](https://github.com/serialport/serialport-rs/pull/368)
+
+### Fixed
+
+* Accept dashes in serial number parsing on Windows.
+  [#351](https://github.com/serialport/serialport-rs/issues/351)
+  [#370](https://github.com/serialport/serialport-rs/issues/370)
+
+
+## [4.9.0] - 2026-03-12
+
+### Added
+
+* Add `exclusive` configuration option to `SerialPortBuilder` to control
+  whether ports are opened with exclusive access locks.
+  [#319](https://github.com/serialport/serialport-rs/pull/319)
 
 ### Changed
 
@@ -91,13 +126,13 @@ project adheres to [Semantic Versioning](https://semver.org/).
   [#251](https://github.com/serialport/serialport-rs/issues/251)
   [#243](https://github.com/serialport/serialport-rs/issues/243)
   [#239](https://github.com/serialport/serialport-rs/pull/239)
-  [#29](https://github.com/serialport/serialport-rs/pull/29)
+  [#29](https://github.com/serialport/serialport-rs/issues/29)
 
 ### Fixed
 
 * Fix reporting serial numbers with colons on Windows.
   [#279](https://github.com/serialport/serialport-rs/issues/279)
-  [#282](https://github.com/serialport/serialport-rs/issues/282)
+  [#282](https://github.com/serialport/serialport-rs/pull/282)
 * Setting arbitrary baud rates on Linux which resulted in issues when read back
   on Arch recently.
   [#281](https://github.com/serialport/serialport-rs/issues/281)
@@ -603,7 +638,9 @@ Unreleased, happened due to a user error using `cargo-release`.
 * Initial release.
 
 
-[Unreleased]: https://github.com/serialport/serialport-rs/compare/v4.9.0...HEAD
+[Unreleased]: https://github.com/serialport/serialport-rs/compare/v4.10.1...HEAD
+[4.10.0]: https://github.com/serialport/serialport-rs/compare/v4.10.0...v4.10.1
+[4.10.0]: https://github.com/serialport/serialport-rs/compare/v4.9.0...v4.10.0
 [4.9.0]: https://github.com/serialport/serialport-rs/compare/v4.8.1...v4.9.0
 [4.8.1]: https://github.com/serialport/serialport-rs/compare/v4.8.0...v4.8.1
 [4.8.0]: https://github.com/serialport/serialport-rs/compare/v4.7.3...v4.8.0

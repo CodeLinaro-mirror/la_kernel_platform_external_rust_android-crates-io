@@ -25,6 +25,8 @@ pub struct Version {
     links: Option<Box<SmolStr>>,
     #[serde(default)]
     rust_version: Option<SmolStr>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pubtime: Option<Box<SmolStr>>,
     #[serde(with = "hex")]
     cksum: [u8; 32],
     #[serde(default)]
@@ -119,10 +121,21 @@ impl Version {
         self.rust_version.as_deref()
     }
 
+    /// The time this version was published, in UTC.
+    ///
+    /// The index stores this as an ISO 8601 timestamp in the form
+    /// `yyyy-mm-ddThh:mm:ssZ`. This is optional because registries are not
+    /// required to provide it.
+    #[inline]
+    #[must_use]
+    pub fn pubtime(&self) -> Option<&str> {
+        self.pubtime.as_ref().map(|s| s.as_str())
+    }
+
     /// Where to find crate tarball
     #[must_use]
     pub fn download_url(&self, index: &IndexConfig) -> Option<String> {
-        index.download_url(&self.name, &self.vers)
+        index.download_url_with_checksum(&self.name, &self.vers, &self.cksum)
     }
 }
 

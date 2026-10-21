@@ -89,6 +89,8 @@ impl DMat3 {
     }
 
     /// Creates a 3x3 matrix from three column vectors.
+    ///
+    /// See also [`Self::from_rows`] when the data is in row major order.
     #[inline(always)]
     #[must_use]
     pub const fn from_cols(x_axis: DVec3, y_axis: DVec3, z_axis: DVec3) -> Self {
@@ -99,9 +101,23 @@ impl DMat3 {
         }
     }
 
+    /// Creates a 3x3 matrix from three row vectors.
+    ///
+    /// Matrices are stored in column major order, so the given rows are permuted into
+    /// the matrix layout. Use [`Self::from_cols`] instead when the data is already in
+    /// column major order.
+    #[inline(always)]
+    #[must_use]
+    pub const fn from_rows(row0: DVec3, row1: DVec3, row2: DVec3) -> Self {
+        let [m00, m01, m02] = row0.to_array();
+        let [m10, m11, m12] = row1.to_array();
+        let [m20, m21, m22] = row2.to_array();
+        Self::new(m00, m10, m20, m01, m11, m21, m02, m12, m22)
+    }
+
     /// Creates a 3x3 matrix from a `[f64; 9]` array stored in column major order.
-    /// If your data is stored in row major you will need to `transpose` the returned
-    /// matrix.
+    ///
+    /// If the data is in row major order use [`Self::from_rows_array`] instead.
     #[inline]
     #[must_use]
     pub const fn from_cols_array(m: &[f64; 9]) -> Self {
@@ -109,7 +125,8 @@ impl DMat3 {
     }
 
     /// Creates a `[f64; 9]` array storing data in column major order.
-    /// If you require data in row major order `transpose` the matrix first.
+    ///
+    /// If you require the data in row major order use [`Self::to_rows_array`] instead.
     #[inline]
     #[must_use]
     pub const fn to_cols_array(&self) -> [f64; 9] {
@@ -127,8 +144,8 @@ impl DMat3 {
     }
 
     /// Creates a 3x3 matrix from a `[[f64; 3]; 3]` 3D array stored in column major order.
-    /// If your data is in row major order you will need to `transpose` the returned
-    /// matrix.
+    ///
+    /// If the data is in row major order `transpose` the returned matrix.
     #[inline]
     #[must_use]
     pub const fn from_cols_array_2d(m: &[[f64; 3]; 3]) -> Self {
@@ -140,7 +157,8 @@ impl DMat3 {
     }
 
     /// Creates a `[[f64; 3]; 3]` 3D array storing data in column major order.
-    /// If you require data in row major order `transpose` the matrix first.
+    ///
+    /// If you require row major order `transpose` the matrix first.
     #[inline]
     #[must_use]
     pub const fn to_cols_array_2d(&self) -> [[f64; 3]; 3] {
@@ -149,6 +167,29 @@ impl DMat3 {
             self.y_axis.to_array(),
             self.z_axis.to_array(),
         ]
+    }
+
+    /// Creates a 3x3 matrix from a `[f64; 9]` array stored in row major order.
+    ///
+    /// Matrices are stored in column major order, so the array is permuted into the
+    /// matrix layout. Use [`Self::from_cols_array`] instead when the data is already in
+    /// column major order.
+    #[inline]
+    #[must_use]
+    pub const fn from_rows_array(m: &[f64; 9]) -> Self {
+        Self::new(m[0], m[3], m[6], m[1], m[4], m[7], m[2], m[5], m[8])
+    }
+
+    /// Creates a `[f64; 9]` array storing data in row major order.
+    ///
+    /// Matrices are stored in column major order, so the array is permuted out of the
+    /// column major storage. Use [`Self::to_cols_array`] instead when you want data in
+    /// column major order.
+    #[inline]
+    #[must_use]
+    pub const fn to_rows_array(&self) -> [f64; 9] {
+        let m = self.to_cols_array();
+        [m[0], m[3], m[6], m[1], m[4], m[7], m[2], m[5], m[8]]
     }
 
     /// Creates a 3x3 matrix with its diagonal set to `diagonal` and all other entries set to 0.
@@ -399,6 +440,8 @@ impl DMat3 {
 
     /// Creates a 3x3 matrix from the first 9 values in `slice`.
     ///
+    /// See also [`Self::from_rows_slice`] when the slice is in row major order.
+    ///
     /// # Panics
     ///
     /// Panics if `slice` is less than 9 elements long.
@@ -427,6 +470,25 @@ impl DMat3 {
         slice[6] = self.z_axis.x;
         slice[7] = self.z_axis.y;
         slice[8] = self.z_axis.z;
+    }
+
+    /// Creates a 3x3 matrix from the first 9 values in `slice`, stored in row
+    /// major order.
+    ///
+    /// Matrices are stored in column major order, so the slice is permuted into the
+    /// matrix layout. Use [`Self::from_cols_slice`] instead when the slice is already in
+    /// column major order.
+    ///
+    /// # Panics
+    ///
+    /// Panics if `slice` is less than 9 elements long.
+    #[inline]
+    #[must_use]
+    pub const fn from_rows_slice(slice: &[f64]) -> Self {
+        Self::new(
+            slice[0], slice[3], slice[6], slice[1], slice[4], slice[7], slice[2], slice[5],
+            slice[8],
+        )
     }
 
     /// Returns the matrix column for the given `index`.
@@ -462,6 +524,8 @@ impl DMat3 {
 
     /// Returns the matrix row for the given `index`.
     ///
+    /// See also [`Self::set_row`] when you need to change the row.
+    ///
     /// # Panics
     ///
     /// Panics if `index` is greater than 2.
@@ -472,6 +536,37 @@ impl DMat3 {
             0 => DVec3::new(self.x_axis.x, self.y_axis.x, self.z_axis.x),
             1 => DVec3::new(self.x_axis.y, self.y_axis.y, self.z_axis.y),
             2 => DVec3::new(self.x_axis.z, self.y_axis.z, self.z_axis.z),
+            _ => panic!("index out of bounds"),
+        }
+    }
+
+    /// Sets the matrix row for the given `index`.
+    ///
+    /// Matrices are stored in column major order, so the row is spread across all
+    /// 3 columns and writing it touches every column. Use [`Self::col_mut`]
+    /// instead when you can work with columns. See also [`Self::row`].
+    ///
+    /// # Panics
+    ///
+    /// Panics if `index` is greater than 2.
+    #[inline]
+    pub fn set_row(&mut self, index: usize, row: DVec3) {
+        match index {
+            0 => {
+                self.x_axis.x = row.x;
+                self.y_axis.x = row.y;
+                self.z_axis.x = row.z;
+            }
+            1 => {
+                self.x_axis.y = row.x;
+                self.y_axis.y = row.y;
+                self.z_axis.y = row.z;
+            }
+            2 => {
+                self.x_axis.z = row.x;
+                self.y_axis.z = row.y;
+                self.z_axis.z = row.z;
+            }
             _ => panic!("index out of bounds"),
         }
     }
@@ -513,7 +608,7 @@ impl DMat3 {
     #[inline]
     #[must_use]
     pub fn determinant(&self) -> f64 {
-        self.z_axis.dot(self.x_axis.cross(self.y_axis))
+        self.x_axis.dot(self.y_axis.cross(self.z_axis))
     }
 
     /// If `CHECKED` is true then if the determinant is zero this function will return a tuple
@@ -531,9 +626,7 @@ impl DMat3 {
     #[must_use]
     fn inverse_checked<const CHECKED: bool>(&self) -> (Self, bool) {
         let tmp0 = self.y_axis.cross(self.z_axis);
-        let tmp1 = self.z_axis.cross(self.x_axis);
-        let tmp2 = self.x_axis.cross(self.y_axis);
-        let det = self.z_axis.dot(tmp2);
+        let det = self.x_axis.dot(tmp0);
         if CHECKED {
             if det == 0.0 {
                 return (Self::ZERO, false);
@@ -541,6 +634,8 @@ impl DMat3 {
         } else {
             glam_assert!(det != 0.0);
         }
+        let tmp1 = self.z_axis.cross(self.x_axis);
+        let tmp2 = self.x_axis.cross(self.y_axis);
         let inv_det = DVec3::splat(1.0 / det);
         (
             Self::from_cols(tmp0.mul(inv_det), tmp1.mul(inv_det), tmp2.mul(inv_det)).transpose(),

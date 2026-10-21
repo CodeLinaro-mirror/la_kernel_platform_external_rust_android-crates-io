@@ -12,7 +12,7 @@ use syn::{parse_quote, Attribute, Expr, FnArg, Ident, ItemFn, Pat, Path, ReturnT
 
 use quote::{format_ident, quote};
 
-use crate::refident::MaybePat;
+use crate::refident::{MaybePat, MaybePatIdent};
 use crate::utils::sanitize_ident;
 use crate::{
     parse::{
@@ -28,10 +28,10 @@ use crate::{
 };
 use wrapper::WrapByModule;
 
-pub(crate) use fixture::render as fixture;
-use crate::parse::arguments::TestAttr;
 use self::apply_arguments::ApplyArguments;
 use self::crate_resolver::crate_name;
+use crate::parse::arguments::TestAttr;
+pub(crate) use fixture::render as fixture;
 pub(crate) mod apply_arguments;
 pub(crate) mod inject;
 
@@ -208,20 +208,14 @@ pub(crate) fn matrix(mut test: ItemFn, mut info: RsTestInfo) -> TokenStream {
     test_group(test, rendered_cases)
 }
 
-fn resolve_test_attr(
-    test_attr: Option<&TestAttr>,
-) -> Option<TokenStream> {
+fn resolve_test_attr(test_attr: Option<&TestAttr>) -> Option<TokenStream> {
     match test_attr {
-        Some(TestAttr::Explicit(attr)) => {
-            Some(quote! { #attr })
-        }
+        Some(TestAttr::Explicit(attr)) => Some(quote! { #attr }),
         Some(TestAttr::InAttrs) => {
             // test attr is already in the attributes; we don't need to re-inject it
             None
         }
-        None => {
-            Some(quote! { #[test] })
-        }
+        None => Some(quote! { #[test] }),
     }
 }
 
@@ -242,7 +236,7 @@ fn render_test_call(
     let timeout = timeout.map(|x| quote! {#x}).or_else(|| {
         std::env::var("RSTEST_TIMEOUT")
             .ok()
-            .map(|to| quote! { core::time::Duration::from_secs( (#to).parse().unwrap()) })
+            .map(|to| quote! { ::core::time::Duration::from_secs( (#to).parse().unwrap()) })
     });
     let rstest_path = crate_name();
     match (timeout, is_async) {
@@ -376,10 +370,9 @@ fn single_test_case(
     let lifetimes = if lifetimes.peek().is_some() {
         Some(quote! {<#(#lifetimes,)*>})
     } else {
-       None 
+        None
     };
-    
-    
+
     quote! {
         #(#attrs)*
         #test_attr
@@ -397,14 +390,22 @@ fn trace_arguments<'a>(
     attributes: &RsTestAttributes,
 ) -> Option<TokenStream> {
     let mut statements = args
-        .filter(|&arg| attributes.trace_me(arg))
-        .map(|arg| {
+        .filter_map(|arg| {
+            if !attributes.trace_me(arg) {
+                return None;
+            }
+
+            let ident = arg
+                .maybe_patident()
+                .map(|patident| &patident.ident)
+                .or_else(|| arg.maybe_ident())?;
             let s: Stmt = parse_quote! {
-                println!("{} = {:?}", stringify!(#arg), #arg);
+                println!("{} = {:?}", stringify!(#ident), #ident);
             };
-            s
+            Some(s)
         })
         .peekable();
+
     if statements.peek().is_some() {
         Some(quote! {
             println!("{:-^40}", " TEST ARGUMENTS ");
@@ -505,8 +506,7 @@ fn cases_data(info: &RsTestInfo, name_span: Span) -> impl Iterator<Item = CaseDa
             let resolver_case = info
                 .data
                 .case_args()
-                .cloned()
-                .map(|arg| info.arguments.inner_pat(&arg).clone())
+                .map(|arg| info.arguments.inner_pat(arg).clone())
                 .zip(case.args.iter())
                 .collect::<HashMap<_, _>>();
             CaseDataValues::new(

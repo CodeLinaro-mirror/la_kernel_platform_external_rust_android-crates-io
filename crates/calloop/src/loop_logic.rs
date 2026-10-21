@@ -1,8 +1,8 @@
 use std::cell::{Cell, RefCell};
 use std::fmt::Debug;
 use std::rc::{Rc, Weak};
-use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::{Duration, Instant};
 use std::{io, slice};
 
@@ -30,9 +30,9 @@ type IdleCallback<'i, Data> = Rc<RefCell<dyn IdleDispatcher<Data> + 'i>>;
 /// A token representing a registration in the [`EventLoop`].
 ///
 /// This token is given to you by the [`EventLoop`] when an [`EventSource`] is inserted or
-/// a [`Dispatcher`] is registered. You can use it to [disable](LoopHandle#method.disable),
-/// [enable](LoopHandle#method.enable), [update`](LoopHandle#method.update),
-/// [remove](LoopHandle#method.remove) or [kill](LoopHandle#method.kill) it.
+/// a [`Dispatcher`] is registered. You can use it to [disable][LoopHandle::disable],
+/// [enable][LoopHandle::enable], [update][LoopHandle::update], or
+/// [remove][LoopHandle::remove].
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct RegistrationToken {
     inner: TokenInner,
@@ -72,7 +72,7 @@ pub struct WeakLoopHandle<'l, Data> {
 }
 
 impl<Data> Debug for LoopHandle<'_, Data> {
-    #[cfg_attr(feature = "nightly_coverage", coverage(off))]
+    #[cfg_attr(unstable_coverage, coverage(off))]
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.write_str("LoopHandle { ... }")
     }
@@ -82,7 +82,7 @@ impl<Data> Debug for LoopHandle<'_, Data> {
 ///
 /// The derived implementation adds a `Clone` bound on the generic parameter `Data`.
 impl<Data> Clone for LoopHandle<'_, Data> {
-    #[cfg_attr(feature = "nightly_coverage", coverage(off))]
+    #[cfg_attr(unstable_coverage, coverage(off))]
     fn clone(&self) -> Self {
         LoopHandle {
             inner: self.inner.clone(),
@@ -120,7 +120,7 @@ impl<'l, Data> LoopHandle<'l, Data> {
     /// Use this function if you need access to the event source after its insertion in the loop.
     ///
     /// See also `insert_source`.
-    #[cfg_attr(feature = "nightly_coverage", coverage(off))] // Contains a branch we can't hit w/o OOM
+    #[cfg_attr(unstable_coverage, coverage(off))] // Contains a branch we can't hit w/o OOM
     pub fn register_dispatcher<S>(
         &self,
         dispatcher: Dispatcher<'l, S, Data>,
@@ -328,7 +328,7 @@ impl<'l, Data> LoopHandle<'l, Data> {
 }
 
 impl<Data> Debug for WeakLoopHandle<'_, Data> {
-    #[cfg_attr(feature = "nightly_coverage", coverage(off))]
+    #[cfg_attr(unstable_coverage, coverage(off))]
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.write_str("WeakLoopHandle { ... }")
     }
@@ -338,7 +338,7 @@ impl<Data> Debug for WeakLoopHandle<'_, Data> {
 ///
 /// The derived implementation adds a `Clone` bound on the generic parameter `Data`.
 impl<Data> Clone for WeakLoopHandle<'_, Data> {
-    #[cfg_attr(feature = "nightly_coverage", coverage(off))]
+    #[cfg_attr(unstable_coverage, coverage(off))]
     fn clone(&self) -> Self {
         WeakLoopHandle {
             inner: self.inner.clone(),
@@ -350,7 +350,7 @@ impl<Data> Clone for WeakLoopHandle<'_, Data> {
 ///
 /// The derived implementation adds a `Default` bound on the generic parameter `Data`.
 impl<Data> Default for WeakLoopHandle<'_, Data> {
-    #[cfg_attr(feature = "nightly_coverage", coverage(off))]
+    #[cfg_attr(unstable_coverage, coverage(off))]
     fn default() -> Self {
         WeakLoopHandle {
             inner: Weak::default(),
@@ -385,7 +385,7 @@ pub struct EventLoop<'l, Data> {
 }
 
 impl<Data> Debug for EventLoop<'_, Data> {
-    #[cfg_attr(feature = "nightly_coverage", coverage(off))]
+    #[cfg_attr(unstable_coverage, coverage(off))]
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.write_str("EventLoop { ... }")
     }
@@ -706,7 +706,7 @@ impl<'l, Data> EventLoop<'l, Data> {
         }
 
         // Pin the future to the stack.
-        pin_utils::pin_mut!(future);
+        let mut future = std::pin::pin!(future);
 
         // Create a waker that will wake up the event loop when it is ready to make progress.
         let waker = {
@@ -822,7 +822,7 @@ pub struct LoopSignal {
 }
 
 impl Debug for LoopSignal {
-    #[cfg_attr(feature = "nightly_coverage", coverage(off))]
+    #[cfg_attr(unstable_coverage, coverage(off))]
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.write_str("LoopSignal { ... }")
     }
@@ -855,14 +855,15 @@ mod tests {
     use std::{cell::Cell, rc::Rc, time::Duration};
 
     use crate::{
-        channel::{channel, Channel},
-        ping::*,
-        timer, EventIterator, EventSource, Poll, PostAction, Readiness, RegistrationToken, Token,
+        EventIterator, EventSource, Poll, PostAction, Readiness, RegistrationToken, Token,
         TokenFactory,
+        channel::{Channel, channel},
+        ping::*,
+        timer,
     };
 
     #[cfg(unix)]
-    use crate::{generic::Generic, Dispatcher, Interest, Mode};
+    use crate::{Dispatcher, Interest, Mode, generic::Generic};
 
     use super::EventLoop;
 
@@ -1424,7 +1425,7 @@ mod tests {
     #[test]
     fn change_interests() {
         use rustix::io::write;
-        use rustix::net::{recv, socketpair, AddressFamily, RecvFlags, SocketFlags, SocketType};
+        use rustix::net::{AddressFamily, RecvFlags, SocketFlags, SocketType, recv, socketpair};
         let mut event_loop = EventLoop::<bool>::try_new().unwrap();
 
         let (sock1, sock2) = socketpair(

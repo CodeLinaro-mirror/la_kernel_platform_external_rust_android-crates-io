@@ -23,12 +23,16 @@ use state::{BlockTypeAndLengthState, BrotliRunningContextMapState, BrotliRunning
             BrotliRunningHuffmanState, BrotliRunningMetablockHeaderState,
             BrotliRunningReadBlockLengthState, BrotliRunningState, BrotliRunningTreeGroupState,
             BrotliRunningUncompressedState, kLiteralContextBits,
-            BrotliDecoderErrorCode,
+            BrotliDecoderErrorCode, COMPOUND_DICTIONARY_BLOCK_MAP_UNINITIALIZED,
 };
 use context::{kContextLookup};
 use ::dictionary::{kBrotliDictionary, kBrotliDictionaryOffsetsByLength,
                    kBrotliDictionarySizeBitsByLength, kBrotliMaxDictionaryWordLength,
                    kBrotliMinDictionaryWordLength};
+use ::shared_dictionary::{SHARED_BROTLI_MIN_DICTIONARY_WORD_LENGTH,
+                          SHARED_BROTLI_MAX_DICTIONARY_WORD_LENGTH,
+                          SHARED_BROTLI_MAX_TRANSFORM_AFFIX_LENGTH,
+                          DictionaryLookupError};
 pub use huffman::{HuffmanCode, HuffmanTreeGroup};
 #[repr(C)]
 #[derive(Debug)]
@@ -456,6 +460,7 @@ fn SafeReadSymbol(table: &[HuffmanCode],
 }
 
 // Makes a look-up in first level Huffman table. Peeks 8 bits.
+#[inline(always)]
 fn PreloadSymbol(safe: bool,
                  table: &[HuffmanCode],
                  br: &mut bit_reader::BrotliBitReader,
@@ -473,6 +478,7 @@ fn PreloadSymbol(safe: bool,
 
 // Decodes the next Huffman code using data prepared by PreloadSymbol.
 // Reads 0 - 15 bits. Also peeks 8 following bits.
+#[inline(always)]
 fn ReadPreloadedSymbol(table: &[HuffmanCode],
                        br: &mut bit_reader::BrotliBitReader,
                        bits: &mut u32,
@@ -874,6 +880,9 @@ fn ReadHuffmanCode<AllocU8: alloc::Allocator<u8>,
    s: &mut BrotliState<AllocU8, AllocU32, AllocHC>,
    input: &[u8])
    -> BrotliDecoderErrorCode {
+  if offset > table.len() {
+    return BrotliDecoderErrorCode::BROTLI_DECODER_ERROR_FORMAT_HUFFMAN_SPACE;
+  }
   // Unnecessary masking, but might be good for safety.
   alphabet_size &= 0x7ff;
   // State machine
@@ -940,6 +949,9 @@ fn ReadHuffmanCode<AllocU8: alloc::Allocator<u8>,
                                                             HUFFMAN_TABLE_BITS as i32,
                                                             &s.symbols_lists_array[..],
                                                             s.symbol);
+        if table_size == 0 {
+          return BrotliDecoderErrorCode::BROTLI_DECODER_ERROR_FORMAT_HUFFMAN_SPACE;
+        }
         if let Some(opt_table_size_ref) = opt_table_size {
           *opt_table_size_ref = table_size
         }
@@ -955,9 +967,13 @@ fn ReadHuffmanCode<AllocU8: alloc::Allocator<u8>,
           BrotliDecoderErrorCode::BROTLI_DECODER_SUCCESS => {}
           _ => return result,
         }
-        huffman::BrotliBuildCodeLengthsHuffmanTable(&mut s.table,
-                                                    &s.code_length_code_lengths,
-                                                    &s.code_length_histo);
+        if !huffman::BrotliBuildCodeLengthsHuffmanTable(
+          &mut s.table,
+          &s.code_length_code_lengths,
+          &s.code_length_histo,
+        ) {
+          return BrotliDecoderErrorCode::BROTLI_DECODER_ERROR_FORMAT_HUFFMAN_SPACE;
+        }
         for code_length_histo in s.code_length_histo[..].iter_mut() {
           *code_length_histo = 0; // memset
         }
@@ -1000,6 +1016,9 @@ fn ReadHuffmanCode<AllocU8: alloc::Allocator<u8>,
                                                       &s.symbols_lists_array[..],
                                                       s.symbol_lists_index,
                                                       &mut s.code_length_histo);
+        if table_size == 0 {
+          return BrotliDecoderErrorCode::BROTLI_DECODER_ERROR_FORMAT_HUFFMAN_SPACE;
+        }
         if let Some(opt_table_size_ref) = opt_table_size {
           *opt_table_size_ref = table_size
         }
@@ -1435,9 +1454,9 @@ fn DecodeContextMap<AllocU8: alloc::Allocator<u8>,
    -> BrotliDecoderErrorCode {
 
   match s.state {
-    BrotliRunningState::BROTLI_STATE_CONTEXT_MAP_1 => assert_eq!(is_dist_context_map, false),
-    BrotliRunningState::BROTLI_STATE_CONTEXT_MAP_2 => assert_eq!(is_dist_context_map, true),
-    _ => unreachable!(),
+    BrotliRunningState::BROTLI_STATE_CONTEXT_MAP_1 if !is_dist_context_map => {},
+    BrotliRunningState::BROTLI_STATE_CONTEXT_MAP_2 if is_dist_context_map => {},
+    _ => return BrotliDecoderErrorCode::BROTLI_DECODER_ERROR_UNREACHABLE,
   }
   let (mut num_htrees, mut context_map_arg) = if is_dist_context_map {
     (s.num_dist_htrees, mem::replace(&mut s.dist_context_map, AllocU8::AllocatedMemory::default()))
@@ -1674,19 +1693,38 @@ fn SafeDecodeDistanceBlockSwitch<AllocU8: alloc::Allocator<u8>,
   DecodeDistanceBlockSwitchInternal(true, s, input)
 }
 
+// Bytes decoded into the ring buffer but not yet handed to the caller.
+// Callers must have established CheckRingBufferConsistency.
 fn UnwrittenBytes<AllocU8: alloc::Allocator<u8>,
                   AllocU32: alloc::Allocator<u32>,
                   AllocHC: alloc::Allocator<HuffmanCode>> (
   s: &BrotliState<AllocU8, AllocU32, AllocHC>,
   wrap: bool,
-)  -> usize {
+)  -> u64 {
+  debug_assert!(s.pos >= 0 && s.ringbuffer_size > 0);
+  let ringbuffer_size = s.ringbuffer_size as u64;
   let pos = if wrap && s.pos > s.ringbuffer_size {
-    s.ringbuffer_size as usize
+    ringbuffer_size
   } else {
-    s.pos as usize
+    s.pos as u64
   };
-  let partial_pos_rb = (s.rb_roundtrips as usize * s.ringbuffer_size as usize) + pos as usize;
-  (partial_pos_rb - s.partial_pos_out) as usize
+  let partial_pos_rb = s.rb_roundtrips * ringbuffer_size + pos;
+  debug_assert!(partial_pos_rb >= s.partial_pos_out);
+  partial_pos_rb - s.partial_pos_out
+}
+
+// The invariant every ring-buffer read depends on: a positive size matching the
+// mask, and a `pos` inside the allocation. Only a decoder bug can break it, but
+// it stays a runtime check because the `unsafe` build would read out of bounds
+// rather than panic.
+fn CheckRingBufferConsistency<AllocU8: alloc::Allocator<u8>,
+                              AllocU32: alloc::Allocator<u32>,
+                              AllocHC: alloc::Allocator<HuffmanCode>>(
+  s: &BrotliState<AllocU8, AllocU32, AllocHC>,
+) -> bool {
+  s.pos >= 0 && s.ringbuffer_size > 0 && s.ringbuffer_mask >= 0 &&
+    s.ringbuffer_mask as i64 + 1 == s.ringbuffer_size as i64 &&
+    s.ringbuffer_size as usize <= s.ringbuffer.slice().len()
 }
 fn WriteRingBuffer<'a,
                    AllocU8: alloc::Allocator<u8>,
@@ -1699,34 +1737,51 @@ fn WriteRingBuffer<'a,
   force: bool,
   s: &'a mut BrotliState<AllocU8, AllocU32, AllocHC>,
 ) -> (BrotliDecoderErrorCode, &'a [u8]) {
-  let to_write = UnwrittenBytes(s, true);
-  let mut num_written = *available_out as usize;
-  if (num_written > to_write) {
-    num_written = to_write;
-  }
-  if (s.meta_block_remaining_len < 0) {
+  if s.meta_block_remaining_len < 0 {
     return (BrotliDecoderErrorCode::BROTLI_DECODER_ERROR_FORMAT_BLOCK_LENGTH_1, &[]);
   }
-  let start_index = (s.partial_pos_out & s.ringbuffer_mask as usize) as usize;
-  let start = fast_slice!((s.ringbuffer)[start_index ; start_index + num_written as usize]);
-  if let Some(output) = opt_output {
-    fast_mut!((output)[*output_offset ; *output_offset + num_written as usize])
-      .clone_from_slice(start);
+  if !CheckRingBufferConsistency(s) {
+    return (BrotliDecoderErrorCode::BROTLI_DECODER_ERROR_UNREACHABLE, &[]);
   }
-  *output_offset += num_written;
+  // window_bits is 9..=24, or 10..=30 for large-window streams; masked so the
+  // shift stays in range regardless.
+  debug_assert!(s.window_bits < 64);
+  let window_size = 1i64 << (s.window_bits & 63);
+  let to_write = UnwrittenBytes(s, true);
+  let num_written = core::cmp::min(*available_out as u64, to_write) as usize;
+  let start_index = (s.partial_pos_out & s.ringbuffer_mask as u64) as usize;
+  let start = match s.ringbuffer.slice().get(start_index..start_index + num_written) {
+    Some(start) => start,
+    None => return (BrotliDecoderErrorCode::BROTLI_DECODER_ERROR_UNREACHABLE, &[]),
+  };
+  // output is caller-supplied, hence INVALID_ARGUMENTS rather than UNREACHABLE.
+  let output_end = match (*output_offset).checked_add(num_written) {
+    Some(output_end) => output_end,
+    None => return (BrotliDecoderErrorCode::BROTLI_DECODER_ERROR_INVALID_ARGUMENTS, &[]),
+  };
+  if let Some(output) = opt_output {
+    match output.get_mut(*output_offset..output_end) {
+      Some(output_slice) => output_slice.clone_from_slice(start),
+      None => return (BrotliDecoderErrorCode::BROTLI_DECODER_ERROR_INVALID_ARGUMENTS, &[]),
+    }
+  }
+  *output_offset = output_end;
   *available_out -= num_written;
   BROTLI_LOG_UINT!(to_write);
   BROTLI_LOG_UINT!(num_written);
-  s.partial_pos_out += num_written as usize;
-  *total_out = s.partial_pos_out;
-  if (num_written < to_write) {
-    if s.ringbuffer_size == (1 << s.window_bits) || force {
-      return (BrotliDecoderErrorCode::BROTLI_DECODER_NEEDS_MORE_OUTPUT, &[]);
+  s.partial_pos_out += num_written as u64;
+  // The public API reports total_out as usize, matching C's size_t: on a 32-bit
+  // target it truncates past 4GiB, while the internal accounting does not.
+  *total_out = s.partial_pos_out as usize;
+  if (num_written as u64) < to_write {
+    if s.ringbuffer_size as i64 == window_size || force {
+      // TakeOutput still needs the bytes consumed by this partial write.
+      return (BrotliDecoderErrorCode::BROTLI_DECODER_NEEDS_MORE_OUTPUT, start);
     } else {
       return (BrotliDecoderErrorCode::BROTLI_DECODER_SUCCESS, start);
     }
   }
-  if (s.ringbuffer_size == (1 << s.window_bits) &&
+  if (s.ringbuffer_size as i64 == window_size &&
       s.pos >= s.ringbuffer_size) {
     s.pos -= s.ringbuffer_size;
     s.rb_roundtrips += 1;
@@ -1739,14 +1794,31 @@ fn WrapRingBuffer<AllocU8: alloc::Allocator<u8>,
                    AllocU32: alloc::Allocator<u32>,
                    AllocHC: alloc::Allocator<HuffmanCode>>(
   s: &mut BrotliState<AllocU8, AllocU32, AllocHC>,
-) {
+) -> bool {
   if s.should_wrap_ringbuffer {
-    let (ring_buffer_start, ring_buffer_end) = s.ringbuffer.slice_mut().split_at_mut(s.ringbuffer_size as usize);
+    if s.ringbuffer_size < 0 || s.pos < 0 {
+      return false;
+    }
+    let ringbuffer_size = s.ringbuffer_size as usize;
     let pos = s.pos as usize;
-    ring_buffer_start.split_at_mut(pos).0.clone_from_slice(ring_buffer_end.split_at(pos).0);
+    let ringbuffer_len = s.ringbuffer.slice().len();
+    // A transformed custom-dictionary word can overshoot the end by at most
+    // 540 bytes (255-byte prefix + 31-byte word + 255-byte suffix, starting at
+    // the final ring-buffer byte), which is why `pos` may exceed
+    // `ringbuffer_size`. Wrapping is only done at the full window size, whose
+    // minimum is 1 << kBrotliLargeMinWbits == 1024, and the tail region is
+    // kRingBufferWriteAheadSlack + kBrotliMaxDictionaryWordLength bytes long.
+    if ringbuffer_size > ringbuffer_len ||
+       pos > ringbuffer_size ||
+       pos > ringbuffer_len - ringbuffer_size {
+      return false;
+    }
+    let (ring_buffer_start, ring_buffer_end) =
+      s.ringbuffer.slice_mut().split_at_mut(ringbuffer_size);
+    ring_buffer_start[..pos].clone_from_slice(&ring_buffer_end[..pos]);
     s.should_wrap_ringbuffer = false;
   }
-
+  true
 }
 
 fn CopyUncompressedBlockToOutput<AllocU8: alloc::Allocator<u8>,
@@ -1763,20 +1835,16 @@ fn CopyUncompressedBlockToOutput<AllocU8: alloc::Allocator<u8>,
   loop {
     match s.substate_uncompressed {
       BrotliRunningUncompressedState::BROTLI_STATE_UNCOMPRESSED_NONE => {
-        let mut nbytes = bit_reader::BrotliGetRemainingBytes(&s.br) as i32;
-        if (nbytes > s.meta_block_remaining_len) {
-          nbytes = s.meta_block_remaining_len;
-        }
-        if (s.pos + nbytes > s.ringbuffer_size) {
-          nbytes = s.ringbuffer_size - s.pos;
-        }
+        let remaining = bit_reader::BrotliGetRemainingBytes(&s.br);
+        let mut nbytes = core::cmp::min(remaining, s.meta_block_remaining_len as u32);
+        nbytes = core::cmp::min(nbytes, (s.ringbuffer_size - s.pos) as u32);
         // Copy remaining bytes from s.br.buf_ to ringbuffer.
         bit_reader::BrotliCopyBytes(fast_mut!((s.ringbuffer.slice_mut())[s.pos as usize;]),
                                     &mut s.br,
-                                    nbytes as u32,
+                                    nbytes,
                                     input);
-        s.pos += nbytes;
-        s.meta_block_remaining_len -= nbytes;
+        s.pos += nbytes as i32;
+        s.meta_block_remaining_len -= nbytes as i32;
         if s.pos < (1 << s.window_bits) {
           if (s.meta_block_remaining_len == 0) {
             return BrotliDecoderErrorCode::BROTLI_DECODER_SUCCESS;
@@ -1814,9 +1882,19 @@ fn BrotliAllocateRingBuffer<AllocU8: alloc::Allocator<u8>,
    input: &[u8])
    -> bool {
   // We need the slack region for the following reasons:
-  // - doing up to two 16-byte copies for fast backward copying
-  // - inserting transformed dictionary word (5 prefix + 24 base + 8 suffix)
-  const kRingBufferWriteAheadSlack: i32 = 42;
+  // - doing up to two 16-byte copies for fast backward copying (32 bytes,
+  //   subsumed by the dictionary-word case below)
+  // - inserting a transformed dictionary word past the end of the ring
+  //   buffer: prefix + base word + suffix. The built-in transforms need only
+  //   5 + 24 + 8 = 37, but a serialized shared dictionary may define
+  //   transforms with full-length affixes, so a word starting on the last
+  //   ring-buffer byte can write this far past it.
+  const kRingBufferWriteAheadSlack: i32 =
+    SHARED_BROTLI_MAX_TRANSFORM_AFFIX_LENGTH as i32           // 255-byte prefix
+    + (SHARED_BROTLI_MAX_DICTIONARY_WORD_LENGTH as i32 + 1)   //  32: 31-byte word, rounded up
+    + SHARED_BROTLI_MAX_TRANSFORM_AFFIX_LENGTH as i32;        // 255-byte suffix => 542
+  // The C implementation hardcodes 542; fail the build if the two drift apart.
+  const _RING_BUFFER_SLACK_MATCHES_C: [(); 542] = [(); kRingBufferWriteAheadSlack as usize];
   let mut is_last = s.is_last_metablock;
   s.ringbuffer_size = 1 << s.window_bits;
 
@@ -1830,46 +1908,321 @@ fn BrotliAllocateRingBuffer<AllocU8: alloc::Allocator<u8>,
       is_last = 1;
     }
   }
-  let max_dict_size = s.ringbuffer_size as usize - 16;
-  {
-    let custom_dict = if s.custom_dict_size as usize > max_dict_size {
-      let cd = fast_slice!((s.custom_dict)[(s.custom_dict_size as usize - max_dict_size); s.custom_dict_size as usize]);
-      s.custom_dict_size = max_dict_size as isize;
-      cd
-    } else {
-      fast_slice!((s.custom_dict)[0; s.custom_dict_size as usize])
-    };
-
-    // We need at least 2 bytes of ring buffer size to get the last two
-    // bytes for context from there
-    if (is_last != 0) {
-      while (s.ringbuffer_size as isize >= (s.custom_dict_size + s.meta_block_remaining_len as isize + 16) * 2 && s.ringbuffer_size as isize > 32) {
-        s.ringbuffer_size >>= 1;
-      }
-    }
-    if s.ringbuffer_size > (1 << s.window_bits) {
-      s.ringbuffer_size = (1 << s.window_bits);
-    }
-
-    s.ringbuffer_mask = s.ringbuffer_size - 1;
-    s.ringbuffer = s.alloc_u8
-      .alloc_cell((s.ringbuffer_size as usize + kRingBufferWriteAheadSlack as usize +
-                   kBrotliMaxDictionaryWordLength as usize));
-    if (s.ringbuffer.slice().len() == 0) {
-      return false;
-    }
-    fast_mut!((s.ringbuffer.slice_mut())[s.ringbuffer_size as usize - 1]) = 0;
-    fast_mut!((s.ringbuffer.slice_mut())[s.ringbuffer_size as usize - 2]) = 0;
-    if custom_dict.len() != 0 {
-      let offset = ((-s.custom_dict_size) & s.ringbuffer_mask as isize) as usize;
-      fast_mut!((s.ringbuffer.slice_mut())[offset ; offset + s.custom_dict_size as usize]).clone_from_slice(custom_dict);
+  // We need at least 2 bytes of ring buffer size to get the last two
+  // bytes for context from there
+  if is_last != 0 && s.canny_ringbuffer_allocation {
+    while (s.ringbuffer_size as isize >= (s.meta_block_remaining_len as isize + 16) * 2 && s.ringbuffer_size as isize > 32) {
+      s.ringbuffer_size >>= 1;
     }
   }
-  if s.custom_dict.slice().len() != 0 {
-    s.alloc_u8.free_cell(core::mem::replace(&mut s.custom_dict,
-                         AllocU8::AllocatedMemory::default()));
+  if s.ringbuffer_size > (1 << s.window_bits) {
+    s.ringbuffer_size = (1 << s.window_bits);
   }
+
+  s.ringbuffer_mask = s.ringbuffer_size - 1;
+  s.ringbuffer = s.alloc_u8
+    .alloc_cell((s.ringbuffer_size as usize + kRingBufferWriteAheadSlack as usize +
+                 kBrotliMaxDictionaryWordLength as usize));
+  if (s.ringbuffer.slice().len() == 0) {
+    return false;
+  }
+  fast_mut!((s.ringbuffer.slice_mut())[s.ringbuffer_size as usize - 1]) = 0;
+  fast_mut!((s.ringbuffer.slice_mut())[s.ringbuffer_size as usize - 2]) = 0;
   true
+}
+
+// Lazily builds compound_dictionary.block_map, a 256-entry table that maps
+// address >> block_bits to the first chunk that might contain that address.
+fn EnsureCompoundDictionaryInitialized<AllocU8: alloc::Allocator<u8>,
+                                       AllocU32: alloc::Allocator<u32>,
+                                       AllocHC: alloc::Allocator<HuffmanCode>>
+  (s: &mut BrotliState<AllocU8, AllocU32, AllocHC>) {
+  let addon = &mut s.compound_dictionary;
+  // 256 = (1 << 8) slots in block map.
+  let mut block_bits: u32 = 8;
+  let maximal_address = addon.total_size as u32 - 1;
+  if addon.block_bits != COMPOUND_DICTIONARY_BLOCK_MAP_UNINITIALIZED {
+    return;
+  }
+  while (maximal_address >> block_bits) != 0 {
+    block_bits += 1;
+  }
+  block_bits -= 8;
+  addon.block_bits = block_bits;
+  let mut cursor: u32 = 0;
+  let mut index: usize = 0;
+  while cursor <= maximal_address {
+    // chunk_offsets[num_chunks] is a sentinel equal to maximal_address + 1.
+    while fast!((addon.chunk_offsets)[index + 1]) < cursor {
+      index += 1;
+    }
+    fast_mut!((addon.block_map)[(cursor >> block_bits) as usize]) = index as u8;
+    match cursor.checked_add(1 << block_bits) {
+      Some(next) => cursor = next,
+      None => break,
+    }
+  }
+  // Now if X is in the range [0..maximal_address] then
+  // block_map[X >> block_bits] is in [0..num_chunks).
+}
+
+// Prepares a copy of `length` bytes starting at compound dictionary address
+// `address` (0 = first byte of the first chunk). Returns false if the copy
+// would run off the end of the dictionary.
+fn InitializeCompoundDictionaryCopy<AllocU8: alloc::Allocator<u8>,
+                                    AllocU32: alloc::Allocator<u32>,
+                                    AllocHC: alloc::Allocator<HuffmanCode>>
+  (s: &mut BrotliState<AllocU8, AllocU32, AllocHC>,
+   address: usize,
+   length: usize)
+   -> bool {
+  EnsureCompoundDictionaryInitialized(s);
+  let addon = &mut s.compound_dictionary;
+  if length > addon.total_size - address {
+    return false;
+  }
+  let mut index = fast!((addon.block_map)[address >> addon.block_bits]) as usize;
+  // Several chunks might be mapped to the same block index.
+  while address as u32 >= fast!((addon.chunk_offsets)[index + 1]) {
+    index += 1;
+  }
+  // Update the recent distances cache.
+  fast_mut!((s.dist_rb)[(s.dist_rb_idx & 3) as usize]) = s.distance_code;
+  s.dist_rb_idx += 1;
+  s.meta_block_remaining_len -= length as i32;
+  addon.br_index = index;
+  addon.br_offset = address - fast!((addon.chunk_offsets)[index]) as usize;
+  addon.br_length = length;
+  addon.br_copied = 0;
+  true
+}
+
+// Copies the prepared dictionary reference into the ring buffer at `pos`,
+// stopping at the end of the ring buffer if necessary (the caller flushes
+// and re-invokes). Returns the number of bytes copied.
+fn CopyFromCompoundDictionary<AllocU8: alloc::Allocator<u8>,
+                              AllocU32: alloc::Allocator<u32>,
+                              AllocHC: alloc::Allocator<HuffmanCode>>
+  (s: &mut BrotliState<AllocU8, AllocU32, AllocHC>,
+   pos: i32)
+   -> i32 {
+  let ringbuffer_size = s.ringbuffer_size as usize;
+  let mut pos = pos as usize;
+  let orig_pos = pos;
+  let addon = &mut s.compound_dictionary;
+  while addon.br_length != addon.br_copied {
+    let chunk = addon.chunks[addon.br_index].slice();
+    let space = ringbuffer_size - pos;
+    let rem_chunk_length = chunk.len() - addon.br_offset;
+    let mut length = addon.br_length - addon.br_copied;
+    if length > rem_chunk_length {
+      length = rem_chunk_length;
+    }
+    if length > space {
+      length = space;
+    }
+    fast_mut!((s.ringbuffer.slice_mut())[pos ; pos + length])
+      .clone_from_slice(fast!((chunk)[addon.br_offset ; addon.br_offset + length]));
+    pos += length;
+    addon.br_offset += length;
+    addon.br_copied += length;
+    if length == rem_chunk_length {
+      addon.br_index += 1;
+      addon.br_offset = 0;
+    }
+    if pos == ringbuffer_size {
+      break;
+    }
+  }
+  (pos - orig_pos) as i32
+}
+
+#[cfg(all(test, feature="std"))]
+mod tests {
+  use super::*;
+
+  fn ringbuffer_size(canny: bool) -> i32 {
+    let mut state = BrotliState::new(::StandardAlloc::default(),
+                                     ::StandardAlloc::default(),
+                                     ::StandardAlloc::default());
+    state.window_bits = 16;
+    state.is_last_metablock = 1;
+    state.canny_ringbuffer_allocation = canny;
+    assert!(BrotliAllocateRingBuffer(&mut state, &[]));
+    state.ringbuffer_size
+  }
+
+  #[test]
+  fn canny_ring_buffer() {
+    assert_eq!(ringbuffer_size(true), 32);
+    assert_eq!(ringbuffer_size(false), 1 << 16);
+  }
+
+  #[test]
+  fn take_output_returns_every_consumed_byte() {
+    // The existing 10x10y stream, embedded so this regression needs no fixture.
+    let input = [0x1b, 0x13, 0x00, 0x00, 0xa4, 0xb0, 0xb2, 0xea, 0x81, 0x47, 0x02, 0x8a];
+    let expected = b"XXXXXXXXXXYYYYYYYYYY";
+    let mut state = BrotliState::new(::StandardAlloc::default(),
+                                     ::StandardAlloc::default(),
+                                     ::StandardAlloc::default());
+    let mut available_in = input.len();
+    let mut input_offset = 0usize;
+    let mut available_out = 0usize;
+    let mut output_offset = 0usize;
+    let mut total_out = 0usize;
+    let result = BrotliDecompressStream(&mut available_in, &mut input_offset, &input,
+                                        &mut available_out, &mut output_offset, &mut [],
+                                        &mut total_out, &mut state);
+    assert_eq!(result as i32, BrotliResult::NeedsMoreOutput as i32);
+    assert_eq!(total_out, 0);
+
+    let mut consumed = 0usize;
+    for &limit in &[1usize, 3, 7, 0] {
+      assert!(BrotliDecoderHasMoreOutput(&state));
+      let mut size = limit;
+      {
+        let output = BrotliDecoderTakeOutput(&mut state, &mut size);
+        assert_eq!(size, if limit == 0 { expected.len() - consumed } else { limit });
+        assert_eq!(output.len(), size);
+        assert_eq!(output, &expected[consumed..consumed + size]);
+      }
+      consumed += size;
+      assert_eq!(state.partial_pos_out, consumed as u64);
+    }
+    assert_eq!(consumed, expected.len());
+    assert!(!BrotliDecoderHasMoreOutput(&state));
+    for &limit in &[1usize, 0] {
+      let mut size = limit;
+      assert!(BrotliDecoderTakeOutput(&mut state, &mut size).is_empty());
+      assert_eq!(size, 0);
+    }
+  }
+
+  fn assert_large_remaining_copy_is_clamped(meta_block_remaining_len: i32,
+                                            pos: i32,
+                                            expected_result: BrotliDecoderErrorCode) {
+    let mut s = BrotliState::new(::StandardAlloc::default(),
+                                 ::StandardAlloc::default(),
+                                 ::StandardAlloc::default());
+    s.ringbuffer_size = 16;
+    s.window_bits = 5;
+    s.ringbuffer = s.alloc_u8.alloc_cell(s.ringbuffer_size as usize);
+    s.meta_block_remaining_len = meta_block_remaining_len;
+    s.pos = pos;
+    s.br.avail_in = 1u32 << 31;
+
+    let input = [0x5au8];
+    let mut available_out = 0usize;
+    let mut output = [0u8; 0];
+    let mut output_offset = 0usize;
+    let mut total_out = 0usize;
+    let result = CopyUncompressedBlockToOutput(&mut available_out,
+                                               &mut output,
+                                               &mut output_offset,
+                                               &mut total_out,
+                                               &mut s,
+                                               &input);
+
+    assert_eq!(result as i32, expected_result as i32);
+    assert_eq!(s.br.avail_in, (1u32 << 31) - 1);
+    assert_eq!(s.meta_block_remaining_len, meta_block_remaining_len - 1);
+    assert_eq!(s.pos, pos + 1);
+    assert_eq!(s.ringbuffer.slice()[pos as usize], input[0]);
+  }
+
+  #[test]
+  fn uncompressed_copy_clamps_unsigned_remaining_bytes() {
+    assert_large_remaining_copy_is_clamped(
+      1, 0, BrotliDecoderErrorCode::BROTLI_DECODER_SUCCESS);
+    assert_large_remaining_copy_is_clamped(
+      16, 15, BrotliDecoderErrorCode::BROTLI_DECODER_NEEDS_MORE_INPUT);
+  }
+
+  #[test]
+  fn stream_rejects_wrapping_output_range() {
+    let mut state = BrotliState::new(::StandardAlloc::default(),
+                                     ::StandardAlloc::default(),
+                                     ::StandardAlloc::default());
+    let input = [0x06u8];
+    let mut output = [0u8; 1];
+    let mut available_in = input.len();
+    let mut input_offset = 0usize;
+    let mut available_out = usize::MAX;
+    let mut output_offset = 1usize;
+    let mut total_out = 0usize;
+
+    let result = BrotliDecompressStream(&mut available_in,
+                                        &mut input_offset,
+                                        &input,
+                                        &mut available_out,
+                                        &mut output_offset,
+                                        &mut output,
+                                        &mut total_out,
+                                        &mut state);
+
+    assert_eq!(result as i32, BrotliResult::ResultFailure as i32);
+    assert_eq!(state.error_code as i32,
+               BrotliDecoderErrorCode::BROTLI_DECODER_ERROR_INVALID_ARGUMENTS as i32);
+  }
+
+  #[test]
+  fn stream_rejects_wrapping_input_range() {
+    let mut state = BrotliState::new(::StandardAlloc::default(),
+                                     ::StandardAlloc::default(),
+                                     ::StandardAlloc::default());
+    let input = [0x06u8];
+    let mut output = [0u8; 1];
+    // The end wraps to zero on 32-bit and is out of bounds on 64-bit.
+    let mut available_in = u32::MAX as usize;
+    let mut input_offset = 1usize;
+    let mut available_out = output.len();
+    let mut output_offset = 0usize;
+    let mut total_out = 0usize;
+
+    let result = BrotliDecompressStream(&mut available_in,
+                                        &mut input_offset,
+                                        &input,
+                                        &mut available_out,
+                                        &mut output_offset,
+                                        &mut output,
+                                        &mut total_out,
+                                        &mut state);
+
+    assert_eq!(result as i32, BrotliResult::ResultFailure as i32);
+    assert_eq!(state.error_code as i32,
+               BrotliDecoderErrorCode::BROTLI_DECODER_ERROR_INVALID_ARGUMENTS as i32);
+  }
+
+  #[test]
+  fn format_distance_error_restores_huffman_tree_groups() {
+    let mut state = BrotliState::new(::StandardAlloc::default(),
+                                     ::StandardAlloc::default(),
+                                     ::StandardAlloc::default());
+    state.BrotliHuffmanTreeGroupInit(state::WhichTreeGroup::LITERAL, 1, 0, 1);
+    state.BrotliHuffmanTreeGroupInit(state::WhichTreeGroup::INSERT_COPY, 1, 0, 2);
+    state.BrotliHuffmanTreeGroupInit(state::WhichTreeGroup::DISTANCE, 1, 0, 3);
+    let expected_code_lengths = [
+      state.literal_hgroup.codes.slice().len(),
+      state.insert_copy_hgroup.codes.slice().len(),
+      state.distance_hgroup.codes.slice().len(),
+    ];
+
+    state.state = BrotliRunningState::BROTLI_STATE_COMMAND_POST_DECODE_LITERALS;
+    state.distance_code = 1;
+    state.dist_rb_idx = 1;
+    state.dist_rb[0] = i32::MAX;
+    state.max_distance = 0;
+    state.max_backward_distance = 0;
+
+    let result = ProcessCommandsInternal(true, &mut state, &[]);
+
+    assert_eq!(result as i32,
+               BrotliDecoderErrorCode::BROTLI_DECODER_ERROR_FORMAT_DISTANCE as i32);
+    assert_eq!(state.literal_hgroup.codes.slice().len(), expected_code_lengths[0]);
+    assert_eq!(state.insert_copy_hgroup.codes.slice().len(), expected_code_lengths[1]);
+    assert_eq!(state.distance_hgroup.codes.slice().len(), expected_code_lengths[2]);
+  }
 }
 
 // Reads 1..256 2-bit context modes.
@@ -1947,6 +2300,7 @@ pub fn SafeReadBits(br: &mut bit_reader::BrotliBitReader,
 }
 
 // Precondition: s.distance_code < 0
+#[inline(always)]
 pub fn ReadDistanceInternal<AllocU8: alloc::Allocator<u8>,
                             AllocU32: alloc::Allocator<u32>,
                             AllocHC: alloc::Allocator<HuffmanCode>>
@@ -2014,7 +2368,7 @@ pub fn ReadDistanceInternal<AllocU8: alloc::Allocator<u8>,
   true
 }
 
-
+#[inline(always)]
 pub fn ReadCommandInternal<AllocU8: alloc::Allocator<u8>,
                            AllocU32: alloc::Allocator<u32>,
                            AllocHC: alloc::Allocator<HuffmanCode>>
@@ -2073,18 +2427,29 @@ pub fn ReadCommandInternal<AllocU8: alloc::Allocator<u8>,
 }
 
 
+#[inline(always)]
 fn WarmupBitReader(safe: bool, br: &mut bit_reader::BrotliBitReader, input: &[u8]) -> bool {
   safe || bit_reader::BrotliWarmupBitReader(br, input)
 }
 
+#[inline(always)]
 fn CheckInputAmount(safe: bool, br: &bit_reader::BrotliBitReader, num: u32) -> bool {
   safe || bit_reader::BrotliCheckInputAmount(br, num)
 }
 
 #[inline(always)]
-fn memmove16(data: &mut [u8], u32off_dst: u32, u32off_src: u32) {
+fn memmove16(data: &mut [u8], u32off_dst: u32, u32off_src: u32) -> bool {
   let off_dst = u32off_dst as usize;
   let off_src = u32off_src as usize;
+  // Always copies 16 bytes, so a caller copying fewer overshoots; the ring buffer
+  // carries kRingBufferWriteAheadSlack bytes past ringbuffer_size to absorb it.
+  // Subtraction, not `off + 16`, so nothing can wrap.
+  let len = data.len();
+  if len < 16 || core::cmp::max(off_dst, off_src) > len - 16 {
+    return false;
+  }
+  let dst_end = off_dst + 16;
+  let src_end = off_src + 16;
   // data[off_dst + 15] = data[off_src + 15];
   // data[off_dst + 14] = data[off_src + 14];
   // data[off_dst + 13] = data[off_src + 13];
@@ -2105,34 +2470,43 @@ fn memmove16(data: &mut [u8], u32off_dst: u32, u32off_src: u32) {
   // data[off_dst + 1] = data[off_src + 1];
   //
   let mut local_array: [u8; 16] = fast_uninitialized!(16);
-  local_array.clone_from_slice(fast!((data)[off_src as usize ; off_src as usize + 16]));
-  fast_mut!((data)[off_dst as usize ; off_dst as usize + 16]).clone_from_slice(&local_array);
-
-
+  local_array.clone_from_slice(&data[off_src..src_end]);
+  data[off_dst..dst_end].clone_from_slice(&local_array);
+  true
 }
 
-
-#[cfg(not(feature="unsafe"))]
-fn memcpy_within_slice(data: &mut [u8], off_dst: usize, off_src: usize, size: usize) {
-  if off_dst > off_src {
-    let (src, dst) = data.split_at_mut(off_dst);
-    let src_slice = fast!((src)[off_src ; off_src + size]);
-    fast_mut!((dst)[0;size]).clone_from_slice(src_slice);
-  } else {
-    let (dst, src) = data.split_at_mut(off_src);
-    let src_slice = fast!((src)[0;size]);
-    fast_mut!((dst)[off_dst;off_dst + size]).clone_from_slice(src_slice);
+#[inline(always)]
+fn memcpy_within_slice(data: &mut [u8], off_dst: usize, off_src: usize, size: usize) -> bool {
+  // Both ranges must fit and must not overlap: the `unsafe` build lowers this to
+  // copy_nonoverlapping, and the safe build's split_at_mut would panic.
+  // Subtraction, not `off + size`, so no caller offset can wrap past the checks.
+  let len = data.len();
+  let apart = if off_dst > off_src { off_dst - off_src } else { off_src - off_dst };
+  if size > len || off_dst > len - size || off_src > len - size || apart < size {
+    return false;
   }
-}
 
-#[cfg(feature="unsafe")]
-fn memcpy_within_slice(data: &mut [u8], off_dst: usize, off_src: usize, size: usize) {
-  let ptr = data.as_mut_ptr();
+  #[cfg(not(feature="unsafe"))]
+  {
+    if off_dst > off_src {
+      let (src, dst) = data.split_at_mut(off_dst);
+      let src_slice = fast!((src)[off_src ; off_src + size]);
+      fast_mut!((dst)[0;size]).clone_from_slice(src_slice);
+    } else {
+      let (dst, src) = data.split_at_mut(off_src);
+      let src_slice = fast!((src)[0;size]);
+      fast_mut!((dst)[off_dst;off_dst + size]).clone_from_slice(src_slice);
+    }
+  }
+
+  #[cfg(feature="unsafe")]
   unsafe {
-    let dst = ptr.offset(off_dst as isize);
-    let src = ptr.offset(off_src as isize);
+    let ptr = data.as_mut_ptr();
+    let dst = ptr.add(off_dst);
+    let src = ptr.add(off_src);
     core::ptr::copy_nonoverlapping(src, dst, size);
   }
+  true
 }
 
 pub fn BrotliDecoderHasMoreOutput<AllocU8: alloc::Allocator<u8>,
@@ -2143,7 +2517,7 @@ pub fn BrotliDecoderHasMoreOutput<AllocU8: alloc::Allocator<u8>,
   if is_fatal(s.error_code) {
     return false;
   }
-  s.ringbuffer.len() != 0 && UnwrittenBytes(s, false) != 0
+  s.ringbuffer.len() != 0 && CheckRingBufferConsistency(s) && UnwrittenBytes(s, false) != 0
 }
 pub fn BrotliDecoderTakeOutput<'a,
                                AllocU8: alloc::Allocator<u8>,
@@ -2159,7 +2533,11 @@ pub fn BrotliDecoderTakeOutput<'a,
     *size = 0;
     return &[];
   }
-  WrapRingBuffer(s);
+  if !WrapRingBuffer(s) {
+    s.error_code = BrotliDecoderErrorCode::BROTLI_DECODER_ERROR_UNREACHABLE;
+    *size = 0;
+    return &[];
+  }
   let mut ign = 0usize;
   let mut ign2 = 0usize;
   let (status, result) = WriteRingBuffer(&mut available_out, None, &mut ign,&mut ign2, true, s);
@@ -2187,11 +2565,8 @@ pub fn BrotliDecoderIsUsed<AllocU8: alloc::Allocator<u8>,
                            AllocU32: alloc::Allocator<u32>,
                            AllocHC: alloc::Allocator<HuffmanCode>>(
   s: &BrotliState<AllocU8, AllocU32, AllocHC>) -> bool {
-  if let BrotliRunningState::BROTLI_STATE_UNINITED = s.state {
-    false
-  } else {
-    bit_reader::BrotliGetAvailableBits(&s.br) != 0
-  }
+  !matches!(s.state, BrotliRunningState::BROTLI_STATE_UNINITED)
+    || bit_reader::BrotliGetAvailableBits(&s.br) != 0
 }
 
 pub fn BrotliDecoderIsFinished<AllocU8: alloc::Allocator<u8>,
@@ -2212,6 +2587,7 @@ pub fn BrotliDecoderGetErrorCode<AllocU8: alloc::Allocator<u8>,
   s.error_code
 }
 
+#[inline(always)]
 fn ProcessCommandsInternal<AllocU8: alloc::Allocator<u8>,
                            AllocU32: alloc::Allocator<u32>,
                            AllocHC: alloc::Allocator<HuffmanCode>>
@@ -2226,6 +2602,7 @@ fn ProcessCommandsInternal<AllocU8: alloc::Allocator<u8>,
   let mut pos = s.pos;
   let mut i: i32 = s.loop_counter; // important that this is signed
   let mut result = BrotliDecoderErrorCode::BROTLI_DECODER_SUCCESS;
+  let compound_dictionary_size = s.compound_dictionary.total_size as u32;
   let mut saved_literal_hgroup =
     core::mem::replace(&mut s.literal_hgroup,
                        HuffmanTreeGroup::<AllocU32, AllocHC>::default());
@@ -2348,17 +2725,6 @@ fn ProcessCommandsInternal<AllocU8: alloc::Allocator<u8>,
           } else {
             let mut p1 = fast_slice!((s.ringbuffer)[((pos - 1) & s.ringbuffer_mask) as usize]);
             let mut p2 = fast_slice!((s.ringbuffer)[((pos - 2) & s.ringbuffer_mask) as usize]);
-            if s.custom_dict_avoid_context_seed && pos < 2 {
-                mark_unlikely();
-                p2 = 0;
-                p1 = 0;
-            }
-            if pos > 1
-            {
-                // have already set both seed bytes and can now move on to using
-                // the ringbuffer.
-                s.custom_dict_avoid_context_seed = false;
-            }
             let mut inner_return: bool = false;
             let mut inner_continue: bool = false;
             loop {
@@ -2466,23 +2832,97 @@ fn ProcessCommandsInternal<AllocU8: alloc::Allocator<u8>,
                       pos, s.distance_code);
 
           if (s.max_distance != s.max_backward_distance) {
-            if (pos < s.max_backward_distance_minus_custom_dict_size) {
-              s.max_distance = pos + s.custom_dict_size as i32;
+            s.max_distance = if pos < s.max_backward_distance {
+              pos
             } else {
-              s.max_distance = s.max_backward_distance;
-            }
+              s.max_backward_distance
+            };
           }
           i = s.copy_length;
           // Apply copy of LZ77 back-reference, or static dictionary reference if
           // the distance is larger than the max LZ77 distance
           if (s.distance_code > s.max_distance) {
             if s.distance_code > kBrotliMaxAllowedDistance as i32 {
-              return BrotliDecoderErrorCode::BROTLI_DECODER_ERROR_FORMAT_DISTANCE;
+              result = BrotliDecoderErrorCode::BROTLI_DECODER_ERROR_FORMAT_DISTANCE;
+              break;
             }
-            if (i >= kBrotliMinDictionaryWordLength as i32 &&
+            // Distances in (max_distance, max_distance + compound_dictionary_size]
+            // address the attached compound dictionary, furthest byte first.
+            if (s.distance_code - s.max_distance) as u32 <= compound_dictionary_size {
+              let address = compound_dictionary_size -
+                            (s.distance_code - s.max_distance) as u32;
+              if !InitializeCompoundDictionaryCopy(s, address as usize, i as usize) {
+                result = BrotliDecoderErrorCode::BROTLI_DECODER_ERROR_COMPOUND_DICTIONARY;
+                break; // return
+              }
+              pos += CopyFromCompoundDictionary(s, pos);
+              if pos >= s.ringbuffer_size {
+                s.state = BrotliRunningState::BROTLI_STATE_COMMAND_POST_WRITE_1;
+                break; // return
+              }
+            } else if s.dictionary.is_custom() &&
+                i >= SHARED_BROTLI_MIN_DICTIONARY_WORD_LENGTH as i32 &&
+                i <= SHARED_BROTLI_MAX_DICTIONARY_WORD_LENGTH as i32 {
+              // Generalized lookup with the word/transform lists of an
+              // attached serialized shared dictionary; mirrors the
+              // corresponding branch in c/dec/decode.c.
+              let dict_id = if s.dictionary.context_based {
+                let p1 = fast_slice!((s.ringbuffer)[((pos - 1) & s.ringbuffer_mask) as usize]);
+                let p2 = fast_slice!((s.ringbuffer)[((pos - 2) & s.ringbuffer_mask) as usize]);
+                let context = (s.context_lookup[p1 as usize] |
+                               s.context_lookup[p2 as usize | 256]) as usize;
+                s.dictionary.context_map[context]
+              } else {
+                0
+              };
+              let address = s.distance_code - s.max_distance - 1 -
+                            compound_dictionary_size as i32;
+              // Compensate double distance-ring-buffer roll.
+              s.dist_rb_idx += s.distance_context;
+              let lookup = match s.dictionary.lookup(dict_id, i, address) {
+                Ok(lookup) => lookup,
+                Err(why) => {
+                  BROTLI_LOG!(
+                    "Invalid backward reference. pos: %d distance: %d len: %d bytes left: %d\n",
+                    pos, s.distance_code, i, s.meta_block_remaining_len);
+                  result = match why {
+                    DictionaryLookupError::LengthNotEncodable =>
+                      BrotliDecoderErrorCode::BROTLI_DECODER_ERROR_FORMAT_DICTIONARY,
+                    DictionaryLookupError::AddressOutOfRange =>
+                      BrotliDecoderErrorCode::BROTLI_DECODER_ERROR_FORMAT_TRANSFORM,
+                  };
+                  break; // return
+                },
+              };
+              {
+                let mut len = i;
+                let word = lookup.words.word(len, lookup.word_idx);
+                if lookup.transform_idx == lookup.transforms.cutoff_identity() {
+                  fast_slice_mut!((s.ringbuffer)[pos as usize ; ((pos + len) as usize)])
+                    .clone_from_slice(word);
+                } else {
+                  len = lookup.transforms.apply(
+                            fast_slice_mut!((s.ringbuffer)[pos as usize;]),
+                            word,
+                            len,
+                            lookup.transform_idx);
+                  if len == 0 && s.distance_code <= 120 {
+                    result = BrotliDecoderErrorCode::BROTLI_DECODER_ERROR_FORMAT_TRANSFORM;
+                    break; // return
+                  }
+                }
+                pos += len;
+                s.meta_block_remaining_len -= len;
+                if (pos >= s.ringbuffer_size) {
+                  s.state = BrotliRunningState::BROTLI_STATE_COMMAND_POST_WRITE_1;
+                  break; // return return
+                }
+              }
+            } else if (i >= kBrotliMinDictionaryWordLength as i32 &&
                 i <= kBrotliMaxDictionaryWordLength as i32) {
               let mut offset = fast!((kBrotliDictionaryOffsetsByLength)[i as usize]) as i32;
-              let word_id = s.distance_code - s.max_distance - 1;
+              let word_id = s.distance_code - s.max_distance - 1 -
+                            compound_dictionary_size as i32;
               let shift = fast!((kBrotliDictionarySizeBitsByLength)[i as usize]);
               let mask = bit_reader::BitMask(shift as u32) as i32;
               let word_idx = word_id & mask;
@@ -2536,7 +2976,10 @@ fn ProcessCommandsInternal<AllocU8: alloc::Allocator<u8>,
             let dst_start = pos as u32;
             let dst_end = pos as u32 + i as u32;
             let src_end = src_start + i as u32;
-            memmove16(&mut s.ringbuffer.slice_mut(), dst_start, src_start);
+            if !memmove16(&mut s.ringbuffer.slice_mut(), dst_start, src_start) {
+              result = BrotliDecoderErrorCode::BROTLI_DECODER_ERROR_FORMAT_DISTANCE;
+              break;
+            }
             // Now check if the copy extends over the ringbuffer end,
             // or if the copy overlaps with itself, if yes, do wrap-copy.
             if (src_end > pos as u32 && dst_end > src_start) {
@@ -2550,16 +2993,22 @@ fn ProcessCommandsInternal<AllocU8: alloc::Allocator<u8>,
             pos += i;
             if (i > 16) {
               if (i > 32) {
-                memcpy_within_slice(s.ringbuffer.slice_mut(),
-                                    dst_start as usize + 16,
-                                    src_start as usize + 16,
-                                    (i - 16) as usize);
+                if !memcpy_within_slice(s.ringbuffer.slice_mut(),
+                                        dst_start as usize + 16,
+                                        src_start as usize + 16,
+                                        (i - 16) as usize) {
+                  result = BrotliDecoderErrorCode::BROTLI_DECODER_ERROR_FORMAT_DISTANCE;
+                  break;
+                }
               } else {
                 // This branch covers about 45% cases.
                 // Fixed size short copy allows more compiler optimizations.
-                memmove16(&mut s.ringbuffer.slice_mut(),
-                          dst_start + 16,
-                          src_start + 16);
+                if !memmove16(&mut s.ringbuffer.slice_mut(),
+                              dst_start + 16,
+                              src_start + 16) {
+                  result = BrotliDecoderErrorCode::BROTLI_DECODER_ERROR_FORMAT_DISTANCE;
+                  break;
+                }
               }
             }
           }
@@ -2681,17 +3130,15 @@ pub fn BrotliDecompressStream<AllocU8: alloc::Allocator<u8>,
   if is_fatal(s.error_code) {
     return BrotliResult::ResultFailure;
   }
-  if *available_in as u64 >= (1u64 << 32) {
+  if !bit_reader::is_valid_input_range(*input_offset, *available_in, xinput.len()) {
     return SaveErrorCode!(s, BrotliDecoderErrorCode::BROTLI_DECODER_ERROR_INVALID_ARGUMENTS);
   }
-  if *input_offset as u64 >= (1u64 << 32) {
-    return SaveErrorCode!(s, BrotliDecoderErrorCode::BROTLI_DECODER_ERROR_INVALID_ARGUMENTS);
+  match output_offset.checked_add(*available_out) {
+    Some(end) if end <= output.len() => {}
+    _ => return SaveErrorCode!(s, BrotliDecoderErrorCode::BROTLI_DECODER_ERROR_INVALID_ARGUMENTS),
   }
-  if *input_offset + *available_in > xinput.len() {
-    return SaveErrorCode!(s, BrotliDecoderErrorCode::BROTLI_DECODER_ERROR_INVALID_ARGUMENTS);
-  }
-  if *output_offset + *available_out > output.len() {
-    return SaveErrorCode!(s, BrotliDecoderErrorCode::BROTLI_DECODER_ERROR_INVALID_ARGUMENTS);
+  if s.buffer_length as usize > s.buffer.len() {
+    return SaveErrorCode!(s, BrotliDecoderErrorCode::BROTLI_DECODER_ERROR_UNREACHABLE);
   }
   if s.buffer_length == 0 {
     local_input = xinput;
@@ -2745,10 +3192,13 @@ pub fn BrotliDecompressStream<AllocU8: alloc::Allocator<u8>,
                 // input stream.
                 result = BrotliDecoderErrorCode::BROTLI_DECODER_SUCCESS;
                 let new_byte = fast!((xinput)[*input_offset]);
-                fast_mut!((s.buffer)[s.buffer_length as usize]) = new_byte;
-                // we did the following copy upfront, so we wouldn't have to do it here
-                // since saved_buffer[s.buffer_length as usize] = new_byte violates borrow rules
-                assert_eq!(fast!((saved_buffer)[s.buffer_length as usize]), new_byte);
+                let buffer_length = s.buffer_length as usize;
+                // This byte was copied into saved_buffer at function entry.
+                if saved_buffer.get(buffer_length) != Some(&new_byte) {
+                  result = BrotliDecoderErrorCode::BROTLI_DECODER_ERROR_UNREACHABLE;
+                  break;
+                }
+                s.buffer[buffer_length] = new_byte;
                 s.buffer_length += 1;
                 s.br.avail_in = s.buffer_length;
                 (*input_offset) += 1;
@@ -2769,12 +3219,19 @@ pub fn BrotliDecompressStream<AllocU8: alloc::Allocator<u8>,
               // Copy tail to internal buffer and return.
               *input_offset = s.br.next_in as usize;
               *available_in = s.br.avail_in as usize;
-              while *available_in != 0 {
-                fast_mut!((s.buffer)[s.buffer_length as usize]) = fast!((xinput)[*input_offset]);
-                s.buffer_length += 1;
-                (*input_offset) += 1;
-                (*available_in) -= 1;
+              let buffer_length = s.buffer_length as usize;
+              let input_end = *input_offset as u64 + *available_in as u64;
+              let buffer_end = buffer_length as u64 + *available_in as u64;
+              if input_end > xinput.len() as u64 || buffer_end > s.buffer.len() as u64 {
+                result = BrotliDecoderErrorCode::BROTLI_DECODER_ERROR_UNREACHABLE;
+                break;
               }
+              let (input_end, buffer_end) = (input_end as usize, buffer_end as usize);
+              s.buffer[buffer_length..buffer_end]
+                .clone_from_slice(&xinput[*input_offset..input_end]);
+              s.buffer_length = buffer_end as u32;
+              *input_offset = input_end;
+              *available_in = 0;
               break;
             }
             // unreachable!(); <- dead code
@@ -2797,6 +3254,10 @@ pub fn BrotliDecompressStream<AllocU8: alloc::Allocator<u8>,
         }
         break;
       }
+    }
+    if !bit_reader::is_valid_bit_reader(&s.br, local_input) {
+      result = BrotliDecoderErrorCode::BROTLI_DECODER_ERROR_UNREACHABLE;
+      continue;
     }
     loop {
       // this emulates fallthrough behavior
@@ -2834,8 +3295,17 @@ pub fn BrotliDecompressStream<AllocU8: alloc::Allocator<u8>,
         }
         BrotliRunningState::BROTLI_STATE_INITIALIZE => {
           s.max_backward_distance = (1 << s.window_bits) - kBrotliWindowGap as i32;
-          s.max_backward_distance_minus_custom_dict_size = (s.max_backward_distance as isize -
-                                                           s.custom_dict_size) as i32;
+          // A dictionary passed at construction time becomes a compound
+          // dictionary chunk; it is kept in its own buffer rather than
+          // prepended to the ring buffer so that it remains addressable
+          // after the ring buffer wraps.
+          if s.custom_dict.slice().len() != 0 {
+            let dict = mem::replace(&mut s.custom_dict, AllocU8::AllocatedMemory::default());
+            if !s.attach_compound_dictionary_chunk(state::MaybeOwnedSlice::Owned(dict)) {
+              result = BrotliDecoderErrorCode::BROTLI_DECODER_ERROR_COMPOUND_DICTIONARY;
+              break;
+            }
+          }
 
           // (formerly) Allocate memory for both block_type_trees and block_len_trees.
           s.block_type_length_state.block_type_trees = s.alloc_hc
@@ -2846,6 +3316,10 @@ pub fn BrotliDecompressStream<AllocU8: alloc::Allocator<u8>,
           }
           s.block_type_length_state.block_len_trees = s.alloc_hc
             .alloc_cell(3 * huffman::BROTLI_HUFFMAN_MAX_TABLE_SIZE as usize);
+          if (s.block_type_length_state.block_len_trees.slice().len() == 0) {
+            result = BrotliDecoderErrorCode::BROTLI_DECODER_ERROR_ALLOC_BLOCK_TYPE_TREES;
+            break;
+          }
 
           s.state = BrotliRunningState::BROTLI_STATE_METABLOCK_BEGIN;
           // No break, continue to next state
@@ -3102,10 +3576,14 @@ pub fn BrotliDecompressStream<AllocU8: alloc::Allocator<u8>,
                                    num_distance_codes as u16,
                                    max_distance_symbol as u16,
                                    s.num_dist_htrees as u16);
-            if (s.literal_hgroup.codes.slice().len() == 0 ||
+            if (s.literal_hgroup.htrees.slice().len() == 0 ||
+                s.literal_hgroup.codes.slice().len() == 0 ||
+                s.insert_copy_hgroup.htrees.slice().len() == 0 ||
                 s.insert_copy_hgroup.codes.slice().len() == 0 ||
+                s.distance_hgroup.htrees.slice().len() == 0 ||
                 s.distance_hgroup.codes.slice().len() == 0) {
-              return SaveErrorCode!(s, BrotliDecoderErrorCode::BROTLI_DECODER_ERROR_UNREACHABLE);
+              return SaveErrorCode!(
+                s, BrotliDecoderErrorCode::BROTLI_DECODER_ERROR_ALLOC_TREE_GROUPS);
             }
 
           /*{
@@ -3189,12 +3667,25 @@ pub fn BrotliDecompressStream<AllocU8: alloc::Allocator<u8>,
             BrotliDecoderErrorCode::BROTLI_DECODER_SUCCESS => {}
             _ => break,
           }
-          WrapRingBuffer(s);
+          if !WrapRingBuffer(s) {
+            result = BrotliDecoderErrorCode::BROTLI_DECODER_ERROR_UNREACHABLE;
+            break;
+          }
           if s.ringbuffer_size == 1 << s.window_bits {
             s.max_distance = s.max_backward_distance;
           }
           match s.state {
             BrotliRunningState::BROTLI_STATE_COMMAND_POST_WRITE_1 => {
+              if s.compound_dictionary.br_length != s.compound_dictionary.br_copied {
+                // Resume an interrupted copy from the compound dictionary.
+                let pos = s.pos;
+                let copied = CopyFromCompoundDictionary(&mut s, pos);
+                s.pos += copied;
+                if s.pos >= s.ringbuffer_size {
+                  // Ring buffer is full again; flush it and continue copying.
+                  continue;
+                }
+              }
               if (s.meta_block_remaining_len <= 0) {
                 // Next metablock, if any
                 s.state = BrotliRunningState::BROTLI_STATE_METABLOCK_DONE;
@@ -3222,6 +3713,20 @@ pub fn BrotliDecompressStream<AllocU8: alloc::Allocator<u8>,
           break;
         }
         BrotliRunningState::BROTLI_STATE_METABLOCK_DONE => {
+          // RFC 7932 §9.3: "if the number of literals to insert, the copy
+          // length, or the resulting dictionary word length would cause MLEN to
+          // be exceeded, then the stream should be rejected as invalid." When a
+          // command overshoots the declared meta-block length, the command loop
+          // exits to this state with meta_block_remaining_len < 0. The only
+          // negative-length guard was in WriteRingBuffer, which is not reached
+          // when the whole output fits in the ring buffer before the final
+          // flush, so such malformed streams decoded as success. The C
+          // reference and andybalholm/brotli (Go) reject them as BLOCK_LENGTH_2;
+          // mirror that check here, before cleanup.
+          if (s.meta_block_remaining_len < 0) {
+            result = BrotliDecoderErrorCode::BROTLI_DECODER_ERROR_FORMAT_BLOCK_LENGTH_2;
+            break;
+          }
           s.BrotliStateCleanupAfterMetablock();
           if (s.is_last_metablock == 0) {
             s.state = BrotliRunningState::BROTLI_STATE_METABLOCK_BEGIN;
@@ -3267,3 +3772,301 @@ pub fn BrotliDecompressStream<AllocU8: alloc::Allocator<u8>,
   SaveErrorCode!(s, result)
 }
 
+#[cfg(test)]
+mod safeguard_tests {
+  use super::{memcpy_within_slice, memmove16};
+
+  #[test]
+  fn memmove16_rejects_out_of_bounds_ranges() {
+    let mut data = [0u8; 16];
+    assert!(!memmove16(&mut data, 1, 0));
+    assert!(!memmove16(&mut data, 0, 1));
+  }
+
+  #[test]
+  fn memcpy_within_slice_validates_nonoverlapping_ranges() {
+    let mut data = [0u8, 1, 2, 3, 4, 5, 6, 7];
+    assert!(memcpy_within_slice(&mut data, 4, 0, 2));
+    assert_eq!(data, [0, 1, 2, 3, 0, 1, 6, 7]);
+
+    let unchanged = data;
+    assert!(!memcpy_within_slice(&mut data, 1, 0, 4));
+    assert!(!memcpy_within_slice(&mut data, 7, 0, 2));
+    assert!(!memcpy_within_slice(&mut data, usize::MAX, 0, 2));
+    assert!(!memcpy_within_slice(&mut data, 0, usize::MAX, 2));
+    assert_eq!(data, unchanged);
+  }
+}
+
+// These need a live BrotliState, so they need an allocator: StandardAlloc is
+// std-only, as in the `tests` module above.
+#[cfg(all(test, feature="std"))]
+mod state_guard_tests {
+  use super::{CheckRingBufferConsistency, DecodeContextMap, ReadHuffmanCode, UnwrittenBytes,
+              WrapRingBuffer, WriteRingBuffer};
+  use super::{BrotliDecoderErrorCode, BrotliRunningState, BrotliState, HuffmanCode};
+  use ::state::BrotliRunningHuffmanState;
+  use ::alloc::Allocator;
+  use ::StandardAlloc;
+
+  type TestState = BrotliState<StandardAlloc, StandardAlloc, StandardAlloc>;
+
+  fn state() -> TestState {
+    BrotliState::new(StandardAlloc::default(), StandardAlloc::default(), StandardAlloc::default())
+  }
+
+  // A decoder whose ring buffer is consistent: size is a power of two, mask is
+  // size - 1, and the allocation is at least that long.
+  fn state_with_ringbuffer(size: i32, window_bits: u32) -> TestState {
+    let mut s = state();
+    s.ringbuffer = s.alloc_u8.alloc_cell(size as usize);
+    s.ringbuffer_size = size;
+    s.ringbuffer_mask = size - 1;
+    s.window_bits = window_bits;
+    s
+  }
+
+  // None of the guards below is reachable through BrotliDecompressStream, so
+  // each is driven directly from an inconsistent decoder state. They exist
+  // because the `unsafe` build turns an out-of-range index into an out-of-bounds
+  // access rather than a panic.
+
+  #[test]
+  fn ring_buffer_consistency_rejects_inconsistent_state() {
+    let mut s = state_with_ringbuffer(16, 4);
+    assert!(CheckRingBufferConsistency(&s));
+
+    s.pos = -1;
+    assert!(!CheckRingBufferConsistency(&s));
+    s.pos = 0;
+
+    s.ringbuffer_size = 0;
+    assert!(!CheckRingBufferConsistency(&s));
+    s.ringbuffer_size = 16;
+
+    s.ringbuffer_mask = -1;
+    assert!(!CheckRingBufferConsistency(&s));
+
+    // mask that does not match the size
+    s.ringbuffer_mask = 7;
+    assert!(!CheckRingBufferConsistency(&s));
+    s.ringbuffer_mask = 15;
+
+    // size larger than the allocation
+    s.ringbuffer_size = 32;
+    s.ringbuffer_mask = 31;
+    assert!(!CheckRingBufferConsistency(&s));
+  }
+
+  #[test]
+  fn unwritten_bytes_is_exact_past_a_32_bit_wrap() {
+    // rb_roundtrips * ringbuffer_size alone overflows a 32-bit usize, so this
+    // only stays exact because the counters are u64.
+    let mut s = state_with_ringbuffer(1 << 16, 16);
+    s.rb_roundtrips = 1 << 17; // 2^17 * 2^16 == 2^33 bytes decoded
+    s.pos = 100;
+    s.partial_pos_out = (1u64 << 33) + 40;
+    assert_eq!(UnwrittenBytes(&s, false), 60);
+  }
+
+  #[test]
+  fn write_ring_buffer_rejects_inconsistent_ring_buffer() {
+    let mut s = state_with_ringbuffer(16, 4);
+    s.ringbuffer_mask = 7; // no longer size - 1
+    let mut available_out = 8usize;
+    let mut output = [0u8; 8];
+    let mut output_offset = 0usize;
+    let mut total_out = 0usize;
+    let (code, out) = WriteRingBuffer(&mut available_out, Some(&mut output[..]),
+                                      &mut output_offset, &mut total_out, false, &mut s);
+    match code {
+      BrotliDecoderErrorCode::BROTLI_DECODER_ERROR_UNREACHABLE => {}
+      other => panic!("expected UNREACHABLE, got {:?}", other),
+    }
+    assert!(out.is_empty());
+  }
+
+  #[test]
+  fn write_ring_buffer_rejects_negative_block_length() {
+    let mut s = state_with_ringbuffer(16, 4);
+    s.meta_block_remaining_len = -1;
+    let mut available_out = 0usize;
+    let mut output_offset = 0usize;
+    let mut total_out = 0usize;
+    let (code, _) = WriteRingBuffer(&mut available_out, None, &mut output_offset,
+                                    &mut total_out, false, &mut s);
+    match code {
+      BrotliDecoderErrorCode::BROTLI_DECODER_ERROR_FORMAT_BLOCK_LENGTH_1 => {}
+      other => panic!("expected BLOCK_LENGTH_1, got {:?}", other),
+    }
+  }
+
+  #[test]
+  fn write_ring_buffer_rejects_output_slice_that_cannot_hold_the_write() {
+    let mut s = state_with_ringbuffer(16, 4);
+    s.pos = 8; // 8 bytes pending
+    let mut available_out = 8usize;
+    let mut output = [0u8; 8];
+    // output_offset past the end of the caller's buffer: available_out claims
+    // room the slice does not have.
+    let mut output_offset = 4usize;
+    let mut total_out = 0usize;
+    let (code, _) = WriteRingBuffer(&mut available_out, Some(&mut output[..]),
+                                    &mut output_offset, &mut total_out, false, &mut s);
+    match code {
+      BrotliDecoderErrorCode::BROTLI_DECODER_ERROR_INVALID_ARGUMENTS => {}
+      other => panic!("expected INVALID_ARGUMENTS, got {:?}", other),
+    }
+  }
+
+  #[test]
+  fn wrap_ring_buffer_rejects_state_it_cannot_split() {
+    let mut s = state_with_ringbuffer(16, 4);
+    s.should_wrap_ringbuffer = true;
+
+    s.pos = -1;
+    assert!(!WrapRingBuffer(&mut s));
+
+    s.pos = 0;
+    s.ringbuffer_size = -1;
+    assert!(!WrapRingBuffer(&mut s));
+
+    // size beyond the allocation
+    s.ringbuffer_size = 64;
+    s.pos = 1;
+    assert!(!WrapRingBuffer(&mut s));
+
+    // pos past the tail region the wrap copies from
+    s.ringbuffer_size = 16;
+    s.pos = 8;
+    assert!(!WrapRingBuffer(&mut s));
+
+    // and a state it can handle: half the buffer is the tail region
+    let mut ok = state_with_ringbuffer(16, 4);
+    ok.ringbuffer_size = 8;
+    ok.ringbuffer_mask = 7;
+    ok.pos = 4;
+    ok.should_wrap_ringbuffer = true;
+    assert!(WrapRingBuffer(&mut ok));
+    assert!(!ok.should_wrap_ringbuffer);
+  }
+
+  #[test]
+  fn read_huffman_code_rejects_offset_past_table() {
+    let mut s = state();
+    let mut table = [HuffmanCode::default(); 4];
+    let code = ReadHuffmanCode(256, 256, &mut table, 5, None, &mut s, &[]);
+    match code {
+      BrotliDecoderErrorCode::BROTLI_DECODER_ERROR_FORMAT_HUFFMAN_SPACE => {}
+      other => panic!("expected HUFFMAN_SPACE, got {:?}", other),
+    }
+  }
+
+  #[test]
+  fn read_huffman_code_reports_a_simple_table_that_will_not_fit() {
+    // The simple-code builder needs 1 << HUFFMAN_TABLE_BITS entries; a caller
+    // slice shorter than that must surface as an error, not a partial table.
+    let mut s = state();
+    s.substate_huffman = BrotliRunningHuffmanState::BROTLI_STATE_HUFFMAN_SIMPLE_BUILD;
+    s.symbol = 0;
+    let mut table = [HuffmanCode::default(); 8];
+    match ReadHuffmanCode(256, 256, &mut table, 0, None, &mut s, &[]) {
+      BrotliDecoderErrorCode::BROTLI_DECODER_ERROR_FORMAT_HUFFMAN_SPACE => {}
+      other => panic!("expected HUFFMAN_SPACE, got {:?}", other),
+    }
+  }
+
+  #[test]
+  fn read_huffman_code_reports_a_complex_table_that_will_not_fit() {
+    let mut s = state();
+    s.substate_huffman = BrotliRunningHuffmanState::BROTLI_STATE_HUFFMAN_LENGTH_SYMBOLS;
+    // Nothing left to read, and a complete code, so the builder runs.
+    s.symbol = 256;
+    s.space = 0;
+    s.code_length_histo[1] = 2;
+    let mut table = [HuffmanCode::default(); 8];
+    match ReadHuffmanCode(256, 256, &mut table, 0, None, &mut s, &[]) {
+      BrotliDecoderErrorCode::BROTLI_DECODER_ERROR_FORMAT_HUFFMAN_SPACE => {}
+      other => panic!("expected HUFFMAN_SPACE, got {:?}", other),
+    }
+  }
+
+  #[test]
+  fn read_huffman_code_reports_a_code_length_histogram_mismatch() {
+    // Resuming BROTLI_STATE_HUFFMAN_COMPLEX with a histogram that does not
+    // describe code_length_code_lengths is exactly what the builder's
+    // consistency check exists to catch: without it the sort loop indexes
+    // `sorted` out of bounds.
+    let mut s = state();
+    s.substate_huffman = BrotliRunningHuffmanState::BROTLI_STATE_HUFFMAN_COMPLEX;
+    // Resume with every code-length code already read (sub_loop_counter at the
+    // end of kCodeLengthCodeOrder) and a single code recorded, so
+    // ReadCodeLengthCodeLengths returns success without consuming input.
+    s.sub_loop_counter = super::CODE_LENGTH_CODES as u32;
+    s.repeat = 1;
+    s.space = 32;
+    // ...but claim a length that code_length_code_lengths does not contain.
+    s.code_length_histo[2] = 9;
+    let mut table = [HuffmanCode::default(); 1080];
+    match ReadHuffmanCode(256, 256, &mut table, 0, None, &mut s, &[]) {
+      BrotliDecoderErrorCode::BROTLI_DECODER_ERROR_FORMAT_HUFFMAN_SPACE => {}
+      other => panic!("expected HUFFMAN_SPACE, got {:?}", other),
+    }
+  }
+
+  #[test]
+  fn write_ring_buffer_rejects_a_pending_run_longer_than_the_ring() {
+    // partial_pos_out lagging by more than one full ring makes `to_write`
+    // exceed what actually lives in the buffer.
+    let mut s = state_with_ringbuffer(16, 4);
+    s.rb_roundtrips = 1;
+    s.pos = 16;
+    s.partial_pos_out = 4;
+    let mut available_out = 64usize;
+    let mut output = [0u8; 64];
+    let mut output_offset = 0usize;
+    let mut total_out = 0usize;
+    let (code, _) = WriteRingBuffer(&mut available_out, Some(&mut output[..]),
+                                    &mut output_offset, &mut total_out, false, &mut s);
+    match code {
+      BrotliDecoderErrorCode::BROTLI_DECODER_ERROR_UNREACHABLE => {}
+      other => panic!("expected UNREACHABLE, got {:?}", other),
+    }
+  }
+
+  #[test]
+  fn write_ring_buffer_rejects_output_offset_that_would_overflow() {
+    let mut s = state_with_ringbuffer(16, 4);
+    s.pos = 8;
+    let mut available_out = 8usize;
+    let mut output_offset = usize::MAX - 1;
+    let mut total_out = 0usize;
+    let (code, _) = WriteRingBuffer(&mut available_out, None, &mut output_offset,
+                                    &mut total_out, false, &mut s);
+    match code {
+      BrotliDecoderErrorCode::BROTLI_DECODER_ERROR_INVALID_ARGUMENTS => {}
+      other => panic!("expected INVALID_ARGUMENTS, got {:?}", other),
+    }
+  }
+
+  #[test]
+  fn decode_context_map_rejects_mismatched_state() {
+    let mut s = state();
+    // Neither CONTEXT_MAP_1 with is_dist=false nor CONTEXT_MAP_2 with true.
+    s.state = BrotliRunningState::BROTLI_STATE_CONTEXT_MAP_1;
+    match DecodeContextMap(4, true, &mut s, &[]) {
+      BrotliDecoderErrorCode::BROTLI_DECODER_ERROR_UNREACHABLE => {}
+      other => panic!("expected UNREACHABLE, got {:?}", other),
+    }
+    s.state = BrotliRunningState::BROTLI_STATE_CONTEXT_MAP_2;
+    match DecodeContextMap(4, false, &mut s, &[]) {
+      BrotliDecoderErrorCode::BROTLI_DECODER_ERROR_UNREACHABLE => {}
+      other => panic!("expected UNREACHABLE, got {:?}", other),
+    }
+    s.state = BrotliRunningState::BROTLI_STATE_UNINITED;
+    match DecodeContextMap(4, false, &mut s, &[]) {
+      BrotliDecoderErrorCode::BROTLI_DECODER_ERROR_UNREACHABLE => {}
+      other => panic!("expected UNREACHABLE, got {:?}", other),
+    }
+  }
+}

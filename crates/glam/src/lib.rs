@@ -260,10 +260,8 @@ assert_eq!(format!("{}", a), "[1, 2, 3, 4]");
 * `glam-assert` - adds assertions to all builds which check the validity of parameters passed to
   `glam` to help catch runtime errors.
 * `cuda` - forces `glam` types to match expected cuda alignment
-* `fast-math` - By default, glam attempts to provide bit-for-bit identical results on all platforms.
-  Using this feature will enable platform specific optimizations that may not be identical to other
-  platforms. **Intermediate libraries should not use this feature and defer the decision to the
-  final binary build**.
+* `fast-math` - **Deprecated.** This feature no longer has any effect and will be removed in a
+  future release.
 * `core-simd` - enables SIMD support via the portable simd module. This is an unstable feature which
   requires a nightly Rust toolchain and `std` support.
 
@@ -275,7 +273,11 @@ and benchmarks.
 * `approx` - traits and macros for approximate float comparisons
 * `arbitrary` - implementations of `Arbitrary` trait for all `glam` types.
 * `bytemuck` - for casting into slices of bytes
-* `encase` - `encase` trait implementations for `glam` types.
+* `encase` - `encase` trait implementations for `glam` types. This is a
+  backwards-compatible alias for the `encase-012` feature.
+* `encase-012` - `encase` 0.12 trait implementations for `glam` types.
+* `encase-013` - `encase` 0.13 trait implementations for `glam` types. Can be
+  enabled together with `encase-012` to support both versions at once.
 * `float_eq` - traits and macros for comparing float types using various tolerances.
 * `libm` - uses `libm` math functions instead of `std`
 * `mint` - for interoperating with other 3D math libraries

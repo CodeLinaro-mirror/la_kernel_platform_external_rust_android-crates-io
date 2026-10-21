@@ -28,6 +28,7 @@ rust_library {
         "libc",
         "libc_errno",
         "mm",
+        "mount",
         "net",
         "param",
         "pipe",

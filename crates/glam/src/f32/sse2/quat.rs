@@ -635,29 +635,16 @@ impl Quat {
         Vec4::from(self).is_normalized()
     }
 
+    /// Returns `true` if `self` represents a rotation near the identity.
     #[inline]
     #[must_use]
     pub fn is_near_identity(self) -> bool {
         // Based on https://github.com/nfrechette/rtm `rtm::quat_near_identity`
-        // Because of floating point precision, we cannot represent very small rotations.
-        // The closest f32 to 1.0 that is not 1.0 itself yields:
-        // 0.99999994.acos() * 2.0  = 0.000690533954 rad
-        //
-        // An error threshold of 1.e-6 is used by default.
-        // (1.0 - 1.e-6).acos() * 2.0 = 0.00284714461 rad
-        // (1.0 - 1.e-7).acos() * 2.0 = 0.00097656250 rad
-        //
-        // We don't really care about the angle value itself, only if it's close to 0.
-        // This will happen whenever quat.w is close to 1.0.
-        // If the quat.w is close to -1.0, the angle will be near 2*PI which is close to
-        // a negative 0 rotation. By forcing quat.w to be positive, we'll end up with
-        // the shortest path.
-        //
-        // For f64 we're using a threshhold of
-        // (1.0 - 1e-14).acos() * 2.0
-        const THRESHOLD_ANGLE: f32 = 0.002_847_144_6;
-        let positive_w_angle = math::acos_approx(math::abs(self.w)) * 2.0;
-        positive_w_angle < THRESHOLD_ANGLE
+        // The shortest rotation angle is `2 * acos(abs(w))`. Since `acos` is monotonically
+        // decreasing, comparing `abs(w)` to the cosine threshold avoids calculating the angle.
+        // Equivalent to an angular threshold of `(1.0 - 1e-6).acos() * 2.0`.
+        const THRESHOLD: f32 = 1.0 - 1e-6;
+        math::abs(self.w) > THRESHOLD
     }
 
     /// Returns the angle (in radians) for the minimal rotation between two quaternions
@@ -763,7 +750,7 @@ impl Quat {
             let theta_sin = _mm_shuffle_ps(tmp, tmp, 0b10_10_10_10);
 
             Self(_mm_div_ps(
-                _mm_add_ps(_mm_mul_ps(self.0, scale1), _mm_mul_ps(end.0, scale2)),
+                m128_mul_add(end.0, scale2, _mm_mul_ps(self.0, scale1)),
                 theta_sin,
             ))
         }
@@ -880,18 +867,15 @@ impl Quat {
             let lwrx_lzrx_lyrx_lxrx = _mm_mul_ps(r_xxxx, l_wzyx);
             let l_zwxy = _mm_shuffle_ps(l_wzyx, l_wzyx, 0b10_11_00_01);
 
-            let lwrx_nlzrx_lyrx_nlxrx = _mm_mul_ps(lwrx_lzrx_lyrx_lxrx, CONTROL_WZYX);
-
             let lzry_lwry_lxry_lyry = _mm_mul_ps(r_yyyy, l_zwxy);
             let l_yxwz = _mm_shuffle_ps(l_zwxy, l_zwxy, 0b00_01_10_11);
 
             let lzry_lwry_nlxry_nlyry = _mm_mul_ps(lzry_lwry_lxry_lyry, CONTROL_ZWXY);
 
             let lyrz_lxrz_lwrz_lzrz = _mm_mul_ps(r_zzzz, l_yxwz);
-            let result0 = _mm_add_ps(lxrw_lyrw_lzrw_lwrw, lwrx_nlzrx_lyrx_nlxrx);
+            let result0 = m128_mul_add(lwrx_lzrx_lyrx_lxrx, CONTROL_WZYX, lxrw_lyrw_lzrw_lwrw);
 
-            let nlyrz_lxrz_lwrz_wlzrz = _mm_mul_ps(lyrz_lxrz_lwrz_lzrz, CONTROL_YXWZ);
-            let result1 = _mm_add_ps(lzry_lwry_nlxry_nlyry, nlyrz_lxrz_lwrz_wlzrz);
+            let result1 = m128_mul_add(lyrz_lxrz_lwrz_lzrz, CONTROL_YXWZ, lzry_lwry_nlxry_nlyry);
 
             Self(_mm_add_ps(result0, result1))
         }
