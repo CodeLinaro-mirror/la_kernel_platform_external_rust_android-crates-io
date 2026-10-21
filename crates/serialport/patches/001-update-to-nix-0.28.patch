@@ -254,7 +254,7 @@ index 6a8d80564..4a136909a 100644
      }
  
      /// Create a pair of pseudo serial terminals
-@@ -321,27 +302,29 @@ impl TTYPort {
+@@ -321,33 +302,35 @@ impl TTYPort {
          let baud_rate = 9600;
  
          // Wrap the slave fd in `OwnedFd` immediately so it auto-closes on error
@@ -266,6 +266,13 @@ index 6a8d80564..4a136909a 100644
 -        )?);
 +        )?;
 +	let fd = unsafe { OwnedFd::from_raw_fd(raw_fd) };
+ 
+         let next_pty_fd = next_pty_fd.into_raw_fd();
+         #[cfg(target_os = "illumos")]
+         push_ldterm_streams_module(next_pty_fd)?;
+         #[cfg(target_os = "illumos")]
+-        push_ldterm_streams_module(fd.0)?;
++        push_ldterm_streams_module(fd.as_raw_fd())?;
  
          // Set the port to a raw state. Using these ports will not work without this.
          let mut termios = MaybeUninit::uninit();
@@ -290,12 +297,12 @@ index 6a8d80564..4a136909a 100644
              timeout: Duration::from_millis(100),
              exclusive: true,
              port_name: Some(ptty_name),
-@@ -353,7 +336,7 @@ impl TTYPort {
+@@ -359,7 +342,7 @@ impl TTYPort {
          // `tcgetattr()` doesn't work on Mac, Solaris, and maybe other
          // BSDs when used on the master port.
          let master_tty = TTYPort {
--            fd: next_pty_fd.into_raw_fd(),
-+            fd: unsafe { OwnedFd::from_raw_fd(next_pty_fd.into_raw_fd()) },
+-            fd: next_pty_fd,
++            fd: unsafe { OwnedFd::from_raw_fd(next_pty_fd) },
              timeout: Duration::from_millis(100),
              exclusive: true,
              port_name: None,
@@ -351,7 +358,7 @@ index 6a8d80564..4a136909a 100644
          mem::forget(self);
          fd
      }
-@@ -448,7 +428,7 @@ impl FromRawFd for TTYPort {
+@@ -524,7 +507,7 @@ impl FromRawFd for TTYPort {
          let tiocexcl_successful = ioctl::tiocexcl(fd).is_ok();
  
          TTYPort {
@@ -360,7 +367,7 @@ index 6a8d80564..4a136909a 100644
              timeout: Duration::from_millis(100),
              exclusive: tiocexcl_successful && flock_successful,
              // It is not trivial to get the file path corresponding to a file descriptor.
-@@ -465,27 +445,27 @@ impl FromRawFd for TTYPort {
+@@ -541,27 +524,27 @@ impl FromRawFd for TTYPort {
  
  impl io::Read for TTYPort {
      fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
@@ -393,17 +400,17 @@ index 6a8d80564..4a136909a 100644
                  Ok(_) => Ok(()),
                  Err(Errno::EINTR) => {
                      // Retry flushing. But only up to the ports timeout for not retrying
-@@ -522,7 +502,7 @@ impl SerialPort for TTYPort {
+@@ -603,7 +586,7 @@ impl SerialPort for TTYPort {
          )
      ))]
      fn baud_rate(&self) -> Result<u32> {
 -        let termios2 = ioctl::tcgets2(self.fd)?;
 +        let termios2 = ioctl::tcgets2(self.fd.as_raw_fd())?;
  
-         assert!(termios2.c_ospeed == termios2.c_ispeed);
- 
-@@ -540,7 +520,7 @@ impl SerialPort for TTYPort {
-         target_os = "openbsd"
+         if termios2.c_ospeed == termios2.c_ispeed {
+             Ok(termios2.c_ospeed)
+@@ -631,7 +614,7 @@ impl SerialPort for TTYPort {
+         target_os = "openbsd",
      ))]
      fn baud_rate(&self) -> Result<u32> {
 -        let termios = termios::get_termios(self.fd)?;
@@ -411,16 +418,16 @@ index 6a8d80564..4a136909a 100644
  
          let ospeed = unsafe { libc::cfgetospeed(&termios) };
          let ispeed = unsafe { libc::cfgetispeed(&termios) };
-@@ -577,7 +557,7 @@ impl SerialPort for TTYPort {
-             B4800, B50, B57600, B600, B75, B9600,
-         };
- 
+@@ -674,7 +657,7 @@ impl SerialPort for TTYPort {
+         )
+     ))]
+     fn baud_rate(&self) -> Result<u32> {
 -        let termios = termios::get_termios(self.fd)?;
 +        let termios = termios::get_termios(self.fd.as_raw_fd())?;
          let ospeed = unsafe { libc::cfgetospeed(&termios) };
          let ispeed = unsafe { libc::cfgetispeed(&termios) };
  
-@@ -621,7 +601,7 @@ impl SerialPort for TTYPort {
+@@ -688,7 +671,7 @@ impl SerialPort for TTYPort {
      }
  
      fn data_bits(&self) -> Result<DataBits> {
@@ -429,7 +436,7 @@ index 6a8d80564..4a136909a 100644
          match termios.c_cflag & libc::CSIZE {
              libc::CS8 => Ok(DataBits::Eight),
              libc::CS7 => Ok(DataBits::Seven),
-@@ -635,7 +615,7 @@ impl SerialPort for TTYPort {
+@@ -702,7 +685,7 @@ impl SerialPort for TTYPort {
      }
  
      fn flow_control(&self) -> Result<FlowControl> {
@@ -438,7 +445,7 @@ index 6a8d80564..4a136909a 100644
          if termios.c_cflag & libc::CRTSCTS == libc::CRTSCTS {
              Ok(FlowControl::Hardware)
          } else if termios.c_iflag & (libc::IXON | libc::IXOFF) == (libc::IXON | libc::IXOFF) {
-@@ -646,7 +626,7 @@ impl SerialPort for TTYPort {
+@@ -713,7 +696,7 @@ impl SerialPort for TTYPort {
      }
  
      fn parity(&self) -> Result<Parity> {
@@ -447,7 +454,7 @@ index 6a8d80564..4a136909a 100644
          if termios.c_cflag & libc::PARENB == libc::PARENB {
              if termios.c_cflag & libc::PARODD == libc::PARODD {
                  Ok(Parity::Odd)
-@@ -659,7 +639,7 @@ impl SerialPort for TTYPort {
+@@ -726,7 +709,7 @@ impl SerialPort for TTYPort {
      }
  
      fn stop_bits(&self) -> Result<StopBits> {
@@ -456,8 +463,8 @@ index 6a8d80564..4a136909a 100644
          if termios.c_cflag & libc::CSTOPB == libc::CSTOPB {
              Ok(StopBits::Two)
          } else {
-@@ -680,53 +660,53 @@ impl SerialPort for TTYPort {
-         target_os = "linux"
+@@ -748,53 +731,53 @@ impl SerialPort for TTYPort {
+         target_os = "openbsd",
      ))]
      fn set_baud_rate(&mut self, baud_rate: u32) -> Result<()> {
 -        let mut termios = termios::get_termios(self.fd)?;
@@ -525,7 +532,7 @@ index 6a8d80564..4a136909a 100644
      }
  
      fn set_timeout(&mut self, timeout: Duration) -> Result<()> {
-@@ -759,11 +739,11 @@ impl SerialPort for TTYPort {
+@@ -827,11 +810,11 @@ impl SerialPort for TTYPort {
      }
  
      fn bytes_to_read(&self) -> Result<u32> {
@@ -539,7 +546,7 @@ index 6a8d80564..4a136909a 100644
      }
  
      fn clear(&self, buffer_to_clear: ClearBuffer) -> Result<()> {
-@@ -773,7 +753,7 @@ impl SerialPort for TTYPort {
+@@ -841,7 +824,7 @@ impl SerialPort for TTYPort {
              ClearBuffer::All => libc::TCIOFLUSH,
          };
  
@@ -548,7 +555,7 @@ index 6a8d80564..4a136909a 100644
              .map(|_| ())
              .map_err(|e| e.into())
      }
-@@ -786,11 +766,11 @@ impl SerialPort for TTYPort {
+@@ -854,11 +837,11 @@ impl SerialPort for TTYPort {
      }
  
      fn set_break(&self) -> Result<()> {
