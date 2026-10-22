@@ -2,6 +2,7 @@
 
 use std::{
     collections::{HashMap, HashSet},
+    fs::File,
     io::Result as IoResult,
     path::PathBuf,
     sync::{Arc, Mutex, RwLock},
@@ -9,7 +10,10 @@ use std::{
 
 use log::warn;
 use thiserror::Error as ThisError;
-use vhost::vhost_user::message::{VhostUserProtocolFeatures, VhostUserVirtioFeatures};
+use vhost::vhost_user::message::{
+    VhostTransferStateDirection, VhostTransferStatePhase, VhostUserProtocolFeatures,
+    VhostUserVirtioFeatures,
+};
 use vhost_user_backend::{VhostUserBackend, VringRwLock};
 use virtio_bindings::bindings::{
     virtio_config::{VIRTIO_F_NOTIFY_ON_EMPTY, VIRTIO_F_VERSION_1},
@@ -24,8 +28,14 @@ use vmm_sys_util::{
 
 use crate::{thread_backend::RawPktsQ, vhu_vsock_thread::*};
 
-pub(crate) type CidMap =
-    HashMap<u64, (Arc<RwLock<RawPktsQ>>, Arc<RwLock<HashSet<String>>>, EventFd)>;
+pub(crate) type CidMap = HashMap<
+    u64,
+    (
+        Option<Arc<RwLock<RawPktsQ>>>,
+        Arc<RwLock<HashSet<String>>>,
+        EventFd,
+    ),
+>;
 
 const NUM_QUEUES: usize = 3;
 
@@ -72,8 +82,11 @@ pub(crate) const VSOCK_FLAGS_SHUTDOWN_RCV: u32 = 1;
 /// data
 pub(crate) const VSOCK_FLAGS_SHUTDOWN_SEND: u32 = 2;
 
+/// Vsock events - `VSOCK_EVENT_TRANSPORT_RESET`: Communication has been interrupted
+pub(crate) const VSOCK_EVENT_TRANSPORT_RESET: u32 = 0;
+
 // Queue mask to select vrings.
-const QUEUE_MASK: u64 = 0b11;
+const QUEUE_MASK: u64 = 0b111;
 
 pub(crate) type Result<T> = std::result::Result<T, Error>;
 
@@ -141,6 +154,8 @@ pub(crate) enum Error {
     EmptyRawPktsQueue,
     #[error("CID already in use by another vsock device")]
     CidAlreadyInUse,
+    #[error("Failed to write to event virtqueue")]
+    EventQueueWrite,
 }
 
 impl std::convert::From<Error> for std::io::Error {
@@ -256,6 +271,7 @@ unsafe impl ByteValued for VirtioVsockConfig {}
 
 pub(crate) struct VhostUserVsockBackend {
     config: VirtioVsockConfig,
+    transport_reset_pending: Arc<Mutex<bool>>,
     queue_size: usize,
     pub threads: Vec<Mutex<VhostUserVsockThread>>,
     queues_per_thread: Vec<u64>,
@@ -277,6 +293,7 @@ impl VhostUserVsockBackend {
             config: VirtioVsockConfig {
                 guest_cid: From::from(config.get_guest_cid()),
             },
+            transport_reset_pending: Arc::new(Mutex::new(false)),
             queue_size: config.get_queue_size(),
             threads: vec![thread],
             queues_per_thread,
@@ -305,7 +322,9 @@ impl VhostUserBackend for VhostUserVsockBackend {
     }
 
     fn protocol_features(&self) -> VhostUserProtocolFeatures {
-        VhostUserProtocolFeatures::MQ | VhostUserProtocolFeatures::CONFIG
+        VhostUserProtocolFeatures::MQ
+            | VhostUserProtocolFeatures::CONFIG
+            | VhostUserProtocolFeatures::DEVICE_STATE
     }
 
     fn set_event_idx(&self, enabled: bool) {
@@ -330,6 +349,7 @@ impl VhostUserBackend for VhostUserVsockBackend {
     ) -> IoResult<()> {
         let vring_rx = &vrings[0];
         let vring_tx = &vrings[1];
+        let vring_evt = &vrings[2];
 
         if evset != EventSet::IN {
             return Err(Error::HandleEventNotEpollIn.into());
@@ -344,7 +364,10 @@ impl VhostUserBackend for VhostUserVsockBackend {
                 thread.process_tx(vring_tx, evt_idx)?;
             }
             EVT_QUEUE_EVENT => {
-                warn!("Received an unexpected EVT_QUEUE_EVENT");
+                let reset_pending = &mut *self.transport_reset_pending.lock().unwrap();
+                if *reset_pending && thread.reset_transport(vring_evt, evt_idx)? {
+                    *reset_pending = false;
+                }
             }
             BACKEND_EVENT => {
                 thread.process_backend_evt(evset);
@@ -384,6 +407,15 @@ impl VhostUserBackend for VhostUserVsockBackend {
             return Vec::new();
         }
 
+        if offset + size == buf.len() {
+            // The last byte of the config is read when the driver is initializing or after it has
+            // processed a transport reset event. Either way, no transport reset will be pending
+            // after this. Activate all threads once it's known a reset event is not pending.
+            for thread in self.threads.iter() {
+                thread.lock().unwrap().activate();
+            }
+        }
+
         buf[offset..offset + size].to_vec()
     }
 
@@ -395,6 +427,23 @@ impl VhostUserBackend for VhostUserVsockBackend {
         let consumer = self.exit_event.0.try_clone().ok()?;
         let notifier = self.exit_event.1.try_clone().ok()?;
         Some((consumer, notifier))
+    }
+
+    fn set_device_state_fd(
+        &self,
+        direction: VhostTransferStateDirection,
+        _phase: VhostTransferStatePhase,
+        _file: File,
+    ) -> std::result::Result<Option<File>, std::io::Error> {
+        if let VhostTransferStateDirection::LOAD = direction {
+            *self.transport_reset_pending.lock().unwrap() = true;
+        }
+        Ok(None)
+    }
+
+    fn check_device_state(&self) -> std::result::Result<(), std::io::Error> {
+        // We had nothing to read/write to the fd, so always return Ok.
+        Ok(())
     }
 }
 
@@ -431,17 +480,20 @@ mod tests {
         let vrings = [
             VringRwLock::new(mem.clone(), 0x1000).unwrap(),
             VringRwLock::new(mem.clone(), 0x2000).unwrap(),
+            VringRwLock::new(mem.clone(), 0x1000).unwrap(),
         ];
         vrings[0].set_queue_info(0x100, 0x200, 0x300).unwrap();
         vrings[0].set_queue_ready(true);
         vrings[1].set_queue_info(0x1100, 0x1200, 0x1300).unwrap();
         vrings[1].set_queue_ready(true);
+        vrings[2].set_queue_info(0x2100, 0x2200, 0x2300).unwrap();
+        vrings[2].set_queue_ready(true);
 
         backend.update_memory(mem).unwrap();
 
         let queues_per_thread = backend.queues_per_thread();
         assert_eq!(queues_per_thread.len(), 1);
-        assert_eq!(queues_per_thread[0], 0b11);
+        assert_eq!(queues_per_thread[0], 0b111);
 
         let config = backend.get_config(0, 8);
         assert_eq!(config.len(), 8);
@@ -563,6 +615,7 @@ mod tests {
         let vrings = [
             VringRwLock::new(mem.clone(), 0x1000).unwrap(),
             VringRwLock::new(mem.clone(), 0x2000).unwrap(),
+            VringRwLock::new(mem.clone(), 0x1000).unwrap(),
         ];
 
         backend.update_memory(mem).unwrap();
