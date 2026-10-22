@@ -398,8 +398,10 @@ impl MemoryMapOwned {
     /// (stored inside the provided buffer) and the corresponding
     /// [`MemoryMapMeta`].
     pub(crate) fn from_initialized_mem(buf: MemoryMapBackingMemory, meta: MemoryMapMeta) -> Self {
-        assert!(meta.desc_size >= size_of::<MemoryDescriptor>());
-        let len = meta.entry_count();
+        // Validate `desc_size` fully: besides being large enough, it must be a
+        // multiple of the descriptor alignment. Otherwise descriptors past the
+        // first would be accessed through misaligned references.
+        let len = validate_meta(meta).expect("The memory map metadata should be valid");
         Self { buf, meta, len }
     }
 }
@@ -467,6 +469,7 @@ mod tests {
     const BASE_MMAP_UNSORTED: [MemoryDescriptor; 3] = [
         MemoryDescriptor {
             ty: MemoryType::CONVENTIONAL,
+            padding: 0,
             phys_start: 0x3000,
             virt_start: 0x3000,
             page_count: 1,
@@ -474,6 +477,7 @@ mod tests {
         },
         MemoryDescriptor {
             ty: MemoryType::CONVENTIONAL,
+            padding: 0,
             phys_start: 0x2000,
             virt_start: 0x2000,
             page_count: 1,
@@ -481,6 +485,7 @@ mod tests {
         },
         MemoryDescriptor {
             ty: MemoryType::CONVENTIONAL,
+            padding: 0,
             phys_start: 0x1000,
             virt_start: 0x1000,
             page_count: 1,
