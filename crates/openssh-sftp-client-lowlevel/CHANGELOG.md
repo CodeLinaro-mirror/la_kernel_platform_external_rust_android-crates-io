@@ -6,6 +6,54 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.15.10](https://github.com/openssh-rust/openssh-sftp-client/compare/openssh-sftp-client-v0.15.9...openssh-sftp-client-v0.15.10) - 2026-10-01
+
+### Added
+
+- add `Fs::statvfs` for the `statvfs@openssh.com` extension ([#196](https://github.com/openssh-rust/openssh-sftp-client/pull/196))
+
+### Other
+
+- Bump taiki-e/install-action from 2.86.3 to 2.87.20 ([#198](https://github.com/openssh-rust/openssh-sftp-client/pull/198))
+
+## [0.15.9](https://github.com/openssh-rust/openssh-sftp-client/compare/openssh-sftp-client-v0.15.8...openssh-sftp-client-v0.15.9) - 2026-09-19
+
+### Fixed
+
+- `Sftp::new` hangs on multi-thread runtime when server EOFs before version exchange ([#190](https://github.com/openssh-rust/openssh-sftp-client/pull/190))
+
+## [0.15.8](https://github.com/openssh-rust/openssh-sftp-client/compare/openssh-sftp-client-v0.15.7...openssh-sftp-client-v0.15.8) - 2026-08-24
+
+### Fixed
+
+- a cancelled connect panics --> shutdown read task instead ([#176](https://github.com/openssh-rust/openssh-sftp-client/pull/176))
+
+## [0.15.7](https://github.com/openssh-rust/openssh-sftp-client/compare/openssh-sftp-client-v0.15.6...openssh-sftp-client-v0.15.7) - 2026-04-27
+
+### Other
+
+- Expose raw file type bits from metadata ([#159](https://github.com/openssh-rust/openssh-sftp-client/pull/159))
+
+## [0.15.6](https://github.com/openssh-rust/openssh-sftp-client/compare/openssh-sftp-client-v0.15.5...openssh-sftp-client-v0.15.6) - 2026-04-15
+
+### Other
+
+- Improve `metadata::Permission` bits access ([#157](https://github.com/openssh-rust/openssh-sftp-client/pull/157))
+
+## [0.15.5](https://github.com/openssh-rust/openssh-sftp-client/compare/openssh-sftp-client-v0.15.4...openssh-sftp-client-v0.15.5) - 2026-04-07
+
+### Fixed
+
+- fixed hang with buffered I/O ([#155](https://github.com/openssh-rust/openssh-sftp-client/pull/155))
+
+## [0.15.4](https://github.com/openssh-rust/openssh-sftp-client/compare/openssh-sftp-client-v0.15.3...openssh-sftp-client-v0.15.4) - 2025-11-21
+
+### Other
+
+- Bump actions/checkout from 5 to 6 ([#150](https://github.com/openssh-rust/openssh-sftp-client/pull/150))
+- Enable doc_cfg instead of doc_auto_cfg ([#151](https://github.com/openssh-rust/openssh-sftp-client/pull/151))
+- Bump actions/checkout from 4 to 5 ([#147](https://github.com/openssh-rust/openssh-sftp-client/pull/147))
+
 ## [0.15.3](https://github.com/openssh-rust/openssh-sftp-client/compare/openssh-sftp-client-v0.15.2...openssh-sftp-client-v0.15.3) - 2025-07-14
 
 ### Other
