@@ -50,7 +50,7 @@ impl Side {
 type SpanIdx = i32;
 type ActiveEdgeIdx = usize;
 
-// It's a bit odd but this consistently performs a bit better than f32::max, probably
+// This consistently performs a bit better than f32::max, probably
 // because the latter deals with NaN.
 #[inline(always)]
 fn fmax(a: f32, b: f32) -> f32 {
@@ -61,8 +61,17 @@ fn fmax(a: f32, b: f32) -> f32 {
     }
 }
 
+#[inline(always)]
+fn fmin(a: f32, b: f32) -> f32 {
+    if a < b {
+        a
+    } else {
+        b
+    }
+}
+
 fn slope(v: Vector) -> f32 {
-    v.x / (v.y.max(f32::MIN_POSITIVE))
+    v.x / fmax(v.y, f32::MIN_POSITIVE)
 }
 
 #[cfg(all(debug_assertions, feature = "std"))]
@@ -172,7 +181,7 @@ fn active_edge_size() {
 impl ActiveEdge {
     #[inline(always)]
     fn min_x(&self) -> f32 {
-        self.from.x.min(self.to.x)
+        fmin(self.from.x, self.to.x)
     }
 
     #[inline(always)]
@@ -187,13 +196,13 @@ impl ActiveEdge {
         // return something slightly out of the min/max range which
         // causes the ordering to be inconsistent with the way the
         // scan phase uses the min/max range.
-        LineSegment {
+        let x = LineSegment {
             from: self.from,
             to: self.to,
         }
-        .solve_x_for_y(y)
-        .max(self.min_x())
-        .min(self.max_x())
+        .solve_x_for_y(y);
+
+        fmin(fmax(x, self.min_x()), self.max_x())
     }
 }
 
@@ -302,6 +311,10 @@ impl Spans {
 #[derive(Copy, Clone, Debug)]
 struct PendingEdge {
     to: Point,
+    /// Slope of the edge relative to the current position, used to order the
+    /// pending edges. It is only meaningful once `sort_edges_below` has run:
+    /// that is the only place it is computed, because most events have fewer
+    /// than two edges below and never need it.
     sort_key: f32,
     // Index in events.edge_data
     src_edge: TessEventId,
@@ -911,7 +924,8 @@ impl FillTessellator {
                 debug_assert!(is_after(to, self.current_position));
                 self.edges_below.push(PendingEdge {
                     to,
-                    sort_key: slope(to - self.current_position), //.angle_from_x_axis().radians,
+                    // Computed lazily by `sort_edges_below`.
+                    sort_key: 0.0,
                     src_edge: current_sibling,
                     winding: edge.winding,
                     range_end: edge.range.end,
@@ -1071,13 +1085,17 @@ impl FillTessellator {
             }
 
             let edge_is_before_current_point =
-                if points_are_equal(self.current_position, active_edge.to) {
+                // Checking the x range first is safe: if the edge's `to` is equal to the
+                // current point then `max_x() >= current_x`, and `max_x() < current_x` is
+                // the common case for the bulk of the active edge list, so this avoids
+                // the point comparison for most edges.
+                if active_edge.max_x() < current_x {
+                    true
+                } else if points_are_equal(self.current_position, active_edge.to) {
                     // We just found our first edge that connects with the current point.
                     // We might find other ones in the next iterations.
                     connecting_edges = true;
                     false
-                } else if active_edge.max_x() < current_x {
-                    true
                 } else if active_edge.min_x() > current_x {
                     tess_log!(
                         self,
@@ -1305,6 +1323,14 @@ impl FillTessellator {
                 continue;
             }
 
+            let min_x = active_edge.min_x();
+
+            if min_x > current_x {
+                // The edge is entirely to the right of the current point. None of the
+                // ordering checks below can fire in that case.
+                continue;
+            }
+
             if active_edge.max_x() < current_x {
                 return Err(InternalError::IncorrectActiveEdgeOrder(1));
             }
@@ -1313,8 +1339,7 @@ impl FillTessellator {
                 return Err(InternalError::IncorrectActiveEdgeOrder(2));
             }
 
-            if active_edge.min_x() < current_x
-                && active_edge.solve_x_for_y(self.current_position.y) < current_x
+            if min_x < current_x && active_edge.solve_x_for_y(self.current_position.y) < current_x
             {
                 return Err(InternalError::IncorrectActiveEdgeOrder(3));
             }
@@ -1331,10 +1356,6 @@ impl FillTessellator {
         active_edge_idx: usize,
         scan: &mut ActiveEdgeScan,
     ) -> Result<bool, InternalError> {
-        if points_are_equal(self.current_position, active_edge.to) {
-            return Ok(true);
-        }
-
         let current_x = self.current_position.x;
         let threshold = self.tolerance;
 
@@ -1345,8 +1366,15 @@ impl FillTessellator {
             return Err(InternalError::IncorrectActiveEdgeOrder(4));
         }
 
+        // An edge entirely to the right of the current point does not connect. Testing
+        // this before the point comparison is safe: a `to` equal to the current point
+        // implies `min_x() <= current_x`.
         if min_x > current_x {
             return Ok(false);
+        }
+
+        if points_are_equal(self.current_position, active_edge.to) {
+            return Ok(true);
         }
 
         let ex = if active_edge.from.y != active_edge.to.y {
@@ -1408,7 +1436,12 @@ impl FillTessellator {
             );
         }
 
-        self.fill.cleanup_spans();
+        // Spans only become "dead" (their `tess` set to `None`) when they are ended,
+        // which only happens in the loop above. If no span ended, the previous event
+        // already left the span list clean and we can skip the `retain` walk.
+        if !scan.spans_to_end.is_empty() {
+            self.fill.cleanup_spans();
+        }
 
         for &edge_idx in &scan.edges_to_split {
             let active_edge = &mut self.active.edges[edge_idx];
@@ -1416,7 +1449,8 @@ impl FillTessellator {
 
             self.edges_below.push(PendingEdge {
                 to,
-                sort_key: slope(to - self.current_position),
+                // Computed lazily by `sort_edges_below`.
+                sort_key: 0.0,
                 src_edge: active_edge.src_edge,
                 winding: active_edge.winding,
                 range_end: active_edge.range_end,
@@ -1546,18 +1580,30 @@ impl FillTessellator {
 
         let from = self.current_position;
         let from_id = self.current_vertex;
-        self.active.edges.splice(
-            above,
-            self.edges_below.drain(..).map(|edge| ActiveEdge {
-                from,
-                to: edge.to,
-                winding: edge.winding,
-                is_merge: false,
-                from_id,
-                src_edge: edge.src_edge,
-                range_end: edge.range_end,
-            }),
-        );
+
+        let make_edge = |edge: PendingEdge| ActiveEdge {
+            from,
+            to: edge.to,
+            winding: edge.winding,
+            is_merge: false,
+            from_id,
+            src_edge: edge.src_edge,
+            range_end: edge.range_end,
+        };
+
+        // Fast path: when as many edges start below as there are edges ending above
+        // (the common case for regular vertices), we can overwrite the slots in place
+        // and avoid `Vec::splice` shifting the tail of the active edge list.
+        if self.edges_below.len() == above.end - above.start {
+            let slots = &mut self.active.edges[above];
+            for (slot, edge) in slots.iter_mut().zip(self.edges_below.drain(..)) {
+                *slot = make_edge(edge);
+            }
+        } else {
+            self.active
+                .edges
+                .splice(above, self.edges_below.drain(..).map(make_edge));
+        }
     }
 
     fn split_event(&mut self, left_enclosing_edge_idx: ActiveEdgeIdx, left_span_idx: SpanIdx) {
@@ -1607,6 +1653,59 @@ impl FillTessellator {
         );
     }
 
+/// Looks for the closest intersection between the pending edge described by
+/// `below_min_x`/`below_max_x`/`below_segment` and the active edges in `range`.
+///
+/// `tb_min` and `intersection` carry the best candidate found so far so that
+/// callers can search several ranges (in particular skipping a range) while
+/// still keeping the globally closest intersection.
+#[inline(always)]
+fn consider_edges_for_intersection(
+    active: &[ActiveEdge],
+    range: Range<usize>,
+    below_min_x: f32,
+    below_max_x: f32,
+    below_segment: &LineSegment<f64>,
+    tb_min: &mut f64,
+    intersection: &mut Option<(f64, f64, usize)>,
+) {
+    for i in range {
+        let active_edge = &active[i];
+        if active_edge.is_merge || below_min_x > active_edge.max_x() {
+            continue;
+        }
+
+        if below_max_x < active_edge.min_x() {
+            // We can't early out because there might be edges further on the right
+            // that extend further on the left which would be missed.
+            //
+            // sweep line -> =o===/==/==
+            //                |\ /  /
+            //                | o  /
+            //  edge below -> |   /
+            //                |  /
+            //                | / <- missed active edge
+            //                |/
+            //                x <- missed intersection
+            //               /|
+            continue;
+        }
+
+        let active_segment = LineSegment {
+            from: active_edge.from.to_f64(),
+            to: active_edge.to.to_f64(),
+        };
+
+        if let Some((ta, tb)) = active_segment.intersection_t(below_segment) {
+            if tb < *tb_min && tb > 0.0 && ta > 0.0 && ta <= 1.0 {
+                // we only want the closest intersection;
+                *tb_min = tb;
+                *intersection = Some((ta, tb, i));
+            }
+        }
+    }
+}
+
     #[cfg_attr(feature = "profiling", inline(never))]
     fn handle_intersections(&mut self, skip_range: Range<usize>) {
         // Do intersection checks for all of the new edges against already active edges.
@@ -1628,7 +1727,7 @@ impl FillTessellator {
 
         let mut edges_below = mem::take(&mut self.edges_below);
         for edge_below in &mut edges_below {
-            let below_min_x = self.current_position.x.min(edge_below.to.x);
+            let below_min_x = fmin(self.current_position.x, edge_below.to.x);
             let below_max_x = fmax(self.current_position.x, edge_below.to.x);
 
             let below_segment = LineSegment {
@@ -1638,42 +1737,31 @@ impl FillTessellator {
 
             let mut tb_min = 1.0;
             let mut intersection = None;
-            for (i, active_edge) in self.active.edges.iter().enumerate() {
-                if skip_range.contains(&i) {
-                    continue;
-                }
-                if active_edge.is_merge || below_min_x > active_edge.max_x() {
-                    continue;
-                }
+            {
+                let active = &self.active.edges;
+                let skip_start = skip_range.start.min(active.len());
+                let skip_end = skip_range.end.min(active.len());
 
-                if below_max_x < active_edge.min_x() {
-                    // We can't early out because there might be edges further on the right
-                    // that extend further on the left which would be missed.
-                    //
-                    // sweep line -> =o===/==/==
-                    //                |\ /  /
-                    //                | o  /
-                    //  edge below -> |   /
-                    //                |  /
-                    //                | / <- missed active edge
-                    //                |/
-                    //                x <- missed intersection
-                    //               /|
-                    continue;
-                }
-
-                let active_segment = LineSegment {
-                    from: active_edge.from.to_f64(),
-                    to: active_edge.to.to_f64(),
-                };
-
-                if let Some((ta, tb)) = active_segment.intersection_t(&below_segment) {
-                    if tb < tb_min && tb > 0.0 && ta > 0.0 && ta <= 1.0 {
-                        // we only want the closest intersection;
-                        tb_min = tb;
-                        intersection = Some((ta, tb, i));
-                    }
-                }
+                // Iterating the two ranges around `skip_range` separately avoids a
+                // per-element range check in this hot loop.
+                Self::consider_edges_for_intersection(
+                    active,
+                    0..skip_start,
+                    below_min_x,
+                    below_max_x,
+                    &below_segment,
+                    &mut tb_min,
+                    &mut intersection,
+                );
+                Self::consider_edges_for_intersection(
+                    active,
+                    skip_end..active.len(),
+                    below_min_x,
+                    below_max_x,
+                    &below_segment,
+                    &mut tb_min,
+                    &mut intersection,
+                );
             }
 
             if let Some((ta, tb, active_edge_idx)) = intersection {
@@ -2042,6 +2130,17 @@ impl FillTessellator {
 
     #[cfg_attr(feature = "profiling", inline(never))]
     fn sort_edges_below(&mut self) {
+        // The sort key is a division, so only compute it when there is actually
+        // something to order. Most events have a single edge below.
+        if self.edges_below.len() < 2 {
+            return;
+        }
+
+        let origin = self.current_position;
+        for edge in &mut self.edges_below {
+            edge.sort_key = slope(edge.to - origin);
+        }
+
         self.edges_below
             .sort_unstable_by(|a, b| a.sort_key.partial_cmp(&b.sort_key).unwrap_or(Ordering::Equal));
     }
