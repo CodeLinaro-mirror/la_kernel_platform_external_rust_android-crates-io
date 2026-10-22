@@ -11,9 +11,9 @@
 
 [package]
 edition = "2021"
-rust-version = "1.66"
+rust-version = "1.71"
 name = "relative-path"
-version = "2.0.1"
+version = "2.0.2"
 authors = ["John-John Tedro <udoprog@tedro.se>"]
 build = false
 autolib = false
@@ -59,7 +59,7 @@ default-features = false
 version = "1.0.76"
 
 [dev-dependencies.foldhash]
-version = "0.1.5"
+version = "0.2.0"
 
 [dev-dependencies.serde]
 version = "1.0.160"

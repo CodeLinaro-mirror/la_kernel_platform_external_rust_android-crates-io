@@ -27,7 +27,7 @@
 //! Add `relative-path` to your `Cargo.toml`:
 //!
 //! ```toml
-//! relative-path = "2.0.1"
+//! relative-path = "2.0.2"
 //! ```
 //!
 //! Start using relative paths:
@@ -772,7 +772,7 @@ impl RelativePath {
     #[must_use]
     #[inline]
     #[allow(deprecated)]
-    pub fn display(&self) -> Display {
+    pub fn display(&self) -> Display<'_> {
         Display { path: self }
     }
 
@@ -815,7 +815,7 @@ impl RelativePath {
     /// ```
     #[must_use]
     #[inline]
-    pub fn components(&self) -> Components {
+    pub fn components(&self) -> Components<'_> {
         Components::new(&self.inner)
     }
 
@@ -839,7 +839,7 @@ impl RelativePath {
     /// ```
     #[must_use]
     #[inline]
-    pub fn iter(&self) -> Iter {
+    pub fn iter(&self) -> Iter<'_> {
         Iter {
             inner: self.components(),
         }
@@ -1702,8 +1702,8 @@ impl ToOwned for RelativePath {
 
 impl fmt::Debug for RelativePath {
     #[inline]
-    fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
-        write!(fmt, "{:?}", &self.inner)
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        self.inner.fmt(f)
     }
 }
 
@@ -1790,7 +1790,7 @@ impl Hash for RelativePath {
 impl fmt::Display for RelativePath {
     #[inline]
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        fmt::Display::fmt(&self.inner, f)
+        self.inner.fmt(f)
     }
 }
 
