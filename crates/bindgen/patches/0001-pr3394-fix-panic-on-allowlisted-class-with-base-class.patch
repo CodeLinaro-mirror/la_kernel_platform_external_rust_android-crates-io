@@ -1,0 +1,107 @@
+From 0ee98c94c94e5a33355bd32d9e4bff469496b761 Mon Sep 17 00:00:00 2001
+From: Alice Ryhl <aliceryhl@google.com>
+Date: Fri, 24 Jul 2026 13:30:09 +0000
+Subject: [PATCH 1/2] Fix panic on allowlisted class with bitfield and base class
+
+Backport upstream PR https://github.com/rust-lang/rust-bindgen/pull/3394
+
+Bug: 537780818
+---
+ ir/comp.rs    | 15 ++++++++++-----
+ ir/context.rs | 13 +++++++++++++
+ ir/ty.rs      |  4 ++--
+ 3 files changed, 25 insertions(+), 7 deletions(-)
+
+diff --git a/ir/comp.rs b/ir/comp.rs
+index 655e0f1..cc90260 100644
+--- a/ir/comp.rs
++++ b/ir/comp.rs
+@@ -203,7 +203,7 @@ impl Field {
+         match *self {
+             Field::Bitfields(BitfieldUnit { layout, .. }) => Some(layout),
+             Field::DataMember(ref data) => {
+-                ctx.resolve_type(data.ty).layout(ctx)
++                ctx.safe_resolve_type(data.ty)?.layout(ctx)
+             }
+         }
+     }
+@@ -754,7 +754,11 @@ impl CompFields {
+             name: &str,
+         ) -> bool {
+             methods.iter().any(|method| {
+-                let method_name = ctx.resolve_func(method.signature()).name();
++                let Some(func) = ctx.resolve_func_fallible(method.signature())
++                else {
++                    return false;
++                };
++                let method_name = func.name();
+                 method_name == name || ctx.rust_mangle(method_name) == name
+             })
+         }
+@@ -1172,9 +1176,10 @@ impl CompInfo {
+             }
+             CompFields::Before(ref raw_fields) => {
+                 for field in raw_fields {
+-                    let field_ty = ctx.resolve_type(field.0.ty);
+-                    if let Some(layout) = field_ty.layout(ctx) {
+-                        callback(layout);
++                    if let Some(field_ty) = ctx.safe_resolve_type(field.0.ty) {
++                        if let Some(layout) = field_ty.layout(ctx) {
++                            callback(layout);
++                        }
+                     }
+                 }
+             }
+diff --git a/ir/context.rs b/ir/context.rs
+index c0201a1..74fcb5d 100644
+--- a/ir/context.rs
++++ b/ir/context.rs
+@@ -1460,6 +1460,7 @@ If you encounter an error missing from this list, please file an issue or a PR!"
+     ///
+     /// Panics if there is no item for the given `FunctionId` or if the resolved
+     /// item is not a `Function`.
++    #[allow(dead_code)]
+     pub(crate) fn resolve_func(&self, func_id: FunctionId) -> &Function {
+         self.resolve_item(func_id).kind().expect_function()
+     }
+@@ -1473,6 +1474,18 @@ If you encounter an error missing from this list, please file an issue or a PR!"
+             .map(|t| t.kind().expect_type())
+     }
+ 
++    /// Resolve the given `ItemId` as a function, or `None` if there is no item
++    /// with the given ID.
++    ///
++    /// Panics if the ID resolves to an item that is not a function.
++    pub(crate) fn resolve_func_fallible(
++        &self,
++        func_id: FunctionId,
++    ) -> Option<&Function> {
++        self.resolve_item_fallible(func_id)
++            .map(|t| t.kind().expect_function())
++    }
++
+     /// Resolve the given `ItemId` into an `Item`, or `None` if no such item
+     /// exists.
+     pub(crate) fn resolve_item_fallible<Id: Into<ItemId>>(
+diff --git a/ir/ty.rs b/ir/ty.rs
+index 38a7f63..077802c 100644
+--- a/ir/ty.rs
++++ b/ir/ty.rs
+@@ -212,7 +212,7 @@ impl Type {
+                 TypeKind::Comp(ref ci) => ci.layout(ctx),
+                 TypeKind::Array(inner, 0) => Some(Layout::new(
+                     0,
+-                    ctx.resolve_type(inner).layout(ctx)?.align,
++                    ctx.safe_resolve_type(inner)?.layout(ctx)?.align,
+                 )),
+                 // FIXME(emilio): This is a hack for anonymous union templates.
+                 // Use the actual pointer size!
+@@ -221,7 +221,7 @@ impl Type {
+                     ctx.target_pointer_size(),
+                 )),
+                 TypeKind::ResolvedTypeRef(inner) => {
+-                    ctx.resolve_type(inner).layout(ctx)
++                    ctx.safe_resolve_type(inner)?.layout(ctx)
+                 }
+                 _ => None,
+             }
