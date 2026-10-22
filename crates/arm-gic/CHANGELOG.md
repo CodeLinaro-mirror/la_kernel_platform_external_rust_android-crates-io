@@ -1,5 +1,19 @@
 # Changelog
 
+## 0.10.0
+
+### Breaking changes
+
+- Changed ipriorityr(_e) fields to use `u32` in `Gicd`, `Sgi`,
+  `GicDistributorContext`, and `GicRedistributorContext`. This allows more
+  efficient batched operations during save and restore.
+- Renamed Gicd/Sgi::IPRIORITY_BITS to IPRIORITYR_BITS to match the other
+  constants.
+- The gicv3 distributor and redistributor contexts no longer have public
+  accessors for the stored register values. Their helper functions for
+  calculating their const parameters have been renamed to better reflect their
+  purpose.
+
 ## 0.9.1
 
 ### Bugfixes

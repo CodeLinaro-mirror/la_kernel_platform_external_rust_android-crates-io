@@ -1343,6 +1343,8 @@ fn entry(_: u64, _: u64, _: u64, _: u64) -> ! {
         arm_sysregs::el0::accessors::read_gcspr_el0()
     );
     #[cfg(any(test, feature = "fakes", target_arch = "aarch64"))]
+    info!("pan = {:?}", arm_sysregs::el0::accessors::read_pan());
+    #[cfg(any(test, feature = "fakes", target_arch = "aarch64"))]
     info!(
         "pmcr_el0 = {:?}",
         arm_sysregs::el0::accessors::read_pmcr_el0()
@@ -1351,6 +1353,11 @@ fn entry(_: u64, _: u64, _: u64, _: u64) -> ! {
     info!(
         "por_el0 = {:?}",
         arm_sysregs::el0::accessors::read_por_el0()
+    );
+    #[cfg(any(test, feature = "fakes", target_arch = "aarch64"))]
+    info!(
+        "scxtnum_el0 = {:?}",
+        arm_sysregs::el0::accessors::read_scxtnum_el0()
     );
     #[cfg(any(test, feature = "fakes", target_arch = "aarch64"))]
     info!("svcr = {:?}", arm_sysregs::el0::accessors::read_svcr());
@@ -1733,6 +1740,11 @@ fn entry(_: u64, _: u64, _: u64, _: u64) -> ! {
     info!(
         "sctlr_el1 = {:?}",
         arm_sysregs::el1::accessors::read_sctlr_el1()
+    );
+    #[cfg(all(any(test, feature = "fakes", target_arch = "aarch64"), feature = "el1"))]
+    info!(
+        "scxtnum_el1 = {:?}",
+        arm_sysregs::el1::accessors::read_scxtnum_el1()
     );
     #[cfg(all(any(test, feature = "fakes", target_arch = "aarch64"), feature = "el1"))]
     info!(
@@ -2273,6 +2285,11 @@ fn entry(_: u64, _: u64, _: u64, _: u64) -> ! {
     );
     #[cfg(all(any(test, feature = "fakes", target_arch = "aarch64"), feature = "el2"))]
     info!(
+        "scxtnum_el2 = {:?}",
+        arm_sysregs::el2::accessors::read_scxtnum_el2()
+    );
+    #[cfg(all(any(test, feature = "fakes", target_arch = "aarch64"), feature = "el2"))]
+    info!(
         "spsr_el2 = {:?}",
         arm_sysregs::el2::accessors::read_spsr_el2()
     );
@@ -2422,6 +2439,11 @@ fn entry(_: u64, _: u64, _: u64, _: u64) -> ! {
     info!(
         "sctlr_el3 = {:?}",
         arm_sysregs::el3::accessors::read_sctlr_el3()
+    );
+    #[cfg(all(any(test, feature = "fakes", target_arch = "aarch64"), feature = "el3"))]
+    info!(
+        "scxtnum_el3 = {:?}",
+        arm_sysregs::el3::accessors::read_scxtnum_el3()
     );
     #[cfg(all(any(test, feature = "fakes", target_arch = "aarch64"), feature = "el3"))]
     info!(
