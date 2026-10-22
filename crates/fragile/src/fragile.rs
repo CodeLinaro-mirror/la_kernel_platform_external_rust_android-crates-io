@@ -1,11 +1,22 @@
 use std::cmp;
 use std::fmt;
 use std::mem;
-use std::thread;
-use std::thread::ThreadId;
+use std::mem::ManuallyDrop;
+#[cfg(feature = "future")]
+use std::pin::Pin;
 
 use crate::errors::InvalidThreadAccess;
-use std::mem::ManuallyDrop;
+use crate::thread_id::{self, ThreadId};
+
+/// The value starts inline and is moved to stable storage before the first
+/// pinned projection.
+enum FragileValue<T> {
+    Inline(T),
+    #[cfg(feature = "future")]
+    Pinned(Pin<Box<T>>),
+    #[cfg(feature = "future")]
+    Taken,
+}
 
 /// A [`Fragile<T>`] wraps a non sendable `T` to be safely send to other threads.
 ///
@@ -14,13 +25,20 @@ use std::mem::ManuallyDrop;
 ///
 /// If the value needs destruction and the fragile wrapper is on another thread
 /// the destructor will panic.  Alternatively you can use
-/// [`Sticky`](crate::Sticky) which is not going to panic but might temporarily
-/// leak the value.
+/// [`Sticky`](crate::Sticky), which does not panic and instead retains the
+/// value until the originating thread exits.
+///
+/// Polling a `Fragile` as a `Future` or `Stream` moves its value to stable heap
+/// storage before the first poll. If a polled `Fragile` with drop glue is dropped
+/// on another thread, that storage is leaked to preserve the value's pinning
+/// invariant. A `Fragile<T>` is `Unpin` only if `T` is `Unpin`.
 pub struct Fragile<T> {
     // ManuallyDrop is necessary because we need to move out of here without running the
-    // Drop code in functions like `into_inner`.
-    value: ManuallyDrop<T>,
-    // we can use ThreadId because Rust guarnatees it to be unique for the duration of a process.
+    // Drop code in functions like `into_inner`, and to leak pinned storage when dropped
+    // on the wrong thread.
+    value: ManuallyDrop<FragileValue<T>>,
+    // Thread IDs are unique for the duration of the process and stay readable
+    // during thread local storage teardown.
     thread_id: ThreadId,
 }
 
@@ -33,8 +51,8 @@ impl<T> Fragile<T> {
     /// only the original thread can interact with the value.
     pub fn new(value: T) -> Self {
         Fragile {
-            value: ManuallyDrop::new(value),
-            thread_id: thread::current().id(),
+            value: ManuallyDrop::new(FragileValue::Inline(value)),
+            thread_id: thread_id::current(),
         }
     }
 
@@ -42,7 +60,7 @@ impl<T> Fragile<T> {
     ///
     /// This will be `false` if the value was sent to another thread.
     pub fn is_valid(&self) -> bool {
-        thread::current().id() == self.thread_id
+        thread_id::current() == self.thread_id
     }
 
     #[inline(always)]
@@ -50,6 +68,52 @@ impl<T> Fragile<T> {
     fn assert_thread(&self) {
         if !self.is_valid() {
             panic!("trying to access wrapped value in fragile container from incorrect thread.");
+        }
+    }
+
+    fn value(&self) -> &T {
+        match &*self.value {
+            FragileValue::Inline(value) => value,
+            #[cfg(feature = "future")]
+            FragileValue::Pinned(value) => value.as_ref().get_ref(),
+            #[cfg(feature = "future")]
+            FragileValue::Taken => unreachable!("fragile value is missing"),
+        }
+    }
+
+    fn value_mut(&mut self) -> &mut T {
+        match &mut *self.value {
+            FragileValue::Inline(value) => value,
+            // SAFETY: Safe code cannot obtain `&mut Fragile<T>` after the
+            // wrapper has been pinned unless `T` is `Unpin`.
+            #[cfg(feature = "future")]
+            FragileValue::Pinned(value) => unsafe { value.as_mut().get_unchecked_mut() },
+            #[cfg(feature = "future")]
+            FragileValue::Taken => unreachable!("fragile value is missing"),
+        }
+    }
+
+    #[cfg(feature = "future")]
+    #[track_caller]
+    pub(crate) fn get_pin_mut(self: Pin<&mut Self>) -> Pin<&mut T> {
+        // SAFETY: We do not move the wrapper. The inline value has never been
+        // exposed through a pinned projection and may be moved to stable
+        // storage; an already-pinned value is never moved.
+        let this = unsafe { self.get_unchecked_mut() };
+        this.assert_thread();
+
+        if matches!(&*this.value, FragileValue::Inline(_)) {
+            // Move the value to stable storage before projecting it as pinned.
+            let value = match mem::replace(&mut *this.value, FragileValue::Taken) {
+                FragileValue::Inline(value) => value,
+                _ => unreachable!(),
+            };
+            *this.value = FragileValue::Pinned(Box::pin(value));
+        }
+
+        match &mut *this.value {
+            FragileValue::Pinned(value) => value.as_mut(),
+            _ => unreachable!(),
         }
     }
 
@@ -67,7 +131,17 @@ impl<T> Fragile<T> {
 
         // SAFETY: `this` is not accessed beyond this point, and because it's in a ManuallyDrop its
         // destructor is not run.
-        unsafe { ManuallyDrop::take(&mut this.value) }
+        match unsafe { ManuallyDrop::take(&mut this.value) } {
+            FragileValue::Inline(value) => value,
+            #[cfg(feature = "future")]
+            FragileValue::Pinned(value) => {
+                // SAFETY: Safe code can only regain ownership of a previously
+                // pinned wrapper if `T` is `Unpin`.
+                *unsafe { Pin::into_inner_unchecked(value) }
+            }
+            #[cfg(feature = "future")]
+            FragileValue::Taken => unreachable!("fragile value is missing"),
+        }
     }
 
     /// Consumes the `Fragile`, returning the wrapped value if successful.
@@ -92,7 +166,7 @@ impl<T> Fragile<T> {
     #[track_caller]
     pub fn get(&self) -> &T {
         self.assert_thread();
-        &self.value
+        self.value()
     }
 
     /// Mutably borrows the wrapped value.
@@ -104,7 +178,7 @@ impl<T> Fragile<T> {
     #[track_caller]
     pub fn get_mut(&mut self) -> &mut T {
         self.assert_thread();
-        &mut self.value
+        self.value_mut()
     }
 
     /// Tries to immutably borrow the wrapped value.
@@ -112,7 +186,7 @@ impl<T> Fragile<T> {
     /// Returns `None` if the calling thread is not the one that wrapped the value.
     pub fn try_get(&self) -> Result<&T, InvalidThreadAccess> {
         if self.is_valid() {
-            Ok(&*self.value)
+            Ok(self.value())
         } else {
             Err(InvalidThreadAccess)
         }
@@ -123,7 +197,7 @@ impl<T> Fragile<T> {
     /// Returns `None` if the calling thread is not the one that wrapped the value.
     pub fn try_get_mut(&mut self) -> Result<&mut T, InvalidThreadAccess> {
         if self.is_valid() {
-            Ok(&mut *self.value)
+            Ok(self.value_mut())
         } else {
             Err(InvalidThreadAccess)
         }
@@ -133,13 +207,16 @@ impl<T> Fragile<T> {
 impl<T> Drop for Fragile<T> {
     #[track_caller]
     fn drop(&mut self) {
-        if mem::needs_drop::<T>() {
-            if self.is_valid() {
-                // SAFETY: `ManuallyDrop::drop` cannot be called after this point.
-                unsafe { ManuallyDrop::drop(&mut self.value) };
-            } else {
-                panic!("destructor of fragile object ran on wrong thread");
-            }
+        // Values without drop glue can be released on any thread, so the
+        // thread check is skipped for them.
+        if !mem::needs_drop::<T>() || self.is_valid() {
+            // SAFETY: `ManuallyDrop::drop` cannot be called after this point.
+            unsafe { ManuallyDrop::drop(&mut self.value) };
+        } else {
+            // If the value was pinned, leaving the `Pin<Box<T>>` in
+            // `ManuallyDrop` also keeps its storage alive. This is necessary
+            // because the destructor cannot run on this thread.
+            panic!("destructor of fragile object ran on wrong thread");
         }
     }
 }
@@ -243,12 +320,12 @@ impl<T: fmt::Debug> fmt::Debug for Fragile<T> {
     }
 }
 
-// this type is sync because access can only ever happy from the same thread
-// that created it originally.  All other threads will be able to safely
-// call some basic operations on the reference and they will fail.
+// SAFETY: The inner value can only be accessed on its originating thread.
+// Shared operations on every other thread inspect only the thread ID and fail.
 unsafe impl<T> Sync for Fragile<T> {}
 
-// The entire point of this type is to be Send
+// SAFETY: Moving the wrapper never accesses the inner value. Wrong-thread
+// destruction does not run `T`'s destructor and preserves pinned storage.
 #[allow(clippy::non_send_fields_in_send_ty)]
 unsafe impl<T> Send for Fragile<T> {}
 
@@ -317,6 +394,37 @@ fn test_panic_on_drop_elsewhere() {
     .join()
     .is_err());
     assert!(!was_called.load(Ordering::SeqCst));
+}
+
+#[test]
+fn test_drop_in_tls_destructor() {
+    use std::cell::RefCell;
+    use std::sync::atomic::{AtomicUsize, Ordering};
+    use std::sync::Arc;
+    use std::thread;
+
+    struct X(Arc<AtomicUsize>);
+
+    impl Drop for X {
+        fn drop(&mut self) {
+            self.0.fetch_add(1, Ordering::SeqCst);
+        }
+    }
+
+    thread_local!(static SLOT: RefCell<Option<Fragile<X>>> = RefCell::new(None));
+
+    let drop_count = Arc::new(AtomicUsize::new(0));
+    let thread_drop_count = drop_count.clone();
+
+    // The thread check in the destructor must keep working while the thread
+    // is destroying its thread local storage.
+    thread::spawn(move || {
+        SLOT.with(|slot| *slot.borrow_mut() = Some(Fragile::new(X(thread_drop_count))));
+    })
+    .join()
+    .unwrap();
+
+    assert_eq!(drop_count.load(Ordering::SeqCst), 1);
 }
 
 #[test]
