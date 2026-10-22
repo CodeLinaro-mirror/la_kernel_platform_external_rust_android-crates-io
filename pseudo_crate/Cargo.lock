@@ -506,6 +506,7 @@ dependencies = [
  "itoa",
  "java-locator",
  "jiff",
+ "jiff-core",
  "jiff-tzdb 1.0.0",
  "jni 0.22.4",
  "jni-macros",
@@ -5772,6 +5773,16 @@ dependencies = [
  "portable-atomic-util",
  "serde_core",
  "windows-link 0.2.1",
+]
+
+[[package]]
+name = "jiff-core"
+version = "0.1.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "5e52fe76043ccecc9005d2305ebaadf7d7fc0cc89ca6baa10a94d6bc68c7128c"
+dependencies = [
+ "defmt",
+ "log",
 ]
 
 [[package]]
