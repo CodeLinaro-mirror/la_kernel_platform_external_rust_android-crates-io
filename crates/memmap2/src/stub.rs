@@ -13,19 +13,33 @@ impl MmapInner {
         Err(io::ErrorKind::Unsupported.into())
     }
 
-    pub fn map(_: usize, _: &File, _: u64, _: bool, _: bool) -> io::Result<MmapInner> {
+    pub fn map(_: usize, _: &File, _: u64, _: bool, _: bool, _: bool) -> io::Result<MmapInner> {
         MmapInner::new()
     }
 
-    pub fn map_exec(_: usize, _: &File, _: u64, _: bool, _: bool) -> io::Result<MmapInner> {
+    pub fn map_exec(
+        _: usize,
+        _: &File,
+        _: u64,
+        _: bool,
+        _: bool,
+        _: bool,
+    ) -> io::Result<MmapInner> {
         MmapInner::new()
     }
 
-    pub fn map_mut(_: usize, _: &File, _: u64, _: bool, _: bool) -> io::Result<MmapInner> {
+    pub fn map_mut(_: usize, _: &File, _: u64, _: bool, _: bool, _: bool) -> io::Result<MmapInner> {
         MmapInner::new()
     }
 
-    pub fn map_copy(_: usize, _: &File, _: u64, _: bool, _: bool) -> io::Result<MmapInner> {
+    pub fn map_copy(
+        _: usize,
+        _: &File,
+        _: u64,
+        _: bool,
+        _: bool,
+        _: bool,
+    ) -> io::Result<MmapInner> {
         MmapInner::new()
     }
 
@@ -33,6 +47,7 @@ impl MmapInner {
         _: usize,
         _: &File,
         _: u64,
+        _: bool,
         _: bool,
         _: bool,
     ) -> io::Result<MmapInner> {
@@ -76,6 +91,15 @@ impl MmapInner {
     #[inline]
     pub fn len(&self) -> usize {
         match self.never {}
+    }
+
+    #[allow(clippy::unnecessary_wraps)]
+    pub fn check_safe_to_map(
+        _file: &File,
+        _offset: u64,
+        _len: usize,
+    ) -> Result<(), crate::MapIfSafeError> {
+        Err(crate::MapIfSafeError::new_not_supported())
     }
 }
 
