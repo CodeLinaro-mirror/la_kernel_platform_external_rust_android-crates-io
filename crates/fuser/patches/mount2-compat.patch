@@ -1,0 +1,12 @@
+diff --git a/src/lib.rs b/src/lib.rs
+index 6fb6cb121..a2432afad 100644
+--- a/src/lib.rs
++++ b/src/lib.rs
+@@ -1072,3 +1072,7 @@ pub fn spawn_mount<'a, FS: Filesystem + Send + 'static + 'a, P: AsRef<Path>>(
+ ) -> io::Result<BackgroundSession> {
+     Session::new(filesystem, mountpoint.as_ref(), options).and_then(session::Session::spawn)
+ }
++
++pub use mount as mount2;
++pub use spawn_mount as spawn_mount2;
++
