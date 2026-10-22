@@ -12,12 +12,46 @@
 [package]
 edition = "2018"
 name = "serde-xml-rs"
-version = "0.6.0"
+version = "0.7.1"
 authors = ["Ingvar Stepanyan <me@rreverser.com>"]
-description = "xml-rs based deserializer for Serde (compatible with 0.9+)"
+build = false
+autolib = false
+autobins = false
+autoexamples = false
+autotests = false
+autobenches = false
+description = "xml-rs based deserializer for Serde (compatible with 1.0)"
 readme = "README.md"
 license = "MIT"
 repository = "https://github.com/RReverser/serde-xml-rs"
+
+[lib]
+name = "serde_xml_rs"
+path = "src/lib.rs"
+
+[[test]]
+name = "api"
+path = "tests/api.rs"
+
+[[test]]
+name = "datatypes"
+path = "tests/datatypes.rs"
+
+[[test]]
+name = "failures"
+path = "tests/failures.rs"
+
+[[test]]
+name = "migrated"
+path = "tests/migrated.rs"
+
+[[test]]
+name = "round_trip"
+path = "tests/round_trip.rs"
+
+[[test]]
+name = "test"
+path = "tests/test.rs"
 
 [dependencies.log]
 version = "0.4"
@@ -33,6 +67,9 @@ version = "0.8"
 
 [dev-dependencies.docmatic]
 version = "0.1"
+
+[dev-dependencies.indoc]
+version = "2.0.6"
 
 [dev-dependencies.rstest]
 version = "0.12"
