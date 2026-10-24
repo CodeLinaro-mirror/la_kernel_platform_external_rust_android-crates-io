@@ -13,7 +13,7 @@
 edition = "2024"
 rust-version = "1.88.0"
 name = "config"
-version = "0.15.26"
+version = "0.15.27"
 build = false
 include = [
     "/build.rs",
@@ -198,7 +198,7 @@ optional = true
 version = "1.0.6"
 features = [
     "parse",
-    "serde",
+    "std",
 ]
 optional = true
 default-features = false
