@@ -12,7 +12,7 @@
 [package]
 edition = "2021"
 name = "zerocopy-derive"
-version = "0.8.58"
+version = "0.8.63"
 build = false
 exclude = [
     ".*",
@@ -33,6 +33,10 @@ repository = "https://github.com/google/zerocopy"
 name = "zerocopy_derive"
 path = "src/lib.rs"
 proc-macro = true
+
+[[test]]
+name = "clippy"
+path = "tests/clippy.rs"
 
 [[test]]
 name = "deprecated"
