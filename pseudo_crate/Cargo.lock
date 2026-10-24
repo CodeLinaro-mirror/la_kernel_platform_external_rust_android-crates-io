@@ -816,9 +816,9 @@ dependencies = [
  "utf8parse",
  "uuid",
  "vec-strings",
- "vhost 0.17.0",
+ "vhost 0.18.0",
  "vhost-device-vsock",
- "vhost-user-backend 0.23.0",
+ "vhost-user-backend 0.24.0",
  "virtio-bindings",
  "virtio-drivers",
  "virtio-drivers-and-devices",
@@ -4872,7 +4872,7 @@ version = "0.1.21"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7ee96dc5ef5c90822acdeefcf8eb701f2bd173c8ae69a941d7a16969efda9ac6"
 dependencies = [
- "base64 0.22.1",
+ "base64 0.23.1",
  "bytes",
  "futures-channel",
  "futures-util",
@@ -8258,7 +8258,7 @@ checksum = "95c589f335db0f6aaa168a7cd27b1fc6920f5e1470c804f814d9cd6e62a0f70b"
 dependencies = [
  "env_logger 0.11.11",
  "log",
- "rand 0.10.2",
+ "rand 0.10.3",
 ]
 
 [[package]]
@@ -10882,7 +10882,7 @@ version = "2.1.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "86a801b3cea342a06d468c8710662aa29e5e05e4f5c0d62f00bbb7f2ad7941c2"
 dependencies = [
- "rand 0.9.4",
+ "rand 0.10.3",
 ]
 
 [[package]]
@@ -11219,9 +11219,9 @@ dependencies = [
 
 [[package]]
 name = "vhost"
-version = "0.17.0"
+version = "0.18.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1c63c14485260662b4257bd929d5fd4aaf96bbecbe61d2224bad8807849f5f8f"
+checksum = "65ecafe06ea725636dad0b617c5258e079c061d0d38fd9966af93e0ecd9d07e7"
 dependencies = [
  "bitflags 2.13.2",
  "libc 0.2.189",
@@ -11272,13 +11272,13 @@ dependencies = [
 
 [[package]]
 name = "vhost-user-backend"
-version = "0.23.0"
+version = "0.24.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "555753b65bc33837bd011f981e2c6d52d8ddc330d92c2deb9aa3f0b378a58bcc"
+checksum = "65345e6a9b7c53b97c0225b2cf7ddb42bc7732a44904856f1b88351aed569362"
 dependencies = [
  "libc 0.2.189",
  "log",
- "vhost 0.17.0",
+ "vhost 0.18.0",
  "virtio-bindings",
  "virtio-queue 0.18.0",
  "vm-memory 0.18.0",
