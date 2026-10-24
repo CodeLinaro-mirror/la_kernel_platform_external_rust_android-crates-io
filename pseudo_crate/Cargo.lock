@@ -649,7 +649,7 @@ dependencies = [
  "regex-lite",
  "regex-syntax",
  "region 4.0.1",
- "relative-path 2.0.2",
+ "relative-path 2.0.3",
  "remain",
  "reqwest 0.12.28",
  "ring",
@@ -8669,11 +8669,11 @@ checksum = "ba39f3699c378cd8970968dcbff9c43159ea4cfbd88d43c00b22f2ef10a435d2"
 
 [[package]]
 name = "relative-path"
-version = "2.0.2"
+version = "2.0.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f2a073568cd8b9c4825429d3e9fc5f52851b4f97cc1348800689408921e6b8f8"
+checksum = "38540a682c6e9bca04a8bca9e5ec5a6ba168dfbb04c9998fe517a9befb92eb68"
 dependencies = [
- "serde",
+ "serde_core",
 ]
 
 [[package]]
