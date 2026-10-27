@@ -104,10 +104,11 @@ impl<T: Debug, A: Debug + Copy + PartialEq<T>> Matcher<A> for EqMatcher<T> {
             && is_multiline_string_debug(&expected_debug)
         {
             create_diff(
-                // The two calls below return None if and only if the strings expected_debug
-                // respectively actual_debug are not enclosed in ". The calls to
-                // is_multiline_string_debug above ensure that they are. So the calls cannot
-                // actually return None and unwrap() should not panic.
+                // The two calls below return None if and only if the strings
+                // expected_debug respectively actual_debug are not enclosed in
+                // ". The calls to is_multiline_string_debug above ensure that
+                // they are. So the calls cannot actually return None and
+                // unwrap() should not panic.
                 &to_display_output(&actual_debug).unwrap(),
                 &to_display_output(&expected_debug).unwrap(),
                 edit_distance::Mode::Exact,
@@ -337,8 +338,8 @@ mod tests {
     #[test]
     fn eq_multi_line_string_debug_diff() -> Result<()> {
         let result = verify_that!("One\nTwo\nThree", eq("One\nSix\nThree"));
-        // TODO: b/257454450 - Make this more useful, by potentially unescaping the
-        // line return.
+        // TODO: b/257454450 - Make this more useful, by potentially unescaping
+        // the line return.
         verify_that!(
             result,
             err(displays_as(contains_substring(indoc! {

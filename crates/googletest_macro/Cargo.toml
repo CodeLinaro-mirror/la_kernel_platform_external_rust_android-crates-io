@@ -12,7 +12,7 @@
 [package]
 edition = "2021"
 name = "googletest_macro"
-version = "0.14.3"
+version = "0.14.4"
 authors = ["Bradford Hovinen <hovinen@google.com>"]
 build = false
 autolib = false
