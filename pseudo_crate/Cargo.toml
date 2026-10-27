@@ -7,6 +7,7 @@ license = "Apache-2.0"
 
 # go/keep-sorted start skip_lines=1
 [dependencies]
+# go/keep-sorted end
 aarch64-paging = "=0.7.0"
 aarch64-rt = "=0.4.3"
 acpi = "=6.1.1"
@@ -654,6 +655,7 @@ vmm-sys-util = "=0.15.0"
 volatile = "=0.6.1"
 vsock = "=0.5.4"
 vsprintf = "=2.0.0"
+vte = "=0.15.0"
 vulkano = "=0.33.1"
 walkdir = "=2.5.0"
 want = "=0.3.2"
@@ -702,4 +704,3 @@ zip = "=0.6.6"
 zlib-rs = "=0.6.8"
 zmij = "=1.0.23"
 zune-inflate = "=0.2.54"
-# go/keep-sorted end

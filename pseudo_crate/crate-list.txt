@@ -679,6 +679,7 @@ vmm-sys-util
 volatile
 vsock
 vsprintf
+vte
 vulkano
 walkdir
 want

@@ -1,0 +1,6 @@
+deletions = [
+    ".builds",
+    "doc",
+    "examples",
+    "tests",
+]
