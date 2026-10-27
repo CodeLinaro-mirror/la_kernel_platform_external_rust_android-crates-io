@@ -877,6 +877,113 @@ macro_rules! expect_eq {
 }
 pub use expect_eq;
 
+/// Verify if the given result evaluates to Ok(_) and returns `Result`.
+///
+/// Evaluates to `Result::Ok(())` if the result is Ok and
+/// `Result::Err(TestAssertionFailure)` if it evaluates to Err. The caller
+/// must then decide how to handle the `Err` variant. It has a few options:
+///   * Abort the current function with the `?` operator. This requires that the
+///     function return a suitable `Result`.
+///   * Log the failure and continue by calling the method `and_log_failure`.
+///
+/// Of course, one can also use all other standard methods on `Result`.
+///
+/// **Invoking this macro by itself does not cause a test failure to be recorded
+/// or output.** The resulting `Result` must be handled as described above to
+/// cause the test to be recorded as a failure.
+///
+/// Example:
+/// ```ignore
+/// use googletest::prelude::*;
+///
+/// #[test]
+/// fn should_fail() -> Result<()> {
+///     verify_ok!(Err("Oops"))
+/// }
+/// ```
+#[macro_export]
+macro_rules! verify_ok {
+    ($actual:expr) => {
+        $crate::verify_that!($actual, $crate::matchers::ok($crate::matchers::anything()))
+    };
+}
+pub use verify_ok;
+
+/// Marks test as failed and continue execution if the expression evaluates to
+/// Err.
+///
+/// This is a **non-fatal** failure. The test continues execution even after the
+/// macro execution.
+///
+/// This can only be invoked inside tests with the
+/// [`gtest`][crate::gtest] attribute. The failure must be generated
+/// in the same thread as that running the test itself.
+///
+/// Example:
+/// ```ignore
+/// use googletest::prelude::*;
+///
+/// #[gtest]
+/// fn should_fail() {
+///     expect_ok!(Err("Oops"));
+///     println!("This will print");
+/// }
+/// ```
+///
+/// One may optionally add arguments which will be formatted and appended to a
+/// failure message.
+#[macro_export]
+macro_rules! expect_ok {
+    ($actual:expr) => {{
+        $crate::GoogleTestSupport::and_log_failure(($crate::verify_ok!($actual)))
+    }};
+    ($actual:expr, $($format_args:expr),* $(,)?) => {{
+        $crate::GoogleTestSupport::and_log_failure_with_message(
+            $crate::verify_ok!($actual),
+            || format!($($format_args),*))
+    }};
+}
+pub use expect_ok;
+
+/// Marks the test as failed and panics if the given value is an `Err`.
+///
+/// This is a *fatal* assertion: the test panics
+/// in the event of assertion failure.
+///
+/// This can only be invoked inside tests with the
+/// [`gtest`][crate::gtest] attribute. The assertion must
+/// occur in the same thread as that running the test itself.
+///
+/// Example:
+/// ```ignore
+/// use googletest::prelude::*;
+///
+/// #[gtest]
+/// fn should_fail() {
+///     assert_ok!(Err("Oops")); // panic!
+/// }
+/// ```
+///
+/// One may optionally add arguments which will be formatted and appended to a
+/// failure message.
+#[macro_export]
+macro_rules! assert_ok {
+    ($actual:expr) => {
+        if let Err(e) = $crate::verify_ok!($actual) {
+            panic!("\n{}", e);
+        }
+    };
+    ($actual:expr, $($format_args:expr),* $(,)?) => {
+        if let Err(e) = $crate::GoogleTestSupport::with_failure_message(
+            $crate::verify_ok!($actual),
+            || format!($($format_args),*))
+        {
+            panic!("\n{}", e);
+        }
+    };
+}
+pub use assert_ok;
+
 /// Checks whether the second argument is not equal to the first argument.
 ///
 /// Evaluates to `Result::Ok(())` if they are not equal and
@@ -1828,11 +1935,171 @@ pub mod internal {
     }
 }
 
+/// Asserts that `expr` causes the process to exit, with the exit status
+/// matching `code_matcher` and captured stderr output matching
+/// `output_matcher`.
+///
+/// Evaluates to `Result::Ok(())` if satisfied and
+/// `Result::Err(TestAssertionFailure)` otherwise.
+///
+/// Note that this macro captures ONLY the `stderr` of the subprocess for
+/// matching against `output_matcher`, matching GoogleTest's C++ behavior.
+///
+/// # Important Note
+///
+/// To execute the death test, the parent process spawns a child process that
+/// re-executes the current test. This means that all code in the test function
+/// *before* the `verify_exit!` macro will be executed in both the parent and
+/// the child process. If you have multiple death tests in the same test
+/// function, the code before them will be executed $N+1$ times, where $N$ is
+/// the number of death tests.
+///
+/// If you have expensive setup operations, consider putting them in a separate
+/// function or splitting the death tests into separate test functions.
+///
+/// ## Thread-local state and spawned threads
+///
+/// The macro tracks which test is currently running and which death test
+/// expression to execute via thread-local state. Therefore:
+/// * **Spawned threads:** Running `verify_exit!` inside a spawned thread is not
+///   supported and will fail to find the test name, resulting in an error.
+/// * **Nested death tests:** Only the outer `verify_exit!` matches and executes
+///   its block in the spawned child process. Any nested `verify_exit!`
+///   expressions inside the outer block will be skipped.
+///
+/// Example:
+/// ```
+/// # use googletest::prelude::*;
+/// # fn should_pass() -> Result<()> {
+/// # /* Must be run inside a #[gtest] context
+/// verify_exit!(std::process::exit(1), exited_with_code(1), anything())?;
+/// # */
+/// # Ok(())
+/// # }
+/// ```
+#[macro_export]
+macro_rules! verify_exit {
+    ($expr:expr, $code_matcher:expr, $output_matcher:expr $(,)?) => {{
+        use $crate::internal::death_tests;
+        match death_tests::should_run_death_test_expr() {
+            death_tests::DeathTestRole::Execute => {
+                let _sentinel = death_tests::DeathTestSentinel;
+                #[allow(unreachable_code)]
+                #[allow(clippy::diverging_sub_expression)]
+                {
+                    let _ = { $expr };
+                    // Drop guard handles notifying parent that process did not die.
+                    // It runs at end of scope unless explicit exit happens.
+                    $crate::Result::Ok(())
+                }
+            }
+            death_tests::DeathTestRole::Oversee => {
+                death_tests::oversee_death_test(stringify!($expr), &$code_matcher, &$output_matcher)
+            }
+            death_tests::DeathTestRole::Skip => $crate::Result::Ok(()),
+        }
+    }};
+    ($expr:expr, $code_matcher:expr, $output_matcher:expr, $($format_args:expr),* $(,)?) => {
+        $crate::GoogleTestSupport::with_failure_message(
+            $crate::verify_exit!($expr, $code_matcher, $output_matcher),
+            || format!($($format_args),*),
+        )
+    };
+}
+pub use verify_exit;
+
+/// Like [`verify_exit!`], but logs the failure and continues execution.
+///
+/// Refer to the documentation on [`verify_exit!`] for details on how setup
+/// execution, spawned threads, and nested death tests are handled.
+///
+/// Example:
+/// ```
+/// # use googletest::prelude::*;
+/// # /* Must be run inside a #[gtest] context
+/// #[gtest]
+/// fn test() {
+///     expect_exit!(std::process::exit(1), exited_with_code(1), anything());
+/// }
+/// # */
+/// ```
+#[macro_export]
+macro_rules! expect_exit {
+    ($expr:expr, $code_matcher:expr, $output_matcher:expr $(,)?) => {
+        $crate::GoogleTestSupport::and_log_failure($crate::verify_exit!(
+            $expr,
+            $code_matcher,
+            $output_matcher
+        ))
+    };
+    ($expr:expr, $code_matcher:expr, $output_matcher:expr, $($format_args:expr),* $(,)?) => {
+        $crate::GoogleTestSupport::and_log_failure_with_message(
+            $crate::verify_exit!($expr, $code_matcher, $output_matcher),
+            || format!($($format_args),*),
+        )
+    };
+}
+pub use expect_exit;
+
+/// Asserts that `expr` causes the process to die (exit unsuccessfully), with
+/// captured stderr output matching `output_matcher`.
+///
+/// Evaluates to `Result::Ok(())` if satisfied and `Result::Err` otherwise.
+///
+/// Example:
+/// ```
+/// # use googletest::prelude::*;
+/// # fn should_pass() -> Result<()> {
+/// # /* Must be run inside a #[gtest] context
+/// verify_death!(std::process::exit(1), anything())?;
+/// # */
+/// # Ok(())
+/// # }
+/// ```
+#[macro_export]
+macro_rules! verify_death {
+    ($expr:expr, $output_matcher:expr $(,)?) => {
+        $crate::verify_exit!($expr, $crate::matchers::died(), $output_matcher)
+    };
+    ($expr:expr, $output_matcher:expr, $($format_args:expr),* $(,)?) => {
+        $crate::verify_exit!($expr, $crate::matchers::died(), $output_matcher, $($format_args),*)
+    };
+}
+pub use verify_death;
+
+/// Like [`verify_death!`], but logs the failure and continues execution.
+///
+/// Refer to the documentation on [`verify_exit!`] for details on how setup
+/// execution, spawned threads, and nested death tests are handled.
+///
+/// Example:
+/// ```
+/// # use googletest::prelude::*;
+/// # /* Must be run inside a #[gtest] context
+/// #[gtest]
+/// fn test() {
+///     expect_death!(std::process::exit(1), anything());
+/// }
+/// # */
+/// ```
+#[macro_export]
+macro_rules! expect_death {
+    ($expr:expr, $output_matcher:expr $(,)?) => {
+        $crate::GoogleTestSupport::and_log_failure($crate::verify_death!($expr, $output_matcher))
+    };
+    ($expr:expr, $output_matcher:expr, $($format_args:expr),* $(,)?) => {
+        $crate::GoogleTestSupport::and_log_failure_with_message(
+            $crate::verify_death!($expr, $output_matcher),
+            || format!($($format_args),*),
+        )
+    };
+}
+pub use expect_death;
+
 #[cfg(test)]
 mod tests {
     use crate::{
         self as googletest,
-        assertions::{verify_eq, verify_that},
         matchers::{anything, err},
         test, Result as TestResult,
     };
