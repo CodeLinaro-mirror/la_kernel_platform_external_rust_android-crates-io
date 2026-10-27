@@ -13,6 +13,8 @@
     "fs",
     "event",
     "process",
+    "pty",
+    "stdio",
     "time",
     "termios"
   ],
