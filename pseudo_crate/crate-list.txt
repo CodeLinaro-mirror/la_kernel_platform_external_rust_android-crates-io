@@ -505,6 +505,7 @@ rustc-hash
 rustc-stable-hash
 rustfft
 rustix
+rustix-openpty
 rustls
 rustls-native-certs
 rustls-pki-types

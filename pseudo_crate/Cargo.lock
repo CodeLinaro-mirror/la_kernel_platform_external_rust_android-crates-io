@@ -665,6 +665,7 @@ dependencies = [
  "rustc-stable-hash",
  "rustfft",
  "rustix 1.1.4",
+ "rustix-openpty",
  "rustls",
  "rustls-native-certs",
  "rustls-pki-types",
@@ -8986,6 +8987,17 @@ dependencies = [
  "libc 0.2.189",
  "linux-raw-sys 0.12.1",
  "windows-sys 0.61.2",
+]
+
+[[package]]
+name = "rustix-openpty"
+version = "0.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "1de16c7c59892b870a6336f185dc10943517f1327447096bbb7bb32cd85e2393"
+dependencies = [
+ "errno",
+ "libc 0.2.189",
+ "rustix 1.1.4",
 ]
 
 [[package]]
