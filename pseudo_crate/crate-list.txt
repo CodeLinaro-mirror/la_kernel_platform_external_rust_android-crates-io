@@ -4,6 +4,7 @@ acpi
 adler2
 ahash
 aho-corasick
+alacritty_terminal
 alloc-no-stdlib
 alloc-stdlib
 alloca
