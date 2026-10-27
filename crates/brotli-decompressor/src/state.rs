@@ -8,7 +8,7 @@ use core;
 use context::kContextLookup;
 use bit_reader::{BrotliBitReader, BrotliGetAvailableBits, BrotliInitBitReader};
 use huffman::{BROTLI_HUFFMAN_MAX_CODE_LENGTH, BROTLI_HUFFMAN_MAX_CODE_LENGTHS_SIZE,
-              BROTLI_HUFFMAN_MAX_TABLE_SIZE, HuffmanCode, HuffmanTreeGroup};
+              BROTLI_HUFFMAN_MAX_SIZE_272, HuffmanCode, HuffmanTreeGroup};
 use alloc::SliceWrapper;
 use alloc::SliceWrapperMut;
 use shared_dictionary;
@@ -19,6 +19,14 @@ pub enum WhichTreeGroup {
   LITERAL,
   INSERT_COPY,
   DISTANCE,
+}
+// Options for BrotliState::set_parameter and the C API's
+// BrotliDecoderSetParameter, with the C header's values.
+#[repr(C)]
+#[derive(Clone,Copy, Debug)]
+pub enum BrotliDecoderParameter {
+  BROTLI_DECODER_PARAM_DISABLE_RING_BUFFER_REALLOCATION = 0,
+  BROTLI_DECODER_PARAM_LARGE_WINDOW = 1,
 }
 #[repr(C)]
 #[derive(Clone,Copy, Debug)]
@@ -46,8 +54,7 @@ pub enum BrotliDecoderErrorCode{
   BROTLI_DECODER_ERROR_FORMAT_PADDING_1 = -14,
   BROTLI_DECODER_ERROR_FORMAT_PADDING_2 = -15,
   BROTLI_DECODER_ERROR_FORMAT_DISTANCE = -16,
-
-  /* -17 code is reserved */
+  BROTLI_DECODER_ERROR_FORMAT_BLOCK_SWITCH = -17,
 
   BROTLI_DECODER_ERROR_COMPOUND_DICTIONARY = -18,
   BROTLI_DECODER_ERROR_DICTIONARY_NOT_SET = -19,
@@ -176,6 +183,9 @@ pub enum MaybeOwnedSlice<AllocU8: alloc::Allocator<u8>> {
   // spelled 'static rather than as a raw pointer so that BrotliState keeps
   // its automatic Send/Sync.
   Borrowed(&'static [u8]),
+  // A dictionary of this length whose bytes are lent to every
+  // BrotliDecompressStreamWithDictionary call instead.
+  External(usize),
 }
 
 impl<AllocU8: alloc::Allocator<u8>> Default for MaybeOwnedSlice<AllocU8> {
@@ -189,6 +199,7 @@ impl<AllocU8: alloc::Allocator<u8>> alloc::SliceWrapper<u8> for MaybeOwnedSlice<
     match *self {
       MaybeOwnedSlice::Owned(ref mem) => mem.slice(),
       MaybeOwnedSlice::Borrowed(data) => data,
+      MaybeOwnedSlice::External(_) => &[],
     }
   }
 }
@@ -200,6 +211,12 @@ impl<AllocU8: alloc::Allocator<u8>> alloc::SliceWrapper<u8> for MaybeOwnedSlice<
 // never collide with one. The C implementation uses -1 for the same purpose;
 // the field is unsigned here.
 pub const COMPOUND_DICTIONARY_BLOCK_MAP_UNINITIALIZED: u32 = 255;
+
+
+pub trait BrotliMetadataCallback {
+    fn start(&mut self, _size: usize) {}
+    fn chunk(&mut self, _data: &[u8]) {}
+}
 
 // LZ77 prefix ("compound") dictionaries attached to the decoder. Unlike the
 // historical approach of copying the dictionary into the ring buffer, chunks
@@ -273,6 +290,19 @@ pub struct BrotliState<AllocU8: alloc::Allocator<u8>,
   pub max_distance: i32,
   pub ringbuffer_size: i32,
   pub ringbuffer_mask: i32,
+  // Size the ring buffer must grow to before the current metablock is
+  // decoded, as computed from its header by BrotliCalculateRingBufferSize.
+  // It differs from ringbuffer_size only until BrotliEnsureRingBuffer runs.
+  pub(crate) new_ringbuffer_size: i32,
+  // Size of the pool that alloc_u8 draws from when it is a fixed pool that
+  // never merges freed blocks, as in brotli_decode_prealloc; 0 otherwise.
+  // Growing the ring buffer takes up to twice the window from such a pool, so
+  // BrotliCalculateRingBufferSize then sizes it to never need more of the pool
+  // than before the ring buffer grew on demand.
+  pub(crate) u8_pool_size: usize,
+  // Smallest size the ring buffer starts from, as set by
+  // set_initial_ring_buffer_size; 0 for the default.
+  pub(crate) initial_ringbuffer_size: u32,
   pub dist_rb_idx: i32,
   pub dist_rb: [i32; 4],
   pub ringbuffer: AllocU8::AllocatedMemory,
@@ -394,6 +424,9 @@ macro_rules! make_brotli_state {
             max_distance : 0,
             ringbuffer_size : 0,
             ringbuffer_mask: 0,
+            new_ringbuffer_size : 0,
+            u8_pool_size : 0,
+            initial_ringbuffer_size : 0,
             dist_rb_idx : 0,
             dist_rb : [16, 15, 11, 4],
             ringbuffer : AllocU8::AllocatedMemory::default(),
@@ -495,7 +528,7 @@ impl <'brotli_state,
         let mut retval = make_brotli_state!(alloc_u8, alloc_u32, alloc_hc, AllocU8::AllocatedMemory::default());
         retval.large_window = true;
         retval.context_map_table = retval.alloc_hc.alloc_cell(
-          BROTLI_HUFFMAN_MAX_TABLE_SIZE as usize);
+          BROTLI_HUFFMAN_MAX_SIZE_272 as usize);
         BrotliInitBitReader(&mut retval.br);
         retval
     }
@@ -506,7 +539,7 @@ impl <'brotli_state,
         let custom_dict_len = custom_dict.slice().len();
         let mut retval = make_brotli_state!(alloc_u8, alloc_u32, alloc_hc, custom_dict);
         retval.context_map_table = retval.alloc_hc.alloc_cell(
-          BROTLI_HUFFMAN_MAX_TABLE_SIZE as usize);
+          BROTLI_HUFFMAN_MAX_SIZE_272 as usize);
         retval.large_window =  true;
         BrotliInitBitReader(&mut retval.br);
         // The dictionary becomes the furthest compound dictionary chunk;
@@ -528,10 +561,51 @@ impl <'brotli_state,
            alloc_hc : AllocHC) -> Self{
         let mut retval = make_brotli_state!(alloc_u8, alloc_u32, alloc_hc, AllocU8::AllocatedMemory::default());
         retval.context_map_table = retval.alloc_hc.alloc_cell(
-          BROTLI_HUFFMAN_MAX_TABLE_SIZE as usize);
+          BROTLI_HUFFMAN_MAX_SIZE_272 as usize);
         retval.large_window =  false;
         BrotliInitBitReader(&mut retval.br);
         retval
+    }
+    // Sets a decoder parameter, the equivalent of the C API
+    // BrotliDecoderSetParameter: a nonzero value disables ring buffer
+    // reallocation (the whole window is allocated at once) or accepts
+    // large-window streams. Allowed only before any compressed data has been
+    // processed; returns false, changing nothing, afterwards.
+    pub fn set_parameter(self : &mut Self,
+                         param: BrotliDecoderParameter,
+                         value: u32) -> bool {
+        match self.state {
+            BrotliRunningState::BROTLI_STATE_UNINITED => {},
+            _ => return false,
+        }
+        match param {
+            BrotliDecoderParameter::BROTLI_DECODER_PARAM_DISABLE_RING_BUFFER_REALLOCATION =>
+                self.canny_ringbuffer_allocation = value == 0,
+            BrotliDecoderParameter::BROTLI_DECODER_PARAM_LARGE_WINDOW =>
+                self.large_window = value != 0,
+        }
+        true
+    }
+    // Sets the smallest ring buffer the decoder starts from, rounded up to a
+    // power of two of at least 32 bytes and capped at the stream's window,
+    // which is only known once decoding starts; 0 restores the default of
+    // 1 KiB. With u32::MAX the whole window is allocated at once and never
+    // regrown, so a u8 allocator that is a fixed pool that never merges freed
+    // blocks needs only the window from it, rather than up to twice that. If
+    // the stream's first metablock of data is its last, the ring buffer is
+    // still sized to just hold it, as it is for small or incompressible
+    // input, which encoders store as one uncompressed metablock and an
+    // empty last one, when that empty metablock is already in the input as
+    // the uncompressed one starts. Disabling ring buffer reallocation with
+    // set_parameter overrides this. Allowed only before any compressed data
+    // has been processed; returns false, changing nothing, afterwards.
+    pub fn set_initial_ring_buffer_size(self : &mut Self, size: u32) -> bool {
+        match self.state {
+            BrotliRunningState::BROTLI_STATE_UNINITED => {},
+            _ => return false,
+        }
+        self.initial_ringbuffer_size = size;
+        true
     }
     // Attaches a raw LZ77 prefix dictionary, the equivalent of the C API
     // BrotliDecoderAttachDictionary with BROTLI_SHARED_DICTIONARY_RAW.
@@ -553,6 +627,27 @@ impl <'brotli_state,
     // one, or use attach_dictionary and pay for the copy.
     pub fn attach_dictionary_borrowed(self : &mut Self, dict: &'static [u8]) -> bool {
         self.attach_dictionary_chunk(MaybeOwnedSlice::Borrowed(dict))
+    }
+    // As attach_dictionary_borrowed, for a dictionary of any lifetime: only
+    // its size is attached, and its bytes are lent to every
+    // BrotliDecompressStreamWithDictionary call instead, so they only have to
+    // outlive each call, not the decoder. At most one dictionary can be
+    // attached this way.
+    pub fn attach_external_dictionary(self : &mut Self, size: usize) -> bool {
+        if self.external_dictionary_len() != 0 {
+            return false;
+        }
+        self.attach_dictionary_chunk(MaybeOwnedSlice::External(size))
+    }
+    // The size of the external dictionary every call must lend, or 0.
+    pub(crate) fn external_dictionary_len(&self) -> usize {
+        let addon = &self.compound_dictionary;
+        for chunk in addon.chunks.iter().take(addon.num_chunks) {
+            if let MaybeOwnedSlice::External(len) = *chunk {
+                return len;
+            }
+        }
+        0
     }
     fn attach_dictionary_chunk(self : &mut Self,
                                dict: MaybeOwnedSlice<AllocU8>) -> bool {
@@ -615,7 +710,7 @@ impl <'brotli_state,
         // references to caller-owned memory, so no copy is needed.
         let borrowed_blob: Option<&'static [u8]> = match dict_data {
             MaybeOwnedSlice::Borrowed(data) => Some(data),
-            MaybeOwnedSlice::Owned(_) => None,
+            MaybeOwnedSlice::Owned(_) | MaybeOwnedSlice::External(_) => None,
         };
         let mut parsed = BrotliSharedDictionary::<AllocU8, AllocU32>::default();
         if is_custom {
@@ -685,7 +780,10 @@ impl <'brotli_state,
     }
     pub(crate) fn attach_compound_dictionary_chunk(self : &mut Self,
                                             chunk: MaybeOwnedSlice<AllocU8>) -> bool {
-        let size = chunk.slice().len();
+        let size = match chunk {
+            MaybeOwnedSlice::External(len) => len,
+            _ => chunk.slice().len(),
+        };
         // A zero-length chunk is a no-op and not counted toward the limit.
         if size == 0 {
             self.free_chunk(chunk);
@@ -854,8 +952,7 @@ pub fn BrotliDecoderErrorStr(c: BrotliDecoderErrorCode) -> &'static str {
   BrotliDecoderErrorCode::BROTLI_DECODER_ERROR_FORMAT_PADDING_1 =>"ERROR_FORMAT_PADDING_1\0",
   BrotliDecoderErrorCode::BROTLI_DECODER_ERROR_FORMAT_PADDING_2 =>"ERROR_FORMAT_PADDING_2\0",
   BrotliDecoderErrorCode::BROTLI_DECODER_ERROR_FORMAT_DISTANCE =>"ERROR_FORMAT_DISTANCE\0",
-
-  /* -17 code is reserved */
+  BrotliDecoderErrorCode::BROTLI_DECODER_ERROR_FORMAT_BLOCK_SWITCH =>"ERROR_FORMAT_BLOCK_SWITCH\0",
 
   BrotliDecoderErrorCode::BROTLI_DECODER_ERROR_COMPOUND_DICTIONARY => "ERROR_COMPOUND_DICTIONARY\0",
   BrotliDecoderErrorCode::BROTLI_DECODER_ERROR_DICTIONARY_NOT_SET => "ERROR_DICTIONARY_NOT_SET\0",
