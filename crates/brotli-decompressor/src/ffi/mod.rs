@@ -9,7 +9,7 @@ pub mod interface;
 pub mod alloc_util;
 use self::alloc_util::SubclassableAllocator;
 use alloc::{Allocator, SliceWrapper, SliceWrapperMut, StackAllocator, AllocatedStackMemory, bzero};
-use self::interface::{CAllocator, c_void, BrotliDecoderParameter, BrotliDecoderResult, brotli_alloc_func, brotli_free_func};
+use self::interface::{CAllocator, c_void, BrotliDecoderParameter, BrotliDecoderResult, brotli_alloc_func, brotli_free_func, CBrotliMetadataCallback, brotli_decoder_metadata_start_func, brotli_decoder_metadata_chunk_func};
 use ::BrotliResult;
 use ::BrotliDecoderReturnInfo;
 use ::brotli_decode;
@@ -91,6 +91,7 @@ pub struct BrotliDecoderState {
     pub decompressor: ::BrotliState<SubclassableAllocator,
                                     SubclassableAllocator,
                                     SubclassableAllocator>,
+    metadata_cb: Option<CBrotliMetadataCallback>,
 }
 
 #[cfg(not(feature="std"))]
@@ -137,6 +138,7 @@ pub unsafe extern fn BrotliDecoderCreateInstance(
       let to_box = BrotliDecoderState {
         custom_allocator: allocators.clone(),
         decompressor: decompressor,
+        metadata_cb: None,
       };
       if let Some(alloc) = alloc_func {
         let ptr = alloc(allocators.opaque, core::mem::size_of::<BrotliDecoderState>());
@@ -165,23 +167,32 @@ pub unsafe extern "C" fn BrotliDecoderSetParameter(state_ptr: *mut BrotliDecoder
   if state_ptr.is_null() {
     return 0;
   }
-  let state = &mut (*state_ptr).decompressor;
-  match &state.state {
-    &super::state::BrotliRunningState::BROTLI_STATE_UNINITED => {},
-    _ => return 0,
-  }
   // Unknown C enum values must return false, not create an invalid Rust enum
   // discriminant at the ABI boundary. Rust callers can cast the enum to i32.
-  match selector {
-    x if x == BrotliDecoderParameter::BROTLI_DECODER_PARAM_DISABLE_RING_BUFFER_REALLOCATION as i32 => {
-      state.canny_ringbuffer_allocation = value == 0;
-    },
-    x if x == BrotliDecoderParameter::BROTLI_DECODER_PARAM_LARGE_WINDOW as i32 => {
-      state.large_window = value != 0;
-    },
+  let param = match selector {
+    x if x == BrotliDecoderParameter::BROTLI_DECODER_PARAM_DISABLE_RING_BUFFER_REALLOCATION as i32 =>
+      BrotliDecoderParameter::BROTLI_DECODER_PARAM_DISABLE_RING_BUFFER_REALLOCATION,
+    x if x == BrotliDecoderParameter::BROTLI_DECODER_PARAM_LARGE_WINDOW as i32 =>
+      BrotliDecoderParameter::BROTLI_DECODER_PARAM_LARGE_WINDOW,
     _ => return 0,
-  }
-  1
+  };
+  if (*state_ptr).decompressor.set_parameter(param, value) {1} else {0}
+}
+
+#[no_mangle]
+pub unsafe extern "C" fn BrotliDecoderSetMetadataCallbacks(
+    state: *mut BrotliDecoderState,
+    start_func: brotli_decoder_metadata_start_func,
+    chunk_func: brotli_decoder_metadata_chunk_func,
+    opaque: *mut c_void,
+) {
+    if let Some(state) = unsafe {state.as_mut()} {
+        state.metadata_cb = Some(CBrotliMetadataCallback::new(
+            start_func,
+            chunk_func,
+            opaque,
+        ));
+    }
 }
 
 #[no_mangle]
@@ -447,7 +458,7 @@ pub unsafe extern fn BrotliDecoderDecompressStream(
                 return BrotliDecoderResult::BROTLI_DECODER_RESULT_ERROR;
             },
         };
-            result = super::decode::BrotliDecompressStream(
+            result = super::decode::BrotliDecompressStreamWithDictionaryAndMetadata(
                 &mut *available_in,
                 &mut input_offset,
                 input_buf,
@@ -455,6 +466,12 @@ pub unsafe extern fn BrotliDecoderDecompressStream(
                 &mut output_offset,
                 output_buf,
                 &mut *total_out,
+                &[], // In FFI, dictionaries are attached through BrotliDecoderAttachDicationary.
+                     // This means only attach_external_dictionary is reachable through FFI, can
+                     // can pass empty here.
+                (*state_ptr).metadata_cb.as_mut().map(
+                    |cb| cb as &mut dyn super::state::BrotliMetadataCallback
+                ),
                 &mut (*state_ptr).decompressor,
             ).into();
     }
