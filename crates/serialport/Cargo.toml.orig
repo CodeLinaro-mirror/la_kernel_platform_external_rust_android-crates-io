@@ -1,6 +1,6 @@
 [package]
 name = "serialport"
-version = "4.9.0"
+version = "4.10.1"
 authors = [
     "Bryant Mairs <bryant@mai.rs>",
     "Jesse Braham <jesse@beta7.io>",
@@ -62,6 +62,8 @@ rustversion = "1.0.16"
 [features]
 default = ["libudev"]
 hardware-tests = []
-# TODO: Make the feature unconditionally available with the next major release
-# (5.0) and remove this feature gate.
+
+# TODO: Make the features below unconditionally available with the next major
+# release (5.0) and remove this feature gate.
 usbportinfo-interface = []
+usbportinfo-location = []

@@ -108,8 +108,8 @@
 //!
 //! It is also possible to insert "idle" callbacks. These callbacks represent computations that
 //! need to be done at some point, but are not as urgent as processing the events. These callbacks
-//! are stored and then executed during [`EventLoop::dispatch`](EventLoop#method.dispatch), once all
-//! events from the sources have been processed.
+//! are stored and then executed during [`EventLoop::dispatch`] once all events from the sources have
+//! been processed.
 //!
 //! ## Async/Await compatibility
 //!
@@ -118,7 +118,7 @@
 //! Activating the `executor` cargo feature will add the [`futures`] module, which provides
 //! a future executor that can be inserted into an [`EventLoop`] as yet another [`EventSource`].
 //!
-//! IO objects can be made Async-aware via the [`LoopHandle::adapt_io`](LoopHandle#method.adapt_io)
+//! IO objects can be made Async-aware via the [`LoopHandle::adapt_io`]
 //! method. Waking up the futures using these objects is handled by the associated [`EventLoop`]
 //! directly.
 //!
@@ -143,7 +143,7 @@
 #![warn(missing_docs, missing_debug_implementations)]
 #![allow(clippy::needless_doctest_main, clippy::uninlined_format_args)]
 #![cfg_attr(docsrs, feature(doc_cfg))]
-#![cfg_attr(feature = "nightly_coverage", feature(coverage_attribute))]
+#![cfg_attr(unstable_coverage, feature(coverage_attribute))]
 
 mod sys;
 

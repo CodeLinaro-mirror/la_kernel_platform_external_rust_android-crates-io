@@ -1547,6 +1547,15 @@ macro_rules! impl_vec3_float_tests {
             assert_eq!($vec3::new(0.0, 21.1, 0.0).round().y, 21.0);
             assert_eq!($vec3::new(0.0, 11.123, 0.0).round().y, 11.0);
             assert_eq!($vec3::new(0.0, 11.499, 0.0).round().y, 11.0);
+            // half-way cases round away from zero, not to the nearest even integer
+            assert_eq!(
+                $vec3::new(0.5, -0.5, 2.5).round(),
+                $vec3::new(1.0, -1.0, 3.0)
+            );
+            assert_eq!(
+                $vec3::new(-2.5, 3.5, -3.5).round(),
+                $vec3::new(-3.0, 4.0, -4.0)
+            );
             assert_eq!(
                 $vec3::new($t::NEG_INFINITY, $t::INFINITY, 0.0).round(),
                 $vec3::new($t::NEG_INFINITY, $t::INFINITY, 0.0)
@@ -1653,22 +1662,24 @@ macro_rules! impl_vec3_float_tests {
             );
             assert_approx_eq!(
                 v0.angle_between(v0.slerp(v1, 0.5)) * 2.0,
-                v0.angle_between(v1)
+                v0.angle_between(v1),
+                1e-5
             );
             assert_approx_eq!(
                 $vec3::new(5.0, 0.0, 0.0).slerp($vec3::new(0.0, 5.0, 0.0), 0.5),
-                $vec3::new(5.0, 5.0, 0.0) * std::$t::consts::FRAC_1_SQRT_2
+                $vec3::new(5.0, 5.0, 0.0) * std::$t::consts::FRAC_1_SQRT_2,
+                1e-5
             );
         });
         glam_test!(test_slerp_extrapolate, {
             let v0 = $vec3::Y;
             let v1 = $vec3::X;
             // Normalized
-            assert_approx_eq!(v0.slerp(v1, -1.0), $vec3::NEG_X, 2e-7);
-            assert_approx_eq!(v0.slerp(v1, 2.0), $vec3::NEG_Y, 2e-7);
+            assert_approx_eq!(v0.slerp(v1, -1.0), $vec3::NEG_X, 1e-6);
+            assert_approx_eq!(v0.slerp(v1, 2.0), $vec3::NEG_Y, 1e-6);
             // Scaled
-            assert_approx_eq!(v0.slerp(v1 * 1.5, -1.0), $vec3::NEG_X * 0.5);
-            assert_approx_eq!(v0.slerp(v1 * 1.5, 2.0), $vec3::NEG_Y * 2.0, 4e-7);
+            assert_approx_eq!(v0.slerp(v1 * 1.5, -1.0), $vec3::NEG_X * 0.5, 1e-6);
+            assert_approx_eq!(v0.slerp(v1 * 1.5, 2.0), $vec3::NEG_Y * 2.0, 1e-6);
         });
         glam_test!(test_slerp_parallel, {
             // Same direction
@@ -2240,28 +2251,28 @@ mod vec3a {
         use core::arch::x86_64::*;
 
         #[repr(C, align(16))]
-        struct F32x3_A16([f32; 3]);
+        struct F32x4_A16([f32; 4]);
 
         let v0 = Vec3A::new(1.0, 2.0, 3.0);
         let m0: __m128 = v0.into();
-        let mut a0 = F32x3_A16([0.0, 0.0, 0.0]);
+        let mut a0 = F32x4_A16([0.0; 4]);
         unsafe {
             _mm_store_ps(a0.0.as_mut_ptr(), m0);
         }
-        assert_eq!([1.0, 2.0, 3.0], a0.0);
+        assert_eq!([1.0, 2.0, 3.0], a0.0[..3]);
         let v1 = Vec3A::from(m0);
         assert_eq!(v0, v1);
 
         #[repr(C, align(16))]
-        struct U32x3_A16([u32; 3]);
+        struct U32x4_A16([u32; 4]);
 
         let v0 = BVec3A::new(true, false, true);
         let m0: __m128 = v0.into();
-        let mut a0 = U32x3_A16([1, 2, 3]);
+        let mut a0 = U32x4_A16([0; 4]);
         unsafe {
             _mm_store_ps(a0.0.as_mut_ptr() as *mut f32, m0);
         }
-        assert_eq!([0xffffffff, 0, 0xffffffff], a0.0);
+        assert_eq!([0xffffffff, 0, 0xffffffff], a0.0[..3]);
     }
 
     glam_test!(test_min_max_from_vec4, {

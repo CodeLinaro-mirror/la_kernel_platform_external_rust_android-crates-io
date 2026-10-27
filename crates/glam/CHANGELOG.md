@@ -5,6 +5,44 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.33.9](https://github.com/bitshifter/glam-rs/compare/0.33.8...0.33.9) - 2026-09-23
+
+### Added
+
+- Add encase 0.12/0.13 dual support ([#859](https://github.com/bitshifter/glam-rs/pull/859))
+
+## [0.33.8](https://github.com/bitshifter/glam-rs/compare/0.33.7...0.33.8) - 2026-09-20
+
+### Added
+
+- Add `from_rows`, `from_rows_array`, `from_rows_slice`, `to_rows_array` and `set_row` to the matrix types ([#790](https://github.com/bitshifter/glam-rs/pull/790))
+
+### Changed
+
+- Deprecate the `fast-math` feature. It is now a no-op and will be removed in a future breaking release; the SIMD back-ends use fused multiply-add whenever the target supports it, which is at least as accurate as before ([#853](https://github.com/bitshifter/glam-rs/pull/853))
+
+### Fixed
+
+- Align `Mat3`, `Mat3A` and `DMat3` determinant and inverse with `Mat4`, so an affine matrix and its linear part agree bit-exactly ([#828](https://github.com/bitshifter/glam-rs/pull/828)) ([#836](https://github.com/bitshifter/glam-rs/pull/836)) ([#837](https://github.com/bitshifter/glam-rs/pull/837))
+
+### Performance
+
+- Broadcast dot product without an extra shuffle in the SIMD back-ends ([#833](https://github.com/bitshifter/glam-rs/pull/833))
+
+## [0.33.7](https://github.com/bitshifter/glam-rs/compare/0.33.6...0.33.7) - 2026-09-07
+
+### Fixed
+
+- Vec3A and Vec4 round half-way cases away from zero in the SIMD back-ends ([#831](https://github.com/bitshifter/glam-rs/pull/831))
+
+### Performance
+
+- Add NEON sin implementation used in `Quat` and `Vec3A` `slerp`. ([#834](https://github.com/bitshifter/glam-rs/pull/834))
+- Further optimisations to to_scale_rotation_translation ([#829](https://github.com/bitshifter/glam-rs/pull/829))
+- Specialize affine determinant in `Mat4::to_scale_rotation_translation decomposition` ([#827](https://github.com/bitshifter/glam-rs/pull/827))
+- Avoid acos in quaternion `is_near_identity` ([#824](https://github.com/bitshifter/glam-rs/pull/824))
+- Use SSE2 sin implementation in `Vec3A::slerp` ([#819](https://github.com/bitshifter/glam-rs/pull/819))
+
 ## [0.33.6](https://github.com/bitshifter/glam-rs/compare/0.33.5...0.33.6) - 2026-08-28
 
 ### Added

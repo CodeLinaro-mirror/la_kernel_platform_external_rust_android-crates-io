@@ -14,12 +14,11 @@
 //! * `ThinVec::new()` doesn't allocate (it points to a statically allocated singleton)
 //! * reallocation can be done in place
 //! * `size_of::<ThinVec<T>>()` == `size_of::<Option<ThinVec<T>>>()`
+//! * Doesn't allocate for Zero Sized Types (e.g. `ThinVec<()>`), but only without the "gecko-ffi" feature.
 //!
 //! Properties of `Vec` that aren't preserved:
 //! * `ThinVec<T>` can't ever be zero-cost roundtripped to a `Box<[T]>`, `String`, or `*mut T`
 //! * `from_raw_parts` doesn't exist
-//! * `ThinVec` currently doesn't bother to not-allocate for Zero Sized Types (e.g. `ThinVec<()>`),
-//!   but it could be done if someone cared enough to implement it.
 //!
 //!
 //! # Optional Features
@@ -158,10 +157,10 @@ use core::convert::TryInto;
 use core::hash::*;
 use core::iter::FromIterator;
 use core::marker::PhantomData;
-use core::ops::Bound;
+use core::ops::{Bound, Index, IndexMut};
 use core::ops::{Deref, DerefMut, RangeBounds};
 use core::ptr::NonNull;
-use core::slice::Iter;
+use core::slice::{Iter, SliceIndex};
 use core::{fmt, mem, ops, ptr, slice};
 
 use impl_details::*;
@@ -575,10 +574,8 @@ impl<T> ThinVec<T> {
     /// If it is important to know the exact allocated capacity of a `ThinVec`,
     /// always use the [`capacity`] method after construction.
     ///
-    /// **NOTE**: unlike `Vec`, `ThinVec` **MUST** allocate once to keep track of non-zero
-    /// lengths. As such, we cannot provide the same guarantees about ThinVecs
-    /// of ZSTs not allocating. However the allocation never needs to be resized
-    /// to add more ZSTs, since the underlying array is still length 0.
+    /// **NOTE**: like `Vec`, `ThinVec` doesn't allocate for ZSTs and stores the length inline,
+    /// but creating a `ThinVec` of ZSTs is not allowed if the "gecko-ffi" feature is enabled.
     ///
     /// [Capacity and reallocation]: #capacity-and-reallocation
     /// [`capacity`]: Vec::capacity
@@ -611,8 +608,7 @@ impl<T> ThinVec<T> {
     /// assert!(vec.capacity() >= 11);
     ///
     /// # #[cfg(not(feature = "gecko-ffi"))] {
-    /// // A vector of a zero-sized type will always over-allocate, since no
-    /// // space is needed to store the actual elements.
+    /// // A vector of a zero-sized type will not allocate and report to have max capacity.
     /// // Note this is only true **without** the gecko-ffi feature!
     /// let vec_units = ThinVec::<()>::with_capacity(10);
     /// assert_eq!(vec_units.capacity(), usize::MAX - 1);
@@ -2082,6 +2078,20 @@ impl<T> DerefMut for ThinVec<T> {
     }
 }
 
+impl<T, I: SliceIndex<[T]>> Index<I> for ThinVec<T> {
+    type Output = <I as SliceIndex<[T]>>::Output;
+
+    fn index(&self, index: I) -> &Self::Output {
+        &self.deref()[index]
+    }
+}
+
+impl<T, I: SliceIndex<[T]>> IndexMut<I> for ThinVec<T> {
+    fn index_mut(&mut self, index: I) -> &mut Self::Output {
+        &mut self.deref_mut()[index]
+    }
+}
+
 impl<T> Borrow<[T]> for ThinVec<T> {
     fn borrow(&self) -> &[T] {
         self.as_slice()
@@ -2375,7 +2385,8 @@ impl<T> Default for ThinVec<T> {
 impl<T> FromIterator<T> for ThinVec<T> {
     #[inline]
     fn from_iter<I: IntoIterator<Item = T>>(iter: I) -> ThinVec<T> {
-        let mut vec = ThinVec::new();
+        let iter = iter.into_iter();
+        let mut vec = ThinVec::with_capacity(iter.size_hint().0);
         vec.extend(iter);
         vec
     }
@@ -3605,6 +3616,15 @@ mod tests {
     }
 
     #[test]
+    fn test_collect_capacity() {
+        for i in 0..20 {
+            let v = (0..i).into_iter().collect::<ThinVec<usize>>();
+            assert_eq!(v.len(), i);
+            assert_eq!(v.capacity(), i);
+        }
+    }
+
+    #[test]
     fn test_clone() {
         let mut v = ThinVec::<i32>::new();
         assert!(v.is_singleton());
@@ -4048,6 +4068,13 @@ mod std_tests {
     fn test_index() {
         let vec = thin_vec![1, 2, 3];
         assert!(vec[1] == 2);
+    }
+
+    #[test]
+    fn test_index_mut() {
+        let mut vec = thin_vec![1, 2, 3];
+        vec[1] = 22;
+        assert!(vec[1] == 22);
     }
 
     #[test]

@@ -5,6 +5,7 @@
     "use-libc-auxv",
     "use-libc",
     "mm",
+    "mount",
     "net",
     "param",
     "pipe",

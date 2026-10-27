@@ -93,6 +93,8 @@ impl Mat4 {
     }
 
     /// Creates a 4x4 matrix from four column vectors.
+    ///
+    /// See also [`Self::from_rows`] when the data is in row major order.
     #[inline(always)]
     #[must_use]
     pub const fn from_cols(x_axis: Vec4, y_axis: Vec4, z_axis: Vec4, w_axis: Vec4) -> Self {
@@ -104,9 +106,26 @@ impl Mat4 {
         }
     }
 
+    /// Creates a 4x4 matrix from four row vectors.
+    ///
+    /// Matrices are stored in column major order, so the given rows are permuted into
+    /// the matrix layout. Use [`Self::from_cols`] instead when the data is already in
+    /// column major order.
+    #[inline(always)]
+    #[must_use]
+    pub const fn from_rows(row0: Vec4, row1: Vec4, row2: Vec4, row3: Vec4) -> Self {
+        let [m00, m01, m02, m03] = row0.to_array();
+        let [m10, m11, m12, m13] = row1.to_array();
+        let [m20, m21, m22, m23] = row2.to_array();
+        let [m30, m31, m32, m33] = row3.to_array();
+        Self::new(
+            m00, m10, m20, m30, m01, m11, m21, m31, m02, m12, m22, m32, m03, m13, m23, m33,
+        )
+    }
+
     /// Creates a 4x4 matrix from a `[f32; 16]` array stored in column major order.
-    /// If your data is stored in row major you will need to `transpose` the returned
-    /// matrix.
+    ///
+    /// If the data is in row major order use [`Self::from_rows_array`] instead.
     #[inline]
     #[must_use]
     pub const fn from_cols_array(m: &[f32; 16]) -> Self {
@@ -117,7 +136,8 @@ impl Mat4 {
     }
 
     /// Creates a `[f32; 16]` array storing data in column major order.
-    /// If you require data in row major order `transpose` the matrix first.
+    ///
+    /// If you require the data in row major order use [`Self::to_rows_array`] instead.
     #[inline]
     #[must_use]
     pub const fn to_cols_array(&self) -> [f32; 16] {
@@ -142,8 +162,8 @@ impl Mat4 {
     }
 
     /// Creates a 4x4 matrix from a `[[f32; 4]; 4]` 4D array stored in column major order.
-    /// If your data is in row major order you will need to `transpose` the returned
-    /// matrix.
+    ///
+    /// If the data is in row major order `transpose` the returned matrix.
     #[inline]
     #[must_use]
     pub const fn from_cols_array_2d(m: &[[f32; 4]; 4]) -> Self {
@@ -156,7 +176,8 @@ impl Mat4 {
     }
 
     /// Creates a `[[f32; 4]; 4]` 4D array storing data in column major order.
-    /// If you require data in row major order `transpose` the matrix first.
+    ///
+    /// If you require row major order `transpose` the matrix first.
     #[inline]
     #[must_use]
     pub const fn to_cols_array_2d(&self) -> [[f32; 4]; 4] {
@@ -165,6 +186,35 @@ impl Mat4 {
             self.y_axis.to_array(),
             self.z_axis.to_array(),
             self.w_axis.to_array(),
+        ]
+    }
+
+    /// Creates a 4x4 matrix from a `[f32; 16]` array stored in row major order.
+    ///
+    /// Matrices are stored in column major order, so the array is permuted into the
+    /// matrix layout. Use [`Self::from_cols_array`] instead when the data is already in
+    /// column major order.
+    #[inline]
+    #[must_use]
+    pub const fn from_rows_array(m: &[f32; 16]) -> Self {
+        Self::new(
+            m[0], m[4], m[8], m[12], m[1], m[5], m[9], m[13], m[2], m[6], m[10], m[14], m[3], m[7],
+            m[11], m[15],
+        )
+    }
+
+    /// Creates a `[f32; 16]` array storing data in row major order.
+    ///
+    /// Matrices are stored in column major order, so the array is permuted out of the
+    /// column major storage. Use [`Self::to_cols_array`] instead when you want data in
+    /// column major order.
+    #[inline]
+    #[must_use]
+    pub const fn to_rows_array(&self) -> [f32; 16] {
+        let m = self.to_cols_array();
+        [
+            m[0], m[4], m[8], m[12], m[1], m[5], m[9], m[13], m[2], m[6], m[10], m[14], m[3], m[7],
+            m[11], m[15],
         ]
     }
 
@@ -244,19 +294,24 @@ impl Mat4 {
     /// expected to be a 3D affine transformation matrix otherwise the output will be invalid.
     ///
     /// # Panics
-    ///
-    /// Will panic if the determinant of `self` is zero or if the resulting scale vector
-    /// contains any zero elements when `glam_assert` is enabled.
+    /// Will panic if `self` is not a valid affine transformation matrix, if the determinant of the
+    /// 3x3 linear part (the rotation and scale part of the transform) is zero, when `glam_assert`
+    /// is enabled.
     #[inline]
     #[must_use]
     pub fn to_scale_rotation_translation(&self) -> (Vec3, Quat, Vec3) {
-        let det = self.determinant();
+        glam_assert!(self.row(3).abs_diff_eq(Vec4::W, 1e-6));
+
+        let r = Mat3::from_mat4(*self);
+
+        let det = r.determinant();
+
         glam_assert!(det != 0.0);
 
         let scale = Vec3::new(
-            self.x_axis.length() * math::signum(det),
-            self.y_axis.length(),
-            self.z_axis.length(),
+            r.x_axis.length() * math::signum(det),
+            r.y_axis.length(),
+            r.z_axis.length(),
         );
 
         glam_assert!(scale.cmpne(Vec3::ZERO).all());
@@ -264,9 +319,9 @@ impl Mat4 {
         let inv_scale = scale.recip();
 
         let rotation = Quat::from_rotation_axes(
-            self.x_axis.mul(inv_scale.x).xyz(),
-            self.y_axis.mul(inv_scale.y).xyz(),
-            self.z_axis.mul(inv_scale.z).xyz(),
+            r.x_axis.mul(inv_scale.x),
+            r.y_axis.mul(inv_scale.y),
+            r.z_axis.mul(inv_scale.z),
         );
 
         let translation = self.w_axis.xyz();
@@ -501,6 +556,8 @@ impl Mat4 {
 
     /// Creates a 4x4 matrix from the first 16 values in `slice`.
     ///
+    /// See also [`Self::from_rows_slice`] when the slice is in row major order.
+    ///
     /// # Panics
     ///
     /// Panics if `slice` is less than 16 elements long.
@@ -538,6 +595,25 @@ impl Mat4 {
         slice[15] = self.w_axis.w;
     }
 
+    /// Creates a 4x4 matrix from the first 16 values in `slice`, stored in row
+    /// major order.
+    ///
+    /// Matrices are stored in column major order, so the slice is permuted into the
+    /// matrix layout. Use [`Self::from_cols_slice`] instead when the slice is already in
+    /// column major order.
+    ///
+    /// # Panics
+    ///
+    /// Panics if `slice` is less than 16 elements long.
+    #[inline]
+    #[must_use]
+    pub const fn from_rows_slice(slice: &[f32]) -> Self {
+        Self::new(
+            slice[0], slice[4], slice[8], slice[12], slice[1], slice[5], slice[9], slice[13],
+            slice[2], slice[6], slice[10], slice[14], slice[3], slice[7], slice[11], slice[15],
+        )
+    }
+
     /// Returns the matrix column for the given `index`.
     ///
     /// # Panics
@@ -573,6 +649,8 @@ impl Mat4 {
 
     /// Returns the matrix row for the given `index`.
     ///
+    /// See also [`Self::set_row`] when you need to change the row.
+    ///
     /// # Panics
     ///
     /// Panics if `index` is greater than 3.
@@ -584,6 +662,46 @@ impl Mat4 {
             1 => Vec4::new(self.x_axis.y, self.y_axis.y, self.z_axis.y, self.w_axis.y),
             2 => Vec4::new(self.x_axis.z, self.y_axis.z, self.z_axis.z, self.w_axis.z),
             3 => Vec4::new(self.x_axis.w, self.y_axis.w, self.z_axis.w, self.w_axis.w),
+            _ => panic!("index out of bounds"),
+        }
+    }
+
+    /// Sets the matrix row for the given `index`.
+    ///
+    /// Matrices are stored in column major order, so the row is spread across all
+    /// 4 columns and writing it touches every column. Use [`Self::col_mut`]
+    /// instead when you can work with columns. See also [`Self::row`].
+    ///
+    /// # Panics
+    ///
+    /// Panics if `index` is greater than 3.
+    #[inline]
+    pub fn set_row(&mut self, index: usize, row: Vec4) {
+        match index {
+            0 => {
+                self.x_axis.x = row.x;
+                self.y_axis.x = row.y;
+                self.z_axis.x = row.z;
+                self.w_axis.x = row.w;
+            }
+            1 => {
+                self.x_axis.y = row.x;
+                self.y_axis.y = row.y;
+                self.z_axis.y = row.z;
+                self.w_axis.y = row.w;
+            }
+            2 => {
+                self.x_axis.z = row.x;
+                self.y_axis.z = row.y;
+                self.z_axis.z = row.z;
+                self.w_axis.z = row.w;
+            }
+            3 => {
+                self.x_axis.w = row.x;
+                self.y_axis.w = row.y;
+                self.z_axis.w = row.z;
+                self.w_axis.w = row.w;
+            }
             _ => panic!("index out of bounds"),
         }
     }

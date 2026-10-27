@@ -170,6 +170,7 @@ downcast-rs
 drm
 drm-ffi
 drm-fourcc
+dtoolkit
 dyn-clone
 either
 elf

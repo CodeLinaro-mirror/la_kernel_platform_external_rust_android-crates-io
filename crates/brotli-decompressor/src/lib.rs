@@ -39,6 +39,7 @@ mod huffman;
 mod state;
 mod prefix;
 mod context;
+mod shared_dictionary;
 pub mod transform;
 mod test;
 mod decode;
@@ -47,6 +48,8 @@ pub mod reader;
 pub mod writer;
 pub use huffman::{HuffmanCode, HuffmanTreeGroup};
 pub use state::BrotliState;
+pub use state::BrotliDecoderErrorCode;
+pub use shared_dictionary::BrotliSharedDictionary;
 #[cfg(feature="ffi-api")]
 pub mod ffi;
 pub use reader::{DecompressorCustomIo};
@@ -337,8 +340,8 @@ pub fn copy_from_to<R: io::Read, W: io::Write>(mut r: R, mut w: W) -> io::Result
 pub struct BrotliDecoderReturnInfo {
     pub decoded_size: usize,
     pub error_string: [u8;256],
-    pub error_code: state::BrotliDecoderErrorCode,
     pub result: BrotliResult,
+    pub error_code: state::BrotliDecoderErrorCode,
 }
 impl BrotliDecoderReturnInfo {
     fn new<AllocU8: Allocator<u8>,

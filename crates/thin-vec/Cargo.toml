@@ -13,7 +13,7 @@
 edition = "2024"
 rust-version = "1.85"
 name = "thin-vec"
-version = "0.2.20"
+version = "0.2.21"
 authors = ["Aria Beingessner <a.beingessner@gmail.com>"]
 build = false
 autolib = false

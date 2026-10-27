@@ -15,7 +15,7 @@
 //! (if any) by their own means.
 //!
 //! **Note:** The futures must have their own means of being woken up, as this executor is,
-//! by itself, not I/O aware. See [`LoopHandle::adapt_io`](crate::LoopHandle#method.adapt_io)
+//! by itself, not I/O aware. See [`LoopHandle::adapt_io`][crate::LoopHandle::adapt_io]
 //! for that, or you can use some other mechanism if you prefer.
 
 use async_task::{Builder, Runnable};
@@ -26,19 +26,20 @@ use std::{
     future::Future,
     rc::Rc,
     sync::{
+        Arc, Mutex,
         atomic::{AtomicBool, Ordering},
-        mpsc, Arc, Mutex,
+        mpsc,
     },
     task::Waker,
 };
 
 use crate::{
-    sources::{
-        channel::ChannelError,
-        ping::{make_ping, Ping, PingError, PingSource},
-        EventSource,
-    },
     Poll, PostAction, Readiness, Token, TokenFactory,
+    sources::{
+        EventSource,
+        channel::ChannelError,
+        ping::{Ping, PingError, PingSource, make_ping},
+    },
 };
 
 /// A future executor as an event source
@@ -256,7 +257,7 @@ impl<T> Drop for Executor<T> {
 pub struct ExecutorDestroyed;
 
 impl fmt::Display for ExecutorDestroyed {
-    #[cfg_attr(feature = "nightly_coverage", coverage(off))]
+    #[cfg_attr(unstable_coverage, coverage(off))]
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.write_str("the executor was destroyed")
     }
@@ -398,7 +399,7 @@ pub enum ExecutorError {
 }
 
 impl fmt::Display for ExecutorError {
-    #[cfg_attr(feature = "nightly_coverage", coverage(off))]
+    #[cfg_attr(unstable_coverage, coverage(off))]
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Self::NewFutureError(err) => write!(f, "error adding new futures: {}", err),

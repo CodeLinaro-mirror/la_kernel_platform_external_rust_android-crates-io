@@ -28,6 +28,7 @@ rust_bindgen {
     wrapper_src: "android/bindgen_wrapper.hpp",
     source_stem: "grpc-bindings",
     crate_name: "grpc_bindgen",
+    extra_deps: ["grpc_wrap.cc"],
     bindgen_flags: [
         "--constified-enum-module grpc_status_code",
         "--default-enum-style rust",

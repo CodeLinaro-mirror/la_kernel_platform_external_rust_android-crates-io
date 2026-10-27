@@ -12,9 +12,14 @@
 [package]
 edition = "2018"
 name = "escape8259"
-version = "0.5.3"
+version = "0.5.4"
 authors = ["Eric Seppanen <eds@reric.net>"]
-exclude = ["Cranky.toml"]
+build = false
+autolib = false
+autobins = false
+autoexamples = false
+autotests = false
+autobenches = false
 description = "RFC8259-compliant string escaping and un-escaping"
 readme = "README.md"
 keywords = [
@@ -28,6 +33,10 @@ repository = "https://github.com/ericseppanen/escape8259"
 
 [package.metadata.release]
 pre-release-commit-message = "release {{version}}"
+
+[lib]
+name = "escape8259"
+path = "src/lib.rs"
 
 [dev-dependencies.rustversion]
 version = "1.0"

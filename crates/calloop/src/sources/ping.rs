@@ -1,7 +1,7 @@
 //! Ping to the event loop
 //!
 //! This is an event source that just produces `()` events whevener the associated
-//! [`Ping::ping`](Ping#method.ping) method is called. If the event source is pinged multiple times
+//! [`Ping::ping`] method is called. If the event source is pinged multiple times
 //! between a single dispatching, it'll only generate one event.
 //!
 //! This event source is a simple way of waking up the event loop from an other part of your program
@@ -43,33 +43,33 @@ pub fn make_ping() -> std::io::Result<(Ping, PingSource)> {
     platform::make_ping()
 }
 
+/// The Ping handle
+///
+/// This handle can be cloned and sent accross threads. It can be used to
+/// send pings to the `PingSource`.
+pub use platform::Ping;
+
 /// The ping event source
 ///
 /// You can insert it in your event loop to receive pings.
 ///
 /// If you use it directly, it will automatically remove itself from the event loop
 /// once all [`Ping`] instances are dropped.
-pub type Ping = platform::Ping;
-
-/// The Ping handle
-///
-/// This handle can be cloned and sent accross threads. It can be used to
-/// send pings to the `PingSource`.
-pub type PingSource = platform::PingSource;
+pub use platform::PingSource;
 
 /// An error arising from processing events for a ping.
 #[derive(Debug)]
 pub struct PingError(Box<dyn std::error::Error + Sync + Send>);
 
 impl fmt::Display for PingError {
-    #[cfg_attr(feature = "nightly_coverage", coverage(off))]
+    #[cfg_attr(unstable_coverage, coverage(off))]
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         fmt::Display::fmt(&self.0, f)
     }
 }
 
 impl std::error::Error for PingError {
-    #[cfg_attr(feature = "nightly_coverage", coverage(off))]
+    #[cfg_attr(unstable_coverage, coverage(off))]
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         Some(&*self.0)
     }

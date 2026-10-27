@@ -1444,10 +1444,10 @@ macro_rules! impl_vec4_float_tests {
             assert_eq!(5.0, (3.0 * x).distance(-4.0 * y));
             assert_eq!(13.0, (-5.0 * w).distance(12.0 * y));
             assert_eq!(x, (2.0 * x).normalize());
-            assert_eq!(
-                1.0 * 5.0 + 2.0 * 6.0 + 3.0 * 7.0 + 4.0 * 8.0,
-                $new(1.0, 2.0, 3.0, 4.0).dot($new(5.0, 6.0, 7.0, 8.0))
-            );
+            let v1 = $new(1.0, 2.0, 3.0, 4.0);
+            let v2 = $new(5.0, 6.0, 7.0, 8.0);
+            assert_eq!(1.0 * 5.0 + 2.0 * 6.0 + 3.0 * 7.0 + 4.0 * 8.0, v1.dot(v2));
+            assert_eq!($vec4::splat(v1.dot(v2)), v1.dot_into_vec(v2));
             assert_eq!(
                 (2.0 as $t * 2.0 + 3.0 * 3.0 + 4.0 * 4.0 + 5.0 * 5.0).sqrt(),
                 $new(2.0, 3.0, 4.0, 5.0).length()
@@ -1728,6 +1728,15 @@ macro_rules! impl_vec4_float_tests {
             assert_eq!($vec4::new(0.0, 21.1, 0.0, 0.0).round().y, 21.0);
             assert_eq!($vec4::new(0.0, 0.0, 0.0, 11.123).round().w, 11.0);
             assert_eq!($vec4::new(0.0, 0.0, 11.501, 0.0).round().z, 12.0);
+            // half-way cases round away from zero, not to the nearest even integer
+            assert_eq!(
+                $vec4::new(0.5, -0.5, 2.5, -2.5).round(),
+                $vec4::new(1.0, -1.0, 3.0, -3.0)
+            );
+            assert_eq!(
+                $vec4::new(3.5, -3.5, 4.5, -4.5).round(),
+                $vec4::new(4.0, -4.0, 5.0, -5.0)
+            );
             assert_eq!(
                 $vec4::new($t::NEG_INFINITY, $t::INFINITY, 1.0, -1.0).round(),
                 $vec4::new($t::NEG_INFINITY, $t::INFINITY, 1.0, -1.0)

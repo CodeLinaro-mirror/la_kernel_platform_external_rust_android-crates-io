@@ -13,7 +13,7 @@
 edition = "2021"
 rust-version = "1.59.0"
 name = "serialport"
-version = "4.9.0"
+version = "4.10.1"
 authors = [
     "Bryant Mairs <bryant@mai.rs>",
     "Jesse Braham <jesse@beta7.io>",
@@ -41,6 +41,7 @@ repository = "https://github.com/serialport/serialport-rs"
 default = ["libudev"]
 hardware-tests = []
 usbportinfo-interface = []
+usbportinfo-location = []
 
 [lib]
 name = "serialport"

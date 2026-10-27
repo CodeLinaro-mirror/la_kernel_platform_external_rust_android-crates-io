@@ -115,7 +115,7 @@ impl EventSource for Timer {
     where
         F: FnMut(Self::Event, &mut Self::Metadata) -> Self::Ret,
     {
-        if let (Some(ref registration), Some(ref deadline)) = (&self.registration, &self.deadline) {
+        if let (Some(registration), Some(deadline)) = (&self.registration, &self.deadline) {
             if registration.token != token {
                 return Ok(PostAction::Continue);
             }
@@ -276,7 +276,7 @@ impl std::cmp::PartialOrd for TimeoutData {
 // This impl is required for PartialOrd but actually never used
 // and the type is private, so ignore its coverage
 impl std::cmp::PartialEq for TimeoutData {
-    #[cfg_attr(feature = "nightly_coverage", coverage(off))]
+    #[cfg_attr(unstable_coverage, coverage(off))]
     #[inline]
     fn eq(&self, other: &Self) -> bool {
         self.deadline == other.deadline
@@ -294,7 +294,7 @@ pub struct TimeoutFuture {
 }
 
 impl std::fmt::Debug for TimeoutFuture {
-    #[cfg_attr(feature = "nightly_coverage", coverage(off))]
+    #[cfg_attr(unstable_coverage, coverage(off))]
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("TimeoutFuture")
             .field("deadline", &self.deadline)
