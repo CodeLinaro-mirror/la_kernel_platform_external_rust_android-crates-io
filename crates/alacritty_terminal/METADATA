@@ -1,0 +1,17 @@
+name: "alacritty_terminal"
+description: "Library for writing terminal emulators"
+third_party {
+  version: "0.26.0"
+  license_type: NOTICE
+  last_upgrade_date {
+    year: 2026
+    month: 10
+    day: 23
+  }
+  homepage: "https://crates.io/crates/alacritty_terminal"
+  identifier {
+    type: "crates.io"
+    value: "alacritty_terminal"
+    version: "0.26.0"
+  }
+}

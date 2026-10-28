@@ -1,0 +1,10 @@
+{
+  "postsubmit": [
+    {
+      "name": "alacritty_terminal_test_src_lib"
+    },
+    {
+      "name": "alacritty_terminal_test_tests_ref"
+    }
+  ]
+}

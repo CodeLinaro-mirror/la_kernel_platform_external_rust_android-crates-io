@@ -4,6 +4,7 @@ acpi
 adler2
 ahash
 aho-corasick
+alacritty_terminal
 alloc-no-stdlib
 alloc-stdlib
 alloca
@@ -505,6 +506,7 @@ rustc-hash
 rustc-stable-hash
 rustfft
 rustix
+rustix-openpty
 rustls
 rustls-native-certs
 rustls-pki-types
@@ -679,6 +681,7 @@ vmm-sys-util
 volatile
 vsock
 vsprintf
+vte
 vulkano
 walkdir
 want
