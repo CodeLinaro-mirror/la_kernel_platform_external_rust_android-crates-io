@@ -69,6 +69,17 @@ impl ReplySender {
             ReplySender::Sync(_) => unreachable!(),
         }
     }
+
+    /// Wraps a raw backing file ID
+    pub(crate) unsafe fn wrap_backing(&self, id: u32) -> BackingId {
+        match self {
+            ReplySender::Channel(sender) => unsafe { sender.wrap_backing(id) },
+            #[cfg(test)]
+            ReplySender::Assert(_) => unreachable!(),
+            #[cfg(test)]
+            ReplySender::Sync(_) => unreachable!(),
+        }
+    }
 }
 
 #[cfg(test)]
@@ -232,6 +243,33 @@ impl ReplyEntry {
         ));
     }
 
+    /// Reply to a request with the given entry.
+    ///
+    /// Use this function instead of `ReplyEntry::entry` if the
+    /// entry TTL needs to be different from the attribute TTL.
+    ///
+    /// * `attr_ttl` - Time-to-live for the file attributes. Controls how long the
+    ///   kernel will cache inode metadata (e.g., size, permissions, timestamps)
+    ///   before issuing a new `GETATTR` request.
+    /// * `entry_ttl` - Time-to-live for the directory entry (name-to-inode mapping).
+    ///   Controls how long the kernel will cache the existence of this
+    ///   path without issuing a new `LOOKUP` request.
+    pub fn entry_with_ttls(
+        self,
+        attr_ttl: &Duration,
+        entry_ttl: &Duration,
+        attr: &FileAttr,
+        generation: Generation,
+    ) {
+        self.reply.send_ll(&ll::ResponseStruct::new_entry(
+            attr.ino,
+            generation,
+            &attr.into(),
+            *attr_ttl,
+            *entry_ttl,
+        ));
+    }
+
     /// Reply to a request with the given error code
     pub fn error(self, err: Errno) {
         self.reply.error(err);
@@ -328,15 +366,34 @@ impl ReplyOpen {
 
     /// Registers a fd for passthrough, returning a `BackingId`.  Once you have the backing ID,
     /// you can pass it as the 3rd parameter of [`ReplyOpen::opened_passthrough()`]. This is done in
-    /// two separate steps because it may make sense to reuse backing IDs (to avoid having to
-    /// repeatedly reopen the underlying file or potentially keep thousands of fds open).
+    /// two separate steps because you must reuse backing IDs for the same inode for all open file handles.
     pub fn open_backing(&self, fd: impl std::os::fd::AsFd) -> std::io::Result<BackingId> {
         // TODO: assert passthrough capability is enabled.
         self.reply.sender.as_ref().unwrap().open_backing(fd.as_fd())
     }
 
+    /// Wraps a raw FUSE `backing_id` value, returning a `BackingId`. Once you have the backing ID,
+    /// you can pass it as the 3rd parameter of [`ReplyOpen::opened_passthrough()`]. This is done in
+    /// two separate steps because you must reuse backing IDs for the same inode for all open file handles.
+    ///
+    /// This function takes ownership of the given backing ID value, automatically closing it once
+    /// the returned `BackingId` is dropped. You may reobtain ownership of the backing ID by calling
+    /// [`BackingId::into_raw()`].
+    ///
+    /// # Safety
+    ///
+    /// The given ID must be open and belong to this FUSE session, and may not be closed while the
+    /// returned `BackingId` instance is still live.
+    pub unsafe fn wrap_backing(&self, id: u32) -> BackingId {
+        // TODO: assert passthrough capability is enabled.
+        unsafe { self.reply.sender.as_ref().unwrap().wrap_backing(id) }
+    }
+
     /// Reply to a request with an opened backing id. Call [`ReplyOpen::open_backing()`]
     /// to get one of these.
+    ///
+    /// Note that you must reuse the given `BackingId` for all future [`ReplyOpen::opened_passthrough()`]
+    /// invocations as long as the passed file handle stays open!
     pub fn opened_passthrough(self, fh: ll::FileHandle, flags: FopenFlags, backing_id: &BackingId) {
         // TODO: assert passthrough capability is enabled.
         let flags = flags | FopenFlags::FOPEN_PASSTHROUGH;
@@ -468,14 +525,33 @@ impl ReplyCreate {
 
     /// Registers a fd for passthrough, returning a `BackingId`.  Once you have the backing ID,
     /// you can pass it as the 6th parameter of `ReplyCreate::created_passthrough()`.  This is done in
-    /// two separate steps because it may make sense to reuse backing IDs (to avoid having to
-    /// repeatedly reopen the underlying file or potentially keep thousands of fds open).
+    /// two separate steps because you must reuse backing IDs for the same inode for all open file handles.
     pub fn open_backing(&self, fd: impl std::os::fd::AsFd) -> std::io::Result<BackingId> {
         self.reply.sender.as_ref().unwrap().open_backing(fd.as_fd())
     }
 
-    /// Reply to a request with an opened backing id. Call `ReplyCreate::open_backing()` to get one of
+    /// Wraps a raw FUSE `backing_id` value, returning a `BackingId`. Once you have the backing ID,
+    /// you can pass it as the 3rd parameter of [`ReplyCreate::created_passthrough()`]. This is done in
+    /// two separate steps because you must reuse backing IDs for the same inode for all open file handles.
+    ///
+    /// This function takes ownership of the given backing ID value, automatically closing it once
+    /// the returned `BackingId` is dropped. You may reobtain ownership of the backing ID by calling
+    /// [`BackingId::into_raw()`].
+    ///
+    /// # Safety
+    ///
+    /// The given ID must be open and belong to this FUSE session, and may not be closed while the
+    /// returned `BackingId` instance is still live.
+    pub unsafe fn wrap_backing(&self, id: u32) -> BackingId {
+        // TODO: assert passthrough capability is enabled.
+        unsafe { self.reply.sender.as_ref().unwrap().wrap_backing(id) }
+    }
+
+    /// Reply to a request with an opened backing id. Call [`ReplyCreate::open_backing()`] to get one of
     /// these.
+    ///
+    /// Note that you must reuse the given `BackingId` for all future [`ReplyOpen::opened_passthrough()`]
+    /// invocations as long as the passed file handle stays open!
     pub fn created_passthrough(
         self,
         ttl: &Duration,

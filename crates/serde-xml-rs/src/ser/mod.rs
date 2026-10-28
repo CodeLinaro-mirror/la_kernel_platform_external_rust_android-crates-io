@@ -87,7 +87,7 @@ impl<W> Serializer<W>
 where
     W: Write,
 {
-    fn new_from_writer(writer: EventWriter<W>) -> Self {
+    pub fn new_from_writer(writer: EventWriter<W>) -> Self {
         Self {
             writer,
             root: true,
@@ -109,18 +109,9 @@ where
         self.next(XmlEvent::characters(s))
     }
 
-    fn start_document(&mut self) -> Result<()> {
-        self.next(XmlEvent::StartDocument {
-            encoding: Default::default(),
-            standalone: Default::default(),
-            version: xml::common::XmlVersion::Version10,
-        })
-    }
-
     fn open_root_tag(&mut self, name: &'static str) -> Result<()> {
         if self.root {
             self.root = false;
-            self.start_document()?;
             self.open_tag(name)?;
         }
         Ok(())
@@ -269,9 +260,9 @@ impl<'ser, W: Write> serde::ser::Serializer for &'ser mut Serializer<W> {
         Ok(())
     }
 
-    fn serialize_some<T: ?Sized>(self, value: &T) -> Result<Self::Ok>
+    fn serialize_some<T>(self, value: &T) -> Result<Self::Ok>
     where
-        T: Serialize,
+        T: ?Sized + Serialize,
     {
         debug!("Some");
         value.serialize(self)
@@ -304,15 +295,15 @@ impl<'ser, W: Write> serde::ser::Serializer for &'ser mut Serializer<W> {
         Ok(())
     }
 
-    fn serialize_newtype_struct<T: ?Sized>(self, name: &'static str, value: &T) -> Result<Self::Ok>
+    fn serialize_newtype_struct<T>(self, name: &'static str, value: &T) -> Result<Self::Ok>
     where
-        T: Serialize,
+        T: ?Sized + Serialize,
     {
         debug!("Newtype struct {}", name);
         value.serialize(self)
     }
 
-    fn serialize_newtype_variant<T: ?Sized>(
+    fn serialize_newtype_variant<T>(
         self,
         name: &'static str,
         _variant_index: u32,
@@ -320,7 +311,7 @@ impl<'ser, W: Write> serde::ser::Serializer for &'ser mut Serializer<W> {
         value: &T,
     ) -> Result<Self::Ok>
     where
-        T: Serialize,
+        T: ?Sized + Serialize,
     {
         let must_close_tag = self.build_start_tag()?;
 
@@ -413,7 +404,7 @@ mod tests {
             name: "Bob".to_string(),
             age: 42,
         };
-        let should_be = "<?xml version=\"1.0\" encoding=\"UTF-8\"?><Person><name>Bob</name><age>42</age></Person>";
+        let should_be = "<?xml version=\"1.0\" encoding=\"utf-8\"?><Person><name>Bob</name><age>42</age></Person>";
         let mut buffer = Vec::new();
 
         {
@@ -442,6 +433,36 @@ mod tests {
             let mut ser = Serializer::new(&mut buffer);
             let node = Node::Boolean(true);
             node.serialize(&mut ser).unwrap();
+        }
+
+        let got = String::from_utf8(buffer).unwrap();
+        assert_eq!(got, should_be);
+    }
+
+    #[test]
+    fn test_serialize_struct_no_declaration() {
+        // Verify that document declaration obeys the EmitterConfig.
+
+        #[derive(Serialize)]
+        struct Person {
+            name: String,
+            age: u32,
+        }
+
+        let bob = Person {
+            name: "Bob".to_string(),
+            age: 42,
+        };
+        let should_be = "<Person><name>Bob</name><age>42</age></Person>";
+        let mut buffer = Vec::new();
+
+        let writer = EmitterConfig::new()
+            .write_document_declaration(false)
+            .create_writer(&mut buffer);
+
+        {
+            let mut ser = Serializer::new_from_writer(writer);
+            bob.serialize(&mut ser).unwrap();
         }
 
         let got = String::from_utf8(buffer).unwrap();

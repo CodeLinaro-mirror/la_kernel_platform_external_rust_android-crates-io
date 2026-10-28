@@ -12,13 +12,21 @@
 [package]
 edition = "2021"
 name = "open-enum-derive"
-version = "0.5.2"
+version = "0.5.3"
+authors = ["Alyssa Haroldsen <kupiakos@gmail.com>"]
+build = false
 include = [
     "/src",
-    "LICENSE",
+    "/LICENSE",
+    "/NOTICE",
     "Cargo.toml",
 ]
-description = "An attribute for generating \"open\" C-like enums, those that accept any integer value, by using a newtype struct and associated constants"
+autolib = false
+autobins = false
+autoexamples = false
+autotests = false
+autobenches = false
+description = 'An attribute for generating "open" C-like enums, those that accept any integer value, by using a newtype struct and associated constants'
 readme = "README.md"
 keywords = [
     "enum",
@@ -33,7 +41,12 @@ categories = [
 license = "Apache-2.0"
 repository = "https://github.com/kupiakos/open-enum/tree/main/derive"
 
+[features]
+repr_c = []
+
 [lib]
+name = "open_enum_derive"
+path = "src/lib.rs"
 proc-macro = true
 
 [dependencies.proc-macro2]
@@ -45,6 +58,3 @@ version = "1"
 [dependencies.syn]
 version = "2"
 features = ["full"]
-
-[features]
-repr_c = []

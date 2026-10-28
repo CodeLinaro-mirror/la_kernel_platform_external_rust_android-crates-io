@@ -6,6 +6,7 @@ pub use alloc_stdlib::StandardAlloc;
 pub use alloc_stdlib::HeapAlloc;
 pub use huffman::{HuffmanCode, HuffmanTreeGroup};
 pub use state::BrotliState;
+use state::BrotliDecoderParameter;
 // use io_wrappers::write_all;
 pub use io_wrappers::{CustomRead, CustomWrite};
 #[cfg(feature="std")]
@@ -66,6 +67,12 @@ impl<R: Read,
     }
     pub fn attach_serialized_dictionary(&mut self, dict: AllocU8::AllocatedMemory) -> bool {
       self.0.attach_serialized_dictionary(dict)
+    }
+    pub fn set_parameter(&mut self, param: BrotliDecoderParameter, value: u32) -> bool {
+      self.0.set_parameter(param, value)
+    }
+    pub fn set_initial_ring_buffer_size(&mut self, size: u32) -> bool {
+      self.0.set_initial_ring_buffer_size(size)
     }
 
     pub fn get_ref(&self) -> &R {
@@ -138,6 +145,19 @@ impl<R: Read> Decompressor<R> {
     self.0.attach_serialized_dictionary(dict)
   }
 
+  // Sets a decoder parameter (see BrotliState::set_parameter); only allowed
+  // before the first read.
+  pub fn set_parameter(&mut self, param: BrotliDecoderParameter, value: u32) -> bool {
+    self.0.set_parameter(param, value)
+  }
+
+  // Sets the smallest ring buffer the decoder starts from (see
+  // BrotliState::set_initial_ring_buffer_size); only allowed before the first
+  // read.
+  pub fn set_initial_ring_buffer_size(&mut self, size: u32) -> bool {
+    self.0.set_initial_ring_buffer_size(size)
+  }
+
   pub fn get_ref(&self) -> &R {
     &self.0.get_ref()
   }
@@ -193,6 +213,19 @@ impl<R: Read> Decompressor<R> {
   // before the first read.
   pub fn attach_serialized_dictionary(&mut self, dict: <HeapAlloc<u8> as Allocator<u8>>::AllocatedMemory) -> bool {
     self.0.attach_serialized_dictionary(dict)
+  }
+
+  // Sets a decoder parameter (see BrotliState::set_parameter); only allowed
+  // before the first read.
+  pub fn set_parameter(&mut self, param: BrotliDecoderParameter, value: u32) -> bool {
+    self.0.set_parameter(param, value)
+  }
+
+  // Sets the smallest ring buffer the decoder starts from (see
+  // BrotliState::set_initial_ring_buffer_size); only allowed before the first
+  // read.
+  pub fn set_initial_ring_buffer_size(&mut self, size: u32) -> bool {
+    self.0.set_initial_ring_buffer_size(size)
   }
 
   pub fn get_ref(&self) -> &R {
@@ -276,6 +309,19 @@ impl<ErrType,
     // allowed before the first read.
     pub fn attach_serialized_dictionary(&mut self, dict: AllocU8::AllocatedMemory) -> bool {
       self.state.attach_serialized_dictionary(dict)
+    }
+
+    // Sets a decoder parameter (see BrotliState::set_parameter); only
+    // allowed before the first read.
+    pub fn set_parameter(&mut self, param: BrotliDecoderParameter, value: u32) -> bool {
+      self.state.set_parameter(param, value)
+    }
+
+    // Sets the smallest ring buffer the decoder starts from (see
+    // BrotliState::set_initial_ring_buffer_size); only allowed before the
+    // first read.
+    pub fn set_initial_ring_buffer_size(&mut self, size: u32) -> bool {
+      self.state.set_initial_ring_buffer_size(size)
     }
 
     pub fn get_ref(&self) -> &R {

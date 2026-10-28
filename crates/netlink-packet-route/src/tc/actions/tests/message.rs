@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: MIT
 
-use netlink_packet_core::{DefaultNla, Emitable, NlaBuffer, Parseable};
+use netlink_packet_core::{DefaultNla, Emitable, Nla, NlaBuffer, Parseable};
 
 use crate::{
     tc::{
@@ -12,7 +12,7 @@ use crate::{
                 },
                 TcActionMessageFlags, TcActionMessageFlagsWithSelector,
             },
-            TcActionMessageBuffer, TcActionMessageHeader,
+            TcActionMessageHeader,
         },
         TcAction,
         TcActionAttribute::{Cookie, Index, Kind},
@@ -30,7 +30,7 @@ mod mirror {
                     TcActionMessage,
                     TcActionMessageAttribute::{Actions, RootCount},
                 },
-                TcActionMessageBuffer, TcActionMessageHeader,
+                TcActionMessageHeader,
             },
             TcAction,
             TcActionAttribute::{InHwCount, Kind, Options, Other, Stats},
@@ -144,10 +144,7 @@ mod mirror {
             }])],
         };
 
-        let parsed = TcActionMessage::parse(
-            &TcActionMessageBuffer::new_checked(&message::CREATE1).unwrap(),
-        )
-        .unwrap();
+        let parsed = TcActionMessage::parse(message::CREATE1).unwrap();
         assert_eq!(parsed, expected);
     }
 
@@ -177,10 +174,7 @@ mod mirror {
         };
 
         let buf = message::CREATE2;
-        let parsed = TcActionMessage::parse(
-            &TcActionMessageBuffer::new_checked(&buf).unwrap(),
-        )
-        .unwrap();
+        let parsed = TcActionMessage::parse(buf).unwrap();
         assert_eq!(parsed, expected);
     }
 
@@ -291,10 +285,7 @@ mod mirror {
                 ]),
             ],
         };
-        let parsed = TcActionMessage::parse(
-            &TcActionMessageBuffer::new_checked(&message::LIST).unwrap(),
-        )
-        .unwrap();
+        let parsed = TcActionMessage::parse(message::LIST).unwrap();
         assert_eq!(parsed, expected);
     }
 }
@@ -384,10 +375,7 @@ fn tc_action_message_parse_back_default() {
     let orig = TcActionMessage::default();
     let mut buffer = vec![0; orig.buffer_len()];
     orig.emit(&mut buffer);
-    let parsed = TcActionMessage::parse(
-        &TcActionMessageBuffer::new_checked(buffer.as_slice()).unwrap(),
-    )
-    .unwrap();
+    let parsed = TcActionMessage::parse(buffer.as_slice()).unwrap();
     assert_eq!(orig, parsed);
 }
 
@@ -413,9 +401,29 @@ fn tc_action_message_parse_back_example_value() {
     };
     let mut buffer = vec![0; orig.buffer_len()];
     orig.emit(&mut buffer);
-    let parsed = TcActionMessage::parse(
-        &TcActionMessageBuffer::new_checked(buffer.as_slice()).unwrap(),
-    )
-    .unwrap();
+    let parsed = TcActionMessage::parse(buffer.as_slice()).unwrap();
     assert_eq!(orig, parsed);
+}
+
+#[test]
+fn tc_action_root_time_delta_native_byte_order() {
+    // TCA_ROOT_TIME_DELTA is an NLA_U32 attribute: the kernel reads it with
+    // nla_get_u32(), i.e. in native byte order. The payload must therefore be
+    // the native-endian bytes of the value, not big-endian.
+    let value = 0x12345678u32;
+    let attr = RootTimeDelta(value);
+
+    let mut payload = vec![0u8; attr.value_len()];
+    attr.emit_value(&mut payload);
+    assert_eq!(payload, value.to_ne_bytes());
+
+    let mut raw = Vec::new();
+    raw.extend_from_slice(&8u16.to_ne_bytes());
+    raw.extend_from_slice(&attr.kind().to_ne_bytes());
+    raw.extend_from_slice(&value.to_ne_bytes());
+    let buf = NlaBuffer::new_checked(&raw).unwrap();
+    assert_eq!(
+        TcActionMessageAttribute::parse(&buf).unwrap(),
+        RootTimeDelta(value)
+    );
 }

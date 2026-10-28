@@ -55,10 +55,7 @@ where
     T: PartialEq + Debug + ser::Serialize + de::Deserialize<'de>,
 {
     for &s in errors {
-        assert!(match from_str::<T>(s) {
-            Err(Error::Syntax { source: _ }) => true,
-            _ => false,
-        });
+        matches!(from_str::<T>(s), Err(Error::Syntax { source: _ }));
     }
 }
 
@@ -69,8 +66,7 @@ fn test_namespaces() {
     struct Envelope {
         subject: String,
     }
-    let s = r#"
-    <?xml version="1.0" encoding="UTF-8"?>
+    let s = r#"<?xml version="1.0" encoding="UTF-8"?>
     <gesmes:Envelope xmlns:gesmes="http://www.gesmes.org/xml/2002-08-01" xmlns="http://www.ecb.int/vocabulary/2002-08-01/eurofxref">
         <gesmes:subject>Reference rates</gesmes:subject>
     </gesmes:Envelope>"#;
@@ -92,8 +88,7 @@ fn test_doctype() {
 
     test_parse_ok(&[
         (
-            r#"
-            <?xml version="1.0" encoding="UTF-8"?>
+            r#"<?xml version="1.0" encoding="UTF-8"?>
             <!DOCTYPE Envelope>
             <Envelope>
             <subject>Reference rates</subject>
@@ -103,8 +98,7 @@ fn test_doctype() {
             },
         ),
         (
-            r#"
-            <?xml version="1.0" encoding="UTF-8"?>
+            r#"<?xml version="1.0" encoding="UTF-8"?>
             <!DOCTYPE Envelope[]>
             <Envelope>
             <subject>Reference rates</subject>
@@ -114,8 +108,7 @@ fn test_doctype() {
             },
         ),
         (
-            r#"
-            <?xml version="1.0" encoding="UTF-8"?>
+            r#"<?xml version="1.0" encoding="UTF-8"?>
             <!DOCTYPE Envelope [
                 <!ELEMENT subject (#PCDATA)>
             ] >
@@ -360,8 +353,7 @@ fn test_nicolai86() {
     }
     test_parse_ok(&[
         (
-            r#"
-            <?xml version="1.0" encoding="UTF-8"?>
+            r#"<?xml version="1.0" encoding="UTF-8"?>
             <gesmes:Envelope xmlns:gesmes="http://www.gesmes.org/xml/2002-08-01" xmlns="http://www.ecb.int/vocabulary/2002-08-01/eurofxref">
                 <gesmes:subject>Reference rates</gesmes:subject>
                 <gesmes:Sender>
@@ -378,8 +370,7 @@ fn test_nicolai86() {
             },
         ),
         (
-            r#"
-            <?xml version="1.0" encoding="UTF-8"?>
+            r#"<?xml version="1.0" encoding="UTF-8"?>
             <gesmes:Envelope xmlns:gesmes="http://www.gesmes.org/xml/2002-08-01" xmlns="http://www.ecb.int/vocabulary/2002-08-01/eurofxref">
                 <gesmes:subject>Reference rates</gesmes:subject>
                 <gesmes:Sender>
@@ -417,8 +408,7 @@ fn test_nicolai86() {
 #[test]
 fn test_hugo_duncan2() {
     init_logger();
-    let s = r#"
-    <?xml version="1.0" encoding="UTF-8"?>
+    let s = r#"<?xml version="1.0" encoding="UTF-8"?>
     <DescribeVpcsResponse xmlns="http://ec2.amazonaws.com/doc/2014-10-01/">
         <requestId>8d521e9a-509e-4ef6-bbb7-9f1ac0d49cd1</requestId>
         <vpcSet>
@@ -472,8 +462,7 @@ fn test_hugo_duncan2() {
 #[test]
 fn test_hugo_duncan() {
     init_logger();
-    let s = "
-        <?xml version=\"1.0\" encoding=\"UTF-8\"?>
+    let s = "<?xml version=\"1.0\" encoding=\"UTF-8\"?>
         <DescribeInstancesResponse xmlns=\"http://ec2.amazonaws.com/doc/2014-10-01/\">
             <requestId>9474f558-10a5-42e8-84d1-f9ee181fe943</requestId>
             <reservationSet/>

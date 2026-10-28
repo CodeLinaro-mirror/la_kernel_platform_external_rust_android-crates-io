@@ -3,6 +3,31 @@
 [![crates.io](https://img.shields.io/crates/v/brotli-decompressor.svg)](https://crates.io/crates/brotli-decompressor)
 [![Build Status](https://travis-ci.org/dropbox/rust-brotli-decompressor.svg?branch=master)](https://travis-ci.org/dropbox/rust-brotli-decompressor)
 
+## What's new in version 6.2.0
+
+* Configurable metadata metablock callback
+* Return correct error code for inputs that would trigger CVE-2026-111497 on the C decoder
+
+
+## What's new in version 6.1.1
+
+* Performance improvements for dictionaries, small reads, and large streams
+
+## What's new in version 6.1.0
+
+* Dynamic ring buffer: ring buffer is only allocated as needed
+* Ability to select previous mechanisms at init time.
+* Copy performance optimization
+* Optimize huffman tree sizes
+* Bit reader optimizations
+
+## What's new in version 6.0.1
+
+* The C API's default Rust allocator now reports allocation failures as decoder
+  errors (or null from its allocation helpers) instead of aborting the process.
+* Fixed undefined behavior in mutable slice handling and ensured partially
+  initialized fallback allocations are cleaned up if initialization panics.
+
 ## What's new in version 6.0.0
 
 * Unlike previous code, these commits were effectively authored by Claude.
@@ -202,6 +227,10 @@ let heap_hc_allocator = HeapPrealloc::<HuffmanCode>::new_allocator(4096, &mut hc
 // Now it's possible to setup the decompressor state
 let mut brotli_state = BrotliState::new(heap_u8_allocator, heap_u32_allocator, heap_hc_allocator);
 
+// The pool never merges the blocks it gets back, so allocate the ring buffer's
+// whole window at once rather than growing it (see below)
+brotli_state.set_initial_ring_buffer_size(u32::MAX);
+
 // at this point the decompressor simply needs an input and output buffer and the ability to track
 // the available data left in each buffer
 loop {
@@ -214,6 +243,52 @@ loop {
 ```
 
 This interface is the same interface that the C brotli decompressor uses
+
+Like the C decoder, the decoder starts its ring buffer at 1 KiB and grows it
+on demand, up to the stream's window, so a short stream never pays for the
+whole window. Each time the ring buffer grows, the old one goes back to the
+allocator. A pool like the one above never merges the blocks it gets back,
+so growing the ring buffer to the window can take up to twice the window
+from it, and the pool panics when it runs out. Calling
+`set_initial_ring_buffer_size(u32::MAX)` before decoding allocates the whole
+window at once instead, so the pool needs only the window plus 566 bytes for
+the ring buffer. A stream whose data is all in its last metablock still gets
+a ring buffer of just its size, as does small or incompressible input, which
+encoders store as an uncompressed metablock and an empty last one, when that
+empty metablock is already in the input as the uncompressed one starts.
+Other values set the smallest ring buffer to start from, rounded up to a
+power of two. The C API's
+`BROTLI_DECODER_PARAM_DISABLE_RING_BUFFER_REALLOCATION`, set with
+`set_parameter(BrotliDecoderParameter::BROTLI_DECODER_PARAM_DISABLE_RING_BUFFER_REALLOCATION, 1)`,
+always allocates the whole window, even for such streams, and overrides
+`set_initial_ring_buffer_size`.
+Both can only be set before decoding starts, and the `Decompressor` and
+`DecompressorWriter` wrappers, including their custom allocator and I/O
+variants, offer them too. `brotli_decode_prealloc` sizes the ring buffer for
+its scratch pool by itself.
+
+### With a dictionary that lives elsewhere
+
+`attach_dictionary` takes memory from the decoder's own allocator, and
+`attach_dictionary_borrowed` borrows only a `&'static [u8]`. A dictionary
+owned elsewhere, such as a buffer read at runtime and shared by many decoders,
+can instead be attached by its size alone and lent to every call, so it only
+has to outlive each call:
+
+```rust
+brotli_state.attach_external_dictionary(dictionary.len()); // before decoding
+loop {
+    result = BrotliDecompressStreamWithDictionary(&mut available_in, &mut input_offset, &input,
+                                                  &mut available_out, &mut output_offset, &mut output,
+                                                  &mut written, &dictionary, &mut brotli_state);
+    // ...
+}
+```
+
+Every call must lend a dictionary of the attached size; any other size,
+including none from `BrotliDecompressStream`, fails with
+`BROTLI_DECODER_ERROR_INVALID_ARGUMENTS`. At most one dictionary can be
+attached this way.
 
 Also feel free to use custom allocators that invoke Box directly.
 This example illustrates a mechanism to avoid subsequent syscalls after the initial allocation

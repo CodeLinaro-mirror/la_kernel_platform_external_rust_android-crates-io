@@ -12,9 +12,9 @@
 [package]
 edition = "2021"
 name = "vhost"
-version = "0.17.0"
+version = "0.18.0"
 authors = ["Liu Jiang <gerry@linux.alibaba.com>"]
-build = false
+build = "build.rs"
 autolib = false
 autobins = false
 autoexamples = false
@@ -34,18 +34,32 @@ repository = "https://github.com/rust-vmm/vhost"
 
 [package.metadata.docs.rs]
 all-features = true
-rustc-args = ["--cfg RUSTDOC_disable_feature_compat_errors"]
+rustc-args = [
+    "--cfg",
+    "RUSTDOC_disable_feature_compat_errors",
+]
 
 [package.metadata.cargo-all-features]
-skip_feature_sets = [[
+skip_feature_sets = [
+    [
     "xen",
     "postcopy",
-]]
-denylist = ["test_utils"]
+],
+    [
+    "xen",
+    "postcopy-frontend",
+],
+    [
+    "postcopy",
+    "postcopy-frontend",
+],
+]
+denylist = ["test-utils"]
 
 [features]
 default = []
-postcopy = []
+postcopy = ["postcopy-frontend"]
+postcopy-frontend = []
 test-utils = []
 vhost-kern = []
 vhost-net = ["vhost-kern"]
@@ -82,7 +96,7 @@ features = ["backend-mmap"]
 version = "0.15.0"
 
 [dev-dependencies.serial_test]
-version = "3.0"
+version = "4.0"
 
 [dev-dependencies.tempfile]
 version = "3.2.0"

@@ -7,6 +7,9 @@
   "postsubmit": [
     {
       "name": "fragile_test_src_lib"
+    },
+    {
+      "name": "fragile_test_tests_safety"
     }
   ]
 }

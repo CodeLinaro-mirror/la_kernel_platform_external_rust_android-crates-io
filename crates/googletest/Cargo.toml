@@ -13,7 +13,7 @@
 edition = "2021"
 rust-version = "1.85.0"
 name = "googletest"
-version = "0.14.3"
+version = "0.14.4"
 authors = [
     "Bradford Hovinen <hovinen@google.com>",
     "Bastien Jacot-Guillarmod <bjacotg@google.com>",
@@ -64,6 +64,10 @@ path = "tests/colorized_diff_test.rs"
 [[test]]
 name = "composition_test"
 path = "tests/composition_test.rs"
+
+[[test]]
+name = "death_test"
+path = "tests/death_test.rs"
 
 [[test]]
 name = "elements_are_matcher_test"
@@ -138,7 +142,7 @@ version = "1"
 optional = true
 
 [dependencies.googletest_macro]
-version = "0.14.3"
+version = "0.14.4"
 
 [dependencies.num-traits]
 version = "0.2.17"

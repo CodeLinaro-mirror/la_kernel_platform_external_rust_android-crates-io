@@ -1,6 +1,34 @@
 # Changelog
 
-All notable changes to similar are documented here.
+All notable changes to fragile are documented here.
+
+## 3.0.0
+
+* Removed `StackToken` and `stack_token!`, and replaced `Sticky` and
+  `SemiSticky`'s `get`, `get_mut`, `try_get`, and `try_get_mut` methods with
+  scoped `with`, `with_mut`, `try_with`, and `try_with_mut` callbacks. This
+  breaking change prevents thread-local references from escaping and removes
+  the need to permanently leak registry values.
+* Fixed soundness issues in the `Future` and `Stream` implementations that could
+  move `!Unpin` values after pinning or free pinned storage on the wrong thread.
+  As a result, `Sticky<T>` and `SemiSticky<T>` now implement `Unpin` only when
+  `T: Unpin`.
+* Hardened thread-local registry cleanup for nested `Sticky` values and
+  reentrant destructors.
+* Fixed stale registry access on platforms that reinitialize thread-local
+  storage during shutdown. Slab IDs now include a registry generation so old
+  wrappers cannot access or destroy values in a replacement registry.
+* Fixed a memory leak where a `Sticky` wrapping a type without drop glue never
+  released its allocation when dropped on the originating thread.
+* `Sticky` and `SemiSticky`'s `is_valid`, `try_with`, `try_with_mut`,
+  `try_into_inner` and `Debug` now report an invalid access instead of
+  panicking when used on the originating thread while its thread-local storage
+  is being destroyed. Previously this panicked inside a TLS destructor, which
+  aborts the process.
+* Thread identity checks no longer use `std::thread::current()`, which panics
+  during thread-local storage teardown on Rust versions before 1.84. Dropping a
+  `Fragile` or `Sticky` from a thread-local destructor on those versions no
+  longer aborts the process.
 
 ## 2.1.0
 

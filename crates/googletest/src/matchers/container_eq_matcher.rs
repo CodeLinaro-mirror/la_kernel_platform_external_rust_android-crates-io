@@ -123,7 +123,8 @@ where
 
 fn build_explanation<T: Debug, U: Debug>(missing: Vec<T>, unexpected: Vec<U>) -> String {
     match (missing.len(), unexpected.len()) {
-        // TODO(b/261175849) add more data here (out of order elements, duplicated elements, etc...)
+        // TODO(b/261175849) add more data here (out of order elements,
+        // duplicated elements, etc...)
         (0, 0) => "which contains all the elements".to_string(),
         (0, 1) => format!("which contains the unexpected element {:?}", unexpected[0]),
         (0, _) => format!("which contains the unexpected elements {unexpected:?}",),
@@ -192,8 +193,8 @@ where
     }
 
     fn explain_match(&self, actual: ActualContainerT) -> Description {
-        // We need to materialize the collections in order to have reliable iteration
-        // order when generating our reports.
+        // We need to materialize the collections in order to have reliable
+        // iteration order when generating our reports.
         let expected_items: Vec<&ExpectedElementT> = self.expected.into_iter().collect();
         let actual_items: Vec<ActualElementT> = actual.into_iter().collect();
 
@@ -205,8 +206,8 @@ where
 
         let best_match = match_matrix.find_best_match();
 
-        // Since we are doing equality checks, we can generate a slightly less verbose
-        // message than BestMatch::get_explanation.
+        // Since we are doing equality checks, we can generate a slightly less
+        // verbose message than BestMatch::get_explanation.
         let matches = best_match.get_matches().map(|(actual_idx, expected_idx)|{
             Description::new().text(
                 format!(

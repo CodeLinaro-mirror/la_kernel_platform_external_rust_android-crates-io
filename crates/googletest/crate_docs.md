@@ -141,9 +141,11 @@ The following matchers are provided in GoogleTest Rust:
 | [`has_entry`]        | A [`HashMap`] containing a given key whose value the argument matches.   |
 | [`is_contained_in!`] | A container each of whose elements is matched by some given matcher.     |
 | [`is_empty`]         | An empty collection.                                                     |
+| [`is_err`]           | Alias for [`err`].                                                       |
 | [`is_finite`]        | A floating point number which is neither infinite nor NaN.               |
 | [`is_infinite`]      | A floating point number which is positive or negative infinity.          |
 | [`is_nan`]           | A floating point number which is NaN.                                    |
+| [`is_ok`]            | Alias for [`ok`].                                                        |
 | [`le`]               | A [`PartialOrd`] value less than or equal to the given value.            |
 | [`len`]              | A container whose number of elements the argument matches.               |
 | [`lt`]               | A [`PartialOrd`] value strictly less than the given value.               |
@@ -186,9 +188,11 @@ The following matchers are provided in GoogleTest Rust:
 [`has_entry`]: matchers::has_entry
 [`is_contained_in!`]: matchers::is_contained_in
 [`is_empty`]: matchers::is_empty
+[`is_err`]: matchers::is_err
 [`is_finite`]: matchers::is_finite
 [`is_infinite`]: matchers::is_infinite
 [`is_nan`]: matchers::is_nan
+[`is_ok`]: matchers::is_ok
 [`le`]: matchers::le
 [`len`]: matchers::len
 [`lt`]: matchers::lt
@@ -439,6 +443,18 @@ fn always_fails() -> Result<()> {
 }
 # always_fails().unwrap_err();
 ```
+
+## Death tests
+
+GoogleTest Rust provides macros to assert that an expression terminates the
+current process:
+
+*   [`verify_exit!`] and [`expect_exit!`] assert that an expression terminates
+    the process with an exit status matching a given matcher and stderr matching
+    a string matcher.
+*   [`verify_death!`] and [`expect_death!`] assert that an expression causes the
+    process to die (exiting unsuccessfully, either with a non-zero exit code or
+    by a signal), with stderr matching a string matcher.
 
 ## Conversion from `Result::Err` and `Option::None`
 
