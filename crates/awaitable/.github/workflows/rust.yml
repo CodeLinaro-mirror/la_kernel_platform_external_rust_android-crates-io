@@ -20,8 +20,8 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    - uses: actions/checkout@v2
-    - uses: actions/cache@v2
+    - uses: actions/checkout@v7
+    - uses: actions/cache@v6.1.0
       with:
         path: |
           ~/.cargo/bin/
@@ -36,15 +36,15 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v7
     - name: Check format
       run: cargo fmt --all -- --check
   Run_clippy:
     runs-on: ubuntu-latest
 
     steps:
-    - uses: actions/checkout@v2
-    - uses: actions/cache@v2
+    - uses: actions/checkout@v7
+    - uses: actions/cache@v6.1.0
       with:
         path: |
           ~/.cargo/bin/
@@ -59,8 +59,8 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    - uses: actions/checkout@v2
-    - uses: actions/cache@v2
+    - uses: actions/checkout@v7
+    - uses: actions/cache@v6.1.0
       with:
         path: |
           ~/.cargo/bin/
@@ -71,3 +71,5 @@ jobs:
         key: ${{ github.event.repository.name }}-${{ runner.os }}-cargo-test-${{ hashFiles('**/Cargo.lock') }}-v2
     - name: Run tests
       run: cargo test --all-features
+    - name: Run tests without optional features
+      run: cargo test

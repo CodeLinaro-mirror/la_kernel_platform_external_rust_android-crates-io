@@ -12,8 +12,14 @@
 [package]
 edition = "2018"
 name = "awaitable"
-version = "0.4.0"
+version = "0.4.1"
 authors = ["Jiahao XU <Jiahao_XU@outlook.com>"]
+build = false
+autolib = false
+autobins = false
+autoexamples = false
+autotests = false
+autobenches = false
 description = "Awaitable type with input and output that can be stored in container."
 readme = "README.md"
 keywords = [
@@ -31,6 +37,14 @@ rustdoc-args = [
     "docsrs",
 ]
 
+[lib]
+name = "awaitable"
+path = "src/lib.rs"
+
+[[test]]
+name = "const_new"
+path = "tests/const_new.rs"
+
 [dependencies.awaitable-error]
 version = "0.1.0"
 
@@ -38,5 +52,5 @@ version = "0.1.0"
 version = "1.0.0"
 
 [dependencies.parking_lot]
-version = "0.12.0"
+version = "0.13.0"
 optional = true
