@@ -4870,7 +4870,7 @@ dependencies = [
 name = "hyper-util"
 version = "0.1.21"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7ee96dc5ef5c90822acdeefcf8eb701f2bd173c8ae69a941d7a16969efda9ac6"
+checksum = "ddc03d96684f9226b8a787cdb71488417b53ab5ea8fdb1dac946cb9431cc8bff"
 dependencies = [
  "base64 0.23.1",
  "bytes",
