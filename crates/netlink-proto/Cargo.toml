@@ -13,7 +13,7 @@
 edition = "2021"
 rust-version = "1.75"
 name = "netlink-proto"
-version = "0.12.2"
+version = "0.13.0"
 authors = ["Corentin Henry <corentinhenry@gmail.com>"]
 build = false
 autolib = false
@@ -68,10 +68,10 @@ features = ["sink"]
 version = "0.4.8"
 
 [dependencies.netlink-packet-core]
-version = "0.8.1"
+version = "0.9.0"
 
 [dependencies.netlink-sys]
-version = "0.8.4"
+version = "0.9.0"
 default-features = false
 
 [dependencies.thiserror]
@@ -85,7 +85,7 @@ features = ["attributes"]
 version = "0.6.1"
 
 [dev-dependencies.netlink-packet-route]
-version = "0.28.0"
+version = "0.33.0"
 
 [dev-dependencies.tokio]
 version = "1.0.1"
