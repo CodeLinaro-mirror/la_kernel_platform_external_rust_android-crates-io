@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: MIT
 
-use std::{marker::PhantomData, os::fd::RawFd};
+use std::os::fd::RawFd;
 
 use crate::packet_route::{
     link::{
@@ -35,7 +35,7 @@ use crate::packet_route::{
 ///         .map_err(|e| format!("{e}"))
 /// }
 /// ```
-#[derive(Debug)]
+#[derive(Default, Debug)]
 pub struct LinkUnspec;
 
 impl LinkUnspec {
@@ -61,10 +61,11 @@ pub struct LinkMessageBuilder<T> {
     pub(crate) port_kind: Option<InfoPortKind>,
     pub(crate) port_data: Option<InfoPortData>,
     pub(crate) extra_attriutes: Vec<LinkAttribute>,
-    _phantom: PhantomData<T>,
+    pre_build_info_data_process_fn: Option<fn(&T, &mut Option<InfoData>)>,
+    pub(crate) iface_self: T,
 }
 
-impl<T> Default for LinkMessageBuilder<T> {
+impl<T: Default> Default for LinkMessageBuilder<T> {
     fn default() -> Self {
         Self {
             header: Default::default(),
@@ -73,17 +74,27 @@ impl<T> Default for LinkMessageBuilder<T> {
             extra_attriutes: Default::default(),
             port_kind: None,
             port_data: None,
-            _phantom: Default::default(),
+            pre_build_info_data_process_fn: None,
+            iface_self: T::default(),
         }
     }
 }
 
-impl<T> LinkMessageBuilder<T> {
+impl<T: Default> LinkMessageBuilder<T> {
     pub fn new_with_info_kind(info_kind: InfoKind) -> Self {
         Self {
             info_kind: Some(info_kind),
             ..Default::default()
         }
+    }
+}
+
+impl<T> LinkMessageBuilder<T> {
+    pub fn set_pre_build_info_data_func(
+        &mut self,
+        f: fn(&T, &mut Option<InfoData>),
+    ) {
+        self.pre_build_info_data_process_fn = Some(f);
     }
 
     /// Set arbitrary [LinkHeader]
@@ -149,8 +160,60 @@ impl<T> LinkMessageBuilder<T> {
         ret
     }
 
-    pub fn name(self, name: String) -> Self {
-        self.append_extra_attribute(LinkAttribute::IfName(name))
+    /// Enable or disable multicast on the link (equivalent to
+    /// `ip link set DEV multicast on/off`)
+    pub fn multicast(self, enable: bool) -> Self {
+        let mut ret = self;
+        if enable {
+            ret.header.flags |= LinkFlags::Multicast;
+        } else {
+            ret.header.flags.remove(LinkFlags::Multicast);
+        }
+        ret.header.change_mask |= LinkFlags::Multicast;
+        ret
+    }
+
+    /// Enable or disable allmulticast mode on the link (equivalent to
+    /// `ip link set DEV allmulticast on/off`)
+    pub fn allmulticast(self, enable: bool) -> Self {
+        let mut ret = self;
+        if enable {
+            ret.header.flags |= LinkFlags::Allmulti;
+        } else {
+            ret.header.flags.remove(LinkFlags::Allmulti);
+        }
+        ret.header.change_mask |= LinkFlags::Allmulti;
+        ret
+    }
+
+    /// Enable or disable dynamic flag on the link (equivalent to
+    /// `ip link set DEV dynamic on/off`)
+    pub fn dynamic(self, enable: bool) -> Self {
+        let mut ret = self;
+        if enable {
+            ret.header.flags |= LinkFlags::Dynamic;
+        } else {
+            ret.header.flags.remove(LinkFlags::Dynamic);
+        }
+        ret.header.change_mask |= LinkFlags::Dynamic;
+        ret
+    }
+
+    /// Enable or disable notrailers flag on the link (equivalent to
+    /// `ip link set DEV trailers on/off`)
+    pub fn notrailers(self, enable: bool) -> Self {
+        let mut ret = self;
+        if enable {
+            ret.header.flags.remove(LinkFlags::Notrailers);
+        } else {
+            ret.header.flags |= LinkFlags::Notrailers;
+        }
+        ret.header.change_mask |= LinkFlags::Notrailers;
+        ret
+    }
+
+    pub fn name(self, name: impl Into<String>) -> Self {
+        self.append_extra_attribute(LinkAttribute::IfName(name.into()))
     }
 
     /// Set the mtu of the link with the given index (equivalent to
@@ -210,6 +273,51 @@ impl<T> LinkMessageBuilder<T> {
         self.append_extra_attribute(LinkAttribute::Controller(0))
     }
 
+    /// Set the tx queue length (equivalent to `ip link set DEV txqueuelen
+    /// QLEN`)
+    pub fn txqueuelen(self, len: u32) -> Self {
+        self.append_extra_attribute(LinkAttribute::TxQueueLen(len))
+    }
+
+    /// Set the broadcast address (equivalent to `ip link set DEV broadcast
+    /// LLADDR`)
+    pub fn broadcast(self, addr: Vec<u8>) -> Self {
+        self.append_extra_attribute(LinkAttribute::Broadcast(addr))
+    }
+
+    /// Set the device group (equivalent to `ip link set DEV group GROUP`)
+    pub fn link_group(self, group: u32) -> Self {
+        self.append_extra_attribute(LinkAttribute::Group(group))
+    }
+
+    /// Set protodown state (equivalent to `ip link set DEV protodown on/off`)
+    pub fn protodown(self, on: bool) -> Self {
+        self.append_extra_attribute(LinkAttribute::ProtoDown(if on {
+            1
+        } else {
+            0
+        }))
+    }
+
+    /// Set carrier state (equivalent to `ip link set DEV carrier on/off`)
+    pub fn carrier(self, on: bool) -> Self {
+        self.append_extra_attribute(LinkAttribute::Carrier(if on {
+            1
+        } else {
+            0
+        }))
+    }
+
+    /// Set the operational state (equivalent to `ip link set DEV state STATE`)
+    pub fn operstate(self, state: u8) -> Self {
+        self.append_extra_attribute(LinkAttribute::OperState(state.into()))
+    }
+
+    /// Set the interface alias (equivalent to `ip link set DEV alias NAME`)
+    pub fn alias(self, name: impl Into<String>) -> Self {
+        self.append_extra_attribute(LinkAttribute::IfAlias(name.into()))
+    }
+
     pub fn set_port_kind(self, port_kind: InfoPortKind) -> Self {
         let mut ret = self;
         ret.port_kind = Some(port_kind);
@@ -236,7 +344,12 @@ impl<T> LinkMessageBuilder<T> {
         if let Some(info_kind) = self.info_kind {
             link_infos.push(LinkInfo::Kind(info_kind));
         }
-        if let Some(info_data) = self.info_data {
+
+        let mut info_data = self.info_data;
+        if let Some(pre_build_fn) = self.pre_build_info_data_process_fn {
+            pre_build_fn(&self.iface_self, &mut info_data);
+        }
+        if let Some(info_data) = info_data {
             link_infos.push(LinkInfo::Data(info_data));
         }
 
