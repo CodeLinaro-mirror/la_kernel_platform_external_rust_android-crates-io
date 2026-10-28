@@ -11,9 +11,9 @@
 
 [package]
 edition = "2021"
-rust-version = "1.66.1"
+rust-version = "1.75"
 name = "rtnetlink"
-version = "0.21.0"
+version = "0.23.0"
 authors = ["Corentin Henry <corentinhenry@gmail.com>"]
 build = false
 autolib = false
@@ -81,6 +81,10 @@ name = "add_route_pref_src"
 path = "examples/add_route_pref_src.rs"
 
 [[example]]
+name = "add_route_seg6"
+path = "examples/add_route_seg6.rs"
+
+[[example]]
 name = "add_rule"
 path = "examples/add_rule.rs"
 
@@ -99,6 +103,10 @@ path = "examples/create_bridge.rs"
 [[example]]
 name = "create_dummy"
 path = "examples/create_dummy.rs"
+
+[[example]]
+name = "create_ipip"
+path = "examples/create_ipip.rs"
 
 [[example]]
 name = "create_macvlan"
@@ -213,6 +221,10 @@ name = "property_altname"
 path = "examples/property_altname.rs"
 
 [[example]]
+name = "resolve_netns_id"
+path = "examples/resolve_netns_id.rs"
+
+[[example]]
 name = "set_bond_port"
 path = "examples/set_bond_port.rs"
 
@@ -242,17 +254,17 @@ version = "0.3.11"
 version = "0.4.8"
 
 [dependencies.netlink-packet-core]
-version = "0.8"
+version = "0.9"
 
 [dependencies.netlink-packet-route]
-version = "0.30"
+version = "0.33"
 
 [dependencies.netlink-proto]
-version = "0.12.0"
+version = "0.13"
 default-features = false
 
 [dependencies.netlink-sys]
-version = "0.8"
+version = "0.9"
 
 [dependencies.nix]
 version = "0.30.0"
@@ -265,7 +277,7 @@ features = [
 default-features = false
 
 [dependencies.thiserror]
-version = "1"
+version = "2"
 
 [dependencies.tokio]
 version = "1.0.1"

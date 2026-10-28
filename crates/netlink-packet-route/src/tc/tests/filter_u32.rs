@@ -8,8 +8,7 @@ use crate::{
     tc::{
         filters::{TcU32OptionFlags, TcU32SelectorFlags},
         TcAttribute, TcFilterU32Option, TcHandle, TcHeader, TcMessage,
-        TcMessageBuffer, TcOption, TcU32Key, TcU32Selector,
-        TcU32SelectorBuffer,
+        TcOption, TcU32Key, TcU32Selector, TcU32SelectorBuffer,
     },
     AddressFamily,
 };
@@ -75,15 +74,15 @@ fn test_get_filter_u32() {
                     keys: vec![
                         TcU32Key {
                             mask: 0xffffffff,
-                            val: u32::from_ne_bytes(
+                            val: u32::from_be_bytes(
                                 Ipv4Addr::new(192, 168, 190, 7).octets(),
                             ),
                             off: 16,
                             offmask: 0,
                         },
                         TcU32Key {
-                            mask: 0xffff0000,
-                            val: u32::from_be(36000),
+                            mask: 0x0000ffff,
+                            val: 36000,
                             off: 20,
                             offmask: 0,
                         },
@@ -102,10 +101,7 @@ fn test_get_filter_u32() {
         ],
     };
 
-    assert_eq!(
-        expected,
-        TcMessage::parse(&TcMessageBuffer::new(&raw)).unwrap()
-    );
+    assert_eq!(expected, TcMessage::parse(&raw).unwrap());
 
     let mut buf = vec![0; expected.buffer_len()];
 
@@ -131,5 +127,5 @@ fn test_tcu32_selector_invalid_nkeys() {
         0x00, 0x00, 0xff, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
         0x00, 0x00, 0x00, 0x00,
     ];
-    assert!(TcU32SelectorBuffer::new_checked(buffer).is_err());
+    assert!(TcU32SelectorBuffer::new_checked(&buffer).is_err());
 }
