@@ -1,5 +1,31 @@
 # Changelog
 
+## 0.5.1
+
+# Bugfixes
+
+- Bump the versions of the `arm-sysregs-*` crates and update the referenced version in the root
+  `arm-sysregs` crate.
+
+## 0.5.0 (yanked)
+
+### New features
+
+- Added the PAN register
+- Added `is_*_present` for `FEAT_PAN`, `FEAT_PAN2` and `FEAT_PAN3`.
+- Added the SCXTNUM_ELx registers.
+- Added `is_*_present` for `FEAT_CSV2`, `FEAT_CSV2_2` and `FEAT_CSV2_3`.
+
+### Breaking changes
+
+- Renamed `IdAa64mmfr2El1::has_64_bit_ccsidr_el1` to `is_feat_ccidx_present`.
+- Changed type of `*_TVAL*.TimerValue` fields from `u32` to `i32`.
+- Made writes to AArch32 timer registers safe, the same as the AArch64 equivalents.
+
+### Other changes
+
+- Replaced the unmaintained `paste` crate with `pastey`.
+
 ## 0.4.0
 
 ### New features

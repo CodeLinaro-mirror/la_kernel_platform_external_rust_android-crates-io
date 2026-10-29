@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: MIT
 
 use netlink_packet_core::{
-    parse_string, parse_u32, parse_u32_be, DecodeError, DefaultNla, Emitable,
-    ErrorContext, Nla, NlaBuffer, NlasIterator, Parseable,
+    parse_string, parse_u32, DecodeError, DefaultNla, Emitable, ErrorContext,
+    Nla, NlaBuffer, NlasIterator, Parseable,
 };
 
 use crate::tc::{
-    actions::{TcActionMessageBuffer, TcActionMessageHeader},
+    actions::{header::TCA_HEADER_LEN, TcActionMessageHeader},
     TcAction,
 };
 
@@ -173,7 +173,7 @@ impl<'a, T: AsRef<[u8]> + 'a + ?Sized> Parseable<NlaBuffer<&'a T>>
                 Self::RootCount(count)
             }
             TCA_ROOT_TIME_DELTA => {
-                let delta = parse_u32_be(buf.value())
+                let delta = parse_u32(buf.value())
                     .context("Invalid TCA_ROOT_TIME_DELTA")?;
                 Self::RootTimeDelta(delta)
             }
@@ -220,7 +220,7 @@ impl Nla for TcActionMessageAttribute {
                 buffer.copy_from_slice(&count.to_ne_bytes());
             }
             Self::RootTimeDelta(delta) => {
-                buffer.copy_from_slice(&delta.to_be_bytes());
+                buffer.copy_from_slice(&delta.to_ne_bytes());
             }
             Self::RootExtWarnMsg(msg) => buffer.copy_from_slice(msg.as_bytes()),
             Self::Other(nla) => nla.emit_value(buffer),
@@ -228,20 +228,15 @@ impl Nla for TcActionMessageAttribute {
     }
 }
 
-impl<'a, T: AsRef<[u8]> + 'a + ?Sized> Parseable<TcActionMessageBuffer<&'a T>>
-    for TcActionMessage
-{
-    fn parse(buf: &TcActionMessageBuffer<&'a T>) -> Result<Self, DecodeError> {
-        let attrs: Result<Vec<_>, DecodeError> = buf
-            .attributes()
+impl Parseable<[u8]> for TcActionMessage {
+    fn parse(buf: &[u8]) -> Result<Self, DecodeError> {
+        let header = TcActionMessageHeader::parse(buf)
+            .context("failed to parse tc message header")?;
+        let attributes = NlasIterator::new(&buf[TCA_HEADER_LEN..])
             .map(|attr| TcActionMessageAttribute::parse(&attr?))
-            .collect::<Result<Vec<_>, _>>();
-
-        Ok(Self {
-            header: TcActionMessageHeader::parse(buf)
-                .context("failed to parse tc message header")?,
-            attributes: attrs?,
-        })
+            .collect::<Result<Vec<_>, _>>()
+            .context("failed to parse tc action message NLAs")?;
+        Ok(Self { header, attributes })
     }
 }
 

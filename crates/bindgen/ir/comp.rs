@@ -203,7 +203,7 @@ impl Field {
         match *self {
             Field::Bitfields(BitfieldUnit { layout, .. }) => Some(layout),
             Field::DataMember(ref data) => {
-                ctx.resolve_type(data.ty).layout(ctx)
+                ctx.safe_resolve_type(data.ty)?.layout(ctx)
             }
         }
     }
@@ -754,7 +754,11 @@ impl CompFields {
             name: &str,
         ) -> bool {
             methods.iter().any(|method| {
-                let method_name = ctx.resolve_func(method.signature()).name();
+                let Some(func) = ctx.resolve_func_fallible(method.signature())
+                else {
+                    return false;
+                };
+                let method_name = func.name();
                 method_name == name || ctx.rust_mangle(method_name) == name
             })
         }
@@ -1118,6 +1122,12 @@ impl CompInfo {
             return None;
         }
 
+        // Uninstantiated template unions do not have layout in C++ and can cause
+        // infinite layout recursion if fields reference the union template.
+        if self.kind == CompKind::Union && !self.template_params.is_empty() {
+            return None;
+        }
+
         let mut max_size = 0;
         // Don't allow align(0)
         let mut max_align = 1;
@@ -1172,9 +1182,10 @@ impl CompInfo {
             }
             CompFields::Before(ref raw_fields) => {
                 for field in raw_fields {
-                    let field_ty = ctx.resolve_type(field.0.ty);
-                    if let Some(layout) = field_ty.layout(ctx) {
-                        callback(layout);
+                    if let Some(field_ty) = ctx.safe_resolve_type(field.0.ty) {
+                        if let Some(layout) = field_ty.layout(ctx) {
+                            callback(layout);
+                        }
                     }
                 }
             }

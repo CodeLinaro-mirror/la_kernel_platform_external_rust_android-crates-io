@@ -1,0 +1,20 @@
+--- a/src/ser/mod.rs
++++ b/src/ser/mod.rs
+@@ -404,7 +404,7 @@
+             name: "Bob".to_string(),
+             age: 42,
+         };
+-        let should_be = "<?xml version=\"1.0\" encoding=\"UTF-8\"?><Person><name>Bob</name><age>42</age></Person>";
++        let should_be = "<?xml version=\"1.0\" encoding=\"utf-8\"?><Person><name>Bob</name><age>42</age></Person>";
+         let mut buffer = Vec::new();
+ 
+         {
+@@ -427,7 +427,7 @@
+         }
+ 
+         let mut buffer = Vec::new();
+-        let should_be = "<?xml version=\"1.0\" encoding=\"UTF-8\"?><Boolean>true</Boolean>";
++        let should_be = "<?xml version=\"1.0\" encoding=\"utf-8\"?><Boolean>true</Boolean>";
+ 
+         {
+             let mut ser = Serializer::new(&mut buffer);

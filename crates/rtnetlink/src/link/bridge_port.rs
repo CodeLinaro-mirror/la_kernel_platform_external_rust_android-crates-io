@@ -8,7 +8,7 @@ use crate::{
     LinkMessageBuilder,
 };
 
-#[derive(Debug)]
+#[derive(Default, Debug)]
 pub struct LinkBridgePort;
 
 impl LinkBridgePort {
@@ -149,6 +149,13 @@ impl LinkMessageBuilder<LinkBridgePort> {
     ///     neigh_vlan_suppress { on | off }`.
     pub fn neigh_vlan_suppress(self, v: bool) -> Self {
         self.append_info_data(InfoBridgePort::NeighVlanSuppress(v))
+    }
+
+    /// This is equivalent to
+    /// `ip link set name NAME type bridge_slave \
+    ///     neigh_forward_grat { on | off }`.
+    pub fn neigh_forward_grat(self, v: bool) -> Self {
+        self.append_info_data(InfoBridgePort::NeighForwardGrat(v))
     }
 
     /// This is equivalent to

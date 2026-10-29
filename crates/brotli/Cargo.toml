@@ -13,7 +13,7 @@
 edition = "2015"
 rust-version = "1.59.0"
 name = "brotli"
-version = "9.0.0"
+version = "9.1.0"
 authors = [
     "Daniel Reiter Horn <danielrh@dropbox.com>",
     "The Brotli Authors",
@@ -106,7 +106,7 @@ version = ">=0.3.0, <0.4"
 optional = true
 
 [dependencies.brotli-decompressor]
-version = "~6.0"
+version = ">=6.2, <7"
 default-features = false
 
 [dependencies.sha2]

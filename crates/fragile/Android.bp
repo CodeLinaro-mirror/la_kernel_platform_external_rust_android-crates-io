@@ -18,7 +18,7 @@ rust_test {
     host_supported: true,
     crate_name: "fragile",
     cargo_env_compat: true,
-    cargo_pkg_version: "2.1.0",
+    cargo_pkg_version: "3.0.0",
     crate_root: "src/lib.rs",
     test_suites: ["general-tests"],
     auto_gen_config: true,
@@ -39,12 +39,39 @@ rust_test {
     ],
 }
 
+rust_test {
+    name: "fragile_test_tests_safety",
+    host_supported: true,
+    crate_name: "safety",
+    cargo_env_compat: true,
+    cargo_pkg_version: "3.0.0",
+    crate_root: "tests/safety.rs",
+    test_suites: ["general-tests"],
+    auto_gen_config: true,
+    test_options: {
+        unit_test: true,
+    },
+    edition: "2018",
+    features: [
+        "default",
+        "future",
+        "futures-core",
+        "stream",
+    ],
+    rustlibs: [
+        "libfragile",
+        "libfutures_core",
+        "libfutures_executor",
+        "libfutures_util",
+    ],
+}
+
 rust_library {
     name: "libfragile",
     host_supported: true,
     crate_name: "fragile",
     cargo_env_compat: true,
-    cargo_pkg_version: "2.1.0",
+    cargo_pkg_version: "3.0.0",
     crate_root: "src/lib.rs",
     edition: "2018",
     features: [

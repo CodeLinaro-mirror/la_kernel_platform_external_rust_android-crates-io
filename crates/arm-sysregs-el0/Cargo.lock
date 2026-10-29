@@ -10,9 +10,9 @@ checksum = "c11ec2f9c11149816e7f9461f894b04dec5be5b8d87fedb0884b1c60f9dba00c"
 
 [[package]]
 name = "arm-sysregs-aarch32"
-version = "0.4.0"
+version = "0.5.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e0bb51b52291b6fd6223bca38043e85ac9c18c0180a4098809e3b3954c2c0842"
+checksum = "aeac85b36432f9427827c31c2da2b42fe4928e35b3dbedbe9c9ded5e4d013789"
 dependencies = [
  "arm-sysregs-common",
  "bitflags",
@@ -20,17 +20,17 @@ dependencies = [
 
 [[package]]
 name = "arm-sysregs-common"
-version = "0.4.0"
+version = "0.5.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9a4c8f79ed92200bf954b76d2eced94115b8f6677103652504eda1059a07739a"
+checksum = "11447113c834b1cb206262297477a467c090a3768765bef861858b6098dcac39"
 dependencies = [
  "num_enum",
- "paste",
+ "pastey",
 ]
 
 [[package]]
 name = "arm-sysregs-el0"
-version = "0.4.0"
+version = "0.5.1"
 dependencies = [
  "aarch64-rt",
  "arm-sysregs-aarch32",
@@ -73,10 +73,10 @@ dependencies = [
 ]
 
 [[package]]
-name = "paste"
-version = "1.0.15"
+name = "pastey"
+version = "0.2.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "57c0d7b74b563b49d38dae00a0c37d4d6de9b432382b2892f0574ddcae73fd0a"
+checksum = "2ee67f1008b1ba2321834326597b8e186293b049a023cdef258527550b9935b4"
 
 [[package]]
 name = "proc-macro2"

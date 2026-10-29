@@ -1,3 +1,5 @@
+#![deny(unsafe_op_in_unsafe_fn)]
+
 //! This library provides wrapper types that permit sending non `Send` types to
 //! other threads and use runtime checks to ensure safety.
 //!
@@ -17,13 +19,11 @@
 //!
 //! A [`Sticky`] on the other hand does not actually send the `T` around but keeps
 //! it stored in the original thread's thread local storage.  If it gets dropped
-//! in the originating thread it gets cleaned up immediately, otherwise it leaks
-//! until the thread shuts down naturally.  [`Sticky`] because it borrows into the
-//! TLS also requires you to "prove" that you are not doing any funny business with
-//! the borrowed value that lives for longer than the current stack frame which
-//! results in a slightly more complex API.
+//! in the originating thread it gets cleaned up immediately, otherwise it retains
+//! the value until the thread shuts down naturally. Access uses scoped callbacks so
+//! references to the TLS value cannot outlive the callback or the originating thread.
 //!
-//! There is a third typed called [`SemiSticky`] which shares the API with [`Sticky`]
+//! There is a third type called [`SemiSticky`] which shares the API with [`Sticky`]
 //! but internally uses a boxed [`Fragile`] if the type does not actually need a dtor
 //! in which case [`Fragile`] is preferred.
 //!
@@ -52,23 +52,21 @@
 //! [`Sticky`] is similar to [`Fragile`] but because it places the value in the
 //! thread local storage it comes with some extra restrictions to make it sound.
 //! The advantage is it can be dropped from any thread but it comes with extra
-//! restrictions.  In particular it requires that values placed in it are `'static`
-//! and that [`StackToken`]s are used to restrict lifetimes.
+//! restrictions. In particular, values placed in it must be `'static`, and access
+//! is limited to callbacks that cannot return a reference to the stored value.
 //!
 //! ```
 //! use std::thread;
 //! use fragile::Sticky;
 //!
-//! // creating and using a fragile object in the same thread works
-//! fragile::stack_token!(tok);
+//! // Creating and using a sticky object in the same thread works.
 //! let val = Sticky::new(true);
-//! assert_eq!(*val.get(tok), true);
-//! assert!(val.try_get(tok).is_ok());
+//! assert!(val.with(|value| *value));
+//! assert!(val.try_with(|value| *value).is_ok());
 //!
-//! // once send to another thread it stops working
+//! // Once sent to another thread, its value cannot be accessed.
 //! thread::spawn(move || {
-//!     fragile::stack_token!(tok);
-//!     assert!(val.try_get(tok).is_err());
+//!     assert!(val.try_with(|_| ()).is_err());
 //! }).join()
 //!     .unwrap();
 //! ```
@@ -84,81 +82,32 @@
 //! # Drop / Cleanup Behavior
 //!
 //! All types will try to eagerly drop a value if they are dropped on the right thread.
-//! [`Sticky`] and [`SemiSticky`] will however temporarily leak memory until a thread
-//! shuts down if the value is dropped on the wrong thread.  The benefit however is that
-//! if you have that type of situation, and you can live with the consequences, the
-//! type is not panicking.  A [`Fragile`] dropped in the wrong thread will not just panic,
+//! [`Sticky`] and [`SemiSticky`] will however retain memory until a thread shuts down
+//! if the value is dropped on the wrong thread. The benefit is that these types do not
+//! panic. A [`Fragile`] dropped in the wrong thread will not just panic,
 //! it will effectively also tear down the process because panicking in destructors is
 //! non recoverable.
 //!
 //! # Features
 //!
-//! By default the crate has no dependencies.  Optionally the `slab` feature can
-//! be enabled which optimizes the internal storage of the [`Sticky`] type to
-//! make it use a [`slab`](https://docs.rs/slab/latest/slab/) instead.
+//! The default `stream` feature enables `Future` and `Stream` support and uses
+//! `futures-core`. Disable default features to use the crate without dependencies.
+//! The optional `slab` feature optimizes [`Sticky`]'s internal registry.
 //!
-//! When turning on the `future` feature, then the containers implement the
-//! [`Future`](std::future::Future) crate from the standard library to
-//! automatically wrap futures.  The `stream` crate does the same for the
-//! `future_core::Stream` type.
+//! The `future` feature implements [`Future`](std::future::Future) for the wrapper
+//! types. The `stream` feature includes `future` and implements
+//! `futures_core::Stream` as well.
 mod errors;
 mod fragile;
 mod registry;
 mod semisticky;
 mod sticky;
+mod thread_id;
 
 #[cfg(feature = "future")]
 mod futures;
-
-use std::marker::PhantomData;
 
 pub use crate::errors::InvalidThreadAccess;
 pub use crate::fragile::Fragile;
 pub use crate::semisticky::SemiSticky;
 pub use crate::sticky::Sticky;
-
-/// A token that is placed to the stack to constrain lifetimes.
-///
-/// For more information about how these work see the documentation of
-/// [`stack_token!`] which is the only way to create this token.
-pub struct StackToken(PhantomData<*const ()>);
-
-impl StackToken {
-    /// Stack tokens must only be created on the stack.
-    #[doc(hidden)]
-    pub unsafe fn __private_new() -> StackToken {
-        // we place a const pointer in there to get a type
-        // that is neither Send nor Sync.
-        StackToken(PhantomData)
-    }
-}
-
-/// Crates a token on the stack with a certain name for semi-sticky.
-///
-/// The argument to the macro is the target name of a local variable
-/// which holds a reference to a stack token.  Because this is the
-/// only way to create such a token, it acts as a proof to [`Sticky`]
-/// or [`SemiSticky`] that can be used to constrain the lifetime of the
-/// return values to the stack frame.
-///
-/// This is necessary as otherwise a [`Sticky`] placed in a [`Box`] and
-/// leaked with [`Box::leak`] (which creates a static lifetime) would
-/// otherwise create a reference with `'static` lifetime.  This is incorrect
-/// as the actual lifetime is constrained to the lifetime of the thread.
-/// For more information see [`issue 26`](https://github.com/mitsuhiko/fragile/issues/26).
-///
-/// ```rust
-/// let sticky = fragile::Sticky::new(true);
-///
-/// // this places a token on the stack.
-/// fragile::stack_token!(my_token);
-///
-/// // the token needs to be passed to `get` and others.
-/// let _ = sticky.get(my_token);
-/// ```
-#[macro_export]
-macro_rules! stack_token {
-    ($name:ident) => {
-        let $name = &unsafe { $crate::StackToken::__private_new() };
-    };
-}

@@ -32,5 +32,9 @@ rust_library {
     product_available: true,
     vendor_available: true,
     min_sdk_version: "29",
-    visibility: ["//external/rust/android-crates-io/crates/calloop"],
+    visibility: [
+        "//external/rust/android-crates-io/crates/alacritty_terminal",
+        "//external/rust/android-crates-io/crates/calloop",
+        "//external/rust/android-crates-io/crates/smithay:__subpackages__",
+    ],
 }

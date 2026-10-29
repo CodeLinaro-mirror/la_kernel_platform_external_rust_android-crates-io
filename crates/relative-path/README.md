@@ -30,7 +30,7 @@ For more utilities to manipulate relative paths, see the
 Add `relative-path` to your `Cargo.toml`:
 
 ```toml
-relative-path = "2.0.1"
+relative-path = "2.0.3"
 ```
 
 Start using relative paths:
@@ -53,6 +53,17 @@ struct Manifest<'a> {
 
 This library includes serde support that can be enabled with the `serde`
 feature.
+
+<br>
+
+## Musli Support
+
+This library includes [Müsli] 0.2 support that can be enabled with the
+`musli02` feature. Paths are encoded as strings, the same representation the
+serde support uses.
+
+Encoding a `Box<RelativePath>` uses musli's implementation for `Box`, which
+requires musli's `alloc` feature.
 
 <br>
 
@@ -277,3 +288,4 @@ assert_eq!(
 [windows-reserved]: https://msdn.microsoft.com/en-us/library/windows/desktop/aa365247(v=vs.85).aspx
 [windows-case]: https://learn.microsoft.com/en-us/windows/wsl/case-sensitivity
 [`relative-path-utils` crate]: https://docs.rs/relative-path-utils
+[Müsli]: https://docs.rs/musli/0.2

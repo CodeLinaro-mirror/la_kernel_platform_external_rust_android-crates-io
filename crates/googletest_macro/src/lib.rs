@@ -84,8 +84,8 @@ pub fn gtest(
         use std::hash::{Hash, Hasher};
         let mut h = DefaultHasher::new();
 
-        // Only consider attrs and name for stability. Changing the function body should
-        // not affect the test case distribution.
+        // Only consider attrs and name for stability. Changing the function
+        // body should not affect the test case distribution.
         attrs.hash(&mut h);
         sig_ident.hash(&mut h);
         h.finish()
@@ -128,18 +128,21 @@ pub fn gtest(
     };
     let is_async = sig.asyncness.is_some();
     let maybe_async = is_async.then(|| quote! { async });
-    let maybe_await = is_async.then(|| quote! { .await });
     let invocation = if is_rstest_enabled {
-        // Rstest may refer in block to its fixtures. Hence, we only wrap it in a
-        // closure to capture them.
+        // Rstest may refer in block to its fixtures. Hence, we only wrap it in
+        // a closure to capture them.
         let result_type = output_type.clone().unwrap_or_else(|| quote! {()});
         let mut invocation = quote! {
             (#maybe_async move || -> #result_type {
                 #block
-            })() #maybe_await
+            })()
         };
         if output_type.is_none() {
-            invocation = quote! { { let () = #invocation; googletest::Result::<()>::Ok(()) } };
+            if is_async {
+                invocation = quote! { async move { let () = #invocation.await; googletest::Result::<()>::Ok(()) } };
+            } else {
+                invocation = quote! { { let () = #invocation; googletest::Result::<()>::Ok(()) } };
+            }
         }
         invocation
     } else {
@@ -148,15 +151,26 @@ pub fn gtest(
             Err(e) => return e.into_compile_error().into(),
         };
 
-        // In the sync case, the ? operator returns from the surrounding function. So
-        // we redeclare the original test function internally.
+        // In the sync case, the ? operator returns from the surrounding
+        // function. So we redeclare the original test function
+        // internally.
         let result_type = output_type.unwrap_or_else(|| quote! {googletest::Result<()>});
         quote! {
             (#maybe_async move || -> #result_type {
                 #sig { #block }
                 #closure_body
-            })() #maybe_await
+            })()
         }
+    };
+
+    let invocation = if is_async {
+        quote! {
+            ::googletest::internal::scoped_trace::instrument_future(
+                #invocation
+            ).await
+        }
+    } else {
+        quote! { #invocation }
     };
     if !attrs.iter().any(is_test_attribute) && !is_rstest_enabled {
         let test_attr: Attribute = parse_quote! {
@@ -172,6 +186,7 @@ pub fn gtest(
             } else if googletest::internal::test_sharding::test_should_run(#test_case_hash) {
                 use googletest::internal::test_outcome::TestOutcome;
                 TestOutcome::init_current_test_outcome();
+                googletest::internal::death_tests::set_current_test_name(concat!(module_path!(), "::", stringify!(#sig_ident)));
                 TestOutcome::close_current_test_outcome(#invocation)
             } else {
                 #skipped_test_result
@@ -373,7 +388,7 @@ pub fn __googletest_macro_verify_pred(input: proc_macro::TokenStream) -> proc_ma
 /// Stringifies its argument (like `stringify!()` from the standard library) but
 /// limits the output to a provided maximum length.
 ///
-/// The input is a tuple of `target` and `max_length` seprated by a comma.
+/// The input is a tuple of `target` and `max_length` separated by a comma.
 /// The `max_length` is the maximum number of characters to include in the
 /// abbreviated string. For example:
 ///
