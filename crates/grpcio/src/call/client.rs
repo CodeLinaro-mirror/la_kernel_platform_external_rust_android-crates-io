@@ -13,7 +13,7 @@ use futures_util::future::poll_fn;
 use futures_util::{ready, Sink, Stream};
 use parking_lot::Mutex;
 
-use super::{ShareCall, ShareCallHolder, SinkBase, WriteFlags};
+use super::{RpcStatus, RpcStatusCode, ShareCall, ShareCallHolder, SinkBase, WriteFlags};
 use crate::buf::GrpcSlice;
 use crate::call::{check_run, Call, MessageReader, Method};
 use crate::channel::Channel;
@@ -195,6 +195,15 @@ impl Call {
     }
 }
 
+fn take_single_response(message_reader: Option<MessageReader>) -> Result<MessageReader> {
+    message_reader.ok_or_else(|| {
+        Error::RpcFailure(RpcStatus::with_message(
+            RpcStatusCode::UNIMPLEMENTED,
+            "Response cardinality violation: expected exactly one response, got none".to_owned(),
+        ))
+    })
+}
+
 /// A receiver for unary request.
 ///
 /// The future is resolved once response is received.
@@ -241,7 +250,7 @@ impl<T> ClientUnaryReceiver<T> {
         let data = Pin::new(&mut self.resp_f).await?;
         self.initial_metadata = data.initial_metadata;
         self.trailing_metadata = data.trailing_metadata;
-        self.message = Some(self.resp_de(data.message_reader.unwrap())?);
+        self.message = Some(self.resp_de(take_single_response(data.message_reader)?)?);
         self.finished = true;
         Ok(())
     }
@@ -290,7 +299,11 @@ impl<T: Unpin> Future for ClientUnaryReceiver<T> {
         self.initial_metadata = data.initial_metadata;
         self.trailing_metadata = data.trailing_metadata;
         self.finished = true;
-        Poll::Ready(self.resp_de(data.message_reader.unwrap()))
+        let message_reader = match take_single_response(data.message_reader) {
+            Ok(message_reader) => message_reader,
+            Err(e) => return Poll::Ready(Err(e)),
+        };
+        Poll::Ready(self.resp_de(message_reader))
     }
 }
 
@@ -345,7 +358,7 @@ impl<T> ClientCStreamReceiver<T> {
         })
         .await?;
 
-        self.message = Some(self.resp_de(data.message_reader.unwrap())?);
+        self.message = Some(self.resp_de(take_single_response(data.message_reader)?)?);
         self.initial_metadata = data.initial_metadata;
         self.trailing_metadata = data.trailing_metadata;
         self.finished = true;
@@ -400,7 +413,11 @@ impl<T: Unpin> Future for ClientCStreamReceiver<T> {
         self.initial_metadata = data.initial_metadata;
         self.trailing_metadata = data.trailing_metadata;
         self.finished = true;
-        Poll::Ready((self.resp_de)(data.message_reader.unwrap()))
+        let message_reader = match take_single_response(data.message_reader) {
+            Ok(message_reader) => message_reader,
+            Err(e) => return Poll::Ready(Err(e)),
+        };
+        Poll::Ready((self.resp_de)(message_reader))
     }
 }
 
@@ -705,6 +722,75 @@ impl<Resp> Stream for ClientDuplexReceiver<Resp> {
 
 #[cfg(test)]
 mod tests {
+    use std::io::Read;
+    use std::mem::MaybeUninit;
+    use std::sync::Arc;
+
+    use futures_executor::block_on;
+    use futures_util::{SinkExt as _, TryStreamExt as _};
+
+    use super::*;
+    use crate::{
+        ChannelBuilder, Client, DuplexSink, EnvBuilder, Marshaller, MethodType, RequestStream,
+        RpcContext, Server, ServerBuilder, ServerCredentials, ServerStreamingSink, Service,
+        ServiceBuilder,
+    };
+
+    const CARDINALITY_METHOD_NAME: &str = "/grpc.testing.Cardinality/EmptyResponse";
+
+    fn serialize_bytes(t: &Vec<u8>, buf: &mut GrpcSlice) -> Result<()> {
+        unsafe {
+            let bytes = buf.realloc(t.len());
+            let bytes = &mut *(bytes as *mut [MaybeUninit<u8>] as *mut [u8]);
+            bytes.copy_from_slice(t);
+        }
+        Ok(())
+    }
+
+    fn deserialize_bytes(mut reader: MessageReader) -> Result<Vec<u8>> {
+        let mut data = vec![];
+        reader.read_to_end(&mut data).unwrap();
+        Ok(data)
+    }
+
+    fn bytes_marshaller() -> Marshaller<Vec<u8>> {
+        Marshaller {
+            ser: serialize_bytes,
+            de: deserialize_bytes,
+        }
+    }
+
+    fn cardinality_method(ty: MethodType) -> Method<Vec<u8>, Vec<u8>> {
+        Method {
+            ty,
+            name: CARDINALITY_METHOD_NAME,
+            req_mar: bytes_marshaller(),
+            resp_mar: bytes_marshaller(),
+        }
+    }
+
+    fn start_test_client(service: Service) -> (Client, Server) {
+        let env = Arc::new(EnvBuilder::new().build());
+        let mut server = ServerBuilder::new(env.clone())
+            .register_service(service)
+            .build()
+            .unwrap();
+        let port = server
+            .add_listening_port("127.0.0.1:0", ServerCredentials::insecure())
+            .unwrap();
+        server.start();
+
+        let ch = ChannelBuilder::new(env).connect(&format!("127.0.0.1:{port}"));
+        (Client::new(ch), server)
+    }
+
+    fn assert_rpc_failure_code(err: Error, code: RpcStatusCode) {
+        match err {
+            Error::RpcFailure(status) => assert_eq!(status.code(), code),
+            e => panic!("unexpected error: {e:?}"),
+        }
+    }
+
     #[test]
     fn test_change_flag() {
         let mut flag = 2 | 4;
@@ -712,5 +798,60 @@ mod tests {
         assert_eq!(flag, 2 | 4 | 8);
         super::change_flag(&mut flag, 4, false);
         assert_eq!(flag, 2 | 8);
+    }
+
+    #[test]
+    fn test_unary_empty_response_returns_unimplemented() {
+        let service = ServiceBuilder::new()
+            .add_server_streaming_handler(
+                &cardinality_method(MethodType::ServerStreaming),
+                |ctx: RpcContext<'_>, _: Vec<u8>, mut sink: ServerStreamingSink<Vec<u8>>| {
+                    ctx.spawn(async move { sink.close().await.unwrap() });
+                },
+            )
+            .build();
+        let (client, _server) = start_test_client(service);
+        let err = client
+            .unary_call(
+                &cardinality_method(MethodType::Unary),
+                &vec![1, 2, 3],
+                CallOption::default(),
+            )
+            .unwrap_err();
+
+        assert_rpc_failure_code(err, RpcStatusCode::UNIMPLEMENTED);
+    }
+
+    #[test]
+    fn test_client_streaming_empty_response_returns_unimplemented() {
+        let service = ServiceBuilder::new()
+            .add_duplex_streaming_handler(
+                &cardinality_method(MethodType::Duplex),
+                |ctx: RpcContext<'_>,
+                 mut reqs: RequestStream<Vec<u8>>,
+                 mut sink: DuplexSink<Vec<u8>>| {
+                    ctx.spawn(async move {
+                        while reqs.try_next().await.unwrap().is_some() {}
+                        sink.close().await.unwrap();
+                    });
+                },
+            )
+            .build();
+        let (client, _server) = start_test_client(service);
+        let (mut sink, receiver) = client
+            .client_streaming(
+                &cardinality_method(MethodType::ClientStreaming),
+                CallOption::default(),
+            )
+            .unwrap();
+
+        let err = block_on(async move {
+            sink.send((vec![1, 2, 3], WriteFlags::default())).await?;
+            sink.close().await?;
+            receiver.await
+        })
+        .unwrap_err();
+
+        assert_rpc_failure_code(err, RpcStatusCode::UNIMPLEMENTED);
     }
 }
