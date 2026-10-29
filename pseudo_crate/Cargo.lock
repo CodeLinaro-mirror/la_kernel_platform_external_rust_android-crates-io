@@ -426,7 +426,7 @@ dependencies = [
  "futures-test",
  "futures-util",
  "fxhash",
- "gbm 0.16.0",
+ "gbm 0.16.1",
  "gdbstub",
  "gdbstub_arch",
  "genco",
@@ -4213,9 +4213,9 @@ dependencies = [
 
 [[package]]
 name = "gbm"
-version = "0.16.0"
+version = "0.16.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c724107aa10444b1d2709aae4727c18a33c16b3e15ea8a46cc4ae226c084c88a"
+checksum = "fa9a106f044fbd21edf2d8cc57300df1e60630e46ed4bebd59cdcbb23cfad1ce"
 dependencies = [
  "bitflags 2.13.2",
  "drm 0.14.1",
