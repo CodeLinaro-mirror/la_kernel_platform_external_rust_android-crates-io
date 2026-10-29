@@ -387,6 +387,7 @@ nix
 no-panic
 no_denormals
 nom
+nonblock
 normpath
 nu-ansi-term
 num-bigint
