@@ -1,25 +1,26 @@
 use mint::IntoMint;
+use mint_05 as mint;
 
 use crate::{Mat2, Mat3, Mat3A, Mat4, Quat, Vec2, Vec3, Vec3A, Vec4};
 
 #[cfg(feature = "f64")]
 use crate::{DMat2, DMat3, DMat4, DQuat, DVec2, DVec3, DVec4};
+#[cfg(feature = "i8")]
+use crate::{I8Vec2, I8Vec3, I8Vec4};
 #[cfg(feature = "i16")]
 use crate::{I16Vec2, I16Vec3, I16Vec4};
 #[cfg(feature = "i64")]
 use crate::{I64Vec2, I64Vec3, I64Vec4};
-#[cfg(feature = "i8")]
-use crate::{I8Vec2, I8Vec3, I8Vec4};
 #[cfg(feature = "isize")]
 use crate::{ISizeVec2, ISizeVec3, ISizeVec4};
 #[cfg(feature = "i32")]
 use crate::{IVec2, IVec3, IVec4};
+#[cfg(feature = "u8")]
+use crate::{U8Vec2, U8Vec3, U8Vec4};
 #[cfg(feature = "u16")]
 use crate::{U16Vec2, U16Vec3, U16Vec4};
 #[cfg(feature = "u64")]
 use crate::{U64Vec2, U64Vec3, U64Vec4};
-#[cfg(feature = "u8")]
-use crate::{U8Vec2, U8Vec3, U8Vec4};
 #[cfg(feature = "usize")]
 use crate::{USizeVec2, USizeVec3, USizeVec4};
 #[cfg(feature = "u32")]
@@ -356,7 +357,7 @@ mod test {
     macro_rules! impl_vec_tests {
         ($t:ty, $vec2:ident, $vec3:ident, $vec4:ident) => {
             use crate::{$vec2, $vec3, $vec4};
-            use mint;
+            use mint_05 as mint;
 
             #[test]
             fn test_point2() {
