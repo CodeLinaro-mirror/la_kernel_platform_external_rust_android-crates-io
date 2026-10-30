@@ -19,6 +19,7 @@ anstyle
 anstyle-parse
 anstyle-query
 anyhow
+aom-roar
 appendlist
 approx
 arbitrary
