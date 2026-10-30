@@ -13,29 +13,6 @@ license {
     license_text: ["LICENSE"],
 }
 
-rust_binary {
-    name: "generate_binaural_filters",
-    host_supported: true,
-    crate_name: "generate_binaural_filters",
-    cargo_env_compat: true,
-    cargo_pkg_version: "1.1.0",
-    crate_root: "bin/generate_binaural_filters.rs",
-    edition: "2024",
-    rustlibs: [
-        "libaom_roar",
-        "liblog_rust",
-        "librealfft",
-        "librustfft",
-    ],
-    apex_available: [
-        "//apex_available:platform",
-        "//apex_available:anyapex",
-    ],
-    product_available: true,
-    vendor_available: true,
-    min_sdk_version: "29",
-}
-
 rust_library {
     name: "libaom_roar",
     host_supported: true,
