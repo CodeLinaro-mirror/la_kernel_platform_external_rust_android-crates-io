@@ -362,7 +362,7 @@ dependencies = [
  "derive_builder_macro",
  "derive_destructure2",
  "diplomat",
- "diplomat-runtime 0.16.0",
+ "diplomat-runtime 0.16.1",
  "diplomat_core",
  "displaydoc",
  "dlmalloc",
@@ -581,7 +581,7 @@ dependencies = [
  "num-complex",
  "num-derive 0.5.1",
  "num-integer",
- "num-modular",
+ "num-modular 0.7.0",
  "num-order",
  "num-traits",
  "num_cpus",
@@ -669,6 +669,7 @@ dependencies = [
  "rayon",
  "rayon-core",
  "read-fonts",
+ "realfft",
  "ref-cast",
  "ref-cast-impl",
  "regex",
@@ -800,7 +801,7 @@ dependencies = [
  "tokio-util",
  "toml",
  "toml_datetime 1.1.2+spec-1.1.0",
- "toml_edit 0.25.15+spec-1.1.0",
+ "toml_edit 0.25.17+spec-1.1.0",
  "toml_parser",
  "toml_write",
  "toml_writer",
@@ -849,7 +850,6 @@ dependencies = [
  "vhost-user-backend 0.24.0",
  "virtio-bindings",
  "virtio-drivers",
- "virtio-drivers-and-devices",
  "virtio-queue 0.18.0",
  "virtio-vsock 0.12.0",
  "vm-memory 0.18.0",
@@ -1167,7 +1167,7 @@ checksum = "1b24c708955a2b308f2ef06b78c1e676d69870773f78ccf78aff6ffdd6136d90"
 dependencies = [
  "bitflags 2.13.2",
  "embedded-hal-nb",
- "embedded-io 0.7.1",
+ "embedded-io",
  "safe-mmio",
  "thiserror 2.0.18",
  "zerocopy",
@@ -3510,12 +3510,6 @@ dependencies = [
  "embedded-hal",
  "nb",
 ]
-
-[[package]]
-name = "embedded-io"
-version = "0.6.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "edd0f118536f44f5ccd48bcb8b111bdc3de888b58c74639dfb034a357d0f206d"
 
 [[package]]
 name = "embedded-io"
@@ -6505,6 +6499,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "miow"
+version = "0.6.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "536bfad37a309d62069485248eeaba1e8d9853aaf951caaeaed0585a95346f08"
+dependencies = [
+ "windows-sys 0.61.2",
+]
+
+[[package]]
 name = "mockall"
 version = "0.15.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -6953,7 +6956,7 @@ version = "1.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "537b596b97c40fcf8056d153049eb22f481c17ebce72a513ec9286e4986d1bb6"
 dependencies = [
- "num-modular",
+ "num-modular 0.6.6",
 ]
 
 [[package]]
@@ -7783,6 +7786,17 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "13bee6c73da26345c729282832b60b0363cf3dd9f4bfd81d8551b7a1c889a113"
 
 [[package]]
+name = "piper"
+version = "0.2.5"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "c835479a4443ded371d6c535cbfd8d31ad92c5d23ae9770a61bc155e4992a3c1"
+dependencies = [
+ "atomic-waker",
+ "fastrand",
+ "futures-io",
+]
+
+[[package]]
 name = "pixman"
 version = "0.2.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -8044,7 +8058,7 @@ version = "3.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e67ba7e9b2b56446f1d419b1d807906278ffa1a658a8a5d8a39dcb1f5a78614f"
 dependencies = [
- "toml_edit 0.25.15+spec-1.1.0",
+ "toml_edit 0.25.17+spec-1.1.0",
 ]
 
 [[package]]
@@ -8555,6 +8569,15 @@ dependencies = [
  "bytemuck",
  "font-types",
  "once_cell",
+]
+
+[[package]]
+name = "realfft"
+version = "3.5.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "538895ccf2006b473aafbe8d72770e21038961ab67aae34f3c577485fc703a7d"
+dependencies = [
+ "rustfft",
 ]
 
 [[package]]
@@ -11329,24 +11352,10 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "cfdc1c628cdd8ce7c3b9e65a8ed550d0338e9ef9f911e729666f1cce097de2f7"
 dependencies = [
  "bitflags 2.13.2",
- "embedded-io 0.7.1",
+ "embedded-io",
  "enumn",
  "log",
  "safe-mmio",
- "thiserror 2.0.18",
- "zerocopy",
-]
-
-[[package]]
-name = "virtio-drivers-and-devices"
-version = "0.4.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "dd5f63aff109f064a1fc3d48830168ff1abc2f8d9f66d00ae362819f3a123931"
-dependencies = [
- "bitflags 2.13.2",
- "embedded-io 0.6.1",
- "enumn",
- "log",
  "thiserror 2.0.18",
  "zerocopy",
 ]

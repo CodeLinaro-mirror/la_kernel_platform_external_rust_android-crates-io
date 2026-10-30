@@ -484,6 +484,7 @@ raw-cpuid
 rayon
 rayon-core
 read-fonts
+realfft
 ref-cast
 ref-cast-impl
 regex
