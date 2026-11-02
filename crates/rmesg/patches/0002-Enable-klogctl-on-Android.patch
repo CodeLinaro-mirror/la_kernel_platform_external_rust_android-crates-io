@@ -1,0 +1,43 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Tom Hughes <tomhughes@google.com>
+Date: Mon, 2 Nov 2026 13:30:00 -0800
+Subject: [PATCH] Enable klogctl on Android
+
+---
+ src/klogctl.rs | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/src/klogctl.rs b/src/klogctl.rs
+index 3e1092a..a571072 100644
+--- a/src/klogctl.rs
++++ b/src/klogctl.rs
+@@ -35,16 +35,16 @@ use std::iter::Iterator;
+ #[cfg(feature = "sync")]
+ use std::thread;
+ 
+-#[cfg(target_os = "linux")]
++#[cfg(any(target_os = "linux", target_os = "android"))]
+ // Can be removed once upstream libc supports it.
+ extern "C" {
+     fn klogctl(syslog_type: libc::c_int, buf: *mut libc::c_char, len: libc::c_int) -> libc::c_int;
+ }
+ 
+ /// Mark this as unsafe to be compliant with the Linux/Libc variant
+ /// Allows compilation on non-linux platforms which can be useful for
+ /// portability of downstream tools without complex conditionals.
+-#[cfg(not(target_os = "linux"))]
++#[cfg(not(any(target_os = "linux", target_os = "android")))]
+ unsafe fn klogctl(
+     _syslog_type: libc::c_int,
+     _buf: *mut libc::c_char,
+@@ -449,7 +449,7 @@ pub fn safely_wrapped_klogctl(klogtype: KLogType, buf_u8: &mut [u8]) -> Result<
+ /**********************************************************************************/
+ // Tests! Tests! Tests!
+ 
+-#[cfg(all(test, target_os = "linux"))]
++#[cfg(all(test, any(target_os = "linux", target_os = "android")))]
+ mod test {
+     use super::*;
+ 
+-- 
+2.47.0
