@@ -1,0 +1,17 @@
+name: "jiff-tzdb"
+description: "The entire Time Zone Database embedded into your binary."
+third_party {
+  version: "0.1.8"
+  license_type: NOTICE
+  last_upgrade_date {
+    year: 2026
+    month: 11
+    day: 2
+  }
+  homepage: "https://crates.io/crates/jiff-tzdb"
+  identifier {
+    type: "crates.io"
+    value: "jiff-tzdb"
+    version: "0.1.8"
+  }
+}

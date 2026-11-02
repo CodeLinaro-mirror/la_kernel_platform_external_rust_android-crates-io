@@ -504,6 +504,7 @@ dependencies = [
  "itoa",
  "java-locator",
  "jiff",
+ "jiff-tzdb",
  "jni 0.22.4",
  "jni-macros",
  "jni-sys 0.4.1",
