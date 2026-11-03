@@ -13,7 +13,7 @@
 edition = "2024"
 rust-version = "1.85.0"
 name = "glam"
-version = "0.34.1"
+version = "0.34.2"
 build = false
 include = [
     "/src/**/*.rs",
@@ -153,6 +153,10 @@ path = "tests/panic_location.rs"
 [[test]]
 name = "quat"
 path = "tests/quat.rs"
+
+[[test]]
+name = "scalar_math_signed_zero"
+path = "tests/scalar_math_signed_zero.rs"
 
 [[test]]
 name = "support"
