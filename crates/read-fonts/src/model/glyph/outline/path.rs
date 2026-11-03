@@ -1,11 +1,14 @@
-//! Types for collecting the output when drawing a glyph outline.
+//! Path commands for outlines and sinks that receive them.
 
 use alloc::{string::String, vec::Vec};
 use core::fmt::{self, Write};
-use types::BoundingBox;
+use types::{BoundingBox, Matrix};
 
-/// Interface for accepting a sequence of path commands.
-pub trait OutlinePen {
+/// Receives the path commands for an outline.
+///
+/// To receive the outline's points in font units, use
+/// [`UnscaledOutlineSink`](super::UnscaledOutlineSink).
+pub trait PathSink {
     /// Emit a command to begin a new subpath at (x, y).
     fn move_to(&mut self, x: f32, y: f32);
 
@@ -48,7 +51,7 @@ pub enum PathElement {
     Close,
 }
 
-impl OutlinePen for Vec<PathElement> {
+impl PathSink for Vec<PathElement> {
     fn move_to(&mut self, x: f32, y: f32) {
         self.push(PathElement::MoveTo { x, y })
     }
@@ -77,10 +80,10 @@ impl OutlinePen for Vec<PathElement> {
     }
 }
 
-/// Pen that drops all drawing output into the ether.
-pub struct NullPen;
+/// A sink that discards all drawing commands.
+pub struct NullSink;
 
-impl OutlinePen for NullPen {
+impl PathSink for NullSink {
     fn move_to(&mut self, _x: f32, _y: f32) {}
     fn line_to(&mut self, _x: f32, _y: f32) {}
     fn quad_to(&mut self, _cx0: f32, _cy0: f32, _x: f32, _y: f32) {}
@@ -88,18 +91,18 @@ impl OutlinePen for NullPen {
     fn close(&mut self) {}
 }
 
-/// Pen that generates SVG style path data.
+/// A sink that writes SVG style path data.
 #[derive(Clone, Default, Debug)]
-pub struct SvgPen(String, Option<usize>);
+pub struct SvgSink(String, Option<usize>);
 
-impl SvgPen {
-    /// Creates a new SVG pen that formats floating point values with the
+impl SvgSink {
+    /// Creates a sink that formats floating point values with the
     /// standard behavior.
     pub fn new() -> Self {
         Self::default()
     }
 
-    /// Creates a new SVG pen with the given precision (the number of digits
+    /// Creates a sink with the given precision (the number of digits
     /// that will be printed after the decimal).
     pub fn with_precision(precision: usize) -> Self {
         Self(String::default(), Some(precision))
@@ -117,7 +120,7 @@ impl SvgPen {
     }
 }
 
-impl core::ops::Deref for SvgPen {
+impl core::ops::Deref for SvgSink {
     type Target = str;
 
     fn deref(&self) -> &Self::Target {
@@ -125,7 +128,7 @@ impl core::ops::Deref for SvgPen {
     }
 }
 
-impl OutlinePen for SvgPen {
+impl PathSink for SvgSink {
     fn move_to(&mut self, x: f32, y: f32) {
         self.maybe_push_space();
         let _ = if let Some(prec) = self.1 {
@@ -172,41 +175,41 @@ impl OutlinePen for SvgPen {
     }
 }
 
-impl AsRef<str> for SvgPen {
+impl AsRef<str> for SvgSink {
     fn as_ref(&self) -> &str {
         self.0.as_ref()
     }
 }
 
-impl From<String> for SvgPen {
+impl From<String> for SvgSink {
     fn from(value: String) -> Self {
         Self(value, None)
     }
 }
 
-impl From<SvgPen> for String {
-    fn from(value: SvgPen) -> Self {
+impl From<SvgSink> for String {
+    fn from(value: SvgSink) -> Self {
         value.0
     }
 }
 
-impl fmt::Display for SvgPen {
+impl fmt::Display for SvgSink {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "{}", self.0)
     }
 }
 
-/// Pen that generates the control bounds of a glyph outline.
+/// A sink that collects the control bounds of a glyph outline.
 #[derive(Clone, Default, Debug)]
-pub struct ControlBoundsPen(Option<BoundingBox<f32>>);
+pub struct ControlBoundsSink(Option<BoundingBox<f32>>);
 
-impl ControlBoundsPen {
-    /// Creates a new bounds pen.
+impl ControlBoundsSink {
+    /// Creates an empty sink.
     pub fn new() -> Self {
         Self(None)
     }
 
-    /// Returns the bounding box collected by this pen.
+    /// Returns the bounding box collected by this sink.
     pub fn bounding_box(&self) -> Option<BoundingBox<f32>> {
         self.0
     }
@@ -228,7 +231,7 @@ impl ControlBoundsPen {
     }
 }
 
-impl OutlinePen for ControlBoundsPen {
+impl PathSink for ControlBoundsSink {
     fn move_to(&mut self, x: f32, y: f32) {
         self.update_bounds(x, y);
     }
@@ -251,16 +254,129 @@ impl OutlinePen for ControlBoundsPen {
     fn close(&mut self) {}
 }
 
+/// A sink that applies an affine transform to every point and forwards the
+/// result to another sink.
+#[derive(Clone, Debug)]
+pub struct TransformSink<S> {
+    sink: S,
+    transform: Matrix<f32>,
+}
+
+impl<S> TransformSink<S> {
+    /// Creates a sink that applies `transform` to each point and forwards
+    /// it to `sink`.
+    pub fn new(sink: S, transform: Matrix<f32>) -> Self {
+        Self { sink, transform }
+    }
+
+    /// Returns the transform applied to every point.
+    pub fn transform(&self) -> Matrix<f32> {
+        self.transform
+    }
+
+    /// Consumes this sink and returns the inner sink.
+    pub fn into_inner(self) -> S {
+        self.sink
+    }
+}
+
+impl<S: PathSink> PathSink for TransformSink<S> {
+    fn move_to(&mut self, x: f32, y: f32) {
+        let (x, y) = self.transform.transform(x, y);
+        self.sink.move_to(x, y);
+    }
+
+    fn line_to(&mut self, x: f32, y: f32) {
+        let (x, y) = self.transform.transform(x, y);
+        self.sink.line_to(x, y);
+    }
+
+    fn quad_to(&mut self, cx0: f32, cy0: f32, x: f32, y: f32) {
+        let (cx0, cy0) = self.transform.transform(cx0, cy0);
+        let (x, y) = self.transform.transform(x, y);
+        self.sink.quad_to(cx0, cy0, x, y);
+    }
+
+    fn curve_to(&mut self, cx0: f32, cy0: f32, cx1: f32, cy1: f32, x: f32, y: f32) {
+        let (cx0, cy0) = self.transform.transform(cx0, cy0);
+        let (cx1, cy1) = self.transform.transform(cx1, cy1);
+        let (x, y) = self.transform.transform(x, y);
+        self.sink.curve_to(cx0, cy0, cx1, cy1, x, y);
+    }
+
+    fn close(&mut self) {
+        self.sink.close();
+    }
+}
+
+impl<P: PathSink + ?Sized> PathSink for &mut P {
+    fn move_to(&mut self, x: f32, y: f32) {
+        (**self).move_to(x, y)
+    }
+
+    fn line_to(&mut self, x: f32, y: f32) {
+        (**self).line_to(x, y)
+    }
+
+    fn quad_to(&mut self, cx0: f32, cy0: f32, x: f32, y: f32) {
+        (**self).quad_to(cx0, cy0, x, y)
+    }
+
+    fn curve_to(&mut self, cx0: f32, cy0: f32, cx1: f32, cy1: f32, x: f32, y: f32) {
+        (**self).curve_to(cx0, cy0, cx1, cy1, x, y)
+    }
+
+    fn close(&mut self) {
+        (**self).close()
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
 
     #[test]
-    fn svg_pen_precision() {
+    fn transform_sink_moves_every_point() {
+        // Scale x by 2, shear y by x, and move by (10, 20).
+        let transform = Matrix::from_elements([2.0, 1.0, 0.0, 1.0, 10.0, 20.0]);
+        let mut path = Vec::new();
+        let mut sink = TransformSink::new(&mut path, transform);
+        sink.move_to(1.0, 2.0);
+        sink.line_to(3.0, 4.0);
+        sink.quad_to(1.0, 0.0, 0.0, 1.0);
+        sink.curve_to(1.0, 1.0, 2.0, 2.0, 3.0, 3.0);
+        sink.close();
+        assert_eq!(sink.transform(), transform);
+        assert_eq!(
+            path,
+            [
+                PathElement::MoveTo { x: 12.0, y: 23.0 },
+                PathElement::LineTo { x: 16.0, y: 27.0 },
+                PathElement::QuadTo {
+                    cx0: 12.0,
+                    cy0: 21.0,
+                    x: 10.0,
+                    y: 21.0
+                },
+                PathElement::CurveTo {
+                    cx0: 12.0,
+                    cy0: 22.0,
+                    cx1: 14.0,
+                    cy1: 24.0,
+                    x: 16.0,
+                    y: 26.0
+                },
+                PathElement::Close,
+            ]
+        );
+    }
+
+    #[test]
+    fn svg_sink_precision() {
         let svg_data = [None, Some(1), Some(4)].map(|prec| {
             let mut pen = match prec {
-                None => SvgPen::new(),
-                Some(prec) => SvgPen::with_precision(prec),
+                None => SvgSink::new(),
+                Some(prec) => SvgSink::with_precision(prec),
             };
             pen.move_to(1.0, 2.45556);
             pen.line_to(1.2, 4.0);

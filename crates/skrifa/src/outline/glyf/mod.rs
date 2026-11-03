@@ -8,23 +8,27 @@ mod outline;
 #[allow(unused_imports)]
 use core_maths::CoreFloat;
 
-pub use hint::{HintError, HintInstance, HintOutline};
+pub use hint::{
+    ClearType, ClearTypeState, DropoutControl, HintError, HintInstance, HintOutline, HintTables,
+    RasterPolicy,
+};
 pub use outline::{Outline, ScaledOutline};
 
 use super::{DrawError, GlyphHMetrics, Hinting};
-use crate::{GLYF_COMPOSITE_RECURSION_LIMIT, MAX_GLYF_POINTS, MAX_GRAPH_EDGES};
 use memory::{FreeTypeOutlineMemory, HarfBuzzOutlineMemory};
 use raw::FontRef;
+use read_fonts::limits::{MAX_COMPOSITE_EDGES, MAX_OUTLINE_POINTS, MAX_RECURSION_DEPTH};
 use read_fonts::{
     tables::{
+        cvar::Cvar,
         glyf::{
             Anchor, CompositeGlyph, CompositeGlyphFlags, Glyf, Glyph, PointMarker, SimpleGlyph,
         },
-        gvar::{DeltaBuffers, Gvar},
+        gvar::{DeltaBuffers, SelectedGvar},
         hdmx::Hdmx,
         loca::Loca,
     },
-    types::{F26Dot6, F2Dot14, Fixed, GlyphId, Point, Tag},
+    types::{BigEndian, F26Dot6, F2Dot14, Fixed, GlyphId, Point, Tag},
     TableProvider,
 };
 
@@ -38,17 +42,18 @@ pub struct Outlines<'a> {
     pub(crate) glyph_metrics: GlyphHMetrics<'a>,
     loca: Loca<'a>,
     glyf: Glyf<'a>,
-    gvar: Option<Gvar<'a>>,
+    gvar: Option<SelectedGvar<'a>>,
     hdmx: Option<Hdmx<'a>>,
     fpgm: &'a [u8],
     prep: &'a [u8],
-    cvt_len: u32,
+    cvt: &'a [BigEndian<i16>],
+    cvar: Option<Cvar<'a>>,
     max_function_defs: u16,
     max_instruction_defs: u16,
     max_twilight_points: u16,
     max_stack_elements: u16,
     max_storage: u16,
-    glyph_count: u16,
+    glyph_count: u32,
     units_per_em: u16,
     os2_vmetrics: [i16; 2],
     prefer_interpreter: bool,
@@ -63,8 +68,9 @@ impl<'a> Outlines<'a> {
         let fractional_size_hinting = !head
             .flags()
             .contains(read_fonts::tables::head::Flags::FORCE_INTEGER_PPEM);
-        let loca = font.loca(Some(head.index_to_loc_format() == 1)).ok()?;
-        let glyf = font.glyf().ok()?;
+        let (glyf, loca) = font
+            .selected_glyf_loca(Some(head.index_to_loc_format() == 1))
+            .ok()?;
         let glyph_metrics = GlyphHMetrics::new(font)?;
         let (
             glyph_count,
@@ -75,7 +81,7 @@ impl<'a> Outlines<'a> {
             max_storage,
             max_instructions,
         ) = font
-            .maxp()
+            .selected_maxp()
             .map(|maxp| {
                 (
                     maxp.num_glyphs(),
@@ -111,17 +117,18 @@ impl<'a> Outlines<'a> {
         // Copy FreeType's logic on whether to use the interpreter:
         // <https://gitlab.freedesktop.org/freetype/freetype/-/blob/57617782464411201ce7bbc93b086c1b4d7d84a5/src/base/ftobjs.c#L1001>
         let prefer_interpreter = !(max_instructions == 0 && fpgm.is_empty() && prep.is_empty());
-        let cvt_len = font.cvt().map(|cvt| cvt.len() as u32).unwrap_or_default();
+        let cvt = font.cvt().unwrap_or_default();
         Some(Self {
             font: font.clone(),
             glyph_metrics,
             loca,
             glyf,
-            gvar: font.gvar().ok(),
+            gvar: font.selected_gvar().ok(),
             hdmx: font.hdmx().ok(),
             fpgm,
             prep,
-            cvt_len,
+            cvt,
+            cvar: font.cvar().ok(),
             max_function_defs,
             max_instruction_defs,
             max_twilight_points,
@@ -143,8 +150,37 @@ impl<'a> Outlines<'a> {
         self.glyph_count as usize
     }
 
+    /// The glyph count, limited to the glyphs that have locations.
+    pub(crate) fn stored_glyph_count(&self) -> u32 {
+        let located = u32::try_from(self.loca.len()).unwrap_or(u32::MAX);
+        self.glyph_count.min(located)
+    }
+
+    pub(crate) fn variation_axis_count(&self) -> usize {
+        self.gvar
+            .as_ref()
+            .map(|gvar| gvar.axis_count() as usize)
+            .unwrap_or_default()
+    }
+
     pub fn prefer_interpreter(&self) -> bool {
         self.prefer_interpreter
+    }
+
+    /// Returns the tables the TrueType interpreter reads.
+    pub(crate) fn hint_tables(&self) -> HintTables<'a> {
+        HintTables {
+            fpgm: self.fpgm,
+            prep: self.prep,
+            cvt: self.cvt,
+            cvar: self.cvar.clone(),
+            max_function_defs: self.max_function_defs,
+            max_instruction_defs: self.max_instruction_defs,
+            max_twilight_points: self.max_twilight_points,
+            max_stack_elements: self.max_stack_elements,
+            max_storage: self.max_storage,
+            axis_count: self.variation_axis_count() as u16,
+        }
     }
 
     pub fn outline(&self, glyph_id: GlyphId) -> Result<Outline<'a>, DrawError> {
@@ -162,7 +198,7 @@ impl<'a> Outlines<'a> {
         }
         outline.points += PHANTOM_POINT_COUNT;
         outline.max_stack = self.max_stack_elements as usize;
-        outline.cvt_count = self.cvt_len as usize;
+        outline.cvt_count = self.cvt.len();
         outline.storage_count = self.max_storage as usize;
         outline.max_twilight_points = self.max_twilight_points as usize;
         outline.glyph = glyph.into_glyph();
@@ -196,7 +232,7 @@ impl Outlines<'_> {
         recurse_depth: usize,
         total_components: &mut usize,
     ) -> Result<(), DrawError> {
-        if recurse_depth > GLYF_COMPOSITE_RECURSION_LIMIT {
+        if recurse_depth > MAX_RECURSION_DEPTH {
             return Err(DrawError::RecursionLimitExceeded(outline.glyph_id));
         }
         match glyph {
@@ -205,7 +241,7 @@ impl Outlines<'_> {
                 let num_points_with_phantom = num_points + PHANTOM_POINT_COUNT;
                 outline.max_simple_points = outline.max_simple_points.max(num_points_with_phantom);
                 outline.points += num_points;
-                if outline.points > MAX_GLYF_POINTS {
+                if outline.points > MAX_OUTLINE_POINTS {
                     return Err(DrawError::TooManyPoints(outline.glyph_id));
                 }
                 outline.contours += simple.end_pts_of_contours().len();
@@ -221,13 +257,13 @@ impl Outlines<'_> {
                     outline.has_overlaps |= flags.contains(CompositeGlyphFlags::OVERLAP_COMPOUND);
                     let component_glyph = self
                         .loca
-                        .get(component.into(), &self.glyf)
+                        .get(component, &self.glyf)
                         .ok_or(DrawError::Malformed)?;
                     let Some(component_glyph) = component_glyph.glyph() else {
                         continue;
                     };
                     *total_components += 1;
-                    if *total_components > MAX_GRAPH_EDGES {
+                    if *total_components > MAX_COMPOSITE_EDGES {
                         return Err(DrawError::RecursionLimitExceeded(outline.glyph_id));
                     }
                     self.outline_rec(
@@ -296,7 +332,7 @@ trait Scaler {
         glyph_id: GlyphId,
         recurse_depth: usize,
     ) -> Result<(), DrawError> {
-        if recurse_depth > GLYF_COMPOSITE_RECURSION_LIMIT {
+        if recurse_depth > MAX_RECURSION_DEPTH {
             return Err(DrawError::RecursionLimitExceeded(glyph_id));
         }
         let bounds = match &glyph {
@@ -380,6 +416,7 @@ impl<'a> HarfBuzzScaler<'a> {
             &mut self.memory.flags[..self.point_count],
             &mut self.memory.contours[..self.contour_count],
             self.outlines.hdmx_width(self.ppem, glyph_id),
+            DropoutControl::default(),
         ))
     }
 }
@@ -449,6 +486,9 @@ pub(crate) struct FreeTypeScaler<'a> {
     /// See <https://learn.microsoft.com/en-us/typography/opentype/spec/tt_instructing_glyphs#phantom-points>
     phantom: [Point<F26Dot6>; PHANTOM_POINT_COUNT],
     hinter: Option<&'a HintInstance>,
+    /// The dropout control requested by the most recently hinted glyph
+    /// program.
+    dropout_control: DropoutControl,
 }
 
 impl<'a> FreeTypeScaler<'a> {
@@ -476,6 +516,7 @@ impl<'a> FreeTypeScaler<'a> {
             pedantic_hinting: false,
             phantom: Default::default(),
             hinter: None,
+            dropout_control: DropoutControl::default(),
         })
     }
 
@@ -506,6 +547,9 @@ impl<'a> FreeTypeScaler<'a> {
             pedantic_hinting,
             phantom: Default::default(),
             hinter: Some(hinter),
+            // A glyph with no instructions of its own keeps what the control
+            // value program chose.
+            dropout_control: hinter.dropout_control(),
         })
     }
 
@@ -535,6 +579,7 @@ impl<'a> FreeTypeScaler<'a> {
             &mut self.memory.flags[..self.point_count],
             &mut self.memory.contours[..self.contour_count],
             hdmx_width,
+            self.dropout_control,
         ))
     }
 }
@@ -572,7 +617,7 @@ impl Scaler for FreeTypeScaler<'_> {
         let scale = self.scale;
         let mut unscaled = self.phantom.map(|point| point.map(|x| x.to_bits()));
         if self.outlines.gvar.is_some() && !self.coords.is_empty() {
-            if let Ok(Some(deltas)) = self.outlines.gvar.as_ref().unwrap().phantom_point_deltas(
+            if let Some(deltas) = self.outlines.gvar.as_ref().unwrap().phantom_point_deltas(
                 &self.outlines.glyf,
                 &self.outlines.loca,
                 self.coords,
@@ -687,7 +732,7 @@ impl Scaler for FreeTypeScaler<'_> {
                     contours,
                     &mut buffers,
                 )
-                .is_ok()
+                .is_some()
             {
                 have_deltas = true;
             }
@@ -780,10 +825,12 @@ impl Scaler for FreeTypeScaler<'_> {
                     is_composite: false,
                     coords: self.coords,
                 };
-                let hint_res = hinter.hint(self.outlines, &mut input, self.pedantic_hinting);
-                if let (Err(e), true) = (hint_res, self.pedantic_hinting) {
-                    return Err(e)?;
-                }
+                let hint_res = hinter.hint(
+                    &self.outlines.hint_tables(),
+                    &mut input,
+                    self.pedantic_hinting,
+                );
+                self.dropout_control = hint_res?;
             } else if !hinter.backward_compatibility() {
                 // Even when missing instructions, FreeType uses rounded
                 // phantom points when hinting is requested and backward
@@ -831,7 +878,7 @@ impl Scaler for FreeTypeScaler<'_> {
                 .ok_or(InsufficientMemory)?;
             if gvar
                 .composite_deltas(glyph_id, self.coords, &mut deltas[..])
-                .is_ok()
+                .is_some()
             {
                 // Apply deltas to phantom points.
                 for (phantom, delta) in self
@@ -863,10 +910,10 @@ impl Scaler for FreeTypeScaler<'_> {
             let component_glyph = self
                 .outlines
                 .loca
-                .get(component.glyph.into(), &self.outlines.glyf)
+                .get(component.glyph, &self.outlines.glyf)
                 .ok_or(DrawError::Malformed)?
                 .into_glyph();
-            self.load(&component_glyph, component.glyph.into(), recurse_depth + 1)?;
+            self.load(&component_glyph, component.glyph, recurse_depth + 1)?;
             let end_point = self.point_count;
             if !component
                 .flags
@@ -956,7 +1003,16 @@ impl Scaler for FreeTypeScaler<'_> {
                                 .flags
                                 .contains(CompositeGlyphFlags::ROUND_XY_TO_GRID)
                         {
-                            // Only round the y-coordinate, per FreeType.
+                            // The horizontal offset only lands on the pixel
+                            // grid when the target is too coarse to place it
+                            // more precisely.
+                            if self
+                                .hinter
+                                .map(|hinter| hinter.round_composite_x_offset())
+                                .unwrap_or_default()
+                            {
+                                offset.x = offset.x.round();
+                            }
                             offset.y = offset.y.round();
                         }
                         offset
@@ -1063,10 +1119,12 @@ impl Scaler for FreeTypeScaler<'_> {
                     is_composite: true,
                     coords: self.coords,
                 };
-                let hint_res = hinter.hint(self.outlines, &mut input, self.pedantic_hinting);
-                if let (Err(e), true) = (hint_res, self.pedantic_hinting) {
-                    return Err(e)?;
-                }
+                let hint_res = hinter.hint(
+                    &self.outlines.hint_tables(),
+                    &mut input,
+                    self.pedantic_hinting,
+                );
+                self.dropout_control = hint_res?;
                 // Undo the contour shifts if we applied them above.
                 if point_base != 0 {
                     let delta = point_base as u16;
@@ -1115,7 +1173,7 @@ impl Scaler for HarfBuzzScaler<'_> {
             && self.outlines.gvar.is_some()
             && !self.coords.is_empty()
         {
-            if let Ok(Some(deltas)) = self.outlines.gvar.as_ref().unwrap().phantom_point_deltas(
+            if let Some(deltas) = self.outlines.gvar.as_ref().unwrap().phantom_point_deltas(
                 &self.outlines.glyf,
                 &self.outlines.loca,
                 self.coords,
@@ -1199,7 +1257,7 @@ impl Scaler for HarfBuzzScaler<'_> {
                     contours,
                     &mut buffers,
                 )
-                .is_ok()
+                .is_some()
             {
                 for (point, delta) in points.iter_mut().zip(buffers.deltas.iter()) {
                     *point += *delta;
@@ -1212,6 +1270,10 @@ impl Scaler for HarfBuzzScaler<'_> {
                 *point *= self.scale;
             }
         }
+        // Commit the scaled phantom points. Without this the left side bearing
+        // adjustment subtracts font units from scaled coordinates.
+        self.phantom
+            .copy_from_slice(&points[phantom_start..phantom_start + PHANTOM_POINT_COUNT]);
 
         if points_start != 0 {
             // If we're not the first component, shift our contour end points.
@@ -1246,7 +1308,7 @@ impl Scaler for HarfBuzzScaler<'_> {
                 .ok_or(InsufficientMemory)?;
             if gvar
                 .composite_deltas(glyph_id, self.coords, &mut deltas[..])
-                .is_ok()
+                .is_some()
             {
                 // Apply deltas to phantom points.
                 for (phantom, delta) in self
@@ -1274,10 +1336,10 @@ impl Scaler for HarfBuzzScaler<'_> {
             let component_glyph = self
                 .outlines
                 .loca
-                .get(component.glyph.into(), &self.outlines.glyf)
+                .get(component.glyph, &self.outlines.glyf)
                 .ok_or(DrawError::Malformed)?
                 .into_glyph();
-            self.load(&component_glyph, component.glyph.into(), recurse_depth + 1)?;
+            self.load(&component_glyph, component.glyph, recurse_depth + 1)?;
             let end_point = self.point_count;
             if !component
                 .flags
@@ -1321,13 +1383,16 @@ impl Scaler for HarfBuzzScaler<'_> {
                         x *= hypot(transform[0], transform[2]);
                         y *= hypot(transform[1], transform[3]);
                     }
-                    Point::new(x, y)
+                    // The component's points are already scaled, so the
+                    // offset has to be as well.
+                    (Point::new(x, y)
                         + self
                             .memory
                             .composite_deltas
                             .get(delta_base + i)
                             .copied()
-                            .unwrap_or_default()
+                            .unwrap_or_default())
+                        * scale
                 }
                 Anchor::Point { base, component } => {
                     let (base_offset, component_offset) = (base as usize, component as usize);
@@ -1474,7 +1539,7 @@ mod tests {
         let gid = GlyphId::new(1);
         // Build a glyph made of more than the allowed number of components,
         // each of which is a valid empty simple glyph.
-        let [glyf_buf, loca_buf] = build_with_n_comps(MAX_GRAPH_EDGES + 1);
+        let [glyf_buf, loca_buf] = build_with_n_comps(MAX_COMPOSITE_EDGES + 1);
         let mut outlines = Outlines::new(&font).unwrap();
         outlines.glyf = Glyf::read(glyf_buf.data().into()).unwrap();
         outlines.loca = Loca::read(loca_buf.data().into(), true).unwrap();
@@ -1482,7 +1547,7 @@ mod tests {
         assert!(matches!(result, Err(DrawError::RecursionLimitExceeded(_))));
         // Check the edge condition; make sure we can load a composite with exactly the
         // limit number of components.
-        let [glyf_buf, loca_buf] = build_with_n_comps(MAX_GRAPH_EDGES);
+        let [glyf_buf, loca_buf] = build_with_n_comps(MAX_COMPOSITE_EDGES);
         let mut outlines = Outlines::new(&font).unwrap();
         outlines.glyf = Glyf::read(glyf_buf.data().into()).unwrap();
         outlines.loca = Loca::read(loca_buf.data().into(), true).unwrap();

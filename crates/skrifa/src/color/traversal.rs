@@ -12,12 +12,16 @@ use super::{
 };
 
 use crate::decycler::{Decycler, DecyclerError};
+use read_fonts::limits::MAX_RECURSION_DEPTH;
 
 #[cfg(feature = "libm")]
 #[allow(unused_imports)]
 use core_maths::*;
 
-pub(crate) type PaintDecycler = Decycler<usize, MAX_TRAVERSAL_DEPTH>;
+// Bounds how deep a paint graph is followed, and detects cycles in it.
+// HarfBuzz bounds its own paint context the same way; see
+// <https://github.com/harfbuzz/harfbuzz/blob/724ef405f3a0a0b2792c7a575d1f3341b41ca950/src/OT/Color/COLR/COLR.hh#L74>.
+pub(crate) type PaintDecycler = Decycler<usize, MAX_RECURSION_DEPTH>;
 
 // Avoid heap allocations for any gradient with <= 32 color stops. This number
 // was chosen to keep stack size < 512 bytes.
@@ -30,7 +34,7 @@ pub(crate) type PaintDecycler = Decycler<usize, MAX_TRAVERSAL_DEPTH>;
 // <https://docs.google.com/document/d/1S47f3E--yqvFdG7lmmufxRoFi_wMzotC03v8UvS_p54/edit?tab=t.0#heading=h.bfj7urloz3oe>
 const MAX_INLINE_COLOR_STOPS: usize = 32;
 
-pub(crate) type ColorStopVec = crate::collections::SmallVec<ColorStop, MAX_INLINE_COLOR_STOPS>;
+pub(crate) type ColorStopVec = smallvec::SmallVec<[ColorStop; MAX_INLINE_COLOR_STOPS]>;
 
 impl From<DecyclerError> for PaintError {
     fn from(value: DecyclerError) -> Self {
@@ -40,16 +44,6 @@ impl From<DecyclerError> for PaintError {
         }
     }
 }
-
-/// Depth at which we will stop traversing and return an error.
-///
-/// Used to prevent stack overflows. Also allows us to avoid using a HashSet
-/// in no_std builds.
-///
-/// This limit matches the one used in HarfBuzz:
-/// HB_MAX_NESTING_LEVEL: <https://github.com/harfbuzz/harfbuzz/blob/c2f8f35a6cfce43b88552b3eb5c05062ac7007b2/src/hb-limits.hh#L53>
-/// hb_paint_context_t: <https://github.com/harfbuzz/harfbuzz/blob/c2f8f35a6cfce43b88552b3eb5c05062ac7007b2/src/OT/Color/COLR/COLR.hh#L74>
-const MAX_TRAVERSAL_DEPTH: usize = 64;
 
 /// Maximum number of nodes visited during a single traversal.
 ///
@@ -112,7 +106,7 @@ pub(crate) fn traverse_with_callbacks<'a, P: ColorPainter>(
     decycler: &mut PaintDecycler,
     recurse_depth: usize,
 ) -> Result<(), PaintError> {
-    if recurse_depth >= MAX_TRAVERSAL_DEPTH {
+    if recurse_depth >= MAX_RECURSION_DEPTH {
         return Err(PaintError::DepthLimitExceeded);
     }
     match paint {
@@ -145,7 +139,7 @@ pub(crate) fn traverse_with_callbacks<'a, P: ColorPainter>(
             Ok(())
         }
         ResolvedPaint::Glyph { glyph_id, paint } => {
-            let glyph_id = (*glyph_id).into();
+            let glyph_id = *glyph_id;
             // Look for the pattern `(transform)* fill` and optimize it to a
             // single paint call
             let mut next_paint = state.resolve_paint(paint)?;
@@ -307,7 +301,7 @@ mod tests {
     use raw::types::GlyphId;
     use read_fonts::{
         types::{BoundingBox, GlyphId16},
-        FontRef, TableProvider,
+        FontData, FontRead, FontRef, TableProvider,
     };
 
     #[test]
@@ -406,6 +400,9 @@ mod tests {
         clip_pops: usize,
         layer_pushes: usize,
         layer_pops: usize,
+        clip_glyphs: Vec<GlyphId>,
+        filled_glyphs: Vec<GlyphId>,
+        fills: usize,
     }
 
     impl ColorPainter for StackTrackingPainter {
@@ -417,8 +414,9 @@ mod tests {
             self.transform_pops += 1;
         }
 
-        fn push_clip_glyph(&mut self, _glyph_id: GlyphId) {
+        fn push_clip_glyph(&mut self, glyph_id: GlyphId) {
             self.clip_pushes += 1;
+            self.clip_glyphs.push(glyph_id);
         }
 
         fn push_clip_box(&mut self, _clip_box: BoundingBox<f32>) {
@@ -430,7 +428,25 @@ mod tests {
         }
 
         fn fill(&mut self, _brush: Brush<'_>) {
-            // nop
+            self.fills += 1;
+        }
+
+        fn fill_glyph(
+            &mut self,
+            glyph_id: GlyphId,
+            brush_transform: Option<Transform>,
+            brush: Brush<'_>,
+        ) {
+            self.filled_glyphs.push(glyph_id);
+            self.push_clip_glyph(glyph_id);
+            if let Some(transform) = brush_transform {
+                self.push_transform(transform);
+                self.fill(brush);
+                self.pop_transform();
+            } else {
+                self.fill(brush);
+            }
+            self.pop_clip();
         }
 
         fn push_layer(&mut self, _composite_mode: CompositeMode) {
@@ -440,6 +456,57 @@ mod tests {
         fn pop_layer(&mut self) {
             self.layer_pops += 1;
         }
+    }
+
+    #[test]
+    fn paint_glyph2_traversal_preserves_wide_ids_in_fill_and_clip() {
+        let colr_data = font_test_data::colr::paint_glyph2_colr();
+        let colr = raw::tables::colr::Colr::read(FontData::new(&colr_data)).unwrap();
+        let nested = [
+            33, 0, 0, 7, 0x12, 0x34, 0x56, // outer clip: glyph 0x123456
+            33, 0, 0, 7, 1, 0, 0, // inner fill: glyph 0x10000
+            2, 0, 7, 0x40, 0, // solid
+        ];
+        for (data, clips, fills) in [
+            (
+                font_test_data::colr::PAINT_GLYPH2,
+                &[0x123456][..],
+                &[0x123456][..],
+            ),
+            (&nested[..], &[0x123456, 0x10000][..], &[0x10000][..]),
+        ] {
+            let instance = ColrInstance::new(colr.clone(), &[]);
+            let paint = Paint::read(FontData::new(data)).unwrap();
+            let mut painter = StackTrackingPainter::default();
+            let mut state = TraversalState::new(instance, &mut painter);
+            let mut decycler = PaintDecycler::new();
+            let resolved = state.resolve_paint(&paint).unwrap();
+            traverse_with_callbacks(&resolved, &mut state, &mut decycler, 0).unwrap();
+            assert_eq!(
+                painter.clip_glyphs,
+                clips.iter().copied().map(GlyphId::new).collect::<Vec<_>>()
+            );
+            assert_eq!(
+                painter.filled_glyphs,
+                fills.iter().copied().map(GlyphId::new).collect::<Vec<_>>()
+            );
+            assert_eq!(painter.fills, 1);
+            assert_eq!(painter.clip_pushes, painter.clip_pops);
+        }
+    }
+
+    #[test]
+    fn paint_glyph2_traversal_rejects_missing_child() {
+        let colr_data = font_test_data::colr::paint_glyph2_colr();
+        let colr = raw::tables::colr::Colr::read(FontData::new(&colr_data)).unwrap();
+        let instance = ColrInstance::new(colr, &[]);
+        let paint = Paint::read(FontData::new(&font_test_data::colr::PAINT_GLYPH2[..7])).unwrap();
+        let mut painter = NopPainter;
+        let mut state = TraversalState::new(instance, &mut painter);
+        assert!(matches!(
+            state.resolve_paint(&paint),
+            Err(PaintError::Malformed)
+        ));
     }
 
     #[test]
