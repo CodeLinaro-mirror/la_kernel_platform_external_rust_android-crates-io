@@ -233,14 +233,26 @@ impl<S: AsRawFd + ReadVolatile + Write + WriteVolatile + IsHybridVsock> VsockCon
             VSOCK_OP_RESPONSE => {
                 if self.stream.is_hybrid_vsock() {
                     // Confirmation for a host initiated connection
+                    // TODO: Handle stream write error in a better manner
                     let response = format!("OK {}\n", self.peer_port);
-                    if let Err(err) = self.stream.write_all(response.as_bytes()) {
-                        log::debug!("Error writing confirmation to stream: {err:?}");
-                        self.rx_queue.enqueue(RxOps::Reset);
-                        return Ok(());
-                    }
+                    self.stream.write_all(response.as_bytes()).unwrap();
                 }
                 self.connect = true;
+                if VhostUserVsockThread::epoll_register(
+                    self.epoll_fd,
+                    self.stream.as_raw_fd(),
+                    epoll::Events::EPOLLIN | epoll::Events::EPOLLOUT,
+                )
+                .is_err()
+                {
+                    if let Err(e) = VhostUserVsockThread::epoll_modify(
+                        self.epoll_fd,
+                        self.stream.as_raw_fd(),
+                        epoll::Events::EPOLLIN | epoll::Events::EPOLLOUT,
+                    ) {
+                        error!("epoll_modify failed: {e:?}, but proceed further.");
+                    }
+                }
             }
             VSOCK_OP_RW => {
                 // Data has to be written to the host-side stream

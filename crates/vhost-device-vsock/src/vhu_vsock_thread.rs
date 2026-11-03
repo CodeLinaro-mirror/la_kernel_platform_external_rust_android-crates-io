@@ -264,6 +264,7 @@ impl VhostUserVsockThread {
         if self.active {
             return;
         }
+        log::debug!("Activating device");
         self.active = true;
 
         // Add the raw_pkts queue to the map to begin accepting packets from sibling VMs
@@ -369,13 +370,6 @@ impl VhostUserVsockThread {
                                     local_port,
                                     peer_port,
                                 );
-                                if let Err(err) = Self::epoll_register(
-                                    self.get_epoll_fd(),
-                                    stream_raw_fd,
-                                    epoll::Events::EPOLLIN | epoll::Events::EPOLLOUT,
-                                ) {
-                                    warn!("Failed to register with epoll: {err:?}");
-                                }
                             }
                             Err(err) => {
                                 warn!("Unable to accept new local connection: {err:?}");
@@ -395,6 +389,10 @@ impl VhostUserVsockThread {
                 self.thread_backend.listener_map.entry(fd)
             {
                 // New connection from the host
+                if evset.bits() != epoll::Events::EPOLLIN.bits() {
+                    // Has to be EPOLLIN as it was not connected previously
+                    return;
+                }
                 let mut stream = match self.thread_backend.stream_map.remove(&fd) {
                     Some(s) => s,
                     None => {
@@ -402,11 +400,6 @@ impl VhostUserVsockThread {
                         return;
                     }
                 };
-                if !evset.contains(epoll::Events::EPOLLIN) {
-                    // Has to include EPOLLIN as it was not connected previously
-                    let _ = Self::epoll_unregister(self.epoll_file.as_raw_fd(), fd);
-                    return;
-                }
 
                 match stream {
                     #[cfg(feature = "backend_vsock")]
@@ -419,7 +412,6 @@ impl VhostUserVsockThread {
                             Ok(port) => port,
                             Err(err) => {
                                 warn!("Error while parsing \"connect PORT\n\" command: {err:?}");
-                                let _ = Self::epoll_unregister(self.epoll_file.as_raw_fd(), fd);
                                 return;
                             }
                         };
@@ -429,20 +421,19 @@ impl VhostUserVsockThread {
                             Ok(lp) => lp,
                             Err(err) => {
                                 warn!("Error while allocating local port: {err:?}");
-                                let _ = Self::epoll_unregister(self.epoll_file.as_raw_fd(), fd);
                                 return;
                             }
                         };
 
                         self.add_new_connection_from_host(fd, stream, local_port, peer_port);
 
-                        // Re-register the fd to listen for EPOLLIN and EPOLLOUT events
-                        Self::epoll_modify(
-                            self.get_epoll_fd(),
-                            fd,
-                            epoll::Events::EPOLLIN | epoll::Events::EPOLLOUT,
-                        )
-                        .unwrap();
+                        // wait till guest accepts connection before forwarding data
+                        if let Err(err) = Self::epoll_unregister(self.get_epoll_fd(), fd) {
+                            warn!(
+                                "Failed to unregister local stream before guest response: {:?}",
+                                err
+                            );
+                        }
                     }
                 }
             } else {
@@ -482,13 +473,8 @@ impl VhostUserVsockThread {
                 // established with the guest
                 Self::epoll_unregister(self.epoll_file.as_raw_fd(), fd).unwrap();
 
-                if conn.connect {
-                    // Enqueue a read request
-                    conn.rx_queue.enqueue(RxOps::Rw);
-                } else {
-                    // Host peer closed or wrote data before guest accepted connection
-                    conn.rx_queue.enqueue(RxOps::Reset);
-                }
+                // Enqueue a read request
+                conn.rx_queue.enqueue(RxOps::Rw);
                 self.thread_backend
                     .backend_rxq
                     .push_back(ConnMapKey::new(conn.local_port, conn.peer_port));
@@ -791,7 +777,7 @@ impl VhostUserVsockThread {
             } else {
                 // A tx packet can only arrive before we're active if it was sent before a
                 // transport reset completed.
-                warn!("vsock: Dropping packet received before reset completes");
+                warn!("vsock: Dropping tx packet received before reset completes");
             }
 
             // TODO: Check if the protocol requires read length to be correct
@@ -843,6 +829,10 @@ impl VhostUserVsockThread {
     pub fn reset_transport(&mut self, vring: &VringRwLock, event_idx: bool) -> Result<bool> {
         let mut vring_mut = vring.get_mut();
         let queue = vring_mut.get_queue_mut();
+
+        if !queue.ready() {
+            return Ok(false);
+        }
 
         let atomic_mem = match &self.mem {
             Some(m) => m,
