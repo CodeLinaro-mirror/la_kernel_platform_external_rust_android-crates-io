@@ -1,0 +1,11 @@
+{
+  "features": [],
+  "min_sdk_version": "29",
+  "package": {
+    "qrcode": {
+      "device_supported": false,
+      "target_windows": true
+    }
+  },
+  "run_cargo": false
+}

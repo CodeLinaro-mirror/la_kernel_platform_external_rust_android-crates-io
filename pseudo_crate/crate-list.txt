@@ -471,6 +471,7 @@ protobuf-support
 ptr_meta
 ptr_meta_derive
 pxfm
+qrcode
 quiche
 quick-error
 quick-xml
