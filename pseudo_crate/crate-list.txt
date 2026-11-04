@@ -257,6 +257,7 @@ hashlink
 heapless
 heck
 hex
+hidreport
 home
 hound
 http
