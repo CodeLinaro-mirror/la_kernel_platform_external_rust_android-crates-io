@@ -6,8 +6,8 @@
 // option. This file may not be copied, modified, or distributed
 // except according to those terms.
 
-use dtoolkit::error::{BufferError, FdtMutError};
-use dtoolkit::fdt::Fdt;
+use dtoolkit::error::{BufferError, FdtErrorKind, FdtMutError};
+use dtoolkit::fdt::{Fdt, FdtOptions};
 use dtoolkit::fdt_mut::{FdtBuffer, FdtMut, SliceBuffer};
 use dtoolkit::{Node, Property};
 #[cfg(feature = "alloc")]
@@ -24,7 +24,7 @@ fn modify_property_in_place() {
 
     // change "hello world" to "hello there" which has the same length
     let new_val = b"hello there\0";
-    assert_eq!((&prop_mut).value().len(), 12);
+    assert_eq!(prop_mut.value().len(), 12);
     assert_eq!(new_val.len(), 12);
 
     prop_mut.set_value(new_val).unwrap();
@@ -45,12 +45,12 @@ fn modify_property_shrink_and_grow() {
     let mut prop_mut = node_mut.property_mut("str-prop").unwrap();
 
     let orig_val = b"hello world\0";
-    assert_eq!((&prop_mut).value(), orig_val);
+    assert_eq!(prop_mut.value(), orig_val);
 
     // Shrink the value
     let short_val = b"hi\0";
     prop_mut.set_value(short_val).unwrap();
-    assert_eq!((&prop_mut).value(), short_val);
+    assert_eq!(prop_mut.value(), short_val);
 
     // Check it correctly parses back
     let fdt = Fdt::new(&data).unwrap();
@@ -65,7 +65,7 @@ fn modify_property_shrink_and_grow() {
 
     let medium_val = b"hello\0";
     prop_mut.set_value(medium_val).unwrap();
-    assert_eq!((&prop_mut).value(), medium_val);
+    assert_eq!(prop_mut.value(), medium_val);
 
     let fdt = Fdt::new(&data).unwrap();
     let node = fdt.find_node("/test-props").unwrap();
@@ -444,7 +444,7 @@ fn iter_invalidation() {
     let mut props = node.properties_mut();
     let mut found = false;
     while let Some(mut prop) = props.next() {
-        if (&prop).name() == "str-prop" {
+        if prop.name() == "str-prop" {
             prop.set_value(b"this value is much longer than original\0")
                 .unwrap();
             found = true;
@@ -455,7 +455,7 @@ fn iter_invalidation() {
 
     // ensure this doesn't panic after mutating the property
     let prop = props.next().unwrap();
-    let _ = (&prop).name();
+    let _ = prop.name();
 }
 
 #[test]
@@ -470,7 +470,7 @@ fn remove_node_via_handle() {
 
     let mut parent = fdt_mut.find_node_mut("/a/b").unwrap();
     let child = parent.child_mut("c").unwrap();
-    child.remove();
+    child.remove().unwrap();
 
     let fdt = Fdt::new(&data).unwrap();
 
@@ -479,6 +479,27 @@ fn remove_node_via_handle() {
 
     assert!(fdt.find_node("/a/b/c").is_none());
     assert!(node_b.child("c").is_none());
+}
+
+#[test]
+fn remove_root_node_fails() {
+    let dtb = include_bytes!("dtb/test_traversal.dtb");
+    let mut data = dtb.to_vec();
+
+    let mut fdt_mut = FdtMut::from_slice(&mut data).unwrap();
+    assert_eq!(
+        fdt_mut.root_mut().remove(),
+        Err(FdtMutError::RemoveRootNode)
+    );
+    assert_eq!(
+        fdt_mut.find_node_mut("/").unwrap().remove(),
+        Err(FdtMutError::RemoveRootNode)
+    );
+
+    // ensure the tree remains valid
+    let fdt = Fdt::new(&data).unwrap();
+    assert_eq!(fdt.root().name(), "");
+    assert!(fdt.find_node("/a/b/c").is_some());
 }
 
 #[test]
@@ -558,4 +579,103 @@ fn add_string_deduplication() {
         final_size,
         "total size must grow to align with dtb block + string length"
     );
+}
+
+#[test]
+fn property_mut_methods() {
+    let dtb = include_bytes!("dtb/test_props.dtb");
+    let mut fdt = FdtMut::new(dtb.to_vec()).unwrap();
+    let mut node = fdt.find_node_mut("/test-props").unwrap();
+    let mut props = node.properties_mut();
+    let prop = props.next().unwrap();
+
+    assert_eq!(prop.name(), "u32-prop");
+    assert_eq!(prop.value(), &[0x12, 0x34, 0x56, 0x78]);
+    assert_eq!(prop.value_as::<u32>().unwrap(), 0x1234_5678);
+    assert_eq!(format!("{prop}"), "u32-prop = <0x12345678>;\n");
+
+    let array: Vec<_> = prop.as_prop_encoded_array([1]).unwrap().collect();
+    assert_eq!(array.len(), 1);
+}
+
+#[test]
+fn node_at_offset_mut_and_nop_rejection() {
+    let dtb = include_bytes!("dtb/test_traversal.dtb");
+    let mut data = dtb.to_vec();
+
+    let mut fdt = FdtMut::from_slice(&mut data).unwrap();
+    let root_off = fdt.root_mut().offset();
+    assert_eq!(root_off, 0);
+
+    let c_off = fdt.find_node_mut("/a/b/c").unwrap().offset();
+    let mut c_node = fdt.node_at_offset_mut(c_off).unwrap();
+    assert_eq!(c_node.name(), "c");
+    c_node
+        .property_mut("prop")
+        .unwrap()
+        .set_value(0x5678u32)
+        .unwrap();
+
+    assert_eq!(
+        fdt.as_read_only()
+            .node_at_offset(c_off)
+            .unwrap()
+            .property("prop")
+            .unwrap()
+            .value_as::<u32>()
+            .unwrap(),
+        0x5678
+    );
+
+    // Removing the node replaces it with NOPs, so c_off is no longer a valid
+    // node offset.
+    fdt.node_at_offset_mut(c_off).unwrap().remove().unwrap();
+    assert!(fdt.node_at_offset_mut(c_off).is_none());
+    assert!(fdt.as_read_only().node_at_offset(c_off).is_none());
+}
+
+#[test]
+fn from_raw_with_options_mut_rejects_invalid_headers() {
+    let dtb = include_bytes!("dtb/test_traversal.dtb");
+
+    // max_size smaller than header does not dereference pointer.
+    // SAFETY: `max_size < 40`, so `from_raw_with_options` returns before
+    // dereferencing `data`.
+    let err = unsafe {
+        FdtMut::from_raw_with_options(core::ptr::null_mut(), FdtOptions::new().max_size(39))
+    }
+    .unwrap_err();
+    assert_eq!(err.kind, FdtErrorKind::InvalidLength);
+
+    // 8-byte buffer with bad magic or out-of-range totalsize is rejected
+    // without reading 40 bytes.
+    let mut bad_magic = [0u8; 8];
+    // SAFETY: `bad_magic` is 8 readable bytes and has invalid magic.
+    let err = unsafe {
+        FdtMut::from_raw_with_options(bad_magic.as_mut_ptr(), FdtOptions::new().max_size(1024))
+    }
+    .unwrap_err();
+    assert_eq!(err.kind, FdtErrorKind::InvalidMagic);
+
+    let mut huge_size = [0xd0, 0x0d, 0xfe, 0xed, 0xff, 0xff, 0xff, 0xff];
+    // SAFETY: `huge_size` is 8 readable bytes and `totalsize > max_size`.
+    let err = unsafe {
+        FdtMut::from_raw_with_options(
+            huge_size.as_mut_ptr(),
+            FdtOptions::new().max_size(dtb.len()),
+        )
+    }
+    .unwrap_err();
+    assert_eq!(err.kind, FdtErrorKind::InvalidLength);
+}
+
+#[test]
+fn from_slice_buffer_into_fdt_uses_totalsize() {
+    let dtb = include_bytes!("dtb/test.dtb");
+    let mut buf = [0u8; 256];
+    buf[..dtb.len()].copy_from_slice(dtb);
+
+    let fdt_mut = FdtMut::from_slice(&mut buf).unwrap();
+    let fdt = Fdt::from(fdt_mut);
+    assert_eq!(fdt.data().len(), dtb.len());
 }

@@ -12,7 +12,7 @@ use core::ops::Deref;
 use crate::error::{PropertyError, StandardError};
 use crate::fdt::{Fdt, FdtNode};
 use crate::standard::Reg;
-use crate::{Node, Property, ToCellInt};
+use crate::{Cells, Node, Property};
 
 impl<'a> Fdt<'a> {
     /// Returns the `/memory` node.
@@ -60,19 +60,16 @@ impl<N: Display> Display for Memory<N> {
     }
 }
 
-impl<N: Node> Memory<N> {
+impl<'a, N: Node<'a>> Memory<N> {
     /// Returns the value of the standard `initial-mapped-area` property of the
     /// memory node.
     ///
     /// # Errors
     ///
     /// Returns an error if the size of the value isn't a multiple of 5 cells.
-    pub fn initial_mapped_area<'a>(
-        &'a self,
-    ) -> Result<Option<impl Iterator<Item = InitialMappedArea> + 'a>, PropertyError>
-    where
-        N: 'a,
-    {
+    pub fn initial_mapped_area(
+        self,
+    ) -> Result<Option<impl Iterator<Item = InitialMappedArea> + use<'a, N>>, PropertyError> {
         if let Some(property) = self.node.property("initial-mapped-area") {
             Ok(Some(
                 property
@@ -87,7 +84,7 @@ impl<N: Node> Memory<N> {
     /// Returns the value of the standard `hotpluggable` property of the memory
     /// node.
     #[must_use]
-    pub fn hotpluggable(&self) -> bool {
+    pub fn hotpluggable(self) -> bool {
         self.node.property("hotpluggable").is_some()
     }
 }
@@ -113,7 +110,7 @@ impl InitialMappedArea {
         clippy::unwrap_used,
         reason = "The Cells passed are always the correct size"
     )]
-    fn from_cells<C: ToCellInt>([ea, pa, size]: [C; 3]) -> Self {
+    fn from_cells([ea, pa, size]: [Cells<'_>; 3]) -> Self {
         Self {
             effective_address: ea.to_int().unwrap(),
             physical_address: pa.to_int().unwrap(),
@@ -142,7 +139,7 @@ impl<N: Display> Display for ReservedMemory<N> {
     }
 }
 
-impl<N: Node> ReservedMemory<N> {
+impl<'a, N: Node<'a>> ReservedMemory<N> {
     /// Returns the value of the standard `size` property of the reserved memory
     /// node, if it is present.
     ///
@@ -150,13 +147,10 @@ impl<N: Node> ReservedMemory<N> {
     ///
     /// Returns an error if the value of the property isn't a multiple of 4
     /// bytes long.
-    pub fn size<'a>(&'a self) -> Result<Option<crate::Cells<'a>>, PropertyError>
-    where
-        N: 'a,
-    {
+    pub fn size(self) -> Result<Option<Cells<'a>>, PropertyError> {
         self.node
             .property("size")
-            .map(|value| value.value_as::<crate::Cells<'a>>())
+            .map(Property::value_as)
             .transpose()
     }
 
@@ -167,28 +161,25 @@ impl<N: Node> ReservedMemory<N> {
     ///
     /// Returns an error if the value of the property isn't a multiple of 4
     /// bytes long.
-    pub fn alignment<'a>(&'a self) -> Result<Option<crate::Cells<'a>>, PropertyError>
-    where
-        N: 'a,
-    {
+    pub fn alignment(self) -> Result<Option<Cells<'a>>, PropertyError> {
         self.node
             .property("alignment")
-            .map(|value| value.value_as::<crate::Cells<'a>>())
+            .map(Property::value_as)
             .transpose()
     }
 
     /// Returns whether the standard `no-map` property is present.
-    pub fn no_map(&self) -> bool {
+    pub fn no_map(self) -> bool {
         self.node.property("no-map").is_some()
     }
 
     /// Returns whether the standard `no-map-fixup` property is present.
-    pub fn no_map_fixup(&self) -> bool {
+    pub fn no_map_fixup(self) -> bool {
         self.node.property("no-map-fixup").is_some()
     }
 
     /// Returns whether the standard `reusable` property is present.
-    pub fn reusable(&self) -> bool {
+    pub fn reusable(self) -> bool {
         self.node.property("reusable").is_some()
     }
 }

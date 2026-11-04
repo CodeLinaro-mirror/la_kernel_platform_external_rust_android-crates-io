@@ -84,7 +84,7 @@ impl DeviceTree {
     /// Returns an error if the root node of the `Fdt` cannot be parsed.
     #[must_use]
     pub fn from_fdt(fdt: &Fdt<'_>) -> Self {
-        let root = DeviceTreeNode::from_node(&fdt.root());
+        let root = DeviceTreeNode::from_node(fdt.root());
         let memory_reservations: Vec<_> = fdt.memory_reservations().collect();
         DeviceTree {
             root,
@@ -143,7 +143,7 @@ impl DeviceTree {
     /// let mut tree = DeviceTree::new();
     /// tree.root.add_child(DeviceTreeNode::new("child").unwrap());
     /// let child = tree.find_node_mut("/child").unwrap();
-    /// assert_eq!((&*child).name(), "child");
+    /// assert_eq!(child.name(), "child");
     /// ```
     pub fn find_node_mut(&mut self, path: &str) -> Option<&mut DeviceTreeNode> {
         if !path.starts_with('/') {

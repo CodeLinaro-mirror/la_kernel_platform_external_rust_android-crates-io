@@ -11,10 +11,11 @@ use core::fmt::{Display, Formatter};
 
 use zerocopy::IntoBytes;
 
+use crate::error::FdtMutError;
 use crate::fdt::node::InnerChildIter;
 use crate::fdt::node::private::FdtChildIter;
 use crate::fdt::property::{FdtPropIter, InnerPropIter};
-use crate::fdt::{FDT_TAGSIZE, Fdt, FdtNode, FdtPropertyHeader};
+use crate::fdt::{FDT_TAGSIZE, Fdt, FdtNode, FdtProperty, FdtPropertyHeader, NameValidation};
 use crate::fdt_mut::buffer::FdtBuffer;
 use crate::fdt_mut::property::FdtPropMutIter;
 use crate::fdt_mut::{FdtMut, FdtPropertyMut};
@@ -34,7 +35,7 @@ impl<B: FdtBuffer> FdtNodeMut<'_, B> {
     pub fn property_mut(&mut self, name: &str) -> Option<FdtPropertyMut<'_, B>> {
         let mut props = self.properties_mut();
         while let Some(prop) = props.next() {
-            if prop.as_read_only().name() == name {
+            if prop.name() == name {
                 return Some(FdtPropertyMut {
                     prop_offset: prop.prop_offset,
                     value_offset: prop.value_offset,
@@ -90,13 +91,15 @@ impl<B: FdtBuffer> FdtNodeMut<'_, B> {
         &mut self,
         name: &str,
         value: T,
-    ) -> Result<FdtPropertyMut<'_, B>, crate::error::FdtMutError> {
+    ) -> Result<FdtPropertyMut<'_, B>, FdtMutError> {
         let nameoff = self.data.add_string(name)? as usize;
         let fdt = self.as_read_only().fdt;
         let mut offset = self.offset + FDT_TAGSIZE;
         let name_end = fdt.find_string_end(offset).expect("valid node name");
         offset = Fdt::align_tag_offset(name_end);
-        let insert_offset = fdt.skip_props(offset, false).expect("valid dt");
+        let insert_offset = fdt
+            .skip_props(offset, NameValidation::Skip)
+            .expect("Fdt should be valid");
 
         let val_len = value.property_value_len();
         let padded_val_len = Fdt::align_tag_offset(val_len);
@@ -178,9 +181,15 @@ impl<B: FdtBuffer> FdtNodeMut<'_, B> {
     /// assert!(node.child("c").is_none());
     /// assert!(!node.remove_child("c"));
     /// ```
+    ///
+    /// # Panics
+    ///
+    /// Panics if the [`FdtMut`] structure was constructed using
+    /// [`FdtMut::new_unchecked`] or [`FdtMut::from_raw_unchecked`] and the FDT
+    /// is not valid.
     pub fn remove_child(&mut self, name: &str) -> bool {
         if let Some(child) = self.child_mut(name) {
-            child.remove();
+            child.remove().expect("child node is never the root node");
             true
         } else {
             false
@@ -194,6 +203,10 @@ impl<B: FdtBuffer> FdtNodeMut<'_, B> {
     /// tags, rendering it invisible to Device Tree iterators without
     /// requiring data to be shifted.
     ///
+    /// # Errors
+    ///
+    /// Returns [`FdtMutError::RemoveRootNode`] if called on the root node.
+    ///
     /// # Examples
     ///
     /// ```
@@ -204,7 +217,7 @@ impl<B: FdtBuffer> FdtNodeMut<'_, B> {
     /// let mut fdt = FdtMut::from_slice(&mut dtb).unwrap();
     /// let mut parent = fdt.find_node_mut("/a/b").unwrap();
     /// let child = parent.child_mut("c").unwrap();
-    /// child.remove();
+    /// child.remove().unwrap();
     ///
     /// assert!(parent.child("c").is_none());
     /// ```
@@ -214,14 +227,18 @@ impl<B: FdtBuffer> FdtNodeMut<'_, B> {
     /// Panics if the [`FdtMut`] structure was constructed using
     /// [`FdtMut::new_unchecked`] or [`FdtMut::from_raw_unchecked`] and the FDT
     /// is not valid.
-    pub fn remove(self) {
+    pub fn remove(self) -> Result<(), FdtMutError> {
         let fdt = self.data.as_read_only();
         let start = self.offset;
+        if start == fdt.root().offset {
+            return Err(FdtMutError::RemoveRootNode);
+        }
         let end = fdt
             .next_sibling_offset(self.offset)
             .expect("Fdt should be valid");
 
         self.data.replace_with_nops(start, end);
+        Ok(())
     }
 
     /// Returns a mutable iterator over the properties of this node.
@@ -252,50 +269,59 @@ impl<B: FdtBuffer> FdtNodeMut<'_, B> {
             parent_address_space: self.parent_address_space,
         }
     }
+
+    /// Returns the byte offset of this node's `FDT_BEGIN_NODE` tag relative to
+    /// the start of the `dt_struct` block.
+    ///
+    /// Note that mutating the FDT in a way that removes this node or shifts,
+    /// grows, or compacts the `dt_struct` block may invalidate this offset.
+    ///
+    /// For more details, refer to [`FdtNode::offset`].
+    #[must_use]
+    pub fn offset(&self) -> usize {
+        self.as_read_only().offset()
+    }
+
+    /// Returns the name of this node.
+    #[must_use]
+    pub fn name(&self) -> &str {
+        self.as_read_only().name()
+    }
+
+    /// Returns the name of this node without the unit address, if any.
+    #[must_use]
+    pub fn name_without_address(&self) -> &str {
+        self.as_read_only().name_without_address()
+    }
+
+    /// Returns the property with the given name, if any.
+    #[must_use]
+    pub fn property(&self, name: &str) -> Option<FdtProperty<'_>> {
+        self.as_read_only().property(name)
+    }
+
+    /// Returns an iterator over the properties of this node.
+    #[must_use]
+    pub fn properties(&self) -> FdtPropIter<'_> {
+        self.as_read_only().properties()
+    }
+
+    /// Returns a child node by its name.
+    #[must_use]
+    pub fn child(&self, name: &str) -> Option<FdtNode<'_>> {
+        self.as_read_only().child(name)
+    }
+
+    /// Returns an iterator over the children of this node.
+    #[must_use]
+    pub fn children(&self) -> FdtChildIter<'_> {
+        self.as_read_only().children()
+    }
 }
 
 impl<B: FdtBuffer> Display for FdtNodeMut<'_, B> {
     fn fmt(&self, f: &mut Formatter<'_>) -> Result<(), fmt::Error> {
         write!(f, "{}", self.as_read_only())
-    }
-}
-
-impl<B: FdtBuffer> Node for FdtNodeMut<'_, B> {
-    type Property<'b>
-        = crate::fdt::FdtProperty<'b>
-    where
-        Self: 'b;
-    type Child<'b>
-        = FdtNode<'b>
-    where
-        Self: 'b;
-    type Properties<'b>
-        = FdtPropIter<'b>
-    where
-        Self: 'b;
-    type Children<'b>
-        = FdtChildIter<'b>
-    where
-        Self: 'b;
-    type Name<'b>
-        = &'b str
-    where
-        Self: 'b;
-
-    fn name(&self) -> &str {
-        self.as_read_only().name()
-    }
-
-    fn name_without_address(&self) -> &str {
-        self.as_read_only().name_without_address()
-    }
-
-    fn properties(&self) -> FdtPropIter<'_> {
-        self.as_read_only().properties()
-    }
-
-    fn children(&self) -> FdtChildIter<'_> {
-        self.as_read_only().children()
     }
 }
 

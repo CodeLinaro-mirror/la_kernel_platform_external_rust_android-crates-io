@@ -10,7 +10,7 @@
 
 use core::fmt::{self, Display, Formatter};
 
-use super::{FDT_TAGSIZE, Fdt, FdtToken};
+use super::{FDT_TAGSIZE, Fdt, FdtToken, NameValidation};
 use crate::Node;
 use crate::fdt::property::{FdtPropIter, FdtProperty, InnerPropIter};
 use crate::standard::{AddressSpaceProperties, NodeStandard};
@@ -25,27 +25,10 @@ pub struct FdtNode<'a> {
     pub(crate) parent_address_space: AddressSpaceProperties,
 }
 
-impl<'a> Node for FdtNode<'a> {
-    type Property<'b>
-        = FdtProperty<'a>
-    where
-        Self: 'b;
-    type Name<'b>
-        = &'a str
-    where
-        Self: 'b;
-    type Child<'b>
-        = FdtNode<'a>
-    where
-        Self: 'b;
-    type Properties<'b>
-        = FdtPropIter<'a>
-    where
-        Self: 'b;
-    type Children<'b>
-        = private::FdtChildIter<'a>
-    where
-        Self: 'b;
+impl<'a> Node<'a> for FdtNode<'a> {
+    type Property = FdtProperty<'a>;
+    type Properties = FdtPropIter<'a>;
+    type Children = private::FdtChildIter<'a>;
 
     /// Returns the name of this node.
     ///
@@ -54,25 +37,21 @@ impl<'a> Node for FdtNode<'a> {
     /// Panics if the [`Fdt`] structure was constructed using
     /// [`Fdt::new_unchecked`] or [`Fdt::from_raw_unchecked`] and the FDT is not
     /// valid.
-    fn name(&self) -> &'a str {
+    fn name(self) -> &'a str {
         let name_offset = self.offset + FDT_TAGSIZE;
         self.fdt
             .string_at_offset(name_offset, None)
             .expect("Fdt should be valid")
     }
 
-    fn name_without_address(&self) -> &'a str {
-        crate::util::name_without_address(self.name())
-    }
-
-    fn properties(&self) -> FdtPropIter<'a> {
+    fn properties(self) -> FdtPropIter<'a> {
         FdtPropIter {
             fdt: self.fdt,
             inner: InnerPropIter::new(self.offset),
         }
     }
 
-    fn children(&self) -> private::FdtChildIter<'a> {
+    fn children(self) -> private::FdtChildIter<'a> {
         private::FdtChildIter {
             fdt: self.fdt,
             inner: InnerChildIter::new(self.offset),
@@ -88,6 +67,37 @@ impl<'a> FdtNode<'a> {
             offset,
             parent_address_space: AddressSpaceProperties::default(),
         }
+    }
+
+    /// Returns the byte offset of this node's `FDT_BEGIN_NODE` tag relative to
+    /// the start of the `dt_struct` block.
+    ///
+    /// This matches the node offset representation used by `libfdt` (where the
+    /// root node `/` is at offset `0`).
+    ///
+    /// # Panics
+    ///
+    /// Panics if the [`Fdt`] structure was constructed using
+    /// [`Fdt::new_unchecked`] or [`Fdt::from_raw_unchecked`] and the FDT is not
+    /// valid.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use dtoolkit::Node;
+    /// use dtoolkit::fdt::Fdt;
+    ///
+    /// # let dtb = include_bytes!("../../tests/dtb/test_traversal.dtb");
+    /// let fdt = Fdt::new(dtb).unwrap();
+    /// assert_eq!(fdt.root().offset(), 0);
+    ///
+    /// let node = fdt.find_node("/a/b/c").unwrap();
+    /// let by_offset = fdt.node_at_offset(node.offset()).unwrap();
+    /// assert_eq!(by_offset.name(), "c");
+    /// ```
+    #[must_use]
+    pub fn offset(self) -> usize {
+        self.offset - self.fdt.header().off_dt_struct() as usize
     }
 
     pub(crate) fn fmt_recursive(&self, f: &mut Formatter, indent: usize) -> fmt::Result {
@@ -161,7 +171,7 @@ impl InnerChildIter {
                 FdtToken::BeginNode => return Some(*offset),
                 FdtToken::Prop => {
                     *offset = fdt
-                        .next_property_offset(*offset, false)
+                        .next_property_offset(*offset, NameValidation::Skip)
                         .expect("Fdt should be valid");
                 }
                 FdtToken::EndNode | FdtToken::End => return None,
