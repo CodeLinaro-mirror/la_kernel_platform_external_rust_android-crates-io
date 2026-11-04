@@ -1,0 +1,12 @@
+diff --git a/Android.bp b/Android.bp
+index a4cc5ce..4d9819c 100644
+--- a/Android.bp
++++ b/Android.bp
+@@ -22,6 +22,7 @@ rust_test {
+     crate_root: "src/lib.rs",
+     test_suites: ["general-tests"],
+     auto_gen_config: true,
++    require_root: true,
+     test_options: {
+         unit_test: false,
+     },

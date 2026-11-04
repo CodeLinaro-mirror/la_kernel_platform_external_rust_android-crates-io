@@ -13,6 +13,42 @@ license {
     license_text: ["LICENSE"],
 }
 
+rust_test {
+    name: "rmesg_test_src_lib",
+    host_supported: true,
+    crate_name: "rmesg",
+    cargo_env_compat: true,
+    cargo_pkg_version: "1.0.24",
+    crate_root: "src/lib.rs",
+    test_suites: ["general-tests"],
+    auto_gen_config: true,
+    require_root: true,
+    test_options: {
+        unit_test: false,
+    },
+    edition: "2018",
+    features: [
+        "extra-traits",
+        "serde",
+        "sync",
+    ],
+    rustlibs: [
+        "libcfg_if",
+        "liberrno",
+        "liblazy_static",
+        "liblibc",
+        "libnonblock",
+        "libnum_traits",
+        "libregex",
+        "libserde",
+        "libstrum",
+    ],
+    proc_macros: [
+        "libnum_derive",
+        "libstrum_macros",
+    ],
+}
+
 rust_library {
     name: "librmesg",
     host_supported: true,

@@ -13,8 +13,11 @@
         "libclap",
         "libenum_display_derive",
         "libnum"
-      ]
+      ],
+      "no_presubmit": true,
+      "patch": "patches/Android.bp.patch"
     }
   },
-  "run_cargo": false
+  "run_cargo": false,
+  "tests": true
 }
