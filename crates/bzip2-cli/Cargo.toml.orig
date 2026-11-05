@@ -8,11 +8,10 @@ exclude = [
 ]
 
 [workspace.package]
-version = "0.2.5"
+version = "0.2.6"
 edition = "2021"
 license = "bzip2-1.0.6"
 repository = "https://github.com/trifectatechfoundation/libbzip2-rs"
-homepage = "https://github.com/trifectatechfoundation/libbzip2-rs"
 readme = "./README.md"
 description = "a drop-in compatible rust bzip2 implementation"
 publish = true
@@ -24,7 +23,7 @@ libc = "0.2"
 [workspace.dependencies.libbz2-rs-sys]
 path = "libbz2-rs-sys/"
 default-features = false
-version = "0.2.5"
+version = "0.2.6"
 
 [profile.relwithdebinfo]
 inherits = "release"
@@ -38,7 +37,6 @@ version.workspace = true
 edition.workspace = true
 license.workspace = true
 repository.workspace = true
-homepage.workspace = true
 publish.workspace = true
 rust-version.workspace = true
 
