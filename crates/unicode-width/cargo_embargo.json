@@ -1,14 +1,8 @@
 {
   "run_cargo": false,
   "tests": true,
-  "package": {
-    "unicode-width": {
-      "test_data": {
-        "tests/tests.rs": [
-          "tests/emoji-test.txt"
-        ]
-      }
-    }
-  },
+  "module_blocklist": [
+    "unicode-width_test_tests_tests"
+  ],
   "min_sdk_version": "29"
 }
