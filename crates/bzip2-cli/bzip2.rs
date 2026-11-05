@@ -998,6 +998,33 @@ fn pad(config: &Config) {
     }
 }
 
+/// Opens an output file for writing and creates it if it does not exist
+/// yet. If supported by the platform, the file has interim permissions set
+/// so that only the current user has read and write access to it.
+fn open_write_protected(name: impl AsRef<Path>) -> io::Result<std::fs::File> {
+    let mut opts = std::fs::File::options();
+    opts.write(true).create_new(true);
+
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::OpenOptionsExt;
+
+        #[allow(clippy::unnecessary_cast)]
+        opts.mode((libc::S_IWUSR | libc::S_IRUSR) as u32);
+    }
+
+    #[cfg(windows)]
+    {
+        use std::os::windows::fs::OpenOptionsExt;
+
+        // Allow the ctrl-c handler to delete the file
+        const FILE_SHARE_DELETE: u32 = 4u32;
+        opts.share_mode(FILE_SHARE_DELETE);
+    }
+
+    opts.open(name)
+}
+
 /// A safe wrapper around `*mut FILE`.
 ///
 /// # Safety invariant
@@ -1043,19 +1070,8 @@ impl CFile {
         #[cfg(unix)]
         {
             use std::os::fd::IntoRawFd;
-            use std::os::unix::fs::OpenOptionsExt;
 
-            let mut opts = std::fs::File::options();
-
-            opts.write(true).create_new(true);
-
-            #[allow(clippy::unnecessary_cast)]
-            opts.mode((libc::S_IWUSR | libc::S_IRUSR) as u32);
-
-            let Ok(file) = opts.open(name) else {
-                return None;
-            };
-
+            let file = open_write_protected(name).ok()?;
             let fd = file.into_raw_fd();
             let fp = unsafe { libc::fdopen(fd, WB_MODE) };
             if fp.is_null() {
@@ -1070,20 +1086,9 @@ impl CFile {
 
         #[cfg(windows)]
         {
-            use std::os::windows::fs::OpenOptionsExt;
             use std::os::windows::io::IntoRawHandle;
 
-            let mut opts = std::fs::File::options();
-
-            opts.write(true).create_new(true);
-
-            // Allow the ctrl-c handler to delete the file
-            const FILE_SHARE_DELETE: u32 = 4u32;
-            opts.share_mode(FILE_SHARE_DELETE);
-
-            let Ok(file) = opts.open(name) else {
-                return None;
-            };
+            let file = open_write_protected(name).ok()?;
             let handle = file.into_raw_handle();
 
             let fd = unsafe { libc::open_osfhandle(handle as isize, 0) };
@@ -1232,7 +1237,8 @@ fn apply_saved_time_info_to_output_file(dst_name: &Path, metadata: Metadata) -> 
 fn set_permissions(_config: &Config, _handle: &CFile, _metadata: &Metadata) {
     #[cfg(unix)]
     {
-        use std::os::unix::fs::MetadataExt;
+        use std::mem::ManuallyDrop;
+        use std::os::fd::FromRawFd;
 
         let fd = unsafe { fileno(_handle.file) };
         if fd < 0 {
@@ -1240,19 +1246,27 @@ fn set_permissions(_config: &Config, _handle: &CFile, _metadata: &Metadata) {
             ioError(_config)
         }
 
-        let retVal = unsafe { libc::fchmod(fd, _metadata.mode() as libc::mode_t) };
-        if retVal != 0 {
-            ioError(_config);
-        }
+        // SAFETY: fd is an open file descriptor. We use ManuallyDrop to avoid
+        // running the Drop impl of File, which would close the fd.
+        let file = ManuallyDrop::new(unsafe { std::fs::File::from_raw_fd(fd) });
 
-        // chown() will in many cases return with EPERM, which can be safely ignored.
-        unsafe { libc::fchown(fd, _metadata.uid(), _metadata.gid()) };
+        set_permissions_rust(_config, &file, _metadata);
     }
 }
 
 fn set_permissions_rust(config: &Config, file: &std::fs::File, metadata: &Metadata) {
     if let Err(error) = file.set_permissions(metadata.permissions()) {
         exit_with_io_error(config, error);
+    }
+
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::MetadataExt;
+
+        // chown() will in many cases return with EPERM, which can be safely ignored.
+        // fchown will clear S_ISUID and S_ISGID mode bits if called by an
+        // unprivileged user (and since Linux 2.2.13, also for root).
+        let _ = std::os::unix::fs::fchown(file, Some(metadata.uid()), Some(metadata.gid()));
     }
 }
 
@@ -1657,10 +1671,7 @@ fn uncompress(config: &Config) -> bool {
             output_stream = OutputStream::Stdout(std::io::stdout());
         }
         SourceMode::F2F => {
-            let mut options = std::fs::File::options();
-            options.write(true).create_new(true);
-
-            output_stream = match options.open(&config.output) {
+            output_stream = match open_write_protected(&config.output) {
                 Ok(file) => OutputStream::File(file),
                 Err(e) => {
                     eprintln!(

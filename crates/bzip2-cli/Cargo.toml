@@ -13,7 +13,7 @@
 edition = "2021"
 rust-version = "1.82"
 name = "bzip2-cli"
-version = "0.2.5"
+version = "0.2.6"
 build = false
 include = [
     "bzip2.rs",
@@ -29,7 +29,6 @@ autoexamples = false
 autotests = false
 autobenches = false
 description = "a drop-in compatible rust bzip2 implementation"
-homepage = "https://github.com/trifectatechfoundation/libbzip2-rs"
 readme = "README.md"
 license = "bzip2-1.0.6"
 repository = "https://github.com/trifectatechfoundation/libbzip2-rs"
@@ -43,7 +42,7 @@ name = "bzip2recover"
 path = "bzip2recover.rs"
 
 [dependencies.libbz2-rs-sys]
-version = "0.2.5"
+version = "0.2.6"
 features = [
     "stdio",
     "c-allocator",
