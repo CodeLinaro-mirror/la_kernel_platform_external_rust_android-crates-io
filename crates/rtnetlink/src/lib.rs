@@ -11,6 +11,7 @@ pub use netlink_proto as proto;
 pub use netlink_sys as sys;
 
 mod addr;
+mod addrlabel;
 mod connection;
 pub mod constants;
 mod errors;
@@ -27,7 +28,9 @@ mod rule;
 mod traffic_control;
 
 #[cfg(feature = "tokio_socket")]
-pub use crate::connection::{new_connection, new_multicast_connection};
+pub use crate::connection::{
+    new_connection, new_connection_with_strict_check, new_multicast_connection,
+};
 #[cfg(not(target_os = "freebsd"))]
 pub use crate::ns::{NetworkNamespace, NETNS_PATH, NONE_FS, SELF_NS_PATH};
 #[cfg(not(target_os = "freebsd"))]
@@ -41,6 +44,10 @@ pub use crate::{
     addr::{
         AddressAddRequest, AddressDelRequest, AddressGetRequest, AddressHandle,
         AddressMessageBuilder,
+    },
+    addrlabel::{
+        AddrLabelAddRequest, AddrLabelDelRequest, AddrLabelGetRequest,
+        AddrLabelHandle,
     },
     connection::{
         from_socket, new_connection_with_socket,

@@ -18,9 +18,9 @@ rust_library {
     host_supported: true,
     crate_name: "rtnetlink",
     cargo_env_compat: true,
-    cargo_pkg_version: "0.23.0",
+    cargo_pkg_version: "0.24.0",
     crate_root: "src/lib.rs",
-    edition: "2021",
+    edition: "2024",
     features: [
         "default",
         "tokio",
@@ -35,7 +35,6 @@ rust_library {
         "libnetlink_proto",
         "libnetlink_sys",
         "libnix",
-        "libthiserror",
         "libtokio",
     ],
     apex_available: [

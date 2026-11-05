@@ -1,20 +1,23 @@
 // SPDX-License-Identifier: MIT
 
 use std::{
+    fmt,
     marker::PhantomData,
     net::{IpAddr, Ipv4Addr, Ipv6Addr},
 };
 
 #[cfg(not(target_os = "android"))]
 use netlink_packet_route::route::{
-    MplsLabel, RouteLwEnCapType, RouteLwTunnelEncap, RouteMplsIpTunnel,
-    RouteSeg6IpTunnel, Seg6Header, Seg6Mode,
+    MplsLabel, RouteIoam6Tunnel, RouteIp6Tunnel, RouteIpTunnel,
+    RouteLwEnCapType, RouteLwTunnelEncap, RouteMplsIpTunnel, RouteRplIpTunnel,
+    RouteSeg6IpTunnel, RouteSeg6LocalTunnel, RouteXfrmTunnel, Seg6Header,
+    Seg6Mode,
 };
 use netlink_packet_route::{
     route::{
         RouteAddress, RouteAttribute, RouteFlags, RouteHeader, RouteMessage,
-        RouteNextHop, RouteNextHopFlags, RouteProtocol, RouteScope, RouteType,
-        RouteVia,
+        RouteMplsTtlPropagation, RouteNextHop, RouteNextHopFlags,
+        RouteProtocol, RouteRealm, RouteScope, RouteType, RouteVia,
     },
     AddressFamily,
 };
@@ -61,6 +64,38 @@ impl<T> RouteMessageBuilder<T> {
     /// Sets the output interface index.
     pub fn output_interface(mut self, index: u32) -> Self {
         self.message.attributes.push(RouteAttribute::Oif(index));
+        self
+    }
+
+    /// Sets the IP protocol (`RTA_IP_PROTO`) of the packet to match when
+    /// looking up a route.
+    pub fn ip_protocol(mut self, protocol: u8) -> Self {
+        self.message
+            .attributes
+            .push(RouteAttribute::IpProto(protocol));
+        self
+    }
+
+    /// Sets the source port (`RTA_SPORT`) of the packet to match when
+    /// looking up a route.
+    pub fn sport(mut self, sport: u16) -> Self {
+        self.message.attributes.push(RouteAttribute::Sport(sport));
+        self
+    }
+
+    /// Sets the destination port (`RTA_DPORT`) of the packet to match when
+    /// looking up a route.
+    pub fn dport(mut self, dport: u16) -> Self {
+        self.message.attributes.push(RouteAttribute::Dport(dport));
+        self
+    }
+
+    /// Sets the IPv6 flow label (`RTA_FLOWLABEL`) of the packet to match
+    /// when looking up a route.
+    pub fn flowlabel(mut self, flowlabel: u32) -> Self {
+        self.message
+            .attributes
+            .push(RouteAttribute::Flowlabel(flowlabel));
         self
     }
 
@@ -115,6 +150,118 @@ impl<T> RouteMessageBuilder<T> {
         self
     }
 
+    /// Sets the SRv6 encapsulation (`encap seg6`) with the
+    /// `SEG6_IPTUNNEL_*` attributes of the tunnel, e.g. the `tunsrc`,
+    /// `hmac` and `lookup` arguments of `iproute2`.
+    #[cfg(not(target_os = "android"))]
+    pub fn encap_seg6(mut self, tunnel: Vec<RouteSeg6IpTunnel>) -> Self {
+        if tunnel.is_empty() {
+            return self;
+        }
+        self.message
+            .attributes
+            .push(RouteAttribute::EncapType(RouteLwEnCapType::Seg6));
+        let encap: Vec<RouteLwTunnelEncap> =
+            tunnel.into_iter().map(RouteLwTunnelEncap::Seg6).collect();
+        self.message.attributes.push(RouteAttribute::Encap(encap));
+        self
+    }
+
+    /// Sets the IPv4 lightweight tunnel encapsulation (`encap ip`).
+    #[cfg(not(target_os = "android"))]
+    pub fn encap_ip(mut self, tunnel: Vec<RouteIpTunnel>) -> Self {
+        if tunnel.is_empty() {
+            return self;
+        }
+        self.message
+            .attributes
+            .push(RouteAttribute::EncapType(RouteLwEnCapType::Ip));
+        let encap: Vec<RouteLwTunnelEncap> =
+            tunnel.into_iter().map(RouteLwTunnelEncap::Ip).collect();
+        self.message.attributes.push(RouteAttribute::Encap(encap));
+        self
+    }
+
+    /// Sets the IPv6 lightweight tunnel encapsulation (`encap ip6`).
+    #[cfg(not(target_os = "android"))]
+    pub fn encap_ip6(mut self, tunnel: Vec<RouteIp6Tunnel>) -> Self {
+        if tunnel.is_empty() {
+            return self;
+        }
+        self.message
+            .attributes
+            .push(RouteAttribute::EncapType(RouteLwEnCapType::Ip6));
+        let encap: Vec<RouteLwTunnelEncap> =
+            tunnel.into_iter().map(RouteLwTunnelEncap::Ip6).collect();
+        self.message.attributes.push(RouteAttribute::Encap(encap));
+        self
+    }
+
+    /// Sets the XFRM lightweight tunnel encapsulation (`encap xfrm`).
+    #[cfg(not(target_os = "android"))]
+    pub fn encap_xfrm(mut self, tunnel: Vec<RouteXfrmTunnel>) -> Self {
+        if tunnel.is_empty() {
+            return self;
+        }
+        self.message
+            .attributes
+            .push(RouteAttribute::EncapType(RouteLwEnCapType::Xfrm));
+        let encap: Vec<RouteLwTunnelEncap> =
+            tunnel.into_iter().map(RouteLwTunnelEncap::Xfrm).collect();
+        self.message.attributes.push(RouteAttribute::Encap(encap));
+        self
+    }
+
+    /// Sets the SRv6 local encapsulation (`encap seg6local`).
+    #[cfg(not(target_os = "android"))]
+    pub fn encap_seg6local(
+        mut self,
+        tunnel: Vec<RouteSeg6LocalTunnel>,
+    ) -> Self {
+        if tunnel.is_empty() {
+            return self;
+        }
+        self.message
+            .attributes
+            .push(RouteAttribute::EncapType(RouteLwEnCapType::Seg6Local));
+        let encap: Vec<RouteLwTunnelEncap> = tunnel
+            .into_iter()
+            .map(RouteLwTunnelEncap::Seg6Local)
+            .collect();
+        self.message.attributes.push(RouteAttribute::Encap(encap));
+        self
+    }
+
+    /// Sets the RPL encapsulation (`encap rpl`).
+    #[cfg(not(target_os = "android"))]
+    pub fn encap_rpl(mut self, tunnel: Vec<RouteRplIpTunnel>) -> Self {
+        if tunnel.is_empty() {
+            return self;
+        }
+        self.message
+            .attributes
+            .push(RouteAttribute::EncapType(RouteLwEnCapType::Rpl));
+        let encap: Vec<RouteLwTunnelEncap> =
+            tunnel.into_iter().map(RouteLwTunnelEncap::Rpl).collect();
+        self.message.attributes.push(RouteAttribute::Encap(encap));
+        self
+    }
+
+    /// Sets the IOAM6 encapsulation (`encap ioam6`).
+    #[cfg(not(target_os = "android"))]
+    pub fn encap_ioam6(mut self, tunnel: Vec<RouteIoam6Tunnel>) -> Self {
+        if tunnel.is_empty() {
+            return self;
+        }
+        self.message
+            .attributes
+            .push(RouteAttribute::EncapType(RouteLwEnCapType::Ioam6));
+        let encap: Vec<RouteLwTunnelEncap> =
+            tunnel.into_iter().map(RouteLwTunnelEncap::Ioam6).collect();
+        self.message.attributes.push(RouteAttribute::Encap(encap));
+        self
+    }
+
     /// Sets multiple nexthop entries for the route.
     pub fn multipath(mut self, nexthops: Vec<RouteNextHop>) -> Self {
         self.message
@@ -128,6 +275,39 @@ impl<T> RouteMessageBuilder<T> {
         self.message
             .attributes
             .push(RouteAttribute::Priority(priority));
+        self
+    }
+
+    /// Sets route expiration time (`RTA_EXPIRES`) in seconds.
+    pub fn expires(mut self, expires: u32) -> Self {
+        self.message
+            .attributes
+            .push(RouteAttribute::Expires(expires));
+        self
+    }
+
+    /// Sets the route realm (`RTA_FLOW`).
+    pub fn realm(mut self, realm: RouteRealm) -> Self {
+        self.message.attributes.push(RouteAttribute::Realm(realm));
+        self
+    }
+
+    /// Sets the route nexthop ID (`RTA_NH_ID`).
+    pub fn nhid(mut self, id: u32) -> Self {
+        self.message.attributes.push(RouteAttribute::NhId(id));
+        self
+    }
+
+    /// Enables or disables TTL propagation (`RTA_TTL_PROPAGATE`).
+    pub fn ttl_propagate(mut self, value: bool) -> Self {
+        let propagation = if value {
+            RouteMplsTtlPropagation::Enabled
+        } else {
+            RouteMplsTtlPropagation::Disabled
+        };
+        self.message
+            .attributes
+            .push(RouteAttribute::TtlPropagate(propagation));
         self
     }
 
@@ -171,6 +351,12 @@ impl<T> RouteMessageBuilder<T> {
     /// Default is unicast route kind.
     pub fn kind(mut self, kind: RouteType) -> Self {
         self.message.header.kind = kind;
+        self
+    }
+
+    /// Sets the route TOS (DS field).
+    pub fn tos(mut self, tos: u8) -> Self {
+        self.message.header.tos = tos;
         self
     }
 
@@ -323,23 +509,42 @@ impl Default for RouteMessageBuilder<Ipv6Addr> {
     }
 }
 
-#[derive(Debug, thiserror::Error)]
+#[derive(Debug)]
 pub enum InvalidRouteMessage {
-    #[error("invalid address family {:?}", _0)]
     AddressFamily(AddressFamily),
 
-    #[error("invalid gateway {}", _0)]
     Gateway(IpAddr),
 
-    #[error("invalid preferred source {}", _0)]
     PrefSource(IpAddr),
 
-    #[error("invalid source prefix {}/{}", _0, _1)]
     SourcePrefix(IpAddr, u8),
 
-    #[error("invalid destination prefix {}/{}", _0, _1)]
     DestinationPrefix(IpAddr, u8),
 }
+
+impl fmt::Display for InvalidRouteMessage {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::AddressFamily(family) => {
+                write!(f, "invalid address family {family:?}")
+            }
+            Self::Gateway(gateway) => {
+                write!(f, "invalid gateway {gateway}")
+            }
+            Self::PrefSource(source) => {
+                write!(f, "invalid preferred source {source}")
+            }
+            Self::SourcePrefix(prefix, len) => {
+                write!(f, "invalid source prefix {prefix}/{len}")
+            }
+            Self::DestinationPrefix(prefix, len) => {
+                write!(f, "invalid destination prefix {prefix}/{len}")
+            }
+        }
+    }
+}
+
+impl std::error::Error for InvalidRouteMessage {}
 
 impl RouteMessageBuilder<IpAddr> {
     pub fn new() -> Self {
@@ -606,6 +811,28 @@ impl RouteNextHopBuilder {
         self
     }
 
+    /// Sets the nexthop SRv6 encapsulation mode and segments.
+    #[cfg(not(target_os = "android"))]
+    pub fn seg6(mut self, mode: Seg6Mode, segments: Vec<Ipv6Addr>) -> Self {
+        if segments.is_empty() {
+            return self;
+        }
+
+        let mut header = Seg6Header::default();
+        header.mode = mode;
+        header.segments = segments;
+
+        self.nexthop
+            .attributes
+            .push(RouteAttribute::EncapType(RouteLwEnCapType::Seg6));
+        let encap = RouteLwTunnelEncap::Seg6(RouteSeg6IpTunnel::Seg6(header));
+        self.nexthop
+            .attributes
+            .push(RouteAttribute::Encap(vec![encap]));
+
+        self
+    }
+
     /// Set the nexthop weight
     ///
     /// Equal to `weight` property in `ip route`, but please be advised the
@@ -614,6 +841,16 @@ impl RouteNextHopBuilder {
     /// kernel number from range of 0 to 255.
     pub fn weight(mut self, weight: u8) -> Self {
         self.nexthop.hops = weight;
+        self
+    }
+
+    /// Marks the nexthop as pervasive when `value` is true, and removes the
+    /// flag otherwise.
+    ///
+    /// Indicates that the gateway needs a recursive lookup, equivalent to
+    /// the `pervasive` nexthop flag in `ip route`.
+    pub fn pervasive(mut self, value: bool) -> Self {
+        self.nexthop.flags.set(RouteNextHopFlags::Pervasive, value);
         self
     }
 
