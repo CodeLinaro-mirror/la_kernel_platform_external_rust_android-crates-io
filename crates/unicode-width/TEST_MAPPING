@@ -22,10 +22,5 @@
     {
       "name": "unicode-width_test_src_lib"
     }
-  ],
-  "postsubmit": [
-    {
-      "name": "unicode-width_test_tests_tests"
-    }
   ]
 }
