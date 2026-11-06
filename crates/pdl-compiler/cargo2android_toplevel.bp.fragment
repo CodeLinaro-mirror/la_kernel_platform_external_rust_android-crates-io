@@ -5,6 +5,7 @@ genrule_defaults {
     tools: [":pdlc"],
     defaults_visibility: [
         "//external/rust/pica",
+        "//external/rust/casimir",
         "//hardware/interfaces/bluetooth/bluetooth_hal/rust:__subpackages__",
         "//packages/modules/Bluetooth:__subpackages__",
         "//packages/modules/Nfc:__subpackages__",

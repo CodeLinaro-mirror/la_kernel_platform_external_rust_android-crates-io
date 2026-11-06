@@ -31,7 +31,7 @@
       "path": "external/rust/pica"
     },
     {
-      "path": "packages/modules/Nfc/libnfc-nci/tools/casimir"
+      "path": "external/rust/casimir"
     },
     {
       "path": "system/libueventd-rs"
