@@ -16,7 +16,7 @@
       "path": "packages/modules/Nfc/libnfc-nci/src/rust"
     },
     {
-      "path": "packages/modules/Nfc/libnfc-nci/tools/casimir"
+      "path": "external/rust/casimir"
     },
     {
       "path": "packages/modules/Uwb/libuwb-uci/src"
