@@ -30,6 +30,17 @@ impl Color {
         }
     }
 
+    /// Constructs a new `Color` from RGB values in the range 0..1.
+    #[inline]
+    fn new_rgb_f32(red: f32, green: f32, blue: f32) -> Self {
+        Self {
+            red: (red * 255.0).round() as u8,
+            green: (green * 255.0).round() as u8,
+            blue: (blue * 255.0).round() as u8,
+            alpha: 255,
+        }
+    }
+
     /// Constructs a new `Color` from RGBA values.
     #[inline]
     pub fn new_rgba(red: u8, green: u8, blue: u8, alpha: u8) -> Self {
@@ -197,6 +208,10 @@ impl Stream<'_> {
 
                 self.skip_spaces();
                 if !self.starts_with(b")") {
+                    if self.is_curr_byte_eq(b'/') {
+                        self.advance(1);
+                        self.skip_spaces();
+                    }
                     color.alpha = (self.parse_list_number()? * 255.0).round() as u8;
                 }
 
@@ -205,7 +220,7 @@ impl Stream<'_> {
             } else if name == "hsl" || name == "hsla" {
                 self.consume_byte(b'(')?;
 
-                let mut hue = self.parse_list_number()?;
+                let mut hue = self.parse_list_angle()?.to_degrees();
                 hue = ((hue % 360.0) + 360.0) % 360.0;
 
                 let saturation = f64_bound(0.0, self.parse_list_number_or_percent()?, 1.0);
@@ -215,7 +230,30 @@ impl Stream<'_> {
 
                 self.skip_spaces();
                 if !self.starts_with(b")") {
-                    color.alpha = (self.parse_list_number()? * 255.0).round() as u8;
+                    if self.is_curr_byte_eq(b'/') {
+                        self.advance(1);
+                        self.skip_spaces();
+                    }
+                    color.alpha = (self.parse_list_number_or_percent()? * 255.0).round() as u8;
+                }
+
+                self.skip_spaces();
+                self.consume_byte(b')')?;
+            } else if name == "hwb" {
+                self.consume_byte(b'(')?;
+
+                let mut hue = self.parse_angle()?.to_degrees();
+                hue = ((hue % 360.0) + 360.0) % 360.0;
+
+                let white = f64_bound(0.0, self.parse_hwb_component()?, 1.0);
+                let black = f64_bound(0.0, self.parse_hwb_component()?, 1.0);
+
+                color = hwb_to_rgb(hue as f32 / 60.0, white as f32, black as f32);
+
+                self.skip_spaces();
+                if self.is_curr_byte_eq(b'/') {
+                    self.advance(1);
+                    color.alpha = (self.parse_number_or_percent()? * 255.0).round() as u8;
                 }
 
                 self.skip_spaces();
@@ -233,6 +271,14 @@ impl Stream<'_> {
         }
 
         Ok(color)
+    }
+
+    fn parse_hwb_component(&mut self) -> Result<f64, Error> {
+        let n = self.parse_number()?;
+        if self.starts_with(b"%") {
+            self.advance(1);
+        }
+        Ok(n / 100.0)
     }
 }
 
@@ -259,9 +305,15 @@ fn hex_pair(c1: u8, c2: u8) -> u8 {
     (h1 << 4) | h2
 }
 
-// `hue` is in a 0..6 range, while `saturation` and `lightness` are in a 0..=1 range.
-// Based on https://www.w3.org/TR/css-color-3/#hsl-color
+// `hue` is in a 0..6 range, while `saturation` and `lightness` are in a 0..1 range.
 fn hsl_to_rgb(hue: f32, saturation: f32, lightness: f32) -> Color {
+    let (red, green, blue) = hsl_to_rgb_f32(hue, saturation, lightness);
+    Color::new_rgb_f32(red, green, blue)
+}
+
+// `hue` is in a 0..6 range, while `saturation` and `lightness` are in a 0..1 range.
+// Based on https://www.w3.org/TR/css-color-3/#hsl-color
+fn hsl_to_rgb_f32(hue: f32, saturation: f32, lightness: f32) -> (f32, f32, f32) {
     let t2 = if lightness <= 0.5 {
         lightness * (saturation + 1.0)
     } else {
@@ -272,11 +324,7 @@ fn hsl_to_rgb(hue: f32, saturation: f32, lightness: f32) -> Color {
     let red = hue_to_rgb(t1, t2, hue + 2.0);
     let green = hue_to_rgb(t1, t2, hue);
     let blue = hue_to_rgb(t1, t2, hue - 2.0);
-    Color::new_rgb(
-        (red * 255.0).round() as u8,
-        (green * 255.0).round() as u8,
-        (blue * 255.0).round() as u8,
-    )
+    (red, green, blue)
 }
 
 fn hue_to_rgb(t1: f32, t2: f32, mut hue: f32) -> f32 {
@@ -295,6 +343,22 @@ fn hue_to_rgb(t1: f32, t2: f32, mut hue: f32) -> f32 {
         (t2 - t1) * (4.0 - hue) + t1
     } else {
         t1
+    }
+}
+
+// `hue` is in a 0..6 range, while `white` and `black` are in a 0..1 range.
+// Based on https://www.w3.org/TR/css-color-4/#hwb-to-rgb
+fn hwb_to_rgb(hue: f32, white: f32, black: f32) -> Color {
+    if white + black >= 1.0 {
+        let gray = white / (white + black);
+        Color::new_rgb_f32(gray, gray, gray)
+    } else {
+        let factor = 1.0 - white - black;
+        let (mut red, mut green, mut blue) = hsl_to_rgb_f32(hue, 1.0, 0.5);
+        red = red * factor + white;
+        green = green * factor + white;
+        blue = blue * factor + white;
+        Color::new_rgb_f32(red, green, blue)
     }
 }
 
@@ -483,6 +547,18 @@ mod tests {
     );
 
     test!(
+        rgba_half_no_comma,
+        "rgba(10 20 30 0.5)",
+        Color::new_rgba(10, 20, 30, 128)
+    );
+
+    test!(
+        rgba_half_slash,
+        "rgba(10 20 30 / 0.5)",
+        Color::new_rgba(10, 20, 30, 128)
+    );
+
+    test!(
         rgba_numeric_red_float,
         "rgba(3.141592653, 110, 201, 1.0)",
         Color::new_rgba(3, 110, 201, 255)
@@ -549,6 +625,12 @@ mod tests {
     );
 
     test!(
+        hsl_with_alpha_slash,
+        "hsl(120 100% 75% / 0.5)",
+        Color::new_rgba(128, 255, 128, 128)
+    );
+
+    test!(
         hsl_to_rgb_red_round_up,
         "hsl(230, 57%, 54%)",
         Color::new_rgba(71, 93, 205, 255)
@@ -564,6 +646,83 @@ mod tests {
         hsla_with_hue_float,
         "hsla(120.152, 100%, 75%, 0.5)",
         Color::new_rgba(128, 255, 128, 128)
+    );
+
+    test!(
+        hsl_hue_1turn,
+        "hsl(1turn, 100%, 100%)",
+        Color::new_rgba(255, 255, 255, 255)
+    );
+
+    test!(
+        hsl_with_hue_turn_and_percentages,
+        "hsl(0.25turn, 100%, 50%)",
+        Color::new_rgba(128, 255, 0, 255)
+    );
+
+    test!(
+        hsl_with_hue_deg_and_percentages,
+        "hsl(90deg, 100%, 50%)",
+        Color::new_rgba(128, 255, 0, 255)
+    );
+
+    test!(
+        hsl_with_hue_deg_and_numbers,
+        "hsl(90deg, 1, 0.5)",
+        Color::new_rgba(128, 255, 0, 255)
+    );
+
+    test!(
+        hsla_with_hue_deg_percentages,
+        "hsla(120deg, 75%, 75%, 100%)",
+        Color::new_rgba(143, 239, 143, 255)
+    );
+
+    test!(
+        hsla_with_hue_deg_above_360,
+        "hsla(480deg, 75%, 75%, 100%)",
+        Color::new_rgba(143, 239, 143, 255)
+    );
+
+    // Examples from https://www.w3.org/TR/css-color-4/#the-hwb-notation
+    test!(
+        hwb_doc_example_22,
+        "hwb(150 20% 10%)",
+        Color::new_rgba(51, 230, 140, 255)
+    );
+    test!(
+        hwb_doc_example_22_alpha,
+        "hwb(150 20% 10% / 0.2)",
+        Color::new_rgba(51, 230, 140, 51)
+    );
+    test!(
+        hwb_doc_example_23,
+        "hwb(45 40% 80%)",
+        Color::new_rgba(85, 85, 85, 255)
+    );
+    test!(
+        hwb_doc_example_23_alpha,
+        "hwb(45 40% 80% / 0.9)",
+        Color::new_rgba(85, 85, 85, 230)
+    );
+
+    // Random examples generated with
+    // https://www.w3schools.com/colors/colors_hwb.asp
+    test!(
+        hwb_generated_1,
+        "hwb(360 82% 2%)",
+        Color::new_rgba(250, 209, 209, 255)
+    );
+    test!(
+        hwb_generated_2,
+        "hwb(74 9% 13%)",
+        Color::new_rgba(175, 222, 23, 255)
+    );
+
+    test!(
+        hwb_with_numbers,
+        "hwb(150 20 10)",
+        Color::new_rgba(51, 230, 140, 255)
     );
 
     macro_rules! test_err {
@@ -615,5 +774,11 @@ mod tests {
         rgb_mixed_units,
         "rgb(140%, -10mm, 130pt)",
         "invalid number at position 14"
+    );
+
+    test_err!(
+        hwb_with_commas,
+        "hwb(150, 20%, 10%)",
+        "invalid number at position 8"
     );
 }
