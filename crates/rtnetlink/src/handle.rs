@@ -6,7 +6,8 @@ use netlink_packet_route::RouteNetlinkMessage;
 use netlink_proto::{sys::SocketAddr, ConnectionHandle};
 
 use crate::{
-    AddressHandle, Error, LinkHandle, NeighbourHandle, RouteHandle, RuleHandle,
+    AddrLabelHandle, AddressHandle, Error, LinkHandle, NeighbourHandle,
+    RouteHandle, RuleHandle,
 };
 #[cfg(not(target_os = "freebsd"))]
 use crate::{
@@ -24,8 +25,10 @@ impl Handle {
     pub fn request(
         &mut self,
         message: NetlinkMessage<RouteNetlinkMessage>,
-    ) -> Result<impl Stream<Item = NetlinkMessage<RouteNetlinkMessage>>, Error>
-    {
+    ) -> Result<
+        impl Stream<Item = NetlinkMessage<RouteNetlinkMessage>> + use<>,
+        Error,
+    > {
         self.0
             .request(message, SocketAddr::new(0, 0))
             .map_err(|_| Error::RequestFailed)
@@ -51,6 +54,12 @@ impl Handle {
     /// `ip addr` commands)
     pub fn address(&self) -> AddressHandle {
         AddressHandle::new(self.clone())
+    }
+
+    /// Create a new handle, specifically for address label requests
+    /// (equivalent to `ip addrlabel` commands)
+    pub fn addrlabel(&self) -> AddrLabelHandle {
+        AddrLabelHandle::new(self.clone())
     }
 
     /// Create a new handle, specifically for routing table requests (equivalent

@@ -1,15 +1,14 @@
 [package]
 name = "rtnetlink"
-version = "0.23.0"
+version = "0.24.0"
 authors = ["Corentin Henry <corentinhenry@gmail.com>"]
-edition = "2021"
-homepage = "https://github.com/rust-netlink/rtnetlink"
+edition = "2024"
 keywords = ["netlink", "ip", "linux"]
 license = "MIT"
 readme = "README.md"
 repository = "https://github.com/rust-netlink/rtnetlink"
 description = "manipulate linux networking resources via netlink"
-rust-version = "1.75"
+rust-version = "1.85"
 
 [features]
 test_as_root = []
@@ -21,12 +20,11 @@ smol_socket = ["netlink-proto/smol_socket", "async-global-executor"]
 futures-util = "0.3.11"
 futures-channel = "0.3.11"
 log = "0.4.8"
-thiserror = "2"
 netlink-sys = { version = "0.9" }
-netlink-packet-route = { version = "0.33" }
+netlink-packet-route = { version = "0.34" }
 netlink-packet-core = { version = "0.9" }
-netlink-proto = { default-features = false, version = "0.13" }
-nix = { version = "0.30.0", default-features = false, features = ["fs", "mount", "sched", "signal"] }
+netlink-proto = { default-features = false, version = "0.14.1" }
+nix = { version = "0.31.3", default-features = false, features = ["fs", "mount", "sched", "signal"] }
 tokio = { version = "1.0.1", features = ["rt"], optional = true}
 async-global-executor = { version = "2.0.2", optional = true }
 
