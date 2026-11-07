@@ -6,13 +6,14 @@
 // option. This file may not be copied, modified, or distributed
 // except according to those terms.
 
-use dtoolkit::fdt::Fdt;
+use dtoolkit::error::FdtErrorKind;
+use dtoolkit::fdt::{Fdt, FdtNode, FdtOptions};
 #[cfg(feature = "write")]
 use dtoolkit::fdt_mut::FdtMut;
 #[cfg(feature = "write")]
-use dtoolkit::model::DeviceTree;
+use dtoolkit::model::{DeviceTree, DeviceTreeNode, DeviceTreeProperty};
 use dtoolkit::standard::{InitialMappedArea, NodeStandard, Status};
-use dtoolkit::{Node, Property, ToCellInt};
+use dtoolkit::{Node, Property};
 
 #[test]
 fn read_child_nodes() {
@@ -198,7 +199,7 @@ fn children_nested() {
         println!("{}", child.name());
     }
 
-    let children_names: Vec<_> = root.children().map(|child| child.name()).collect();
+    let children_names: Vec<_> = root.children().map(Node::name).collect();
     assert_eq!(children_names, vec!["child1", "child3"]);
 
     let child1 = root.child("child1").unwrap();
@@ -314,6 +315,7 @@ const ALL_DT_FILES: &[(&[u8], &str, &str)] = &[
     load_dtb_dts_pair!("test_memreserve"),
     load_dtb_dts_pair!("test_pretty_print"),
     load_dtb_dts_pair!("test_props"),
+    load_dtb_dts_pair!("test_standard"),
     load_dtb_dts_pair!("test_traversal"),
     load_dtb_dts_pair!("test_zero_cells"),
     load_dtb_dts_pair!("test"),
@@ -352,6 +354,15 @@ fn round_trip_raw() {
 
 #[test]
 #[cfg(feature = "write")]
+fn round_trip_raw_with_options() {
+    // SAFETY: dtb is a valid FDT blob
+    round_trip_impl(|dtb| unsafe {
+        Fdt::from_raw_with_options(dtb.as_ptr(), FdtOptions::new().max_size(dtb.len())).unwrap()
+    });
+}
+
+#[test]
+#[cfg(feature = "write")]
 fn round_trip_raw_unchecked() {
     // SAFETY: dtb is a valid FDT blob
     round_trip_impl(|dtb| unsafe { Fdt::from_raw_unchecked(dtb.as_ptr()) });
@@ -374,6 +385,18 @@ fn round_trip_unchecked_mut() {
 fn round_trip_raw_mut() {
     // SAFETY: dtb is a valid FDT blob
     round_trip_impl(|dtb| unsafe { FdtMut::from_raw(dtb.as_mut_ptr()).unwrap().into() });
+}
+
+#[test]
+#[cfg(feature = "write")]
+fn round_trip_raw_with_options_mut() {
+    // SAFETY: dtb is a valid FDT blob
+    round_trip_impl(|dtb| unsafe {
+        let len = dtb.len();
+        FdtMut::from_raw_with_options(dtb.as_mut_ptr(), FdtOptions::new().max_size(len))
+            .unwrap()
+            .into()
+    });
 }
 
 #[test]
@@ -459,4 +482,156 @@ fn standard_node_outlives_wrapper() {
             .unwrap()
     };
     assert_eq!(area.size, 0x1000);
+}
+
+#[test]
+fn property_name_and_value_outlive_node_and_property() {
+    let dtb = include_bytes!("dtb/test_props.dtb");
+    let (name, value): (&str, &[u8]) = {
+        let fdt = Fdt::new(dtb).unwrap();
+        let node = fdt.find_node("/test-props").unwrap();
+        let prop = node.property("str-prop").unwrap();
+        (prop.name(), prop.value())
+    };
+    assert_eq!(name, "str-prop");
+    assert_eq!(value, b"hello world\0");
+}
+
+fn collect_all_nodes<'a>(node: FdtNode<'a>, out: &mut Vec<FdtNode<'a>>) {
+    out.push(node);
+    for child in node.children() {
+        collect_all_nodes(child, out);
+    }
+}
+
+#[test]
+fn node_offsets_round_trip_and_preserve_parent_address_space() {
+    for (dtb, _dts, name) in ALL_DT_FILES {
+        let fdt = Fdt::new(dtb).unwrap();
+        assert_eq!(fdt.root().offset(), 0, "{name}");
+
+        let mut nodes = Vec::new();
+        collect_all_nodes(fdt.root(), &mut nodes);
+        let valid_offsets: Vec<usize> = nodes.iter().map(|n| n.offset()).collect();
+
+        for node in &nodes {
+            let resolved = fdt.node_at_offset(node.offset()).unwrap();
+            assert_eq!(resolved.offset(), node.offset(), "{name}");
+            assert_eq!(resolved.name(), node.name(), "{name}");
+
+            let orig_reg = node.reg().map(|r| r.map(Iterator::collect::<Vec<_>>));
+            let resolved_reg = resolved.reg().map(|r| r.map(Iterator::collect::<Vec<_>>));
+            assert_eq!(resolved_reg, orig_reg, "{name}: {}", node.name());
+
+            let orig_ranges = node.ranges().map(|r| r.map(Iterator::collect::<Vec<_>>));
+            let resolved_ranges = resolved
+                .ranges()
+                .map(|r| r.map(Iterator::collect::<Vec<_>>));
+            assert_eq!(resolved_ranges, orig_ranges, "{name}: {}", node.name());
+        }
+
+        // Every non-node offset up to dtb.len() + 8 must return None.
+        for offset in 0..=dtb.len() + 8 {
+            if !valid_offsets.contains(&offset) {
+                assert!(
+                    fdt.node_at_offset(offset).is_none(),
+                    "{name}: unexpected node at offset {offset}"
+                );
+            }
+        }
+        assert!(fdt.node_at_offset(usize::MAX).is_none());
+    }
+}
+
+#[test]
+#[cfg(feature = "write")]
+fn node_at_offset_deep_nesting_preserves_parent_address_space() {
+    // Build a deeply nested chain where an inner parent sets custom
+    // #address-cells = <1> and #size-cells = <1>.
+    let mut current = DeviceTreeNode::builder("leaf")
+        .unwrap()
+        .property(DeviceTreeProperty::new("reg", [0x1234_5678u32, 0x100u32]).unwrap())
+        .build();
+
+    for depth in (1..=24).rev() {
+        let mut builder = DeviceTreeNode::builder("n").unwrap();
+        if depth == 24 {
+            builder = builder
+                .property(DeviceTreeProperty::new("#address-cells", 1u32).unwrap())
+                .property(DeviceTreeProperty::new("#size-cells", 1u32).unwrap());
+        }
+        let mut parent = builder.build();
+        parent.add_child(current);
+        current = parent;
+    }
+
+    let mut tree = DeviceTree::new();
+    tree.root.add_child(current);
+    let dtb = tree.to_dtb();
+
+    let fdt = Fdt::new(&dtb).unwrap();
+    let mut nodes = Vec::new();
+    collect_all_nodes(fdt.root(), &mut nodes);
+    assert_eq!(nodes.len(), 26);
+
+    let leaf = *nodes.last().unwrap();
+    assert_eq!(leaf.name(), "leaf");
+
+    let by_offset = fdt.node_at_offset(leaf.offset()).unwrap();
+    assert_eq!(by_offset.name(), "leaf");
+    let regs: Vec<_> = by_offset.reg().unwrap().unwrap().collect();
+    assert_eq!(regs.len(), 1);
+    assert_eq!(regs[0].address::<u32>().unwrap(), 0x1234_5678);
+    assert_eq!(regs[0].size::<u32>().unwrap(), 0x100);
+}
+
+#[test]
+#[cfg(feature = "write")]
+fn long_property_and_node_names_accepted_by_default() {
+    let long_prop = "snps,dis-u2-freeclk-exists-quirk";
+    let long_node = "node-name-exceeding-thirty-one-chars@0";
+    let mut tree = DeviceTree::new();
+    let child = DeviceTreeNode::builder(long_node)
+        .unwrap()
+        .property(DeviceTreeProperty::new(long_prop, [0u8; 0]).unwrap())
+        .build();
+    tree.root.add_child(child);
+    let dtb = tree.to_dtb();
+
+    let fdt = Fdt::new(&dtb).unwrap();
+    let node = fdt
+        .find_node("/node-name-exceeding-thirty-one-chars")
+        .unwrap();
+    assert_eq!(node.name(), long_node);
+    assert!(node.property(long_prop).is_some());
+}
+
+#[test]
+#[cfg(feature = "write")]
+fn strict_name_length_rejects_long_property_and_node_names() {
+    let strict = FdtOptions::new().strict_name_length(true);
+
+    let mut prop_tree = DeviceTree::new();
+    prop_tree.root.add_property(
+        DeviceTreeProperty::new("snps,dis-u2-freeclk-exists-quirk", [0u8; 0]).unwrap(),
+    );
+    let prop_dtb = prop_tree.to_dtb();
+    let err = Fdt::with_options(&prop_dtb, strict.clone()).unwrap_err();
+    assert_eq!(err.kind, FdtErrorKind::InvalidPropertyName);
+
+    let mut node_tree = DeviceTree::new();
+    node_tree
+        .root
+        .add_child(DeviceTreeNode::new("node-name-exceeding-thirty-one-chars@0").unwrap());
+    let node_dtb = node_tree.to_dtb();
+    let err = Fdt::with_options(&node_dtb, strict).unwrap_err();
+    assert_eq!(err.kind, FdtErrorKind::InvalidNodeName);
+}
+
+#[test]
+fn with_options_max_size_rejects_oversized_slice() {
+    let dtb = include_bytes!("dtb/test.dtb");
+    let options = FdtOptions::new().max_size(dtb.len() - 1);
+    let err = Fdt::with_options(dtb, options).unwrap_err();
+    assert_eq!(err.kind, FdtErrorKind::InvalidLength);
 }

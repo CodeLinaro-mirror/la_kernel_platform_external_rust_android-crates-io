@@ -25,7 +25,7 @@ use zerocopy::{FromBytes, big_endian};
 
 use crate::ToPropertyValue;
 use crate::error::{BufferError, FdtParseError};
-use crate::fdt::{FDT_NOP, FDT_TAGSIZE, Fdt, FdtHeader, FdtToken};
+use crate::fdt::{FDT_NOP, FDT_TAGSIZE, Fdt, FdtHeader, FdtOptions, FdtToken};
 
 /// A mutable flattened device tree.
 pub struct FdtMut<B> {
@@ -39,13 +39,22 @@ impl<B: FdtBuffer> FdtMut<B> {
     ///
     /// Returns an [`FdtParseError`] if the data is not a valid device tree.
     pub fn new(data: B) -> Result<Self, FdtParseError> {
-        Fdt::new(data.as_ref())?;
+        Self::with_options(data, FdtOptions::new())
+    }
+
+    /// Creates a new mutable FDT from a buffer using the specified
+    /// [`FdtOptions`].
+    ///
+    /// # Errors
+    ///
+    /// Returns an [`FdtParseError`] if the data is not a valid device tree
+    /// according to `options`.
+    pub fn with_options(data: B, options: FdtOptions) -> Result<Self, FdtParseError> {
+        Fdt::with_options(data.as_ref(), options)?;
         Ok(Self { data })
     }
 
     /// Creates a new `FdtMut` from the given buffer without validation.
-    ///
-    /// # Safety
     ///
     /// The caller must ensure that `data` contains a valid Flattened Device
     /// Tree (FDT) blob. If the blob is invalid, methods on `FdtMut` and
@@ -98,6 +107,38 @@ impl<B: FdtBuffer> FdtMut<B> {
     /// ```
     pub fn find_node_mut(&mut self, path: &str) -> Option<FdtNodeMut<'_, B>> {
         let node = self.as_read_only().find_node(path)?;
+
+        Some(FdtNodeMut {
+            offset: node.offset,
+            parent_address_space: node.parent_address_space,
+            data: self,
+        })
+    }
+
+    /// Returns a mutable node at the given byte offset relative to the start of
+    /// the `dt_struct` block, or `None` if `offset` does not point to a node's
+    /// `FDT_BEGIN_NODE` tag.
+    ///
+    /// Note that mutating the FDT in a way that removes the node or shifts,
+    /// grows, or compacts the `dt_struct` block may invalidate previously saved
+    /// offsets.
+    ///
+    /// For more details, refer to [`Fdt::node_at_offset`].
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use dtoolkit::fdt_mut::FdtMut;
+    ///
+    /// # let mut dtb = include_bytes!("../tests/dtb/test_traversal.dtb").to_vec();
+    /// let mut fdt = FdtMut::from_slice(&mut dtb).unwrap();
+    /// let offset = fdt.find_node_mut("/a/b/c").unwrap().offset();
+    /// let node = fdt.node_at_offset_mut(offset).unwrap();
+    /// assert_eq!(node.name(), "c");
+    /// ```
+    #[must_use]
+    pub fn node_at_offset_mut(&mut self, offset: usize) -> Option<FdtNodeMut<'_, B>> {
+        let node = self.as_read_only().node_at_offset(offset)?;
 
         Some(FdtNodeMut {
             offset: node.offset,
@@ -363,8 +404,22 @@ impl<'a> FdtMut<SliceBuffer<'a>> {
     /// let mut node = fdt.find_node_mut("/a/b/c").unwrap();
     /// ```
     pub fn from_slice(slice: &'a mut [u8]) -> Result<Self, FdtParseError> {
+        Self::from_slice_with_options(slice, FdtOptions::new())
+    }
+
+    /// Creates a new `FdtMut` from a mutable byte slice using the specified
+    /// [`FdtOptions`] by wrapping it in a [`SliceBuffer`].
+    ///
+    /// # Errors
+    ///
+    /// Returns an [`FdtParseError`] if `slice` does not contain a valid device
+    /// tree according to `options`.
+    pub fn from_slice_with_options(
+        slice: &'a mut [u8],
+        options: FdtOptions,
+    ) -> Result<Self, FdtParseError> {
         let buffer = SliceBuffer::new(slice)?;
-        Self::new(buffer)
+        Self::with_options(buffer, options)
     }
 
     /// Creates a new `FdtMut` from a mutable byte slice without validation.
@@ -415,15 +470,72 @@ impl<'a> FdtMut<SliceBuffer<'a>> {
         Self::from_slice_unchecked(slice)
     }
 
+    /// Creates a new `FdtMut` from the given pointer using the specified
+    /// [`FdtOptions`], verifying that the header and `totalsize` fit within
+    /// `options.max_size` bytes before reading the rest of the blob.
+    ///
+    /// The resulting [`SliceBuffer`] is sized to `totalsize` bytes (not
+    /// `options.max_size`); callers with a larger writable buffer that want to
+    /// use the remaining space for in-place expansion should use
+    /// [`FdtMut::from_slice`].
+    ///
+    /// # Safety
+    ///
+    /// If `options.max_size >= size_of::<FdtHeader>()` (40 bytes), `data` must
+    /// be valid and accessible for reading at least 8 bytes (`magic` and
+    /// `totalsize`), and if the header contains a valid FDT magic number and
+    /// `40 <= totalsize <= options.max_size`, the memory region starting at
+    /// `data` and spanning `totalsize` bytes must be valid and accessible for
+    /// reading and writing for the lifetime `'a`.
+    ///
+    /// # Errors
+    ///
+    /// This function can return the same errors as
+    /// [`Fdt::from_raw_with_options`].
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use dtoolkit::fdt::FdtOptions;
+    /// # use dtoolkit::fdt_mut::FdtMut;
+    /// # let mut dtb = include_bytes!("../tests/dtb/test.dtb").to_vec();
+    /// let options = FdtOptions::new().max_size(dtb.len());
+    /// let ptr = dtb.as_mut_ptr();
+    /// let fdt = unsafe { FdtMut::from_raw_with_options(ptr, options).unwrap() };
+    /// ```
+    #[expect(
+        unsafe_code,
+        reason = "Having a method that reads a Device Tree from a raw pointer is useful for \
+        embedded applications, where the binary only gets a pointer to DT from the firmware or \
+        a bootloader. The user must ensure it trusts the data."
+    )]
+    pub unsafe fn from_raw_with_options(
+        data: *mut u8,
+        options: FdtOptions,
+    ) -> Result<Self, FdtParseError> {
+        // SAFETY: The caller guarantees that `data` points to a readable FDT
+        // header prefix (when `options.max_size >= size_of::<FdtHeader>()`) and
+        // spans `totalsize` writable bytes when the FDT is valid and
+        // `40 <= totalsize <= options.max_size`.
+        let size = unsafe { Fdt::from_raw_with_options(data.cast_const(), options)? }
+            .data()
+            .len();
+        // SAFETY: `Fdt::from_raw_with_options` validated the entire `size`-byte
+        // FDT blob and verified `size <= options.max_size` (and
+        // `size <= isize::MAX`).
+        let slice = unsafe { core::slice::from_raw_parts_mut(data, size) };
+        Ok(Self::from_slice_unchecked(slice))
+    }
+
     /// Creates a new `FdtMut` from the given pointer.
     ///
     /// # Safety
     ///
-    /// The `data` pointer must be a valid pointer to a Flattened Device Tree
-    /// (FDT) blob. The memory region starting at `data` and spanning
-    /// `totalsize` bytes (as specified in the FDT header) must be valid and
-    /// accessible for reading. The FDT blob must be well-formed and adhere
-    /// to the Device Tree Specification.
+    /// The `data` pointer must be valid and accessible for reading at least
+    /// 8 bytes (`magic` and `totalsize`), and if the header contains a valid
+    /// FDT magic number and `totalsize >= 40`, the memory region starting at
+    /// `data` and spanning `totalsize` bytes must be valid and accessible for
+    /// reading and writing for the lifetime `'a`.
     ///
     /// # Errors
     ///
@@ -444,12 +556,9 @@ impl<'a> FdtMut<SliceBuffer<'a>> {
         a bootloader. The user must ensure it trusts the data."
     )]
     pub unsafe fn from_raw(data: *mut u8) -> Result<Self, FdtParseError> {
-        // SAFETY: The caller guarantees that `data` is a valid pointer to a
-        // Flattened Device Tree (FDT) blob.
-        unsafe {
-            Fdt::from_raw(&raw const *data)?;
-            Ok(Self::from_raw_unchecked(data))
-        }
+        // SAFETY: The caller guarantees that `data` points to a readable FDT
+        // header and spans `totalsize` writable bytes when the header is valid.
+        unsafe { Self::from_raw_with_options(data, FdtOptions::new()) }
     }
 }
 
@@ -473,9 +582,7 @@ impl<B: FdtBuffer> Display for FdtMut<B> {
 
 impl<'a> From<FdtMut<SliceBuffer<'a>>> for Fdt<'a> {
     fn from(fdt: FdtMut<SliceBuffer<'a>>) -> Self {
-        Self {
-            data: fdt.data.slice,
-        }
+        Self::new_unchecked(fdt.data.into_slice())
     }
 }
 
