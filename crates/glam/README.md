@@ -6,8 +6,8 @@
 
 A simple and fast 3D math library for games and graphics.
 
-> **glam is heading for 1.0.** `0.34.0` is the final breaking pre-1.0 release.
-> See [The road to glam 1.0](https://github.com/bitshifter/glam-rs/discussions/889).
+**glam is heading for 1.0.** `0.35.0` will be the final breaking pre-1.0 release.
+See [The road to glam 1.0](https://github.com/bitshifter/glam-rs/discussions/889).
 
 ## Features
 
@@ -295,7 +295,7 @@ Thank you to all of the `glam` [contributors]!
 [Code of Conduct]: https://www.rust-lang.org/en-US/conduct.html
 [start a discussion]: https://github.com/bitshifter/glam-rs/discussions
 [CONTRIBUTING.md]: CONTRIBUTING.md
-[codegen README]: tools/codegen/README.md
+[codegen README]: https://github.com/bitshifter/glam-codegen/blob/main/README.md
 [contributors]: https://github.com/bitshifter/glam-rs/graphs/contributors
 
 ## Support
