@@ -13,7 +13,7 @@
 edition = "2024"
 rust-version = "1.85"
 name = "svgtypes"
-version = "0.16.1"
+version = "0.16.2"
 build = false
 exclude = [
     ".github",
