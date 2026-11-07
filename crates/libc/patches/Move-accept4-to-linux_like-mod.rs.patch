@@ -1,0 +1,130 @@
+diff --git a/src/unix/linux_like/android/b32/arm.rs b/src/unix/linux_like/android/b32/arm.rs
+index 0fe599fe5..7a591df84 100644
+--- a/src/unix/linux_like/android/b32/arm.rs
++++ b/src/unix/linux_like/android/b32/arm.rs
+@@ -476,19 +476,3 @@ pub const NGREG: c_int = 18;
+ 
+ // From NDK's asm/auxvec.h
+ pub const AT_SYSINFO_EHDR: c_ulong = 33;
+-
+-f! {
+-    // Sadly, Android before 5.0 (API level 21), the accept4 syscall is not
+-    // exposed by the libc. As work-around, we implement it through `syscall`
+-    // directly. This workaround can be removed if the minimum version of
+-    // Android is bumped. When the workaround is removed, `accept4` can be
+-    // moved back to `linux_like/mod.rs`
+-    pub unsafe fn accept4(
+-        fd: c_int,
+-        addr: *mut crate::sockaddr,
+-        len: *mut crate::socklen_t,
+-        flg: c_int,
+-    ) -> c_int {
+-        crate::syscall(SYS_accept4, fd, addr, len, flg) as c_int
+-    }
+-}
+diff --git a/src/unix/linux_like/android/b32/x86/mod.rs b/src/unix/linux_like/android/b32/x86/mod.rs
+index baa285e0f..114291457 100644
+--- a/src/unix/linux_like/android/b32/x86/mod.rs
++++ b/src/unix/linux_like/android/b32/x86/mod.rs
+@@ -542,27 +542,3 @@ pub const REG_SS: c_int = 18;
+ pub const AT_SYSINFO: c_ulong = 32;
+ pub const AT_SYSINFO_EHDR: c_ulong = 33;
+ pub const AT_VECTOR_SIZE_ARCH: c_ulong = 3;
+-
+-// socketcall values from linux/net.h (only the needed ones, and not public)
+-const SYS_ACCEPT4: c_int = 18;
+-
+-f! {
+-    // Sadly, Android before 5.0 (API level 21), the accept4 syscall is not
+-    // exposed by the libc. As work-around, we implement it as raw syscall.
+-    // Note that for x86, the `accept4` syscall is not available either,
+-    // and we must use the `socketcall` syscall instead.
+-    // This workaround can be removed if the minimum Android version is bumped.
+-    // When the workaround is removed, `accept4` can be moved back
+-    // to `linux_like/mod.rs`
+-    pub unsafe fn accept4(
+-        fd: c_int,
+-        addr: *mut crate::sockaddr,
+-        len: *mut crate::socklen_t,
+-        flg: c_int,
+-    ) -> c_int {
+-        // Arguments are passed as array of `long int`
+-        // (which is big enough on x86 for a pointer).
+-        let mut args = [fd as c_long, addr as c_long, len as c_long, flg as c_long];
+-        crate::syscall(SYS_socketcall, SYS_ACCEPT4, args[..].as_mut_ptr())
+-    }
+-}
+diff --git a/src/unix/linux_like/android/b64/mod.rs b/src/unix/linux_like/android/b64/mod.rs
+index f5a204d8f..ba822fc99 100644
+--- a/src/unix/linux_like/android/b64/mod.rs
++++ b/src/unix/linux_like/android/b64/mod.rs
+@@ -177,22 +177,6 @@ pub const UT_LINESIZE: usize = 32;
+ pub const UT_NAMESIZE: usize = 32;
+ pub const UT_HOSTSIZE: usize = 256;
+ 
+-f! {
+-    // Sadly, Android before 5.0 (API level 21), the accept4 syscall is not
+-    // exposed by the libc. As work-around, we implement it through `syscall`
+-    // directly. This workaround can be removed if the minimum version of
+-    // Android is bumped. When the workaround is removed, `accept4` can be
+-    // moved back to `linux_like/mod.rs`
+-    pub unsafe fn accept4(
+-        fd: c_int,
+-        addr: *mut crate::sockaddr,
+-        len: *mut crate::socklen_t,
+-        flg: c_int,
+-    ) -> c_int {
+-        crate::syscall(SYS_accept4, fd, addr, len, flg) as c_int
+-    }
+-}
+-
+ extern "C" {
+     pub fn __system_property_wait(
+         pi: *const crate::prop_info,
+diff --git a/src/unix/linux_like/emscripten/mod.rs b/src/unix/linux_like/emscripten/mod.rs
+index 7a28d8926..5946045fb 100644
+--- a/src/unix/linux_like/emscripten/mod.rs
++++ b/src/unix/linux_like/emscripten/mod.rs
+@@ -1364,12 +1364,6 @@ extern "C" {
+     pub fn preadv(fd: c_int, iov: *const crate::iovec, iovcnt: c_int, offset: off_t) -> ssize_t;
+     pub fn dup3(oldfd: c_int, newfd: c_int, flags: c_int) -> c_int;
+     pub fn nl_langinfo_l(item: crate::nl_item, locale: crate::locale_t) -> *mut c_char;
+-    pub fn accept4(
+-        fd: c_int,
+-        addr: *mut crate::sockaddr,
+-        len: *mut crate::socklen_t,
+-        flg: c_int,
+-    ) -> c_int;
+     pub fn getnameinfo(
+         sa: *const crate::sockaddr,
+         salen: crate::socklen_t,
+diff --git a/src/unix/linux_like/linux/mod.rs b/src/unix/linux_like/linux/mod.rs
+index a41d03d9f..f44a71d66 100644
+--- a/src/unix/linux_like/linux/mod.rs
++++ b/src/unix/linux_like/linux/mod.rs
+@@ -3608,8 +3608,6 @@ extern "C" {
+         timeout: *const crate::timespec,
+     ) -> c_int;
+     pub fn sigwaitinfo(set: *const sigset_t, info: *mut siginfo_t) -> c_int;
+-    pub fn accept4(fd: c_int, addr: *mut crate::sockaddr, len: *mut socklen_t, flg: c_int)
+-        -> c_int;
+     pub fn reboot(how_to: c_int) -> c_int;
+     pub fn setfsgid(gid: crate::gid_t) -> c_int;
+     pub fn setfsuid(uid: crate::uid_t) -> c_int;
+diff --git a/src/unix/linux_like/mod.rs b/src/unix/linux_like/mod.rs
+index 9081f8472..16045c2e4 100644
+--- a/src/unix/linux_like/mod.rs
++++ b/src/unix/linux_like/mod.rs
+@@ -2021,6 +2021,12 @@ extern "C" {
+         address: *const crate::sockaddr,
+         address_len: crate::socklen_t,
+     ) -> c_int;
++    pub fn accept4(
++        fd: c_int,
++        addr: *mut crate::sockaddr,
++        len: *mut crate::socklen_t,
++        flg: c_int,
++    ) -> c_int;
+ 
+     pub fn writev(fd: c_int, iov: *const crate::iovec, iovcnt: c_int) -> ssize_t;
+     pub fn readv(fd: c_int, iov: *const crate::iovec, iovcnt: c_int) -> ssize_t;
