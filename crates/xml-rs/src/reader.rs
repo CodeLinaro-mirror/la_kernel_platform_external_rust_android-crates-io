@@ -26,28 +26,30 @@ mod parser;
 pub type Result<T, E = Error> = result::Result<T, E>;
 
 /// A wrapper around an `std::io::Read` instance which provides pull-based XML parsing.
+///
+/// The reader should be wrapped in a `BufReader`, otherwise parsing may be very slow.
 pub struct EventReader<R: Read> {
     source: R,
     parser: PullParser,
 }
 
 impl<R: Read> EventReader<R> {
-    /// Creates a new reader, consuming the given stream.
+    /// Creates a new reader, consuming the given stream. The reader should be wrapped in a `BufReader`, otherwise parsing may be very slow.
     #[inline]
-    pub fn new(source: R) -> EventReader<R> {
-        EventReader::new_with_config(source, ParserConfig2::new())
+    pub fn new(source: R) -> Self {
+        Self::new_with_config(source, ParserConfig2::new())
     }
 
-    /// Creates a new reader with the provded configuration, consuming the given stream.
+    /// Creates a new reader with the provded configuration, consuming the given stream. The reader should be wrapped in a `BufReader`, otherwise parsing may be very slow.
     #[inline]
-    pub fn new_with_config(source: R, config: impl Into<ParserConfig2>) -> EventReader<R> {
-        EventReader { source, parser: PullParser::new(config) }
+    pub fn new_with_config(source: R, config: impl Into<ParserConfig2>) -> Self {
+        Self { source, parser: PullParser::new(config) }
     }
 
     /// Pulls and returns next XML event from the stream.
     ///
-    /// If returned event is `XmlEvent::Error` or `XmlEvent::EndDocument`, then
-    /// further calls to this method will return this event again.
+    /// If this returns [Err] or [`XmlEvent::EndDocument`] then further calls to
+    /// this method will return this event again.
     #[inline]
     pub fn next(&mut self) -> Result<XmlEvent> {
         self.parser.next(&mut self.source)
@@ -66,7 +68,10 @@ impl<R: Read> EventReader<R> {
             match self.next()? {
                 XmlEvent::StartElement { .. } => depth += 1,
                 XmlEvent::EndElement { .. } => depth -= 1,
-                XmlEvent::EndDocument => unreachable!(),
+                XmlEvent::EndDocument => return Err(Error {
+                    kind: ErrorKind::UnexpectedEof,
+                    pos: self.parser.position(),
+                }),
                 _ => {},
             }
         }
@@ -91,6 +96,14 @@ impl<R: Read> EventReader<R> {
     /// to parse an XML document from the beginning.
     pub fn into_inner(self) -> R {
         self.source
+    }
+
+    /// Returns the DOCTYPE of the document if it has already been seen
+    ///
+    /// Available only after the root `StartElement` event
+    #[inline]
+    pub fn doctype(&self) -> Option<&str> {
+        self.parser.doctype()
     }
 }
 
@@ -162,7 +175,7 @@ impl<'r> EventReader<&'r [u8]> {
     /// A convenience method to create an `XmlReader` from a string slice.
     #[inline]
     #[must_use]
-    pub fn from_str(source: &'r str) -> EventReader<&'r [u8]> {
+    pub fn from_str(source: &'r str) -> Self {
         EventReader::new(source.as_bytes())
     }
 }

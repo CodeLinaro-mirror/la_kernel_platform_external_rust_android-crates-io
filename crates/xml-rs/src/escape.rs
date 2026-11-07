@@ -22,7 +22,7 @@ pub(crate) struct Escaped<'a, E: Escapes> {
 }
 
 impl<'a, E: Escapes> Escaped<'a, E> {
-    pub fn new(s: &'a str) -> Self {
+    pub const fn new(s: &'a str) -> Self {
         Escaped {
             _escape_phantom: PhantomData,
             to_escape: s,
@@ -30,7 +30,7 @@ impl<'a, E: Escapes> Escaped<'a, E> {
     }
 }
 
-impl<'a, E: Escapes> Display for Escaped<'a, E> {
+impl<E: Escapes> Display for Escaped<'_, E> {
     fn fmt(&self, f: &mut Formatter<'_>) -> Result {
         let mut total_remaining = self.to_escape;
 

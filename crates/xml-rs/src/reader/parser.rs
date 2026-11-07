@@ -78,7 +78,7 @@ pub(crate) struct PullParser {
 
     encountered: Encountered,
     inside_whitespace: bool,
-    read_prefix_separator: bool,
+    seen_prefix_separator: bool,
     pop_namespace: bool,
 }
 
@@ -96,13 +96,13 @@ enum Encountered {
 impl PullParser {
     /// Returns a new parser using the given config.
     #[inline]
-    pub fn new(config: impl Into<ParserConfig2>) -> PullParser {
+    pub fn new(config: impl Into<ParserConfig2>) -> Self {
         let config = config.into();
         Self::new_with_config2(config)
     }
 
     #[inline]
-    fn new_with_config2(config: ParserConfig2) -> PullParser {
+    fn new_with_config2(config: ParserConfig2) -> Self {
         let mut lexer = Lexer::new(&config);
         if let Some(enc) = config.override_encoding {
             lexer.set_encoding(enc);
@@ -111,7 +111,7 @@ impl PullParser {
         let mut pos = Vec::with_capacity(16);
         pos.push(TextPosition::new());
 
-        PullParser {
+        Self {
             config,
             lexer,
             st: State::DocumentStart,
@@ -122,6 +122,7 @@ impl PullParser {
 
             data: MarkupData {
                 name: String::new(),
+                doctype: None,
                 version: None,
                 encoding: None,
                 standalone: None,
@@ -138,13 +139,19 @@ impl PullParser {
 
             encountered: Encountered::None,
             inside_whitespace: true,
-            read_prefix_separator: false,
+            seen_prefix_separator: false,
             pop_namespace: false,
         }
     }
 
     /// Checks if this parser ignores the end of stream errors.
     pub fn is_ignoring_end_of_stream(&self) -> bool { self.config.c.ignore_end_of_stream }
+
+    /// Retrieves the Doctype from the document if any
+    #[inline]
+    pub fn doctype(&self) -> Option<&str> {
+        self.data.doctype.as_deref()
+    }
 
     #[inline(never)]
     fn set_encountered(&mut self, new_encounter: Encountered) -> Option<Result> {
@@ -173,7 +180,7 @@ impl Position for PullParser {
     /// Returns the position of the last event produced by the parser
     #[inline]
     fn position(&self) -> TextPosition {
-        self.pos[0]
+        self.pos.first().copied().unwrap_or_else(TextPosition::new)
     }
 }
 
@@ -276,10 +283,10 @@ enum QuoteToken {
 
 impl QuoteToken {
     #[inline]
-    fn from_token(t: Token) -> Option<QuoteToken> {
+    fn from_token(t: Token) -> Option<Self> {
         match t {
-            Token::SingleQuote => Some(QuoteToken::SingleQuoteToken),
-            Token::DoubleQuote => Some(QuoteToken::DoubleQuoteToken),
+            Token::SingleQuote => Some(Self::SingleQuoteToken),
+            Token::DoubleQuote => Some(Self::DoubleQuoteToken),
             _ => {
                 debug_assert!(false);
                 None
@@ -287,10 +294,10 @@ impl QuoteToken {
         }
     }
 
-    fn as_token(self) -> Token {
+    const fn as_token(self) -> Token {
         match self {
-            QuoteToken::SingleQuoteToken => Token::SingleQuote,
-            QuoteToken::DoubleQuoteToken => Token::DoubleQuote,
+            Self::SingleQuoteToken => Token::SingleQuote,
+            Self::DoubleQuoteToken => Token::DoubleQuote,
         }
     }
 }
@@ -299,6 +306,7 @@ struct MarkupData {
     name: String,     // used for processing instruction name
     ref_data: String,  // used for reference content
 
+    doctype: Option<String>, // keeps a copy of the original doctype
     version: Option<XmlVersion>,  // used for XML declaration version
     encoding: Option<String>,  // used for XML declaration encoding
     standalone: Option<bool>,  // used for XML declaration standalone parameter
@@ -336,33 +344,33 @@ impl PullParser {
             // While lexer gives us Ok(maybe_token) -- we loop.
             // Upon having a complete XML-event -- we return from the whole function.
             match self.lexer.next_token(r) {
-                Ok(Some(token)) => {
-                    match self.dispatch_token(token) {
-                        None => {}, // continue
-                        Some(Ok(xml_event)) => {
-                            self.next_pos();
-                            return Ok(xml_event);
-                        },
-                        Some(Err(xml_error)) => {
-                            self.next_pos();
-                            return self.set_final_result(Err(xml_error));
-                        },
-                    }
+                Ok(Token::Eof) => {
+                    // Forward pos to the lexer head
+                    self.next_pos();
+                    return self.handle_eof();
                 },
-                Ok(None) => break,
+                Ok(token) => match self.dispatch_token(token) {
+                    None => continue,
+                    Some(Ok(xml_event)) => {
+                        self.next_pos();
+                        return Ok(xml_event);
+                    },
+                    Some(Err(xml_error)) => {
+                        self.next_pos();
+                        return self.set_final_result(Err(xml_error));
+                    },
+                },
                 Err(lexer_error) => {
-                    return self.set_final_result(Err(lexer_error))
+                    self.next_pos();
+                    return self.set_final_result(Err(lexer_error));
                 },
             }
         }
-
-        self.handle_eof()
     }
 
     /// Handle end of stream
+    #[cold]
     fn handle_eof(&mut self) -> std::result::Result<XmlEvent, super::Error> {
-        // Forward pos to the lexer head
-        self.next_pos();
         let ev = if self.depth() == 0 {
             if self.encountered == Encountered::Element && self.st == State::OutsideTag {  // all is ok
                 Ok(XmlEvent::EndDocument)
@@ -479,15 +487,11 @@ impl PullParser {
     /// * `t`       --- next token;
     /// * `on_name` --- a callback which is executed when whitespace is encountered.
     fn read_qualified_name<F>(&mut self, t: Token, target: QualifiedNameTarget, on_name: F) -> Option<Result>
-      where F: Fn(&mut PullParser, Token, OwnedName) -> Option<Result> {
-        // We can get here for the first time only when self.data.name contains zero or one character,
-        // but first character cannot be a colon anyway
-        if self.buf.len() <= 1 {
-            self.read_prefix_separator = false;
-        }
+      where F: Fn(&mut Self, Token, OwnedName) -> Option<Result> {
 
-        let invoke_callback = move |this: &mut PullParser, t| {
+        let invoke_callback = move |this: &mut Self, t| {
             let name = this.take_buf();
+            this.seen_prefix_separator = false;
             match name.parse() {
                 Ok(name) => on_name(this, t, name),
                 Err(()) => Some(this.error(SyntaxError::InvalidQualifiedName(name.into()))),
@@ -496,9 +500,9 @@ impl PullParser {
 
         match t {
             // There can be only one colon, and not as the first character
-            Token::Character(':') if self.buf_has_data() && !self.read_prefix_separator => {
+            Token::Character(':') if self.buf_has_data() && !self.seen_prefix_separator => {
                 self.buf.push(':');
-                self.read_prefix_separator = true;
+                self.seen_prefix_separator = true;
                 None
             },
 
@@ -530,7 +534,7 @@ impl PullParser {
     /// * `t`        --- next token;
     /// * `on_value` --- a callback which is called when terminating quote is encountered.
     fn read_attribute_value<F>(&mut self, t: Token, on_value: F) -> Option<Result>
-      where F: Fn(&mut PullParser, String) -> Option<Result> {
+      where F: Fn(&mut Self, String) -> Option<Result> {
         match t {
             Token::Character(c) if self.data.quote.is_none() && is_whitespace_char(c) => None, // skip leading whitespace
 
@@ -563,7 +567,7 @@ impl PullParser {
                 self.into_state_continue(State::InsideReference)
             },
 
-            Token::OpeningTagStart => Some(self.error(SyntaxError::UnexpectedOpeningTag)),
+            Token::OpeningTagStart | Token::ProcessingInstructionStart => Some(self.error(SyntaxError::UnexpectedOpeningTag)),
 
             Token::Character(c) if !self.is_valid_xml_char_not_restricted(c) => {
                 Some(self.error(SyntaxError::InvalidCharacterEntity(c as u32)))
@@ -781,6 +785,23 @@ mod tests {
             *e == Error {
                 kind: ErrorKind::Syntax(SyntaxError::UnexpectedOpeningTag.to_cow()),
                 pos: TextPosition { row: 1, column: 24 }
+            }
+        );
+    }
+
+    #[test]
+    fn processing_instruction_in_attribute_value() {
+        use crate::reader::error::{SyntaxError, Error, ErrorKind};
+
+        let (mut r, mut p) = test_data!(r#"
+            <y F="<?abc"><x G="/">
+        "#);
+
+        expect_event!(r, p, Ok(XmlEvent::StartDocument { .. }));
+        expect_event!(r, p, Err(ref e) =>
+            *e == Error {
+                kind: ErrorKind::Syntax(SyntaxError::UnexpectedOpeningTag.to_cow()),
+                pos: TextPosition { row: 1, column: 18 }
             }
         );
     }
