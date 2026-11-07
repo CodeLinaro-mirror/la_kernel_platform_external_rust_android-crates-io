@@ -1,17 +1,17 @@
 name: "mime"
 description: "Strongly Typed Mimes"
 third_party {
-  version: "0.3.17"
+  version: "0.3.18"
   license_type: NOTICE
   last_upgrade_date {
-    year: 2024
-    month: 5
-    day: 27
+    year: 2026
+    month: 11
+    day: 6
   }
   homepage: "https://crates.io/crates/mime"
   identifier {
     type: "crates.io"
     value: "mime"
-    version: "0.3.17"
+    version: "0.3.18"
   }
 }
