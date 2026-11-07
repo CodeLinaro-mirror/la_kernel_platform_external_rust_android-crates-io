@@ -26,6 +26,11 @@ rust_library {
         "const_new",
         "write",
     ],
+    target: {
+        windows: {
+            enabled: true,
+        },
+    },
     apex_available: [
         "//apex_available:platform",
         "//apex_available:anyapex",

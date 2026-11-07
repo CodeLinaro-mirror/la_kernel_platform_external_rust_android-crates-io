@@ -13,7 +13,7 @@
 edition = "2021"
 rust-version = "1.85"
 name = "read-fonts"
-version = "0.44.0"
+version = "0.46.0"
 build = false
 autolib = false
 autobins = false
@@ -42,7 +42,7 @@ features = [
 agl = []
 codegen_test = []
 default = ["std"]
-experimental_font_api = ["dep:yoke"]
+experimental_font_api = []
 experimental_traverse = []
 ift = []
 libm = ["dep:core_maths"]
@@ -52,7 +52,10 @@ serde = [
     "font-types/serde",
 ]
 spec_next = []
-std = ["font-types/std"]
+std = [
+    "font-types/std",
+    "dep:foldhash",
+]
 
 [lib]
 name = "read_fonts"
@@ -61,6 +64,11 @@ path = "src/lib.rs"
 [[bench]]
 name = "bench_helper"
 path = "benches/bench_helper.rs"
+
+[[bench]]
+name = "charmap"
+path = "benches/charmap.rs"
+harness = false
 
 [[bench]]
 name = "glyph_names"
@@ -75,6 +83,11 @@ harness = false
 [[bench]]
 name = "sparse_bit_set_benchmark"
 path = "benches/sparse_bit_set_benchmark.rs"
+harness = false
+
+[[bench]]
+name = "system_charmap"
+path = "benches/system_charmap.rs"
 harness = false
 
 [[bench]]
@@ -94,8 +107,13 @@ version = "1.14.0"
 version = "0.1"
 optional = true
 
+[dependencies.foldhash]
+version = "0.2.0"
+optional = true
+default-features = false
+
 [dependencies.font-types]
-version = "0.12.5"
+version = "0.12.7"
 features = ["bytemuck"]
 
 [dependencies.once_cell]
@@ -111,10 +129,17 @@ version = "1.0"
 features = ["derive"]
 optional = true
 
+[dependencies.smallvec]
+version = "1.13.1"
+features = [
+    "const_generics",
+    "union",
+]
+default-features = false
+
 [dependencies.yoke]
 version = "0.8.0"
 features = ["derive"]
-optional = true
 
 [dev-dependencies.criterion]
 version = "0.7"
