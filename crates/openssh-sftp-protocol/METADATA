@@ -1,17 +1,17 @@
 name: "openssh-sftp-protocol"
 description: "Data format used to communicate with openssh mux server."
 third_party {
-  version: "0.25.0"
+  version: "0.26.0"
   license_type: NOTICE
   last_upgrade_date {
     year: 2026
-    month: 10
-    day: 2
+    month: 11
+    day: 3
   }
   homepage: "https://crates.io/crates/openssh-sftp-protocol"
   identifier {
     type: "crates.io"
     value: "openssh-sftp-protocol"
-    version: "0.25.0"
+    version: "0.26.0"
   }
 }
