@@ -2021,6 +2021,12 @@ extern "C" {
         address: *const crate::sockaddr,
         address_len: crate::socklen_t,
     ) -> c_int;
+    pub fn accept4(
+        fd: c_int,
+        addr: *mut crate::sockaddr,
+        len: *mut crate::socklen_t,
+        flg: c_int,
+    ) -> c_int;
 
     pub fn writev(fd: c_int, iov: *const crate::iovec, iovcnt: c_int) -> ssize_t;
     pub fn readv(fd: c_int, iov: *const crate::iovec, iovcnt: c_int) -> ssize_t;
