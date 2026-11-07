@@ -13,7 +13,7 @@ use core::mem::size_of;
 
 use zerocopy::FromBytes;
 
-use super::{FDT_TAGSIZE, Fdt, FdtPropertyHeader, FdtToken};
+use super::{FDT_TAGSIZE, Fdt, FdtPropertyHeader, FdtToken, NameValidation};
 use crate::Property;
 
 /// A property of a device tree node.
@@ -33,19 +33,14 @@ pub(crate) struct ParsedProperty<'a> {
     pub len: usize,
 }
 
-impl<'a> Property for FdtProperty<'a> {
-    type PropEncodedArray<const N: usize> = crate::values::PropEncodedArrayIterator<'a, N>;
-    type CellsItem = crate::Cells<'a>;
-
-    fn name(&self) -> &'a str {
+impl<'a> Property<'a> for FdtProperty<'a> {
+    fn name(self) -> &'a str {
         self.name
     }
 
-    fn value(&self) -> &'a [u8] {
+    fn value(self) -> &'a [u8] {
         self.value
     }
-
-    crate::impl_property_methods!(get_value = |self| self.value);
 }
 
 impl FdtProperty<'_> {
@@ -79,7 +74,7 @@ impl FdtProperty<'_> {
         if self.value.len().is_multiple_of(size_of::<u32>()) {
             write!(f, " = <")?;
             let (chunks, remainder) = self.value.as_chunks::<{ size_of::<u32>() }>();
-            debug_assert!(remainder.is_empty());
+            debug_assert_eq!(remainder, []);
             for (i, chunk) in chunks.iter().enumerate() {
                 if i > 0 {
                     write!(f, " ")?;
@@ -141,7 +136,7 @@ impl InnerPropIter {
     #[must_use]
     fn next_property_parsed<'a>(fdt: Fdt<'a>, offset: &mut usize) -> Option<ParsedProperty<'a>> {
         *offset = fdt
-            .next_property_offset(*offset, false)
+            .next_property_offset(*offset, NameValidation::Skip)
             .expect("Fdt should be valid");
         Self::find_property(fdt, offset)
     }

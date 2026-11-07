@@ -11,8 +11,7 @@ use alloc::vec::Vec;
 use core::str;
 
 use crate::error::ModelError;
-use crate::values::PropEncodedArrayIterator;
-use crate::{Cells, Property, ToPropertyValue};
+use crate::{Property, ToPropertyValue};
 
 /// A mutable, in-memory representation of a device tree property.
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
@@ -21,19 +20,14 @@ pub struct DeviceTreeProperty {
     value: Vec<u8>,
 }
 
-impl<'a> Property for &'a DeviceTreeProperty {
-    type PropEncodedArray<const N: usize> = PropEncodedArrayIterator<'a, N>;
-    type CellsItem = Cells<'a>;
-
-    fn name(&self) -> &'a str {
+impl<'a> Property<'a> for &'a DeviceTreeProperty {
+    fn name(self) -> &'a str {
         &self.name
     }
 
-    fn value(&self) -> &'a [u8] {
+    fn value(self) -> &'a [u8] {
         &self.value
     }
-
-    crate::impl_property_methods!(get_value = |self| self.value.as_slice());
 }
 
 impl DeviceTreeProperty {
@@ -51,12 +45,12 @@ impl DeviceTreeProperty {
     /// use dtoolkit::model::DeviceTreeProperty;
     ///
     /// let prop = DeviceTreeProperty::new("my-prop", vec![1u8, 2, 3, 4]).unwrap();
-    /// assert_eq!((&prop).name(), "my-prop");
-    /// assert_eq!((&prop).value(), &[1, 2, 3, 4]);
+    /// assert_eq!(prop.name(), "my-prop");
+    /// assert_eq!(prop.value(), &[1, 2, 3, 4]);
     /// ```
     pub fn new<T: ToPropertyValue>(name: impl Into<String>, value: T) -> Result<Self, ModelError> {
         let name = name.into();
-        if !crate::validate::is_valid_property_name(&name) {
+        if !crate::validate::is_valid_property_name(&name, false) {
             return Err(ModelError::InvalidPropertyName(name));
         }
         Ok(Self::new_unchecked(name, value))
@@ -84,7 +78,7 @@ impl DeviceTreeProperty {
     ///
     /// let mut prop = DeviceTreeProperty::new("my-prop", vec![1u8, 2, 3, 4]).unwrap();
     /// prop.set_value(vec![5u8, 6, 7, 8]);
-    /// assert_eq!((&prop).value(), &[5, 6, 7, 8]);
+    /// assert_eq!(prop.value(), &[5, 6, 7, 8]);
     /// ```
     pub fn set_value<T: ToPropertyValue>(&mut self, value: T) {
         self.value.resize(value.property_value_len(), 0);
@@ -95,7 +89,7 @@ impl DeviceTreeProperty {
 impl DeviceTreeProperty {
     /// Creates a new [`DeviceTreeProperty`] from any type that implements
     /// [`Property`].
-    pub fn from_property<T: Property>(prop: &T) -> Self {
+    pub fn from_property<'a>(prop: impl Property<'a>) -> Self {
         let name = prop.name().to_string();
         let value = prop.value().to_vec();
         DeviceTreeProperty { name, value }
