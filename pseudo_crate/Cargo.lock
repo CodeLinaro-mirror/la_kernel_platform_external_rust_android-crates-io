@@ -465,6 +465,7 @@ dependencies = [
  "httparse",
  "httpdate",
  "humantime",
+ "hut",
  "hyper",
  "hyper-rustls",
  "hyper-timeout",
@@ -4836,6 +4837,12 @@ name = "humantime"
 version = "2.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "15cdd26707701c53297e2fa6afb323d55fbc1d0810c3aec078ae3ef0424c3c15"
+
+[[package]]
+name = "hut"
+version = "0.5.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "c882ba3379c41a5713a111ea16bddf8d337c439630db6ec5f7ece7d1e7e29c5c"
 
 [[package]]
 name = "hybrid-array"
