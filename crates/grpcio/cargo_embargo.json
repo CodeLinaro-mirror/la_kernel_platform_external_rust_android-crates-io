@@ -5,5 +5,6 @@
     "boringssl",
     "protobufv3-codec"
   ],
-  "min_sdk_version": "29"
+  "min_sdk_version": "29",
+  "tests": true
 }
