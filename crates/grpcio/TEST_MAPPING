@@ -3,5 +3,10 @@
     {
       "path": "tools/netsim"
     }
+  ],
+  "postsubmit": [
+    {
+      "name": "grpcio_test_src_lib"
+    }
   ]
 }
