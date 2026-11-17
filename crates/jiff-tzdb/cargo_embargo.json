@@ -1,0 +1,14 @@
+{
+  "run_cargo": false,
+  "min_sdk_version": "29",
+  "package": {
+    "jiff-tzdb": {
+      // Do not embed tzdata in a device library; rely on platform support instead.
+      "device_supported": false,
+      "srcs": [
+        "*.rs",
+        "concatenated-zoneinfo.dat"
+      ]
+    }
+  }
+}
