@@ -257,6 +257,7 @@ hashlink
 heapless
 heck
 hex
+hidreport
 home
 hound
 http
@@ -265,6 +266,7 @@ http-body-util
 httparse
 httpdate
 humantime
+hut
 hyper
 hyper-rustls
 hyper-timeout
