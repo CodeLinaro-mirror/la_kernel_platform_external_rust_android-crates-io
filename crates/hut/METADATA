@@ -1,0 +1,17 @@
+name: "hut"
+description: "The HID Usage Tables"
+third_party {
+  version: "0.5.0"
+  license_type: NOTICE
+  last_upgrade_date {
+    year: 2026
+    month: 11
+    day: 16
+  }
+  homepage: "https://crates.io/crates/hut"
+  identifier {
+    type: "crates.io"
+    value: "hut"
+    version: "0.5.0"
+  }
+}
