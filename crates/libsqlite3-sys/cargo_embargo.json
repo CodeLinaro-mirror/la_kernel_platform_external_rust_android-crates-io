@@ -2,12 +2,31 @@
   "min_sdk_version": "29",
   "package": {
     "libsqlite3-sys": {
-      "add_toplevel_block": "bindgen_modules.bp.fragment",
-      "add_module_block": "cargo2android_target.bp.fragment"
+      "add_toplevel_block": "bindgen_modules.bp.fragment"
     }
   },
   "product_available": true,
   "run_cargo": false,
-  "tests": true,
-  "vendor_available": true
+  "vendor_available": true,
+  "variants": [
+    {
+      "tests": true,
+      "package": {
+        "libsqlite3-sys": {
+          "add_module_block": "cargo2android_target.bp.fragment"
+        }
+      }
+    },
+    {
+      "module_name_overrides": {
+        "liblibsqlite3_sys": "liblibsqlite3_sys_noicu"
+      },
+      "package": {
+        "libsqlite3-sys": {
+          "add_module_block": "cargo2android_target_noicu.bp.fragment",
+          "force_rlib": true
+        }
+      }
+    }
+  ]
 }
