@@ -46,6 +46,32 @@ rust_library {
 
 }
 
+rust_library_rlib {
+    name: "liblibsqlite3_sys_noicu",
+    host_supported: true,
+    crate_name: "libsqlite3_sys",
+    cargo_env_compat: true,
+    cargo_pkg_version: "0.40.0",
+    crate_root: "src/lib.rs",
+    edition: "2024",
+    features: [
+        "default",
+        "min_sqlite_version_3_45_3",
+        "pkg-config",
+        "vcpkg",
+    ],
+    apex_available: [
+        "//apex_available:platform",
+        "//apex_available:anyapex",
+    ],
+    product_available: true,
+    vendor_available: true,
+    min_sdk_version: "29",
+    srcs: [":libsqlite3_bindgen"],
+    static_libs: ["libsqlite_static_noicu"],
+    shared_libs: ["liblog"],
+}
+
 rust_test {
     name: "libsqlite3-sys_test_src_lib",
     host_supported: true,
