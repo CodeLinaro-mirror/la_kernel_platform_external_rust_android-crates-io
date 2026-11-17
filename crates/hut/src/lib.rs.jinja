@@ -1,0 +1,1204 @@
+// THIS FILE IS GENERATED, DO NOT EDIT
+{# Ignore the warning above, you're looking at the source file #}
+
+//! A wrapper around the [HID Usage Tables (HUT)](https://usb.org/document-library/hid-usage-tables-15).
+//!
+//! In this document and unless stated otherwise, a reference to
+//! - **"HID Section a.b.c"** refers to the [HID Device Class Definition for HID 1.11](https://www.usb.org/document-library/device-class-definition-hid-111)
+//! - **"HUT Section a.b.c"** refers to the
+//!   [HID Usage Tables (HUT) version 1.5](https://usb.org/document-library/hid-usage-tables-15)
+//!
+//! This module is created through code generation from the HID Usage Tables.
+//!
+//! # Terminology
+//!
+//! See HID Section 5.5: a HID Usage is a 32 bit value comprising of a 16-bit Usage
+//! Page (MSB) and a 16-bit Usage ID (LSB) so that:
+//!
+//! ```
+//! # let usage_page: u32 = 0;
+//! # let usage_id: u32 = 0;
+//! let usage: u32 = (usage_page << 16) | usage_id;
+//! ```
+//! Note that the HID encoding requires little endian byte order on the wire.
+//!
+//! In this module:
+//!
+//! - **"Usage Page"** refers to the 16-bit value. Where the Usage Page is converted
+//!   to or from a 32-bit value the Usage Page is in the upper 16 bits of that value and
+//!   the lower 16 bits are ignored or set to zero.
+//!   ```
+//!   # let usage: u32 = 0;
+//!   let usage_page: u16 = (usage >> 16) as u16 & 0xffff;
+//!   ```
+//! - **"Usage ID"** refers to the 16-bit value. Where the Usage ID is converted to
+//!   or from a 32-bit value the Usage is in the lower 16 bits of that value and
+//!   the upper 16 bits are ignored or set to zero.
+//!   ```
+//!   # let usage: u32 = 0;
+//!   let usage_id: u16 = (usage & 0xffff) as u16;
+//!   ```
+//! - **"Usage"** refers to the 32-bit value comprising a Usage Page and a Usage.
+//!
+//! # Converting between types
+//!
+//! All defined [Usages](Usage) and [UsagePages](UsagePage) implement [AsUsagePage] and (if applicable) [AsUsage] as
+//! well as the [`From<u16>`](From), [`From<u32>`](From), [`TryFrom<u16>`](TryFrom), and [`TryFrom<u32>`](TryFrom)
+//! conversions so that:
+//! ```
+//! # use hut::*;
+//! let usage_page_value: u16 = 0x01; // Generic Desktop
+//! let usage_id_value: u16 = 0x02; // Mouse
+//! let usage_value: u32 = ((usage_page_value as u32) << 16) | usage_id_value as u32;
+//!
+//! // Create a known Usage from a 32-bit value
+//! let u: Usage = Usage::try_from(usage_value).unwrap();
+//! assert!(matches!(u, Usage::GenericDesktop(GenericDesktop::Mouse)));
+//!
+//! // Create a known Usage from the Usage Page and Usage ID values
+//! let u2 = Usage::new_from_page_and_id(usage_page_value, usage_id_value).unwrap();
+//! assert_eq!(u, u2);
+//!
+//! // Create a known Usage from an individual Usage Page enum item
+//! let u3 = Usage::from(GenericDesktop::Mouse);
+//! assert_eq!(u, u3);
+//!
+//! // Create a known Usage from an known Usage Page enum item
+//! let gd_mouse = GenericDesktop::try_from(usage_id_value).unwrap();
+//! let u4 = Usage::from(gd_mouse);
+//! assert_eq!(u, u4);
+//!
+//! // Convert to and fro the Usage either via u32 or the AsUsage trait
+//! let u = GenericDesktop::Mouse;
+//! assert_eq!(u32::from(&u), usage_value);
+//! assert_eq!(u.usage_value(), usage_value);
+//!
+//! // Extract the 16-bit Usage ID either via u16 or the AsUsage trait
+//! assert_eq!(u16::from(&u), usage_id_value);
+//! assert_eq!(u.usage_id_value(), usage_id_value);
+//!
+//! // Extract the Usage Page from the Usage enum value
+//! let up = u.usage_page();
+//! assert!(matches!(up, UsagePage::GenericDesktop));
+//! let up: UsagePage = UsagePage::from(&u);
+//! assert!(matches!(up, UsagePage::GenericDesktop));
+//!
+//! // Get the Usage Page numeric value is via the AsUsagePage
+//! assert_eq!(u16::from(&up), usage_page_value);
+//! assert_eq!(up.usage_page_value(), usage_page_value);
+//! ```
+//!
+//! Naming Usages (e.g. [`GenericDesktop::Mouse`]) above works for Defined Usage
+//! Pages, Generated Usage Pages (see below) need to be destructured via their
+//! individual elements:
+//! ```
+//! # use hut::*;
+//! let usage_page_value: u16 = 0x09; // Button
+//! let usage_id_value: u16 = 8; // Button number 8
+//! let usage_value: u32 = ((usage_page_value as u32) << 16) | usage_id_value as u32;
+//!
+//! let u = Usage::try_from(usage_value).unwrap();
+//! let button = Usage::Button(Button::Button(8));
+//! assert!(matches!(Usage::try_from(usage_value).unwrap(), button));
+//! // or via from() or into()
+//! let button: Usage = Button::Button(8).into();
+//! assert!(matches!(Usage::try_from(usage_value).unwrap(), button));
+//! ```
+//! Once a Usage is created, the [AsUsagePage] and [AsUsage] traits and conversion to and from
+//! [u16] and [u32] work the same as for a Defined Usage Page.
+//!
+//! # Names of Usage Pages and Usage IDs
+//!
+//! All defined [Usages](Usage) and [UsagePages](UsagePage) implement `name()` to return a string
+//! representing that page or usage:
+//!
+//! ```
+//! # use hut::*;
+//! let up = UsagePage::GenericDesktop;
+//! assert_eq!(up.name(), "Generic Desktop");
+//! let up = UsagePage::SimulationControls;
+//! assert_eq!(up.name(), "Simulation Controls");
+//!
+//! let usage = GenericDesktop::Mouse;
+//! assert_eq!(usage.name(), "Mouse");
+//! let usage = SimulationControls::CyclicControl;
+//! assert_eq!(usage.name(), "Cyclic Control");
+//! ```
+//!
+//! # Generated Usage Pages
+//!
+//! The HUT differ between "Defined" and "Generated" Usage Pages. The former define Usage ID values
+//! and their meanings, the latter define a Usage ID range, with the actual Usage ID simply
+//! referring to "nth thing in this usage page". One example for this is the Button Usage Page
+//! (0x09) where a Usage ID of 3 means "Button 3".
+//!
+//! ```
+//! # use hut::*;
+//! let b = Button::Button(3);
+//! let o = Ordinal::Ordinal(23);
+//! ```
+//!
+//! Unlike Defined Usage Pages these Generated Usage Pages need to be destructured in `match`
+//! statements:
+//!
+//! ```
+//! # use hut::*;
+//! let b = Button::Button(3);
+//! match b {
+//!     Button::Button(b) => println!("Button {b}"),
+//!     _ => {},
+//! }
+//! ```
+//!
+//! The following usage pages are Generated:
+{% for usage_page in usage_pages %}
+{% if usage_page.usage_page_type == "Generated" %}
+//!   - Usage Page 0x{{ '%X' % usage_page.value }} - [{{usage_page.name}}]
+{% endif %}
+{% endfor %}
+//!
+//! A further special case of this is the [Unicode] usage page which is not in the HUT
+//! document and was inserted during code generation.
+//!
+//! # Vendor Defined Usage Pages (0xFF00 to 0xFFFF)
+//!
+//! [Vendor Defined Usage Pages](VendorDefinedPage) and [VendorUsages](VendorDefinedPage::VendorUsage) are not autogenerated and thus
+//! follow a different approach: the Usage inside the Usage Page is a simple
+//! numeric usage that needs to be destructured in `match` statements.
+//!
+//! ```
+//! # use hut::*;
+//! let v = Usage::VendorDefinedPage {
+//!     vendor_page: VendorPage::try_from(0xff00 as u16).unwrap(),
+//!     usage: VendorDefinedPage::VendorUsage { usage_id: 0x01 },
+//! };
+//! match v {
+//!     Usage::VendorDefinedPage {
+//!         vendor_page,
+//!         usage,
+//!     } => println!("Vendor Usage ID {usage}"),
+//!     _ => {},
+//! }
+//! ```
+//!
+//! A notable exception is the [Wacom] (`0xFF0D`) which is technically a
+//! Vendor-defined page but with defined Usages. Converting from a [UsagePage]
+//! or [Usage] numeric value will produce the correct or [Wacom] Usage, not a [VendorDefinedPage::VendorUsage].
+//!
+//! # Reserved Usage Pages
+//!
+//! [Reserved Usage Pages](ReservedUsagePage) and [ReservedUsages](ReservedUsagePage::ReservedUsage) are
+//! not autogenerated and thus follow a different approach: the Usage inside the Usage Page is a simple
+//! numeric usage that needs to be destructured in `match` statements.
+//!
+//! Unlike the [Vendor Defined Usage Pages](VendorDefinedPage) a [Reserved Usage Page](ReservedPage) may become
+//! a defined page in a later version of the HUT standard and thus in a future version of this crate.
+//! A caller must not rely on a Reserved Usage Page or Reserved Usage to remain so.
+//!
+//! The following Usage Pages are reserved as of HUT 1.5 (see HUT Section 3, p15):
+//! - `0x13`, `0x15-0x1F`
+//! - `0x21-0x3F`
+//! - `0x42-0x58`
+//! - `0x5A-0x7F`
+//! - `0x83-0x83`
+//! - `0x86-0x8B`
+//! - `0x8F-0x8F`
+//! - `0x93-0xF1CF`
+//! - `0xF1D1-0xFEFF`
+//!
+//! # Renames
+//!
+//! For technical reasons, spaces, (` `), dashes (`-`), and slashes (`/`) are
+//! stripped out of Usage Page and Usage names. The string representation via
+//! the `Display` trait will have the unmodified value.
+
+#![allow(clippy::identity_op, clippy::eq_op, clippy::match_single_binding)]
+
+#![no_std]
+
+#[cfg(feature = "std")]
+extern crate std;
+
+#[cfg(feature = "std")]
+use std::{fmt, format, string::String, string::ToString};
+use core::ops::BitOr;
+
+/// Error raised if conversion between HUT elements fails.
+#[derive(Debug)]
+pub enum HutError {
+    /// The usage page value is not known. Usage Pages
+    /// may get added in the future and a future version
+    /// of this crate may not raise this error for the same value.
+    UnknownUsagePage { usage_page: u16 },
+    /// The usage ID value is not known. Usage IDs
+    /// may get added in the future and a future version
+    /// of this crate may not raise this error for the same value.
+    UnknownUsageId { usage_id: u16 },
+    /// The value given for a [VendorDefinedPage] is outside the allowed range.
+    InvalidVendorPage { vendor_page: u16 },
+    /// The value given for a [ReservedUsagePage] is outside the allowed range.
+    InvalidReservedPage { reserved_page: u16 },
+    /// The 32-bit usage value given cannot be resolved. Usages
+    /// may get added in the future and a future version
+    /// of this crate may not raise this error for the same value.
+    UnknownUsage,
+}
+
+impl core::error::Error for HutError { }
+
+impl core::fmt::Display for HutError {
+    fn fmt(&self, fmt: &mut core::fmt::Formatter) -> core::fmt::Result {
+        match self {
+                HutError::UnknownUsagePage { usage_page } => write!(fmt, "Unknown Usage Page {}", usage_page),
+                HutError::UnknownUsageId { usage_id } => write!(fmt, "Unknown Usage ID {}", usage_id),
+                HutError::InvalidVendorPage { vendor_page } => write!(fmt, "Invalid Vendor Page {}", vendor_page),
+                HutError::InvalidReservedPage {reserved_page } => write!(fmt, "Invalid Reserved Page {}", reserved_page),
+                HutError::UnknownUsage => write!(fmt, "Unknown Usage"),
+        }
+    }
+}
+
+type Result<T> = core::result::Result<T, HutError>;
+
+/// A trait to return the Usage and Usage ID as numeric value
+pub trait AsUsage {
+    /// Returns the 32-bit Usage numeric value of this Usage
+    fn usage_value(&self) -> u32;
+
+    /// Returns the 16-bit Usage Id numeric value of this Usage
+    fn usage_id_value(&self) -> u16;
+
+    /// Returns this usage as [Usage]
+    fn usage(&self) -> Usage;
+}
+
+/// A trait to return the Usage Page as numeric value
+pub trait AsUsagePage {
+    /// Returns the 16-bit Usage Page value
+    fn usage_page_value(&self) -> u16;
+
+    /// Returns the [UsagePage]
+    fn usage_page(&self) -> UsagePage;
+}
+
+/// A HID UsagePage, see HID Section 5.5. This represents the upper 16 bits in the
+/// 32-bit Usage. Where a [UsagePage] is converted to or from 32 bit, the
+/// [UsagePage] value are the upper 16 bits only and the lower 16 bits are
+/// ignored or set to zero.
+/// ```
+/// # use hut::*;
+/// let usage = Usage::from(GenericDesktop::Mouse);
+/// let up: UsagePage = UsagePage::from(&usage);
+/// assert!(matches!(up, UsagePage::GenericDesktop));
+/// ```
+/// Note: this enum is generated from the HUT specification.
+#[allow(non_camel_case_types)]
+#[derive(Debug)]
+#[non_exhaustive]
+pub enum UsagePage {
+    {% for usage_page in usage_pages %}
+    /// Usage Page `0x{{ '%X' % usage_page.value }}`: "{{usage_page.printable}}",
+    /// see [{{usage_page.name}}].
+    {{usage_page.name}},
+    {% endfor %}
+    /// The Reserved Usage Pages (range: various). See [ReservedUsagePage].
+    ReservedUsagePage(ReservedPage),
+    /// The Vendor Defined Pages, range `0xFF00 - 0xFFFF`. See [VendorDefinedPage].
+    VendorDefinedPage(VendorPage),
+}
+
+/// Represents a Reserved Page number value of in the current range of
+/// reserved values. See [ReservedUsagePage].
+///
+/// ```
+/// # use hut::*;
+/// // 0x3f is currently reserved
+/// let vp: ReservedPage = ReservedPage::try_from(0x3f as u16).unwrap();
+/// let vp: ReservedPage = ReservedPage::try_from(0x003f1234 as u32).unwrap();
+///
+/// let usage = Usage::try_from(0x003f1234).unwrap();
+/// let up = UsagePage::from(&usage);
+/// assert!(matches!(up, UsagePage::ReservedUsagePage(_)));
+/// ```
+#[derive(Debug, Clone, Copy, PartialEq, PartialOrd)]
+pub struct ReservedPage(u16);
+
+impl From<&ReservedPage> for ReservedPage {
+    fn from(v: &ReservedPage) -> ReservedPage {
+        ReservedPage(v.0)
+    }
+}
+
+impl From<&ReservedPage> for u16 {
+    fn from(v: &ReservedPage) -> u16 {
+        v.0
+    }
+}
+
+impl From<ReservedPage> for u16 {
+    fn from(v: ReservedPage) -> u16 {
+        u16::from(&v)
+    }
+}
+
+impl From<&ReservedPage> for u32 {
+    fn from(v: &ReservedPage) -> u32 {
+        (v.0 as u32) << 16
+    }
+}
+
+impl From<ReservedPage> for u32 {
+    fn from(v: ReservedPage) -> u32 {
+        u32::from(&v)
+    }
+}
+
+impl TryFrom<u16> for ReservedPage {
+    type Error = HutError;
+
+    fn try_from(v: u16) -> Result<ReservedPage> {
+        match v {
+            p @ 0x13 => Ok(ReservedPage(p)),
+            p @ 0x15..=0x1F => Ok(ReservedPage(p)),
+            p @ 0x21..=0x3F => Ok(ReservedPage(p)),
+            p @ 0x42..=0x58 => Ok(ReservedPage(p)),
+            p @ 0x5A..=0x7F => Ok(ReservedPage(p)),
+            p @ 0x83..=0x83 => Ok(ReservedPage(p)),
+            p @ 0x86..=0x8B => Ok(ReservedPage(p)),
+            p @ 0x8F..=0x8F => Ok(ReservedPage(p)),
+            p @ 0x93..=0xF1CF => Ok(ReservedPage(p)),
+            p @ 0xF1D1..=0xFEFF => Ok(ReservedPage(p)),
+            n => Err(HutError::InvalidReservedPage { reserved_page: n }),
+        }
+    }
+}
+
+impl TryFrom<u32> for ReservedPage {
+    type Error = HutError;
+
+    fn try_from(v: u32) -> Result<ReservedPage> {
+        ReservedPage::try_from((v >> 16) as u16)
+    }
+}
+
+/// Represents a Vendor Defined Page number value of in the range
+/// `0xFF00..=0xFFFF`. See [VendorDefinedPage].
+///
+/// ```
+/// # use hut::*;
+/// // The value has to be 0xff00..=0xffff
+/// let vp: VendorPage = VendorPage::try_from(0xff00 as u16).unwrap();
+/// let vp: VendorPage = VendorPage::try_from(0xff001234 as u32).unwrap();
+///
+/// let usage = Usage::try_from(0xff001234).unwrap();
+/// let up = UsagePage::from(&usage);
+/// assert!(matches!(up, UsagePage::VendorDefinedPage(_)));
+/// ```
+#[derive(Debug, Clone, Copy, PartialEq, PartialOrd)]
+pub struct VendorPage(u16);
+
+impl From<&VendorPage> for VendorPage {
+    fn from(v: &VendorPage) -> VendorPage {
+        VendorPage(v.0)
+    }
+}
+
+impl From<&VendorPage> for u16 {
+    fn from(v: &VendorPage) -> u16 {
+        v.0
+    }
+}
+
+impl From<VendorPage> for u16 {
+    fn from(v: VendorPage) -> u16 {
+        u16::from(&v)
+    }
+}
+
+impl From<&VendorPage> for u32 {
+    fn from(v: &VendorPage) -> u32 {
+        (v.0 as u32) << 16
+    }
+}
+
+impl From<VendorPage> for u32 {
+    fn from(v: VendorPage) -> u32 {
+        u32::from(&v)
+    }
+}
+
+impl TryFrom<u16> for VendorPage {
+    type Error = HutError;
+
+    fn try_from(v: u16) -> Result<VendorPage> {
+        match v {
+            p @ 0xff00..=0xffff => Ok(VendorPage(p)),
+            n => Err(HutError::InvalidVendorPage { vendor_page: n }),
+        }
+    }
+}
+
+impl TryFrom<u32> for VendorPage {
+    type Error = HutError;
+
+    fn try_from(v: u32) -> Result<VendorPage> {
+        VendorPage::try_from((v >> 16) as u16)
+    }
+}
+
+impl UsagePage {
+    /// Returns the Usage Page for the given Usage Page value. This is the
+    /// 16-bit Usage Page value only, not the full 32-bit Usage.
+    /// ```
+    /// # use hut::*;
+    /// let usage_value: u16 = 0x1; // GenericDesktop
+    /// let usage_page = UsagePage::from_usage_page_value(usage_value).unwrap();
+    /// assert!(matches!(UsagePage::GenericDesktop, usage_page));
+    /// ```
+    pub fn from_usage_page_value(usage_page: u16) -> Result<UsagePage> {
+        UsagePage::try_from(usage_page)
+    }
+
+    /// Returns the Usage Page for the given Usage numeric value. The Usage Page
+    /// must be in the upper 16 bits of the `usage` value and the lower 16 bits
+    /// are ignored.
+    /// ```
+    /// # use hut::*;
+    /// let usage_value: u32 = (0x1 << 16) | 0x2;
+    /// let usage = UsagePage::from_usage_value(usage_value).unwrap();
+    /// assert!(matches!(Usage::from(GenericDesktop::Mouse), usage));
+    /// ```
+    pub fn from_usage_value(usage: u32) -> Result<UsagePage> {
+        let up: u16 = (usage >> 16) as u16;
+        UsagePage::try_from(up)
+    }
+
+    /// Returns the 32-bit Usage that is this Usage Page combined with
+    /// the 16 bits Usage ID.
+    ///
+    /// ```
+    /// # use hut::*;
+    /// let up = UsagePage::GenericDesktop;
+    /// let usage_id_value: u16 = 0x02; // Mouse
+    ///
+    /// let usage = up.to_usage_from_value(usage_id_value).unwrap();
+    /// assert!(matches!(Usage::from(GenericDesktop::Mouse), usage));
+    /// ```
+    pub fn to_usage_from_value(&self, usage: u16) -> Result<Usage> {
+        let up: u32 = (self.usage_page_value() as u32) << 16;
+        let u: u32 = usage as u32;
+        Usage::try_from(up | u)
+    }
+
+    /// Return a printable name for this usage page
+    /// ```
+    /// # use hut::*;
+    /// let up = UsagePage::GenericDesktop;
+    /// assert_eq!(up.name(), "Generic Desktop");
+    /// ```
+    #[cfg(feature = "std")]
+    pub fn name(&self) -> String {
+        match self {
+{% for usage_page in usage_pages %}
+            UsagePage::{{usage_page.name}} => "{{usage_page.printable}}".into(),
+{% endfor %}
+            UsagePage::ReservedUsagePage(reserved_page) => {
+                format!("Reserved Usage Page {:04X}", u16::from(reserved_page))
+            }
+            UsagePage::VendorDefinedPage(vendor_page) => {
+                format!("Vendor Defined Page {:04X}", u16::from(vendor_page))
+            }
+        }
+    }
+}
+
+impl AsUsagePage for UsagePage {
+    /// Returns the 16 bit Usage Page value of this Usage Page
+    /// ```
+    /// # use hut::*;
+    /// let usage_value: u16 = 0x1; // GenericDesktop
+    /// let usage_page = UsagePage::from_usage_page_value(usage_value).unwrap();
+    /// assert_eq!(usage_page.usage_page_value(), 0x1);
+    /// ```
+    fn usage_page_value(&self) -> u16 {
+        u16::from(self)
+    }
+
+    /// Returns our current [UsagePage]
+    /// ```
+    /// # use hut::*;
+    /// let usage_value: u16 = 0x1; // GenericDesktop
+    /// let usage_page = UsagePage::from_usage_page_value(usage_value).unwrap();
+    /// assert!(matches!(usage_page.usage_page(), UsagePage::GenericDesktop));
+    /// ```
+    /// There is seldom a need to invoke this function, it is merely
+    /// implemented to meet the [AsUsagePage] requirements.
+    fn usage_page(&self) -> UsagePage {
+        UsagePage::try_from(u16::from(self)).unwrap()
+    }
+}
+
+{% for usage_page in usage_pages %}
+{% if usage_page.usage_page_type == "Defined" %}
+/// *Usage Page `0x{{ '%X' % usage_page.value }}`: "{{usage_page.printable}}"*
+///
+/// **This enum is autogenerated from the HID Usage Tables**.
+{% if usage_page.usages | length() >= 2 %}
+/// ```
+/// # use hut::*;
+/// let u1 = Usage::{{usage_page.name}}({{usage_page.name}}::{{usage_page.usages[1].name}});
+/// let u2 = Usage::new_from_page_and_id(0x{{'%X' % usage_page.value}}, 0x{{'%X' % usage_page.usages[1].value}}).unwrap();
+/// let u3 = Usage::from({{usage_page.name}}::{{usage_page.usages[1].name}});
+/// let u4: Usage = {{usage_page.name}}::{{usage_page.usages[1].name}}.into();
+/// assert_eq!(u1, u2);
+/// assert_eq!(u1, u3);
+/// assert_eq!(u1, u4);
+///
+/// assert!(matches!(u1.usage_page(), UsagePage::{{usage_page.name}}));
+/// assert_eq!(0x{{'%X' % usage_page.value}}, u1.usage_page_value());
+/// assert_eq!(0x{{'%X' % usage_page.usages[1].value}}, u1.usage_id_value());
+/// assert_eq!((0x{{'%X' % usage_page.value}} << 16) | 0x{{'%X' % usage_page.usages[1].value}}, u1.usage_value());
+/// assert_eq!("{{usage_page.usages[1].printable}}", u1.name());
+/// ```
+{% endif %}
+///
+#[allow(non_camel_case_types)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
+#[non_exhaustive]
+#[repr(u16)]
+pub enum {{usage_page.name}} {
+{% for usage in usage_page.usages %}
+    /// Usage ID `0x{{ '%X' % usage.value}}`: "{{usage.printable}}"
+    {{ usage.name }} = 0x{{ '%X' % usage.value}},
+{% endfor %}
+}
+
+impl {{usage_page.name}} {
+    #[cfg(feature = "std")]
+    pub fn name(&self) -> String {
+        match self {
+{% for usage in usage_page.usages %}
+    {% if (usage_page.name + usage.name + usage.printable)|length < 80 %}
+            {{usage_page.name}}::{{usage.name}} => "{{usage.printable}}",
+    {% else %}
+            {{usage_page.name}}::{{usage.name}} => {
+                "{{usage.printable}}"
+            }
+    {% endif %}
+{% else %}
+            _ => "",
+{% endfor %}
+        }
+        .into()
+    }
+}
+
+#[cfg(feature = "std")]
+impl fmt::Display for {{usage_page.name}} {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{}", self.name())
+    }
+}
+
+{% endif %}{# if usage_page.usage_page_type == Defined ... #}
+{% if usage_page.usage_page_type == "Generated" %}
+/// *Usage Page `0x{{ '%X' % usage_page.value }}`: "{{usage_page.printable}}"*
+///
+/// **This enum is autogenerated from the HID Usage Tables**.
+///
+/// This Usage Page is generated, not defined, any Usage IDs in this Usage
+/// Page are simply the {{usage_page.name_prefix|lower}} number.
+///
+/// ```
+/// # use hut::*;
+/// let u1 = Usage::{{usage_page.name}}({{usage_page.name}}::{{usage_page.name}}(3));
+/// let u2 = Usage::new_from_page_and_id(0x{{'%X' % usage_page.value}}, 3).unwrap();
+/// let u3 = Usage::from({{usage_page.name}}::{{usage_page.name}}(3));
+/// let u4: Usage = {{usage_page.name}}::{{usage_page.name}}(3).into();
+/// assert_eq!(u1, u2);
+/// assert_eq!(u1, u3);
+/// assert_eq!(u1, u4);
+///
+/// assert!(matches!(u1.usage_page(), UsagePage::{{usage_page.name}}));
+/// assert_eq!(0x{{'%X' % usage_page.value}}, u1.usage_page_value());
+/// assert_eq!(3, u1.usage_id_value());
+/// assert_eq!((0x{{'%X' % usage_page.value}} << 16) | 3, u1.usage_value());
+/// assert_eq!("{{usage_page.name_prefix}} 3", u1.name());
+/// ```
+#[allow(non_camel_case_types)]
+#[derive(Debug)]
+#[non_exhaustive]
+pub enum {{usage_page.name}} {
+    {{usage_page.name}}(u16),
+}
+
+impl {{usage_page.name}} {
+    #[cfg(feature = "std")]
+    pub fn name(&self) -> String {
+        match self {
+            {{usage_page.name}}::{{usage_page.name}}({{usage_page.name_prefix|lower}}) => format!("{{usage_page.name_prefix}} { {{-usage_page.name_prefix|lower-}} }"),
+        }
+    }
+}
+
+#[cfg(feature = "std")]
+impl fmt::Display for {{usage_page.name}} {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{}", self.name())
+    }
+}
+
+{% endif %}{# if usage_page.usage_page_type == Generated ... -#}
+
+impl AsUsage for {{usage_page.name}} {
+    /// Returns the 32 bit Usage value of this Usage
+    fn usage_value(&self) -> u32 {
+        u32::from(self)
+    }
+
+    /// Returns the 16 bit Usage ID value of this Usage
+    fn usage_id_value(&self) -> u16 {
+        u16::from(self)
+    }
+
+    /// Returns this usage as [Usage::{{usage_page.name}}(self)](Usage::{{usage_page.name}})
+    /// This is a convenience function to avoid having
+    /// to implement `From` for every used type in the caller.
+    ///
+    /// ```
+    /// # use hut::*;
+    /// let gd_x = GenericDesktop::X;
+    /// let usage = Usage::from(GenericDesktop::X);
+    /// assert!(matches!(gd_x.usage(), usage));
+    /// ```
+    fn usage(&self) -> Usage {
+        Usage::from(self)
+    }
+}
+
+impl AsUsagePage for {{usage_page.name}} {
+    /// Returns the 16 bit value of this UsagePage
+    ///
+    /// This value is `0x{{ '%X' % usage_page.value }}` for [{{usage_page.name}}]
+    fn usage_page_value(&self) -> u16 {
+        let up = UsagePage::from(self);
+        u16::from(up)
+    }
+
+    /// Returns [UsagePage::{{usage_page.name}}]]
+    fn usage_page(&self) -> UsagePage {
+        UsagePage::from(self)
+    }
+}
+
+impl From<&{{usage_page.name}}> for u16 {
+    fn from({{usage_page.name.lower()}}: &{{usage_page.name}}) -> u16 {
+        {% if usage_page.usage_page_type == "Defined" %}
+        *{{usage_page.name.lower()}} as u16
+        {% endif %}
+        {% if usage_page.usage_page_type == "Generated" %}
+        match *{{usage_page.name.lower()}} {
+            {{usage_page.name}}::{{usage_page.name}}({{usage_page.name_prefix|lower}}) => {{usage_page.name_prefix|lower}},
+        }
+        {% endif %}
+    }
+}
+
+impl From<{{usage_page.name}}> for u16 {
+    /// Returns the 16bit value of this usage. This is identical
+    /// to [{{usage_page.name}}::usage_page_value()].
+    fn from({{usage_page.name.lower()}}: {{usage_page.name}}) -> u16 {
+        u16::from(&{{usage_page.name.lower()}})
+    }
+}
+
+impl From<&{{usage_page.name}}> for u32 {
+    /// Returns the 32 bit value of this usage. This is identical
+    /// to [{{usage_page.name}}::usage_value()].
+    fn from({{usage_page.name.lower()}}: &{{usage_page.name}}) -> u32 {
+        let up = UsagePage::from({{usage_page.name.lower()}});
+        let up = (u16::from(&up) as u32) << 16;
+        let id = u16::from({{usage_page.name.lower()}}) as u32;
+        up | id
+    }
+}
+
+impl From<&{{usage_page.name}}> for UsagePage {
+    /// Always returns [UsagePage::{{usage_page.name}}] and is
+    /// identical to [{{usage_page.name}}::usage_page()].
+    fn from(_: &{{usage_page.name}}) -> UsagePage {
+        UsagePage::{{usage_page.name}}
+    }
+}
+
+impl From<{{usage_page.name}}> for UsagePage {
+    /// Always returns [UsagePage::{{usage_page.name}}] and is
+    /// identical to [{{usage_page.name}}::usage_page()].
+    fn from(_: {{usage_page.name}}) -> UsagePage {
+        UsagePage::{{usage_page.name}}
+    }
+}
+
+impl From<&{{usage_page.name}}> for Usage {
+    fn from({{usage_page.name.lower()}}: &{{usage_page.name}}) -> Usage {
+        Usage::try_from(u32::from({{usage_page.name.lower()}})).unwrap()
+    }
+}
+
+impl From<{{usage_page.name}}> for Usage {
+    fn from({{usage_page.name.lower()}}: {{usage_page.name}}) -> Usage {
+        Usage::from(&{{usage_page.name.lower()}})
+    }
+}
+
+impl TryFrom<u16> for {{usage_page.name}} {
+    type Error = HutError;
+
+    fn try_from(usage_id: u16) -> Result<{{usage_page.name}}> {
+        match usage_id {
+{% for usage in usage_page.usages %}
+            {{usage.value}} => Ok({{usage_page.name}}::{{usage.name}}),
+{% endfor %}
+{% if usage_page.usage_page_type == "Generated" %}
+            n => Ok({{usage_page.name}}::{{usage_page.name}}(n)),
+{% else %}
+            n => Err(HutError::UnknownUsageId { usage_id: n }),
+{% endif %}
+        }
+    }
+}
+
+impl BitOr<u16> for {{usage_page.name}} {
+    type Output = Usage;
+
+    /// A convenience function to combine a Usage Page with
+    /// a value.
+    ///
+    /// This function panics if the Usage ID value results in
+    /// an unknown Usage. Where error checking is required,
+    /// use [UsagePage::to_usage_from_value].
+    fn bitor(self, usage: u16) -> Usage {
+        let up = u16::from(self) as u32;
+        let u = usage as u32;
+        Usage::try_from(up | u).expect("Invalid Usage ID for this Usage Page")
+    }
+}
+
+{% endfor -%}
+
+/// *Reserved Usage Pages*
+///
+/// This Usage Page has no named Usage IDs, any Usages in this Usage Page are
+/// reserved implementation. In a future version of the HUT standard a reserved
+/// Usage Page may become a defined Usage Page.
+#[allow(non_camel_case_types)]
+#[derive(Debug)]
+#[non_exhaustive]
+pub enum ReservedUsagePage {
+    Undefined,
+    ReservedUsage { usage_id: u16 },
+}
+
+impl ReservedUsagePage {
+    #[cfg(feature = "std")]
+    fn name(&self) -> String {
+        match self {
+            ReservedUsagePage::Undefined => "Reserved Usage Undefined".to_string(),
+            ReservedUsagePage::ReservedUsage { usage_id } => {
+                format!("Reserved Usage 0x{usage_id:02x}")
+            }
+        }
+    }
+}
+
+#[cfg(feature = "std")]
+impl fmt::Display for ReservedUsagePage {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{}", self.name())
+    }
+}
+
+impl From<&ReservedUsagePage> for u16 {
+    fn from(v: &ReservedUsagePage) -> u16 {
+        match v {
+            ReservedUsagePage::Undefined => 0x00,
+            ReservedUsagePage::ReservedUsage { usage_id } => *usage_id,
+        }
+    }
+}
+
+/// *Usage Page `0xFF00` to `0xFFFF`: The Vendor Defined Pages*
+///
+/// This Usage Page has no named Usage IDs, any Usages in this Usage Page are
+/// private to a vendor implementation.
+#[allow(non_camel_case_types)]
+#[derive(Debug)]
+#[non_exhaustive]
+pub enum VendorDefinedPage {
+    Undefined,
+    VendorUsage { usage_id: u16 },
+}
+
+impl VendorDefinedPage {
+    #[cfg(feature = "std")]
+    fn name(&self) -> String {
+        match self {
+            VendorDefinedPage::Undefined => "Vendor Usage Undefined".to_string(),
+            VendorDefinedPage::VendorUsage { usage_id } => {
+                format!("Vendor Usage 0x{usage_id:02x}")
+            }
+        }
+    }
+}
+
+#[cfg(feature = "std")]
+impl fmt::Display for VendorDefinedPage {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{}", self.name())
+    }
+}
+
+impl From<&VendorDefinedPage> for u16 {
+    fn from(v: &VendorDefinedPage) -> u16 {
+        match v {
+            VendorDefinedPage::Undefined => 0x00,
+            VendorDefinedPage::VendorUsage { usage_id } => *usage_id,
+        }
+    }
+}
+
+impl From<&Usage> for UsagePage {
+    #[allow(clippy::unneeded_struct_pattern)]
+    fn from(usage: &Usage) -> UsagePage {
+        match usage {
+{% for usage_page in usage_pages %}
+            Usage::{{usage_page.name}} { .. } => UsagePage::{{usage_page.name}},
+{% endfor %}
+            Usage::ReservedUsagePage { reserved_page, .. } => UsagePage::ReservedUsagePage(*reserved_page),
+            Usage::VendorDefinedPage { vendor_page, .. } => UsagePage::VendorDefinedPage(*vendor_page),
+        }
+    }
+}
+
+impl From<&UsagePage> for u16 {
+    /// Returns the UsagePage as 16-bit value. This is equivalent to the
+    /// upper 16 bits of a full 32-bit Usage value shifted down.
+    #[allow(clippy::unneeded_struct_pattern)]
+    fn from(usage_page: &UsagePage) -> u16 {
+        match usage_page {
+{% for usage_page in usage_pages %}
+            UsagePage::{{usage_page.name}} { .. } => {{usage_page.value}},
+{% endfor %}
+            UsagePage::ReservedUsagePage(reserved_page) => u16::from(reserved_page),
+            UsagePage::VendorDefinedPage(vendor_page) => u16::from(vendor_page),
+        }
+    }
+}
+
+impl From<UsagePage> for u16 {
+    fn from(usage_page: UsagePage) -> u16 {
+        u16::from(&usage_page)
+    }
+}
+
+impl TryFrom<u16> for UsagePage {
+    type Error = HutError;
+
+    fn try_from(usage_page: u16) -> Result<UsagePage> {
+        match usage_page {
+{% for usage_page in usage_pages %}
+            {{usage_page.value}} => Ok(UsagePage::{{usage_page.name}}),
+{% endfor %}
+            page @ 0xff00..=0xffff => Ok(UsagePage::VendorDefinedPage(VendorPage(page))),
+            n => match ReservedPage::try_from(n) {
+                Ok(r) => Ok(UsagePage::ReservedUsagePage(r)),
+                Err(_) => Err(HutError::UnknownUsagePage { usage_page: n }),
+            },
+        }
+    }
+}
+
+impl TryFrom<u32> for UsagePage {
+    type Error = HutError;
+
+    fn try_from(usage_page: u32) -> Result<UsagePage> {
+        UsagePage::try_from((usage_page >> 16) as u16)
+    }
+}
+
+#[cfg(feature = "std")]
+impl fmt::Display for UsagePage {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{}", self.name())
+    }
+}
+
+/// An enum wrapping all known Usages in the HUT.
+/// ```
+/// # use hut::*;
+/// let u1 = Usage::GenericDesktop(GenericDesktop::Mouse);
+/// let u2 = Usage::new_from_page_and_id(0x01, 0x02).unwrap();
+/// let u3 = Usage::from(GenericDesktop::Mouse);
+/// assert_eq!(u1, u2);
+/// assert_eq!(u1, u3);
+///
+/// assert_eq!(0x1, u1.usage_page_value());
+/// assert_eq!(0x2, u1.usage_id_value());
+/// assert_eq!((0x1 << 16) | 0x2, u1.usage_value());
+/// ```
+/// Note: this enum is generated from the HUT documents.
+#[allow(non_camel_case_types)]
+#[derive(Debug)]
+#[non_exhaustive]
+pub enum Usage {
+    {% for usage_page in usage_pages %}
+    /// "{{usage_page.printable}}"
+    {{usage_page.name}}({{usage_page.name}}),
+    {% endfor %}
+    ReservedUsagePage {
+        reserved_page: ReservedPage,
+        usage: ReservedUsagePage,
+    },
+    VendorDefinedPage {
+        vendor_page: VendorPage,
+        usage: VendorDefinedPage,
+    },
+}
+
+impl Usage {
+    #[cfg(feature = "std")]
+    pub fn new_from_page_and_id(usage_page: u16, usage_id: u16) -> Result<Usage> {
+        Usage::try_from(((usage_page as u32) << 16) | usage_id as u32)
+    }
+
+    #[cfg(feature = "std")]
+    pub fn name(&self) -> String {
+        match self {
+{% for usage_page in usage_pages %}
+            Usage::{{usage_page.name}}(usage) => usage.name(),
+{% endfor %}
+            Usage::ReservedUsagePage { usage, .. } => usage.name(),
+            Usage::VendorDefinedPage { usage, .. } => usage.name(),
+        }
+    }
+}
+
+impl AsUsage for Usage {
+    /// Returns the 32 bit Usage value for this usage.
+    fn usage_value(&self) -> u32 {
+        self.into()
+    }
+
+    /// Returns the 16-bit Usage ID value for this usage.
+    fn usage_id_value(&self) -> u16 {
+        self.into()
+    }
+
+    /// Returns [Self]
+    fn usage(&self) -> Usage {
+        Usage::try_from(self.usage_value()).unwrap()
+    }
+}
+
+impl PartialEq for Usage {
+    fn eq(&self, other: &Self) -> bool {
+        u32::from(self) == u32::from(other)
+    }
+}
+
+impl AsUsagePage for Usage {
+    fn usage_page_value(&self) -> u16 {
+        UsagePage::from(self).into()
+    }
+
+    fn usage_page(&self) -> UsagePage {
+        match self {
+{% for usage_page in usage_pages %}
+            Usage::{{usage_page.name}}(_) => UsagePage::{{usage_page.name}},
+{% endfor %}
+            Usage::ReservedUsagePage { reserved_page, .. } => UsagePage::ReservedUsagePage(*reserved_page),
+            Usage::VendorDefinedPage { vendor_page, .. } => UsagePage::VendorDefinedPage(*vendor_page),
+        }
+    }
+}
+
+#[cfg(feature = "std")]
+impl fmt::Display for Usage {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{}", self.name())
+    }
+}
+
+impl From<&Usage> for u16 {
+    fn from(usage: &Usage) -> u16 {
+        let u: u32 = u32::from(usage);
+        (u & 0xFFFF) as u16
+    }
+}
+
+impl From<Usage> for u16 {
+    fn from(usage: Usage) -> u16 {
+        u16::from(&usage)
+    }
+}
+
+impl From<&Usage> for u32 {
+    fn from(usage: &Usage) -> u32 {
+        match usage {
+{% for usage_page in usage_pages %}
+            Usage::{{usage_page.name}}(usage) => ({{usage_page.value}} << 16) | u16::from(usage) as u32,
+{% endfor  %}
+            Usage::ReservedUsagePage {
+                reserved_page,
+                usage,
+            } => ((u16::from(reserved_page) as u32) << 16) | u16::from(usage) as u32,
+            Usage::VendorDefinedPage { vendor_page, usage } => {
+                ((u16::from(vendor_page) as u32) << 16) | u16::from(usage) as u32
+            }
+        }
+    }
+}
+
+impl TryFrom<u32> for Usage {
+    type Error = HutError;
+
+    fn try_from(up: u32) -> Result<Usage> {
+        match (up >> 16, up & 0xFFFF) {
+{% for usage_page in usage_pages %}
+            ({{usage_page.value}}, n) => Ok(Usage::{{usage_page.name}}(
+                {{usage_page.name}}::try_from(n as u16)?
+            )),
+{% endfor  %}
+            (p @ 0xff00..=0xffff, n) => Ok(Usage::VendorDefinedPage {
+                vendor_page: VendorPage(p as u16),
+                usage: VendorDefinedPage::VendorUsage { usage_id: n as u16 },
+            }),
+            (p, n) => match ReservedPage::try_from(p as u16) {
+                Ok(r) => Ok(Usage::ReservedUsagePage {
+                    reserved_page: r,
+                    usage: ReservedUsagePage::ReservedUsage { usage_id: n as u16 },
+                }),
+                _ => Err(HutError::UnknownUsage),
+            },
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn conversions() {
+        let hid_usage_page: u16 = 0x01; // Generic Desktop
+        let hid_usage_id: u16 = 0x02; // Mouse
+        let hid_usage: u32 = ((hid_usage_page as u32) << 16) | hid_usage_id as u32;
+
+        let u = GenericDesktop::Mouse;
+        // 32 bit usage to enum
+        assert!(matches!(
+            Usage::try_from(hid_usage).unwrap(),
+            Usage::GenericDesktop(_)
+        ));
+
+        // Usage to u32
+        assert_eq!(u32::from(&u), hid_usage);
+        assert_eq!(u.usage_value(), hid_usage);
+
+        // Usage to u16 usage_id
+        assert_eq!(hid_usage_id, u16::from(&u));
+        assert_eq!(hid_usage_id, u.usage_id_value());
+
+        // Usage to UsagePage
+        assert!(matches!(UsagePage::from(&u), UsagePage::GenericDesktop));
+
+        // UsagePage to u16
+        let up = UsagePage::from(&u);
+        assert_eq!(hid_usage_page, u16::from(&up));
+
+        // UsagePage to u16 via AsUsagePage trait
+        assert_eq!(hid_usage_page, up.usage_page_value());
+    }
+
+    #[test]
+    fn buttons() {
+        let hid_usage_page: u16 = 0x9;
+        let hid_usage_id: u16 = 0x5;
+        let hid_usage: u32 = ((hid_usage_page as u32) << 16) | hid_usage_id as u32;
+
+        let u = Button::Button(5);
+        assert!(matches!(
+            Usage::try_from(hid_usage).unwrap(),
+            Usage::Button(_)
+        ));
+
+        // Usage to u32
+        assert_eq!(u32::from(&u), hid_usage);
+        assert_eq!(u.usage_value(), hid_usage);
+
+        // Usage to u16 usage_id
+        assert_eq!(hid_usage_id, u16::from(&u));
+        assert_eq!(hid_usage_id, u.usage_id_value());
+
+        // Usage to UsagePage
+        assert!(matches!(UsagePage::from(&u), UsagePage::Button));
+
+        // UsagePage to u16
+        let up = UsagePage::from(&u);
+        assert_eq!(hid_usage_page, u16::from(&up));
+
+        // UsagePage to u16 via AsUsagePage trait
+        assert_eq!(hid_usage_page, up.usage_page_value());
+    }
+
+    #[test]
+    fn ordinals() {
+        let hid_usage_page: u16 = 0xA;
+        let hid_usage_id: u16 = 0x8;
+        let hid_usage: u32 = ((hid_usage_page as u32) << 16) | hid_usage_id as u32;
+
+        let u = Ordinal::Ordinal(8);
+        assert!(matches!(
+            Usage::try_from(hid_usage).unwrap(),
+            Usage::Ordinal(_)
+        ));
+
+        // Usage to u32
+        assert_eq!(u32::from(&u), hid_usage);
+        assert_eq!(u.usage_value(), hid_usage);
+
+        // Usage to u16 usage_id
+        assert_eq!(hid_usage_id, u16::from(&u));
+        assert_eq!(hid_usage_id, u.usage_id_value());
+
+        // Usage to UsagePage
+        assert!(matches!(UsagePage::from(&u), UsagePage::Ordinal));
+
+        // UsagePage to u16
+        let up = UsagePage::from(&u);
+        assert_eq!(hid_usage_page, u16::from(&up));
+
+        // UsagePage to u16 via AsUsagePage trait
+        assert_eq!(hid_usage_page, up.usage_page_value());
+    }
+
+    #[cfg(feature = "std")]
+    #[test]
+    fn names() {
+        assert_eq!(UsagePage::GenericDesktop.name().as_str(), "Generic Desktop");
+        assert_eq!(
+            UsagePage::PhysicalInputDevice.name().as_str(),
+            "Physical Input Device"
+        );
+        assert_eq!(GenericDesktop::CallMuteLED.name().as_str(), "Call Mute LED");
+        assert_eq!(VRControls::HeadTracker.name().as_str(), "Head Tracker");
+    }
+
+    #[test]
+    fn usages() {
+        let mouse = GenericDesktop::Mouse;
+        let usage = Usage::GenericDesktop(GenericDesktop::Mouse);
+        assert_eq!(mouse.usage(), usage);
+    }
+}
+{# new line at end of file, even if not shown #}

@@ -1,0 +1,17 @@
+name: "hidreport"
+description: "HID Report Descriptor and HID Report parser"
+third_party {
+  version: "0.6.0"
+  license_type: NOTICE
+  last_upgrade_date {
+    year: 2026
+    month: 11
+    day: 16
+  }
+  homepage: "https://crates.io/crates/hidreport"
+  identifier {
+    type: "crates.io"
+    value: "hidreport"
+    version: "0.6.0"
+  }
+}
