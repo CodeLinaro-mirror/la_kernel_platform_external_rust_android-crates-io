@@ -13,7 +13,7 @@
 edition = "2021"
 rust-version = "1.89.0"
 name = "async-nats"
-version = "0.52.0"
+version = "0.53.0"
 authors = [
     "Tomasz Pietrek <tomasz@nats.io>",
     "Casper Beyer <caspervonb@pm.me>",
@@ -460,6 +460,14 @@ name = "compatibility"
 path = "tests/compatibility.rs"
 
 [[test]]
+name = "discovered_servers"
+path = "tests/discovered_servers.rs"
+
+[[test]]
+name = "info_handling"
+path = "tests/info_handling.rs"
+
+[[test]]
 name = "jetstream_api_timeout_tests"
 path = "tests/jetstream_api_timeout_tests.rs"
 
@@ -506,6 +514,10 @@ path = "tests/service_tests.rs"
 [[test]]
 name = "subject_validation_test"
 path = "tests/subject_validation_test.rs"
+
+[[test]]
+name = "tls_options"
+path = "tests/tls_options.rs"
 
 [[test]]
 name = "tls_tests"
@@ -636,7 +648,7 @@ features = [
 ]
 
 [dependencies.tokio-rustls]
-version = "0.26"
+version = "0.26.3"
 default-features = false
 
 [dependencies.tokio-stream]
@@ -650,7 +662,6 @@ version = "0.13.3"
 features = [
     "client",
     "rand",
-    "rustls-bring-your-own-connector",
     "sha1_smol",
 ]
 optional = true
