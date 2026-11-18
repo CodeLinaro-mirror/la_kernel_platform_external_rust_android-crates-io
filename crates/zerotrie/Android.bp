@@ -57,5 +57,9 @@ rust_library {
         linux_bionic: {
             enabled: true,
         },
+        windows: {
+            enabled: true,
+        },
     },
+
 }
