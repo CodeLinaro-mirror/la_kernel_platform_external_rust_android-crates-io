@@ -11,9 +11,9 @@
 
 [package]
 edition = "2021"
-rust-version = "1.87"
+rust-version = "1.88"
 name = "heapless"
-version = "0.9.3"
+version = "0.9.4"
 authors = [
     "Jorge Aparicio <jorge@japaric.io>",
     "Per Lindgren <per.lindgren@ltu.se>",
@@ -42,7 +42,9 @@ repository = "https://github.com/rust-embedded/heapless"
 [package.metadata.docs.rs]
 features = [
     "bytes",
+    "embedded-io-v0.7",
     "ufmt",
+    "zeroize",
     "serde",
     "defmt",
     "mpmc_large",
@@ -138,6 +140,13 @@ features = ["std"]
 [dev-dependencies.static_assertions]
 version = "1.1.0"
 
+[dev-dependencies.zeroize]
+version = "1.8"
+default-features = true
+
 [target.'cfg(any(target_arch = "arm", target_pointer_width = "32", target_pointer_width = "64"))'.dependencies.stable_deref_trait]
 version = "1"
 default-features = false
+
+[lints.cargo]
+unused_dependencies = "allow"
