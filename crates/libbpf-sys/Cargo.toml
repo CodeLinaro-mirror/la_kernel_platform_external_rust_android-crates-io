@@ -13,7 +13,7 @@
 edition = "2021"
 rust-version = "1.82"
 name = "libbpf-sys"
-version = "1.7.0+v1.7.0"
+version = "1.7.1+v1.7.0"
 authors = [
     "Alex Forster <alex@alexforster.com>",
     "Dan Siemon <dan@coverfire.com>",
