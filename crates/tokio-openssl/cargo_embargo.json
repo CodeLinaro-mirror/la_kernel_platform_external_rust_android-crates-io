@@ -6,7 +6,7 @@
   },
   "module_visibility": {
     "libtokio_openssl": [
-      "//system/software_defined_vehicle/middleware/sdv_comms:__subpackages__"
+      "//system/software_defined_vehicle/middleware:__subpackages__"
     ]
   },
   "min_sdk_version": "29"
