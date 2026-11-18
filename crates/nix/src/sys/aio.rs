@@ -10,19 +10,18 @@
 //! platform support.  Completion
 //! notifications can optionally be delivered via
 //! [signals](../signal/enum.SigevNotify.html#variant.SigevSignal), via the
-//! [`aio_suspend`](fn.aio_suspend.html) function, or via polling.  Some
-//! platforms support other completion
-//! notifications, such as
+//! [`aio_suspend`] function, or via polling.  Some platforms support other
+//! completion notifications, such as
 //! [kevent](../signal/enum.SigevNotify.html#variant.SigevKevent).
 //!
 //! Multiple operations may be submitted in a batch with
-//! [`lio_listio`](fn.lio_listio.html), though the standard does not guarantee
-//! that they will be executed atomically.
+//! [`lio_listio`], though the standard does not guarantee that they will be
+//! executed atomically.
 //!
 //! Outstanding operations may be cancelled with
 //! [`cancel`](trait.Aio.html#method.cancel) or
-//! [`aio_cancel_all`](fn.aio_cancel_all.html), though the operating system may
-//! not support this for all filesystems and devices.
+//! [`aio_cancel_all`], though the operating system may not support this for
+//! all filesystems and devices.
 #![allow(clippy::doc_overindented_list_items)] // It looks better this way
 #[cfg(target_os = "freebsd")]
 use std::io::{IoSlice, IoSliceMut};
@@ -37,7 +36,7 @@ use std::{
 };
 
 use libc::off_t;
-use pin_utils::unsafe_pinned;
+use pin_project_lite::pin_project;
 
 use crate::{
     errno::Errno,
@@ -64,19 +63,19 @@ libc_enum! {
 }
 
 libc_enum! {
-    /// Mode for [`lio_listio`](fn.lio_listio.html)
+    /// Mode for [`lio_listio`]
     #[repr(i32)]
     pub enum LioMode {
-        /// Requests that [`lio_listio`](fn.lio_listio.html) block until all
+        /// Requests that [`lio_listio`] block until all
         /// requested operations have been completed
         LIO_WAIT,
-        /// Requests that [`lio_listio`](fn.lio_listio.html) return immediately
+        /// Requests that [`lio_listio`] return immediately
         LIO_NOWAIT,
     }
 }
 
 /// Return values for [`AioCb::cancel`](struct.AioCb.html#method.cancel) and
-/// [`aio_cancel_all`](fn.aio_cancel_all.html)
+/// [`aio_cancel_all`]
 #[repr(i32)]
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
 pub enum AioCancelStat {
@@ -117,9 +116,8 @@ struct AioCb<'a> {
     _fd: PhantomData<BorrowedFd<'a>>,
 }
 
+#[allow(deprecated)]
 impl<'a> AioCb<'a> {
-    pin_utils::unsafe_unpinned!(aiocb: LibcAiocb);
-
     fn aio_return(mut self: Pin<&mut Self>) -> Result<usize> {
         self.in_progress = false;
         unsafe {
@@ -163,7 +161,7 @@ impl<'a> AioCb<'a> {
     }
 
     fn error(self: Pin<&mut Self>) -> Result<()> {
-        let r = unsafe { libc::aio_error(&self.aiocb().0) };
+        let r = unsafe { libc::aio_error(&self.aiocb.0) };
         match r {
             0 => Ok(()),
             num if num > 0 => Err(Errno::from_raw(num)),
@@ -252,10 +250,11 @@ pub trait Aio {
     /// # use std::{thread, time};
     /// # use std::io::Write;
     /// # use std::os::unix::io::AsFd;
+    /// # use std::pin::pin;
     /// # use tempfile::tempfile;
     /// let wbuf = b"CDEF";
     /// let mut f = tempfile().unwrap();
-    /// let mut aiocb = Box::pin(AioWrite::new(f.as_fd(),
+    /// let mut aiocb = pin!(AioWrite::new(f.as_fd(),
     ///     2,   //offset
     ///     &wbuf[..],
     ///     0,   //priority
@@ -293,10 +292,11 @@ pub trait Aio {
     /// # use nix::sys::signal::SigevNotify;
     /// # use std::{thread, time};
     /// # use std::os::unix::io::AsFd;
+    /// # use std::pin::pin;
     /// # use tempfile::tempfile;
     /// const WBUF: &[u8] = b"abcdef123456";
     /// let mut f = tempfile().unwrap();
-    /// let mut aiocb = Box::pin(AioWrite::new(f.as_fd(),
+    /// let mut aiocb = pin!(AioWrite::new(f.as_fd(),
     ///     2,   //offset
     ///     WBUF,
     ///     0,   //priority
@@ -330,9 +330,10 @@ pub trait Aio {
     /// # use nix::sys::signal::SigevNotify::SigevNone;
     /// # use std::{thread, time};
     /// # use std::os::unix::io::AsFd;
+    /// # use std::pin::pin;
     /// # use tempfile::tempfile;
     /// let f = tempfile().unwrap();
-    /// let mut aiof = Box::pin(AioFsync::new(f.as_fd(), AioFsyncMode::O_SYNC,
+    /// let mut aiof = pin!(AioFsync::new(f.as_fd(), AioFsyncMode::O_SYNC,
     ///     0, SigevNone));
     /// assert!(!aiof.as_mut().in_progress());
     /// aiof.as_mut().submit().expect("aio_fsync failed early");
@@ -365,11 +366,11 @@ pub trait Aio {
 macro_rules! aio_methods {
     () => {
         fn cancel(self: Pin<&mut Self>) -> Result<AioCancelStat> {
-            self.aiocb().cancel()
+            self.project().aiocb.cancel()
         }
 
         fn error(self: Pin<&mut Self>) -> Result<()> {
-            self.aiocb().error()
+            self.project().aiocb.error()
         }
 
         fn fd(&self) -> BorrowedFd<'a> {
@@ -398,18 +399,20 @@ macro_rules! aio_methods {
         aio_methods!();
 
         fn aio_return(self: Pin<&mut Self>) -> Result<<Self as Aio>::Output> {
-            self.aiocb().aio_return()
+            self.project().aiocb.aio_return()
         }
 
         fn submit(mut self: Pin<&mut Self>) -> Result<()> {
-            let p: *mut libc::aiocb = &mut self.as_mut().aiocb().aiocb.0;
+            let p: *mut libc::aiocb =
+                &mut self.as_mut().project().aiocb.get_mut().aiocb.0;
             Errno::result({ unsafe { libc::$func(p) } }).map(|_| {
-                self.aiocb().set_in_progress();
+                self.as_mut().project().aiocb.set_in_progress();
             })
         }
     };
 }
 
+pin_project! {
 /// An asynchronous version of `fsync(2)`.
 ///
 /// # References
@@ -424,9 +427,10 @@ macro_rules! aio_methods {
 /// # use nix::sys::signal::SigevNotify::SigevNone;
 /// # use std::{thread, time};
 /// # use std::os::unix::io::AsFd;
+/// # use std::pin::pin;
 /// # use tempfile::tempfile;
 /// let f = tempfile().unwrap();
-/// let mut aiof = Box::pin(AioFsync::new(f.as_fd(), AioFsyncMode::O_SYNC,
+/// let mut aiof = pin!(AioFsync::new(f.as_fd(), AioFsyncMode::O_SYNC,
 ///     0, SigevNone));
 /// aiof.as_mut().submit().expect("aio_fsync failed early");
 /// while (aiof.as_mut().error() == Err(Errno::EINPROGRESS)) {
@@ -434,16 +438,18 @@ macro_rules! aio_methods {
 /// }
 /// aiof.as_mut().aio_return().expect("aio_fsync failed late");
 /// ```
-#[derive(Debug)]
-#[repr(transparent)]
-pub struct AioFsync<'a> {
-    aiocb: AioCb<'a>,
-    _pin: PhantomPinned,
+    #[derive(Debug)]
+    #[repr(transparent)]
+    pub struct AioFsync<'a> {
+        #[pin]
+        aiocb: AioCb<'a>,
+        #[pin]
+        _pin: PhantomPinned,
+    }
 }
 
+#[allow(deprecated)]
 impl<'a> AioFsync<'a> {
-    unsafe_pinned!(aiocb: AioCb<'a>);
-
     /// Returns the operation's fsync mode: data and metadata or data only?
     pub fn mode(&self) -> AioFsyncMode {
         AioFsyncMode::try_from(self.aiocb.aiocb.0.aio_lio_opcode).unwrap()
@@ -484,15 +490,15 @@ impl<'a> Aio for AioFsync<'a> {
     aio_methods!();
 
     fn aio_return(self: Pin<&mut Self>) -> Result<()> {
-        self.aiocb().aio_return().map(drop)
+        self.project().aiocb.aio_return().map(drop)
     }
 
     fn submit(mut self: Pin<&mut Self>) -> Result<()> {
-        let aiocb = &mut self.as_mut().aiocb().aiocb.0;
+        let aiocb = &mut self.as_mut().project().aiocb.get_mut().aiocb.0;
         let mode = mem::replace(&mut aiocb.aio_lio_opcode, 0);
         let p: *mut libc::aiocb = aiocb;
         Errno::result(unsafe { libc::aio_fsync(mode, p) }).map(|_| {
-            self.aiocb().set_in_progress();
+            self.as_mut().project().aiocb.set_in_progress();
         })
     }
 }
@@ -505,6 +511,7 @@ impl AsRef<libc::aiocb> for AioFsync<'_> {
     }
 }
 
+pin_project! {
 /// Asynchronously reads from a file descriptor into a buffer
 ///
 /// # References
@@ -522,6 +529,7 @@ impl AsRef<libc::aiocb> for AioFsync<'_> {
 /// # use std::{thread, time};
 /// # use std::io::Write;
 /// # use std::os::unix::io::AsFd;
+/// # use std::pin::pin;
 /// # use tempfile::tempfile;
 /// const INITIAL: &[u8] = b"abcdef123456";
 /// const LEN: usize = 4;
@@ -529,7 +537,7 @@ impl AsRef<libc::aiocb> for AioFsync<'_> {
 /// let mut f = tempfile().unwrap();
 /// f.write_all(INITIAL).unwrap();
 /// {
-///     let mut aior = Box::pin(
+///     let mut aior = pin!(
 ///         AioRead::new(
 ///             f.as_fd(),
 ///             2,   //offset
@@ -546,17 +554,19 @@ impl AsRef<libc::aiocb> for AioFsync<'_> {
 /// }
 /// assert_eq!(rbuf, b"cdef");
 /// ```
-#[derive(Debug)]
-#[repr(transparent)]
-pub struct AioRead<'a> {
-    aiocb: AioCb<'a>,
-    _data: PhantomData<&'a [u8]>,
-    _pin: PhantomPinned,
+    #[derive(Debug)]
+    #[repr(transparent)]
+    pub struct AioRead<'a> {
+        #[pin]
+        aiocb: AioCb<'a>,
+        _data: PhantomData<&'a [u8]>,
+        #[pin]
+        _pin: PhantomPinned,
+    }
 }
 
+#[allow(deprecated)]
 impl<'a> AioRead<'a> {
-    unsafe_pinned!(aiocb: AioCb<'a>);
-
     /// Returns the requested length of the aio operation in bytes
     ///
     /// This method returns the *requested* length of the operation.  To get the
@@ -620,6 +630,8 @@ impl AsRef<libc::aiocb> for AioRead<'_> {
     }
 }
 
+#[cfg(target_os = "freebsd")]
+pin_project! {
 /// Asynchronously reads from a file descriptor into a scatter/gather list of buffers.
 ///
 /// # References
@@ -638,6 +650,7 @@ impl AsRef<libc::aiocb> for AioRead<'_> {
 /// # use std::{thread, time};
 /// # use std::io::{IoSliceMut, Write};
 /// # use std::os::unix::io::AsFd;
+/// # use std::pin::pin;
 /// # use tempfile::tempfile;
 /// const INITIAL: &[u8] = b"abcdef123456";
 /// let mut rbuf0 = vec![0; 4];
@@ -647,7 +660,7 @@ impl AsRef<libc::aiocb> for AioRead<'_> {
 /// let mut f = tempfile().unwrap();
 /// f.write_all(INITIAL).unwrap();
 /// {
-///     let mut aior = Box::pin(
+///     let mut aior = pin!(
 ///         AioReadv::new(
 ///             f.as_fd(),
 ///             2,   //offset
@@ -665,19 +678,20 @@ impl AsRef<libc::aiocb> for AioRead<'_> {
 /// assert_eq!(rbuf0, b"cdef");
 /// assert_eq!(rbuf1, b"12");
 /// ```
-#[cfg(target_os = "freebsd")]
-#[derive(Debug)]
-#[repr(transparent)]
-pub struct AioReadv<'a> {
-    aiocb: AioCb<'a>,
-    _data: PhantomData<&'a [&'a [u8]]>,
-    _pin: PhantomPinned,
+    #[derive(Debug)]
+    #[repr(transparent)]
+    pub struct AioReadv<'a> {
+        #[pin]
+        aiocb: AioCb<'a>,
+        _data: PhantomData<&'a [&'a [u8]]>,
+        #[pin]
+        _pin: PhantomPinned,
+    }
 }
 
+#[allow(deprecated)]
 #[cfg(target_os = "freebsd")]
 impl<'a> AioReadv<'a> {
-    unsafe_pinned!(aiocb: AioCb<'a>);
-
     /// Returns the number of buffers the operation will read into.
     pub fn iovlen(&self) -> usize {
         self.aiocb.aiocb.0.aio_nbytes
@@ -744,6 +758,7 @@ impl AsRef<libc::aiocb> for AioReadv<'_> {
     }
 }
 
+pin_project! {
 /// Asynchronously writes from a buffer to a file descriptor
 ///
 /// # References
@@ -759,10 +774,11 @@ impl AsRef<libc::aiocb> for AioReadv<'_> {
 /// # use nix::sys::signal::SigevNotify;
 /// # use std::{thread, time};
 /// # use std::os::unix::io::AsFd;
+/// # use std::pin::pin;
 /// # use tempfile::tempfile;
 /// const WBUF: &[u8] = b"abcdef123456";
 /// let mut f = tempfile().unwrap();
-/// let mut aiow = Box::pin(
+/// let mut aiow = pin!(
 ///     AioWrite::new(
 ///         f.as_fd(),
 ///         2,   //offset
@@ -777,17 +793,19 @@ impl AsRef<libc::aiocb> for AioReadv<'_> {
 /// }
 /// assert_eq!(aiow.as_mut().aio_return().unwrap(), WBUF.len());
 /// ```
-#[derive(Debug)]
-#[repr(transparent)]
-pub struct AioWrite<'a> {
-    aiocb: AioCb<'a>,
-    _data: PhantomData<&'a [u8]>,
-    _pin: PhantomPinned,
+    #[derive(Debug)]
+    #[repr(transparent)]
+    pub struct AioWrite<'a> {
+        #[pin]
+        aiocb: AioCb<'a>,
+        _data: PhantomData<&'a [u8]>,
+        #[pin]
+        _pin: PhantomPinned,
+    }
 }
 
+#[allow(deprecated)]
 impl<'a> AioWrite<'a> {
-    unsafe_pinned!(aiocb: AioCb<'a>);
-
     /// Returns the requested length of the aio operation in bytes
     ///
     /// This method returns the *requested* length of the operation.  To get the
@@ -855,6 +873,8 @@ impl AsRef<libc::aiocb> for AioWrite<'_> {
     }
 }
 
+#[cfg(target_os = "freebsd")]
+pin_project! {
 /// Asynchronously writes from a scatter/gather list of buffers to a file descriptor.
 ///
 /// # References
@@ -872,13 +892,14 @@ impl AsRef<libc::aiocb> for AioWrite<'_> {
 /// # use std::{thread, time};
 /// # use std::io::IoSlice;
 /// # use std::os::unix::io::AsFd;
+/// # use std::pin::pin;
 /// # use tempfile::tempfile;
 /// const wbuf0: &[u8] = b"abcdef";
 /// const wbuf1: &[u8] = b"123456";
 /// let len = wbuf0.len() + wbuf1.len();
 /// let wbufs = [IoSlice::new(wbuf0), IoSlice::new(wbuf1)];
 /// let mut f = tempfile().unwrap();
-/// let mut aiow = Box::pin(
+/// let mut aiow = pin!(
 ///     AioWritev::new(
 ///         f.as_fd(),
 ///         2,   //offset
@@ -893,19 +914,20 @@ impl AsRef<libc::aiocb> for AioWrite<'_> {
 /// }
 /// assert_eq!(aiow.as_mut().aio_return().unwrap(), len);
 /// ```
-#[cfg(target_os = "freebsd")]
-#[derive(Debug)]
-#[repr(transparent)]
-pub struct AioWritev<'a> {
-    aiocb: AioCb<'a>,
-    _data: PhantomData<&'a [&'a [u8]]>,
-    _pin: PhantomPinned,
+    #[derive(Debug)]
+    #[repr(transparent)]
+    pub struct AioWritev<'a> {
+        #[pin]
+        aiocb: AioCb<'a>,
+        _data: PhantomData<&'a [&'a [u8]]>,
+        #[pin]
+        _pin: PhantomPinned,
+    }
 }
 
+#[allow(deprecated)]
 #[cfg(target_os = "freebsd")]
 impl<'a> AioWritev<'a> {
-    unsafe_pinned!(aiocb: AioCb<'a>);
-
     /// Returns the number of buffers the operation will read into.
     pub fn iovlen(&self) -> usize {
         self.aiocb.aiocb.0.aio_nbytes
@@ -991,10 +1013,11 @@ impl AsRef<libc::aiocb> for AioWritev<'_> {
 /// # use std::{thread, time};
 /// # use std::io::Write;
 /// # use std::os::unix::io::AsFd;
+/// # use std::pin::pin;
 /// # use tempfile::tempfile;
 /// let wbuf = b"CDEF";
 /// let mut f = tempfile().unwrap();
-/// let mut aiocb = Box::pin(AioWrite::new(f.as_fd(),
+/// let mut aiocb = pin!(AioWrite::new(f.as_fd(),
 ///     2,   //offset
 ///     &wbuf[..],
 ///     0,   //priority
@@ -1036,10 +1059,11 @@ pub fn aio_cancel_all<F: AsFd>(fd: F) -> Result<AioCancelStat> {
 /// # use nix::sys::aio::*;
 /// # use nix::sys::signal::SigevNotify;
 /// # use std::os::unix::io::AsFd;
+/// # use std::pin::pin;
 /// # use tempfile::tempfile;
 /// const WBUF: &[u8] = b"abcdef123456";
 /// let mut f = tempfile().unwrap();
-/// let mut aiocb = Box::pin(AioWrite::new(f.as_fd(),
+/// let mut aiocb = pin!(AioWrite::new(f.as_fd(),
 ///     2,   //offset
 ///     WBUF,
 ///     0,   //priority
@@ -1086,12 +1110,13 @@ pub fn aio_suspend(
 /// a handful of I/O operations in parallel.
 /// ```
 /// # use std::os::unix::io::AsFd;
+/// # use std::pin::pin;
 /// # use nix::sys::aio::*;
 /// # use nix::sys::signal::SigevNotify;
 /// # use tempfile::tempfile;
 /// const WBUF: &[u8] = b"abcdef123456";
 /// let mut f = tempfile().unwrap();
-/// let mut aiow = Box::pin(AioWrite::new(
+/// let mut aiow = pin!(AioWrite::new(
 ///     f.as_fd(),
 ///     2,      // offset
 ///     WBUF,
@@ -1110,6 +1135,7 @@ pub fn aio_suspend(
 /// combined with kqueue.
 /// ```
 /// # use std::os::unix::io::AsFd;
+/// # use std::pin::pin;
 /// # use std::thread;
 /// # use std::time;
 /// # use nix::errno::Errno;
@@ -1118,7 +1144,7 @@ pub fn aio_suspend(
 /// # use tempfile::tempfile;
 /// const WBUF: &[u8] = b"abcdef123456";
 /// let mut f = tempfile().unwrap();
-/// let mut aiow = Box::pin(AioWrite::new(
+/// let mut aiow = pin!(AioWrite::new(
 ///     f.as_fd(),
 ///     2,      // offset
 ///     WBUF,
@@ -1176,6 +1202,7 @@ pub fn aio_suspend(
 )]
 /// # use libc::c_int;
 /// # use std::os::unix::io::AsFd;
+/// # use std::pin::pin;
 /// # use std::sync::atomic::{AtomicBool, Ordering};
 /// # use std::thread;
 /// # use std::time;
@@ -1196,7 +1223,7 @@ pub fn aio_suspend(
 ///
 /// const WBUF: &[u8] = b"abcdef123456";
 /// let mut f = tempfile().unwrap();
-/// let mut aiow = Box::pin(AioWrite::new(
+/// let mut aiow = pin!(AioWrite::new(
 ///     f.as_fd(),
 ///     2,      // offset
 ///     WBUF,
