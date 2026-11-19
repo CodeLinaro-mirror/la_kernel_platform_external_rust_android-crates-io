@@ -172,8 +172,11 @@ impl VorbisDecoder {
         }
 
         // Section 4.3.5 - Inverse Coupling
+        //
+        // The coupling steps must be undone in the reverse order of how they were applied by the
+        // encoder (i.e., from the last step to the first).
 
-        for coupling in mapping.couplings.iter() {
+        for coupling in mapping.couplings.iter().rev() {
             debug_assert!(coupling.magnitude_ch != coupling.angle_ch);
 
             // Get mutable reference to each channel in the pair.
