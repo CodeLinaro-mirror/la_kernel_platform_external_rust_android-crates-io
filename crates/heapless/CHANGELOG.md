@@ -7,14 +7,45 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased]
 
+## [v0.9.4] 2026-11-18
+
+- Fix unsoundness in `Deque::make_contiguous` when the `Deque` is not full
+- `Box`: fix race condition in allocation
+- Fixed unsoundness in `IndexMap::retain` in the context of panicking predicate.
+- Added `swap_remove()` to `IndexMap` and `IndexSet`.
+- Deprecated `.remove()` in `IndexMap` and `IndexSet` in favour of `.swap_remove()`.
+- Fixed `IndexMap::truncate` leading to an inconsistent state and not being exception-safe.
+- Fixed `Deque::make_contigous` leading to an inconsistent state.
+- Added `resize_with` to `Vec`.
+- Added `retain_back` (aka `truncate_front`) to `Deque`.
+- Added `retain` to `BinaryHeap`.
+- Bump MSRV to 1.88 (requires by trybuild dev dependency).
+- Fixed unsoundness in `Vec::IntoIter::drop` and `HistoryBuf::write`in the context of panicking drop implementations.
+- `FindMutView::pop`: fix UB if used after mutating the value.
+- Added `push_mut` to `Vec`.
+- Fixed unsoundness in `IndexMap:insert`.
+- Limited max size of `IndexMap` to u16::MAX + 1.
+  The implementation for sizes higher than u16::MAX were unsound anyway.
+- Added `shift_remove`, `shift_remove_entry` and `shift_remove_full` to `IndexMap` and `IndexSet`.
+- Implemented `Index` and `IndexMut` for `Vec`.
+- Made `String::from_utf8_unchecked` const. The v0.9.0 changelog already listed this, but the change was undone before that release.
+- Deque: Fix unsoundness in `TryFrom` implementation when the deque ends up full
+- Fixed atomic ordering bug in `Spsc::peek`.
+- Added `SortedLinkedList::new` generic const creator.
+- Fixed `SortedLinkedList` Zeroize implementation.
+- Fixed possible integer overflow in `VecInner::extend_from_slice`.
+- Allow `bytes::BufMut::advance_mut` implementation on `VecInner` to advance to the end of the buffer.
+
 ## [v0.9.3] 2025-04-15
 
-- Fixed unsoundness in `Deque::clear`, `HistoryBuf::clear` and `IndexMap::clear` in the context
-of panicking drop implementations.
+- Fixed unsoundness in `Deque::clear`, `HistoryBuf::clear` and `IndexMap::clear` in the context of panicking drop implementations.
 - Added `from_bytes_truncating_at_nul` to `CString`
 - Added `CString::{into_bytes, into_bytes_with_nul, into_string}`
 - Added `pop_front_if` and `pop_back_if` to `Deque`
 - Made `Vec::from_array` const.
+- Fixed long division being instroduced by the const-erasure in spsc
+- spsc: Fix integer overflow in iterators when N > usize::MAX/2 and the queue loops.
+- spsc: Fix integer overflow leading to a panic in `len` when N == usize::MAX and debug assertions are enabled.
 
 ## [v0.9.2] 2025-11-12
 
@@ -741,7 +772,8 @@ of panicking drop implementations.
 
 - Initial release
 
-[Unreleased]: https://github.com/rust-embedded/heapless/compare/v0.9.3...HEAD
+[Unreleased]: https://github.com/rust-embedded/heapless/compare/v0.9.4...HEAD
+[v0.9.4]: https://github.com/rust-embedded/heapless/compare/v0.9.3...v0.9.4
 [v0.9.3]: https://github.com/rust-embedded/heapless/compare/v0.9.2...v0.9.3
 [v0.9.2]: https://github.com/rust-embedded/heapless/compare/v0.9.1...v0.9.2
 [v0.9.1]: https://github.com/rust-embedded/heapless/compare/v0.9.0...v0.9.1

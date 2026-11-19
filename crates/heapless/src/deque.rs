@@ -406,25 +406,26 @@ impl<T, S: VecStorage<T> + ?Sized> DequeInner<T, S> {
             // this means that we first shift the head forwards, and then
             // copy the tail to the correct position.
             //
-            // from: FGH....ABCDE
-            // to:   ...ABCDEFGH.
+            // from: FGHxxxxABCDE  or: FGxxxxxABCDE.
+            // to:   xxxxABCDEFGH  or: xxxxABCDEFGx.
+            //
             unsafe {
                 ptr::copy(
                     buffer_ptr.add(self.front),
                     buffer_ptr.add(self.back),
                     front_len,
                 );
-                // FGHABCDE....
+                // FGHABCDExxxx or: FGABCDExxxxx.
                 ptr::copy_nonoverlapping(
                     buffer_ptr,
                     buffer_ptr.add(self.back + front_len),
                     back_len,
                 );
-                // ...ABCDEFGH.
+                // xxxxABCDEFGH or: xxxxABCDEFGx.
             }
 
             self.front = back;
-            self.back = 0;
+            self.back = self.to_physical_index(len);
         } else {
             // `free` is smaller than both `head_len` and `tail_len`.
             // the general algorithm for this first moves the slices
@@ -504,7 +505,7 @@ impl<T, S: VecStorage<T> + ?Sized> DequeInner<T, S> {
                     // the used part of the buffer now is `0..self.len`, so set
                     // `head` to the beginning of that range.
                     self.front = 0;
-                    self.back = len;
+                    self.back = if free == 0 { 0 } else { len };
                 }
             }
         }
@@ -895,59 +896,156 @@ impl<T, S: VecStorage<T> + ?Sized> DequeInner<T, S> {
     /// assert_eq!(buf.make_contiguous(), [5]);
     /// ```
     pub fn truncate(&mut self, len: usize) {
-        /// Runs the destructor for all items in the slice when it gets dropped (gracefully or
-        /// during unwinding).
-        struct Dropper<'a, T>(&'a mut [T]);
-
-        impl<'a, T> Drop for Dropper<'a, T> {
-            fn drop(&mut self) {
-                unsafe {
-                    ptr::drop_in_place(self.0);
-                }
-            }
+        // If new desired length is greater or equal, we don't need to act.
+        if len >= self.storage_len() {
+            return;
         }
 
-        // Safety:
-        // * Any slice passed to `drop_in_place` is valid; the second case has `len <= front.len()`
-        //   and returning on `len > self.storage_len()` ensures `begin <= back.len()` in the first
-        //   case
-        // * Deque front/back cursors are moved before calling `drop_in_place`, so no value is
-        //   dropped twice if `drop_in_place` panics
-        unsafe {
-            // If new desired length is greater or equal, we don't need to act.
-            if len >= self.storage_len() {
-                return;
+        let (front, back) = self.as_mut_slices();
+
+        // If `len` desires to keep elements past front's entire length,
+        // then only back's contents will need to be dropped
+        // as the two slices combined should be more than `len`.
+        if len > front.len() {
+            let begin = len - front.len();
+
+            // Safety: `begin` is always < `back.len()` by the above conditional.
+            let drop_back = core::ptr::from_mut(unsafe { back.get_unchecked_mut(begin..) });
+
+            // Self::to_physical_index returns the index `len` units _after_ the front cursor,
+            // meaning we can use it to find the decremented index for `back` for non-contiguous
+            // deques, as well as determine where the new "cap" for front needs
+            // to be placed for contiguous deques.
+            self.back = self.to_physical_index(len);
+            self.full = false;
+
+            // Safety: Any slice passed to `drop_in_place` is valid:
+            // * Only valid elements previously contained within `back` are present.
+            // * The elements are valid for reading/writing, originating from a &mut [T].
+            // * Deque back cursor is moved before calling `drop_in_place`, so no value is dropped
+            //   twice if `drop_in_place` panics.
+            unsafe { ptr::drop_in_place(drop_back) }
+        } else {
+            /// Runs the destructor for all items in the slice when it gets dropped (gracefully or
+            /// during unwinding).
+            struct Dropper<'a, T>(&'a mut [T]);
+            impl<'a, T> Drop for Dropper<'a, T> {
+                fn drop(&mut self) {
+                    unsafe {
+                        // Safety:
+                        // The slice given to the Dropper should only contain elements
+                        // that have been truncated by the movement of the front cursor.
+                        ptr::drop_in_place(self.0);
+                    }
+                }
             }
 
-            let (front, back) = self.as_mut_slices();
+            // As `len` is <= `front.len()`, we know all of `back` needs to be dropped,
+            // since the desired length never reaches into it.
+            let drop_back = core::ptr::from_mut(back);
 
-            // If `len` desires to keep elements past front's entire length,
-            // then only back's contents will need to be dropped
-            // as the two slices combined should be more than `len`.
-            if len > front.len() {
-                let begin = len - front.len();
-                let drop_back = core::ptr::from_mut(back.get_unchecked_mut(begin..));
+            // Safety: `len` is always less than or equal to `front.len()` by the above conditional.
+            let drop_front = core::ptr::from_mut(unsafe { front.get_unchecked_mut(len..) });
 
-                // Self::to_physical_index returns the index `len` units _after_ the front cursor,
-                // meaning we can use it to find the decremented index for `back` for non-contiguous
-                // deques, as well as determine where the new "cap" for front needs
-                // to be placed for contiguous deques.
-                self.back = self.to_physical_index(len);
-                self.full = false;
+            // Determine new "cap" for `front`,
+            // shortening it to be equal to `len` elements.
+            self.back = self.to_physical_index(len);
+            self.full = false;
 
-                ptr::drop_in_place(drop_back);
-            } else {
-                // Otherwise, we know back's entire contents need to be dropped,
-                // since the desired length never reaches into it.
-                let drop_back = core::ptr::from_mut(back);
-                let drop_front = core::ptr::from_mut(front.get_unchecked_mut(len..));
+            // Safety:
+            // * If `drop_front` causes a panic, the Dropper will still be called to drop its slice
+            //   during unwinding. In either case, front will always be dropped before back.
+            // * Deque back cursor is moved before calling `drop_in_place`, so no value is dropped
+            //   twice if either `drop_in_place` panics.
+            unsafe {
+                let _back_dropper = Dropper(&mut *drop_back);
+                ptr::drop_in_place(drop_front);
+            }
+        }
+    }
 
-                self.back = self.to_physical_index(len);
-                self.full = false;
+    /// Shortens the deque, keeping the last `len` elements and dropping
+    /// the rest.
+    ///
+    /// If `len` is greater or equal to the deque's current length, this has
+    /// no effect.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use heapless::Deque;
+    ///
+    /// let mut buf: Deque<_, 5> = Deque::new();
+    /// buf.push_back(5);
+    /// buf.push_back(10);
+    /// buf.push_back(15);
+    /// buf.retain_back(1);
+    /// assert_eq!(buf.make_contiguous(), [15]);
+    /// ```
+    #[doc(alias = "truncate_front")]
+    pub fn retain_back(&mut self, len: usize) {
+        // If new desired length is greater or equal, we don't need to act.
+        if len >= self.storage_len() {
+            return;
+        }
 
-                // If `drop_front` causes a panic, the Dropper will still be called to drop it's
-                // slice during unwinding. In either case, front will always be
-                // dropped before back.
+        let (front, back) = self.as_mut_slices();
+
+        if len > back.len() {
+            // The `back` slice remains unchanged (`len` intends to retain more elements than `back`
+            // contains), front.len() + back.len() == self.len, so `end` is non-negative
+            // and end <= front.len().
+            let end = front.len() - (len - back.len());
+
+            // Safety: `end` is always less than or equal to `front.len()`
+            let drop_front = core::ptr::from_mut(unsafe { front.get_unchecked_mut(..end) });
+
+            // Turn the back slice into the front slice by
+            // placing the front cursor under `self.back`, spaced by `end` elements.
+            self.front = self.to_physical_index(end);
+            self.full = false;
+
+            // Safety: Any slice passed to `drop_in_place` is valid:
+            // * Only valid elements previously contained within `front` are present.
+            // * The elements are valid for reading/writing, originating from a &mut [T].
+            // * Deque front cursor is moved before calling `drop_in_place`, so no value is dropped
+            //   twice if `drop_in_place` panics.
+            unsafe { ptr::drop_in_place(drop_front) }
+        } else {
+            /// Runs the destructor for all items in the slice when it gets dropped
+            /// (gracefully at scope's end or during panic unwinding).
+            struct Dropper<'a, T>(&'a mut [T]);
+            impl<'a, T> Drop for Dropper<'a, T> {
+                fn drop(&mut self) {
+                    // Safety:
+                    // The slice given to the Dropper should only contain elements
+                    // that have been truncated by the movement of the front cursor.
+                    unsafe { ptr::drop_in_place(self.0) }
+                }
+            }
+
+            // We intend to only keep fewer elements than `back` contains,
+            // so all elements within `front` will be dropped,
+            // before proceeding to truncate values within `back`.
+            let drop_front = core::ptr::from_mut(front);
+
+            // 'end' is non-negative by the conditional above
+            let end = back.len() - len;
+
+            // Safety: `end` is always less than or equal to `back.len()`
+            let drop_back = core::ptr::from_mut(unsafe { back.get_unchecked_mut(..end) });
+
+            // Turn the back slice into the front slice,
+            // additionally shortening its length to `len`.
+            self.front = self.to_physical_index(self.storage_len() - len);
+            self.full = false;
+
+            // Safety:
+            // * If `drop_front` causes a panic, the Dropper will still be called to drop its slice
+            //   during unwinding. In either case, front will always be dropped before back.
+            // * Deque front cursor is moved before calling `drop_in_place`, so no value is dropped
+            //   twice if either `drop_in_place` panics.
+            unsafe {
                 let _back_dropper = Dropper(&mut *drop_back);
                 ptr::drop_in_place(drop_front);
             }
@@ -1304,8 +1402,8 @@ impl<T, const NS: usize, const ND: usize> TryFrom<[T; NS]> for Deque<T, ND> {
         }
 
         deq.front = 0;
-        deq.back = NS;
         deq.full = NS == ND;
+        deq.back = if deq.full { 0 } else { NS };
 
         Ok(deq)
     }
@@ -1710,6 +1808,20 @@ mod tests {
 
         // Deque contains: 5, 6, 7, 8
         assert_eq!(q.as_slices(), ([5, 6, 7, 8].as_slice(), [].as_slice()));
+
+        // Test `make_contiguous` failing to reset back index properly.
+        // See https://github.com/rust-embedded/heapless/issues/676
+        q.clear();
+        for i in 0..4 {
+            q.push_back(i).unwrap();
+        }
+        for i in 4..7 {
+            q.pop_front();
+            q.push_back(i).unwrap();
+        }
+        q.make_contiguous();
+        q.pop_front();
+        q.push_back(99).unwrap();
     }
 
     #[test]
@@ -2155,7 +2267,7 @@ mod tests {
         // Truncating past the elements present, no change.
         tester.truncate(10);
         assert_eq!(tester.as_slices(), (&[3, 2, 1][..], &[1, 2, 3][..]));
-        println!("{} {}", tester.front, tester.back);
+
         // Truncating equal to elements present, no change.
         tester.truncate(6);
         assert_eq!(tester.as_slices(), (&[3, 2, 1][..], &[1, 2, 3][..]));
@@ -2238,6 +2350,239 @@ mod tests {
             assert_eq!(Droppable::count(), TRUNC as i32);
 
             tester.truncate(0);
+            assert_eq!(tester.len(), 0);
+            assert_eq!(Droppable::count(), 0);
+        }
+    }
+
+    // Checking that no invalid destructors are called with empty Deques
+    #[test]
+    fn retain_back_empty() {
+        droppable!();
+
+        const LEN: usize = 1;
+        let mut tester: Deque<_, LEN> = Deque::new();
+
+        // Retaining 0 from 0
+        tester.retain_back(0);
+        assert_eq!(tester.len(), 0);
+        assert_eq!(Droppable::count(), 0);
+
+        // Retaining 123 from 0 (thus clamping back down to 0)
+        tester.retain_back(123);
+        assert_eq!(tester.len(), 0);
+        assert_eq!(Droppable::count(), 0);
+
+        // Ensure state is still valid by pushing one element in and then truncating again
+        assert!(tester.push_front(Droppable::new()).is_ok());
+        assert_eq!(tester.len(), 1);
+        assert_eq!(Droppable::count(), 1);
+
+        // Retaining 0 from 1
+        tester.retain_back(0);
+        assert_eq!(tester.len(), 0);
+        assert_eq!(Droppable::count(), 0);
+    }
+
+    // Testing retaining the back elements of contiguous Deques
+    #[test]
+    fn retain_back_contiguous() {
+        droppable!();
+
+        fn slice_lengths<T>(slices: (&[T], &[T])) -> (usize, usize) {
+            let (a, b) = slices;
+            (a.len(), b.len())
+        }
+
+        const LEN: usize = 20;
+        let mut tester: Deque<_, LEN> = Deque::new();
+
+        // Filling from front.
+        for _ in 0..5 {
+            assert!(tester.push_front(Droppable::new()).is_ok());
+        }
+
+        // Retaining more than the elements present, no change.
+        tester.retain_back(10);
+        let lens = slice_lengths(tester.as_slices());
+        assert_eq!(lens, (5, 0));
+        assert_eq!(Droppable::count(), 5);
+
+        // Retaining equal to elements present, no change.
+        tester.retain_back(5);
+        let lens = slice_lengths(tester.as_slices());
+        assert_eq!(lens, (5, 0));
+        assert_eq!(Droppable::count(), 5);
+
+        // Retaining none.
+        tester.retain_back(0);
+        assert_eq!(tester.len(), 0);
+        assert_eq!(Droppable::count(), 0);
+
+        // Refill from front.
+        for _ in 0..5 {
+            assert!(tester.push_front(Droppable::new()).is_ok());
+        }
+
+        let lens = slice_lengths(tester.as_slices());
+        assert_eq!(lens, (5, 0));
+        assert_eq!(Droppable::count(), 5);
+
+        // Retaining up to the middle of elements.
+        tester.retain_back(3);
+        let lens = slice_lengths(tester.as_slices());
+        assert_eq!(lens, (3, 0));
+        assert_eq!(Droppable::count(), 3);
+
+        // Retaining none.
+        tester.retain_back(0);
+        assert_eq!(tester.len(), 0);
+        assert_eq!(Droppable::count(), 0);
+
+        // Resetting cursors.
+        tester.clear();
+
+        // Filling from back...
+        for _ in 0..5 {
+            assert!(tester.push_back(Droppable::new()).is_ok());
+        }
+
+        tester.retain_back(10);
+        let lens = slice_lengths(tester.as_slices());
+        assert_eq!(lens, (5, 0));
+        assert_eq!(Droppable::count(), 5);
+
+        tester.retain_back(5);
+        let lens = slice_lengths(tester.as_slices());
+        assert_eq!(lens, (5, 0));
+        assert_eq!(Droppable::count(), 5);
+
+        tester.retain_back(0);
+        assert_eq!(tester.len(), 0);
+        assert_eq!(Droppable::count(), 0);
+
+        for _ in 0..5 {
+            assert!(tester.push_back(Droppable::new()).is_ok());
+        }
+
+        let lens = slice_lengths(tester.as_slices());
+        assert_eq!(lens, (5, 0));
+        assert_eq!(Droppable::count(), 5);
+
+        tester.retain_back(3);
+        let lens = slice_lengths(tester.as_slices());
+        assert_eq!(lens, (3, 0));
+        assert_eq!(Droppable::count(), 3);
+
+        tester.retain_back(0);
+        assert_eq!(tester.len(), 0);
+        assert_eq!(Droppable::count(), 0);
+    }
+
+    // Testing retention with non-contiguous Deques
+    #[test]
+    fn retain_back_non_contiguous() {
+        const LEN: usize = 20;
+        let mut tester: Deque<u8, LEN> = Deque::new();
+
+        // Filling non-contiguously.
+        //
+        // Expecting [3, 2, 1, 1, 2, 3]
+        for x in 1..=3 {
+            assert!(tester.push_front(x).is_ok());
+        }
+        for y in 1..=3 {
+            assert!(tester.push_back(y).is_ok());
+        }
+
+        // Retaining more than the elements present, no change.
+        tester.retain_back(10);
+        assert_eq!(tester.as_slices(), (&[3, 2, 1][..], &[1, 2, 3][..]));
+
+        // Retaining equal to elements present, no change.
+        tester.retain_back(6);
+        assert_eq!(tester.as_slices(), (&[3, 2, 1][..], &[1, 2, 3][..]));
+
+        // Retaining none.
+        tester.retain_back(0);
+        assert_eq!(tester.as_slices(), (&[][..], &[][..]));
+
+        // Resetting cursors.
+        tester.clear();
+
+        // Refilling.
+        for x in 1..=3 {
+            assert!(tester.push_front(x).is_ok());
+        }
+        for y in 1..=3 {
+            assert!(tester.push_back(y).is_ok());
+        }
+
+        assert_eq!(tester.as_slices(), (&[3, 2, 1][..], &[1, 2, 3][..]));
+
+        // Retaining all of back and part of front.
+        tester.retain_back(5);
+        assert_eq!(tester.as_slices(), (&[2, 1][..], &[1, 2, 3][..]));
+
+        // Replacing the truncated element.
+        assert!(tester.push_front(3).is_ok());
+        assert_eq!(tester.as_slices(), (&[3, 2, 1][..], &[1, 2, 3][..]));
+
+        // Retaining only back contents, thus making it the front slice.
+        tester.retain_back(3);
+        assert_eq!(tester.as_slices(), (&[1, 2, 3][..], &[][..]));
+
+        // Replacing the truncated elements.
+        for y in 1..=3 {
+            assert!(tester.push_front(y).is_ok());
+        }
+        assert_eq!(tester.as_slices(), (&[3, 2, 1][..], &[1, 2, 3][..]));
+
+        // Retaining only some of back, thus also dropping all of front,
+        // again making it the front slice as a result.
+        tester.retain_back(2);
+        assert_eq!(tester.as_slices(), (&[2, 3][..], &[][..]));
+
+        // Retaining none.
+        tester.retain_back(0);
+        assert_eq!(tester.as_slices(), (&[][..], &[][..]));
+
+        // Should remain empty.
+        tester.retain_back(123);
+        assert_eq!(tester.as_slices(), (&[][..], &[][..]));
+    }
+
+    // Tests that each element's destructor is called when not being retained.
+    #[test]
+    fn retain_back_drop_count() {
+        droppable!();
+
+        const LEN: usize = 20;
+        const TRUNC: usize = 3;
+        for push_front_amt in 0..=LEN {
+            let mut tester: Deque<_, LEN> = Deque::new();
+            for index in 0..LEN {
+                if index < push_front_amt {
+                    assert!(
+                        tester.push_front(Droppable::new()).is_ok(),
+                        "deque must have room for all {LEN} entries"
+                    );
+                } else {
+                    assert!(
+                        tester.push_back(Droppable::new()).is_ok(),
+                        "deque must have room for all {LEN} entries"
+                    );
+                }
+            }
+
+            assert_eq!(Droppable::count(), LEN as i32);
+
+            tester.retain_back(TRUNC);
+            assert_eq!(tester.len(), TRUNC);
+            assert_eq!(Droppable::count(), TRUNC as i32);
+
+            tester.retain_back(0);
+
             assert_eq!(tester.len(), 0);
             assert_eq!(Droppable::count(), 0);
         }
@@ -2328,5 +2673,34 @@ mod tests {
         assert_eq!(deque.len(), 0);
         deque.clear();
         assert_eq!(Dropper::count(), 0);
+    }
+
+    #[test]
+    fn full_array_out_of_bounds() {
+        let mut deque = Deque::<Box<u64>, 2>::try_from([Box::new(10), Box::new(20)]).unwrap();
+        assert_eq!(*deque.pop_front().unwrap(), 10);
+        deque.push_back(Box::new(30)).unwrap();
+        assert_eq!(deque.iter().map(|v| **v).collect::<Vec<_>>(), [20, 30]);
+    }
+
+    // test for https://github.com/rust-embedded/heapless/issues/694
+    #[test]
+    fn make_contiguous_not_full_694() {
+        droppable!();
+        let mut dq: Deque<Droppable, 8> = Deque::new();
+
+        // move `front` to slot 4
+        for _ in 0..4 {
+            dq.push_back(Droppable::new()).unwrap();
+            dq.pop_front();
+        }
+        // 5 elements in slots 4,5,6,7,0: wrapped, not full
+        for _ in 0..5 {
+            dq.push_back(Droppable::new()).unwrap();
+        }
+
+        dq.make_contiguous();
+        drop(dq);
+        assert_eq!(Droppable::count(), 0);
     }
 }

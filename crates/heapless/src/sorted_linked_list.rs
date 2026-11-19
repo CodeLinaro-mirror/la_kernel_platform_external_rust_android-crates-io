@@ -238,50 +238,73 @@ macro_rules! impl_const_new {
     ($ty:ty, $new_name:ident) => {
         impl<T, K, const N: usize> SortedLinkedList<T, K, N, $ty> {
             /// Create a new linked list.
+            ///
+            /// The generic [`new`](Self::new) function is now const
+            /// and is probably more relevant.
             pub const fn $new_name() -> Self {
-                const {
-                    assert!(
-                        (<$ty>::MAX as usize) >= (N + 1),
-                        "The capacity is larger than `LenT` can hold, increase the size of `LenT` or reduce the capacity"
-                    );
-                }
-
-                let mut list = SortedLinkedList {
-                    list: OwnedSortedLinkedListStorage {
-                        buffer: [const {
-                            Node {
-                                val: MaybeUninit::uninit(),
-                                next: <$ty>::MAX,
-                            }
-                        }; N],
-                    },
-                    head: <$ty>::MAX,
-                    free: 0,
-                    phantom: PhantomData,
-                };
-
-                if N == 0 {
-                    list.free = <$ty>::MAX;
-                    return list;
-                }
-
-                let mut free = 0;
-
-                // Initialize indexes
-                while free < N - 1 {
-                    list.list.buffer[free].next = free as $ty + 1;
-                    free += 1;
-                }
-
-                list
+                Self::new()
             }
         }
     };
 }
 
+impl<T, Idx, K, const N: usize> Default for SortedLinkedList<T, K, N, Idx>
+where
+    Idx: LenType,
+{
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl_const_new!(u8, new_u8);
 impl_const_new!(u16, new_u16);
 impl_const_new!(usize, new_usize);
+impl<T, Idx, K, const N: usize> SortedLinkedList<T, K, N, Idx>
+where
+    Idx: LenType,
+{
+    /// Create a new linked list.
+    pub const fn new() -> Self {
+        const {
+            assert!(
+                        Idx::MAX_USIZE >= (N + 1),
+                        "The capacity is larger than `LenT` can hold, increase the size of `LenT` or reduce the capacity"
+                    );
+        }
+
+        let mut list = SortedLinkedList {
+            list: OwnedSortedLinkedListStorage {
+                buffer: [const {
+                    Node {
+                        val: MaybeUninit::uninit(),
+                        next: Idx::MAX,
+                    }
+                }; N],
+            },
+            head: Idx::MAX,
+            free: Idx::ZERO,
+            phantom: PhantomData,
+        };
+
+        if N == 0 {
+            list.free = Idx::MAX;
+            return list;
+        }
+
+        let mut free = 0;
+        let reference_array =
+            <Idx::Sequence<N> as crate::len_type::SequenceCreator<N, Idx>>::SEQUENCE;
+
+        // Initialize indexes
+        while free < N - 1 {
+            list.list.buffer[free].next = reference_array[free];
+            free += 1;
+        }
+
+        list
+    }
+}
 
 impl<T, Idx, K, S> SortedLinkedListInner<T, Idx, K, S>
 where
@@ -726,6 +749,8 @@ where
     /// ```
     #[inline]
     pub fn pop(mut self) -> T {
+        // prevent the destructor from trying to re-insert self.
+        self.maybe_changed = false;
         self.pop_internal()
     }
 
@@ -877,6 +902,22 @@ where
         for elem in buffer {
             elem.zeroize();
         }
+
+        // Re-initialize the linked list
+        self.head = Idx::MAX;
+        if self.list.borrow().is_empty() {
+            self.free = Idx::MAX;
+            return;
+        } else {
+            self.free = Idx::ZERO;
+        }
+
+        let len = self.list.borrow().len();
+
+        for i in 0..len - 1 {
+            self.list.borrow_mut()[i].next = Idx::from_usize(i) + Idx::one();
+        }
+        self.list.borrow_mut()[len - 1].next = Idx::MAX;
     }
 }
 
@@ -961,29 +1002,38 @@ mod tests {
 
     #[test]
     fn test_updating() {
-        let mut ll: SortedLinkedList<u32, Max, 3, u8> = SortedLinkedList::new_u8();
-        ll.push(1).unwrap();
-        ll.push(2).unwrap();
-        ll.push(3).unwrap();
+        let mut ll: SortedLinkedList<Box<u32>, Max, 3, u8> = SortedLinkedList::new_u8();
+        ll.push(Box::new(1)).unwrap();
+        ll.push(Box::new(2)).unwrap();
+        ll.push(Box::new(3)).unwrap();
 
-        let mut find = ll.find_mut(|v| *v == 2).unwrap();
+        let mut find = ll.find_mut(|v| **v == 2).unwrap();
 
-        *find += 1000;
+        **find += 1000;
         find.finish();
 
-        assert_eq!(ll.peek().unwrap(), &1002);
+        assert_eq!(**ll.peek().unwrap(), 1002);
 
-        let mut find = ll.find_mut(|v| *v == 3).unwrap();
+        let mut find = ll.find_mut(|v| **v == 3).unwrap();
 
-        *find += 1000;
+        **find += 1000;
         find.finish();
 
-        assert_eq!(ll.peek().unwrap(), &1003);
+        assert_eq!(**ll.peek().unwrap(), 1003);
 
         // Remove largest element
-        ll.find_mut(|v| *v == 1003).unwrap().pop();
+        ll.find_mut(|v| **v == 1003).unwrap().pop();
 
-        assert_eq!(ll.peek().unwrap(), &1002);
+        assert_eq!(**ll.peek().unwrap(), 1002);
+    }
+    #[test]
+    fn test_updating_pop() {
+        let mut list: SortedLinkedList<Box<u32>, Max, 2, u8> = SortedLinkedList::new_u8();
+        list.push(Box::new(1)).unwrap();
+        let mut item = list.find_mut(|_| true).unwrap();
+        **item = 2;
+        assert_eq!(*item.pop(), 2);
+        assert!(list.is_empty());
     }
 
     #[test]
@@ -1019,7 +1069,7 @@ mod tests {
             list.push(i).unwrap();
         }
 
-        assert_eq!(list.is_empty(), false);
+        assert!(!list.is_empty());
         assert!(list.is_full());
         assert_eq!(list.peek(), Some(&8));
 
@@ -1039,6 +1089,28 @@ mod tests {
                 assert_eq!(node.val.assume_init(), 0);
             }
         }
+    }
+
+    #[test]
+    #[cfg(feature = "zeroize")]
+    fn zeroize_free_list_terminator() {
+        use zeroize::Zeroize;
+        let mut list: SortedLinkedList<u8, Max, 1, u8> = SortedLinkedList::new_u8();
+        list.zeroize();
+        list.push(0).unwrap();
+        assert!(list.is_full());
+    }
+
+    #[test]
+    #[cfg(feature = "zeroize")]
+    fn zeroize_soundness() {
+        use zeroize::Zeroize;
+        let mut list: SortedLinkedList<String, Max, 2, u8> = SortedLinkedList::new_u8();
+        list.zeroize();
+        list.push(String::from("first")).unwrap();
+        list.push(String::from("second")).unwrap();
+        drop(list.pop());
+        drop(list.pop());
     }
 
     fn _test_variance<'a: 'b, 'b>(
