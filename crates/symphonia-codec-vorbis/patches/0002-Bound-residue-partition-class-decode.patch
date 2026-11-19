@@ -1,0 +1,30 @@
+diff --git a/src/residue.rs b/src/residue.rs
+index 0f66c69d1..9d2efaddb 100644
+--- a/src/residue.rs
++++ b/src/residue.rs
+@@ -270,7 +270,7 @@ impl Residue {
+                         code,
+                         parts_per_classword,
+                         self.setup.residue_classifications as u32,
+-                        &mut self.part_classes[part_first..],
++                        &mut self.part_classes[part_first..parts_to_read],
+                     );
+                 }
+ 
+@@ -369,11 +369,15 @@ impl Residue {
+ 
+                         let code = class_book.read_scalar(bs)?;
+ 
++                        // Bound the output to this channel's partitions so that a classword that
++                        // spans past the last partition does not overwrite the partition classes
++                        // of the next channel.
+                         decode_classes(
+                             code,
+                             parts_per_classword,
+                             self.setup.residue_classifications as u32,
+-                            &mut self.part_classes[part_first + i * parts_to_read..],
++                            &mut self.part_classes
++                                [part_first + i * parts_to_read..(i + 1) * parts_to_read],
+                         );
+                     }
+                 }
