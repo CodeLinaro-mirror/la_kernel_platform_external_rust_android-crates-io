@@ -442,7 +442,7 @@ pub fn generate_native_method_abi_check(
         // The closure returns Some(true) only after the check succeeds.
         // If the check panics, the flag stays false and other attempts to call this method will
         // retry the check (in case the program doesn't abort).
-        let _ = _ABI_CHECK_DONE.fetch_update(
+        let _ = _ABI_CHECK_DONE.try_update(
             ::std::sync::atomic::Ordering::AcqRel,   // set ordering
             ::std::sync::atomic::Ordering::Acquire,   // fetch ordering
             |done| {
