@@ -48,7 +48,16 @@ jobs:
           components: miri
 
       - name: Run miri
-        run: MIRIFLAGS=-Zmiri-ignore-leaks cargo miri test --features="alloc,defmt,mpmc_large,portable-atomic-critical-section,serde,ufmt,bytes,zeroize,embedded-io-v0.7"
+        run: >
+          MIRIFLAGS=-Zmiri-ignore-leaks cargo miri test --features="alloc,
+          defmt,
+          mpmc_large,
+          portable-atomic-critical-section,
+          serde,
+          ufmt,
+          bytes,
+          zeroize,
+          embedded-io-v0.7"
 
   # Run cargo test
   test:
@@ -84,7 +93,17 @@ jobs:
           toolchain: stable
 
       - name: Run cargo test
-        run: cargo test --features="alloc,defmt,mpmc_large,portable-atomic-critical-section,serde,ufmt,bytes,zeroize,embedded-io-v0.7"
+        run: >
+          cargo test --features="
+          alloc,
+          defmt,
+          mpmc_large,
+          portable-atomic-critical-section,
+          serde,
+          ufmt,
+          bytes,
+          zeroize,
+          embedded-io-v0.7"
 
   # Run cargo fmt --check
   style:
@@ -113,7 +132,15 @@ jobs:
         with:
           components: clippy
           targets: i686-unknown-linux-musl
-      - run: cargo clippy --all --target i686-unknown-linux-musl --all-targets
+      - run: >
+          cargo clippy --all --target i686-unknown-linux-musl --all-targets --features "alloc,
+            defmt,
+            portable-atomic-critical-section,
+            serde,
+            ufmt,
+            bytes,
+            zeroize,
+            embedded-io-v0.7"
 
   # Compilation check
   check:
@@ -305,6 +332,9 @@ jobs:
         buildtype:
           - ""
           - "--release"
+        features:
+          - ""
+          - "portable-atomic"
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -351,7 +381,7 @@ jobs:
     runs-on: ubuntu-latest
     env:
       RUSTFLAGS: -D warnings
-      MSRV: 1.87.0
+      MSRV: 1.88.0
     defaults:
       run:
         working-directory: cfail
