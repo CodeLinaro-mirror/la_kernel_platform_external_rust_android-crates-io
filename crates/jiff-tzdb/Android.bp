@@ -17,12 +17,12 @@ rust_library_host {
     name: "libjiff_tzdb",
     crate_name: "jiff_tzdb",
     cargo_env_compat: true,
-    cargo_pkg_version: "0.1.8",
+    cargo_pkg_version: "1.0.0",
     crate_root: "lib.rs",
     srcs: [
         "*.rs",
         "concatenated-zoneinfo.dat",
     ],
-    edition: "2021",
+    edition: "2024",
     use_expansive_default_srcs: false,
 }
