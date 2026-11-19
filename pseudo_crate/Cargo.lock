@@ -706,7 +706,7 @@ dependencies = [
  "rustls-webpki",
  "rustversion",
  "ryu",
- "safe-mmio",
+ "safe-mmio 0.3.2",
  "safer_cffi",
  "same-file",
  "scopeguard",
@@ -1171,21 +1171,21 @@ checksum = "aae38b5192f8463cef6c94ec9804774c2b106b16b0bb7c41401f9457d5e99229"
 dependencies = [
  "arm-sysregs",
  "bitflags 2.13.2",
- "safe-mmio",
+ "safe-mmio 0.3.2",
  "thiserror 2.0.21",
  "zerocopy",
 ]
 
 [[package]]
 name = "arm-pl011-uart"
-version = "0.5.1"
+version = "0.6.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "da0601ab96b18e55589d286dc635d1aac547e266aeaf3393813bb37c79318a71"
+checksum = "48757caa90fb2e40c8774e267c660e99f32c2572fabf308d66ff2c4156d3791d"
 dependencies = [
  "bitflags 2.13.2",
  "embedded-hal-nb",
  "embedded-io",
- "safe-mmio",
+ "safe-mmio 0.4.0",
  "thiserror 2.0.21",
  "zerocopy",
 ]
@@ -9236,6 +9236,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "safe-mmio"
+version = "0.4.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "8227fa63b47c9e32e57da4efeec270bba9a8930387f014f1e4759e46af3bd8c7"
+dependencies = [
+ "zerocopy",
+]
+
+[[package]]
 name = "safer_cffi"
 version = "0.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -11476,7 +11485,7 @@ dependencies = [
  "embedded-io",
  "enumn",
  "log",
- "safe-mmio",
+ "safe-mmio 0.3.2",
  "thiserror 2.0.21",
  "zerocopy",
 ]
