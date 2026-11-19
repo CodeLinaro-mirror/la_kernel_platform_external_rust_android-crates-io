@@ -1,0 +1,3 @@
+deletions = [
+    "tests/configs/certs/wrong-name-key.pem",
+]
