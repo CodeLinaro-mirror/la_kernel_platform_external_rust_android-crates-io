@@ -1,12 +1,12 @@
+#![deny(clippy::undocumented_unsafe_blocks)]
+
 //! A fixed-capacity hash table where the iteration order is independent of the hash of the keys.
 use core::{
     borrow::Borrow,
     fmt,
     hash::{BuildHasher, BuildHasherDefault, Hash},
     iter::FusedIterator,
-    mem,
-    num::NonZeroU32,
-    ops, slice,
+    mem, ops, slice,
 };
 
 #[cfg(feature = "zeroize")]
@@ -83,43 +83,114 @@ impl HashValue {
     }
 }
 
-#[doc(hidden)]
 #[derive(Clone)]
 #[cfg_attr(feature = "zeroize", derive(Zeroize))]
-pub struct Bucket<K, V> {
+struct Bucket<K, V> {
     hash: HashValue,
     key: K,
     value: V,
 }
 
-#[doc(hidden)]
+const MAX_SIZE: usize = 0x10000;
+
+/// For a given hash in the `indices` table, encodes whether there is a corresponding
+/// key/value pair and its index
+///
+/// If there is no corresponding entry, its value is `Self::none`.
+/// In the rare case where the `IndexMap` is of `MAX_SIZE`, `Self::none()` can encode
+/// a valid entry.
 #[derive(Clone, Copy, PartialEq)]
 #[cfg_attr(feature = "zeroize", derive(Zeroize))]
-pub struct Pos {
-    // compact representation of `{ hash_value: u16, index: u16 }`
-    // To get the most from `NonZero` we store the *value minus 1*. This way `None::Option<Pos>`
-    // is equivalent to the very unlikely value of  `{ hash_value: 0xffff, index: 0xffff }` instead
-    // the more likely of `{ hash_value: 0x00, index: 0x00 }`
-    nz: NonZeroU32,
+struct Pos {
+    maybe_valid: ValidPos,
 }
 
 impl Pos {
-    fn new(index: usize, hash: HashValue) -> Self {
+    const fn none() -> Self {
         Self {
-            nz: unsafe {
-                NonZeroU32::new_unchecked(
-                    ((u32::from(hash.0) << 16) + index as u32).wrapping_add(1),
-                )
-            },
+            maybe_valid: ValidPos { inner: 0 },
+        }
+    }
+
+    fn new(index: usize, hash: HashValue) -> Self {
+        let value = ((u32::from(hash.0) << 16) + index as u32).wrapping_add(1);
+        Self {
+            maybe_valid: ValidPos { inner: value },
+        }
+    }
+
+    /// Get the `ValidPos` from `self`
+    ///
+    /// SAFETY: the `ValidPos` is correct only if it is known
+    /// that `self` cannot be encoding a `None` value.
+    unsafe fn assume_valid(&mut self) -> &mut ValidPos {
+        &mut self.maybe_valid
+    }
+    /// Returns a `ValidPos` if the pos doesn't encode `None`
+    ///
+    /// SAFETY: This will give the correct information only if it is known
+    /// that `self.index()` cannot be `0xFFFF`
+    unsafe fn assume_not_full(&mut self) -> Option<&mut ValidPos> {
+        if self == &Self::none() {
+            None
+        } else {
+            Some(&mut self.maybe_valid)
+        }
+    }
+
+    /// Returns a `ValidPos` if the pos doesn't encode `None`
+    ///
+    /// The argument is the length of the `entries` buffer
+    fn as_valid<const BUFFER_SIZE: usize>(&self, buf_len: usize) -> Option<&ValidPos> {
+        // Is 0xFFFF a valid index ? This uses a const generic to be able to short-circuit
+        // the check at compile time in most cases
+        let buffer_max = BUFFER_SIZE == MAX_SIZE && buf_len == MAX_SIZE;
+        if buffer_max || self != &Self::none() {
+            Some(&self.maybe_valid)
+        } else {
+            None
+        }
+    }
+
+    /// Returns a `ValidPos` if the pos doesn't encode `None`
+    ///
+    /// The argument is the length of the `entries` buffer
+    fn as_valid_mut<const BUFFER_SIZE: usize>(&mut self, buf_len: usize) -> Option<&mut ValidPos> {
+        // Is 0xFFFF a valid index ? This uses a const generic to be able to short-circuit
+        // the check at compile time in most cases
+        let buffer_max = BUFFER_SIZE == MAX_SIZE && buf_len == MAX_SIZE;
+        if buffer_max || self != &Self::none() {
+            Some(&mut self.maybe_valid)
+        } else {
+            None
+        }
+    }
+}
+
+/// Encodes a hash value and the index of an existing key/value pair in `entries`
+#[cfg_attr(feature = "zeroize", derive(Zeroize))]
+#[derive(Clone, Copy, PartialEq)]
+struct ValidPos {
+    /// Contains a simplified representation of `Option<{hash_value, index}>`
+    /// Where `None` is encoded with 0.
+    ///
+    /// In the specific case where the map is full, 0 can encode `Some({hash_value: 0, index: 0})`,
+    inner: u32,
+}
+
+impl ValidPos {
+    fn replace(&mut self, pos: Pos) -> Pos {
+        Pos {
+            maybe_valid: mem::replace(self, pos.maybe_valid),
         }
     }
 
     fn hash(&self) -> HashValue {
-        HashValue((self.nz.get().wrapping_sub(1) >> 16) as u16)
+        HashValue((self.inner.wrapping_sub(1) >> 16) as u16)
     }
 
     fn index(&self) -> usize {
-        self.nz.get().wrapping_sub(1) as u16 as usize
+        self.inner.wrapping_sub(1) as u16 as usize
     }
 }
 
@@ -134,15 +205,21 @@ struct Inserted<V> {
 
 macro_rules! probe_loop {
     ($probe_var: ident < $len: expr, $body: expr) => {
+        // We use a separate value to store the probe value increments
+        // so that the increments are done before $body
+        // so that $body can use `continue` without
+        // interfering with the increments
+        let mut next_probe = $probe_var;
         loop {
+            $probe_var = next_probe;
+            next_probe += 1;
             if $probe_var < $len {
                 $body
-                    $probe_var += 1;
             } else {
-                $probe_var = 0;
+                next_probe = 0;
             }
         }
-    }
+    };
 }
 
 #[cfg_attr(
@@ -152,16 +229,14 @@ macro_rules! probe_loop {
 )]
 struct CoreMap<K, V, const N: usize> {
     entries: Vec<Bucket<K, V>, N, usize>,
-    indices: [Option<Pos>; N],
+    indices: [Pos; N],
 }
 
 impl<K, V, const N: usize> CoreMap<K, V, N> {
     const fn new() -> Self {
-        const INIT: Option<Pos> = None;
-
         Self {
             entries: Vec::new(),
-            indices: [INIT; N],
+            indices: [Pos::none(); N],
         }
     }
 }
@@ -187,22 +262,20 @@ where
         let mut dist = 0;
 
         probe_loop!(probe < self.indices.len(), {
-            if let Some(pos) = self.indices[probe] {
-                let entry_hash = pos.hash();
-                // NOTE(i) we use unchecked indexing below
-                let i = pos.index();
-                debug_assert!(i < self.entries.len());
+            let pos = self.indices[probe].as_valid::<N>(self.entries.len())?;
+            let entry_hash = pos.hash();
+            // NOTE(i) we use unchecked indexing below
+            let i = pos.index();
+            debug_assert!(i < self.entries.len());
 
-                if dist > entry_hash.probe_distance(Self::mask(), probe) {
-                    // give up when probe distance is too long
-                    return None;
-                } else if entry_hash == hash
-                    && unsafe { self.entries.get_unchecked(i).key.borrow() == query }
-                {
-                    return Some((probe, i));
-                }
-            } else {
+            if dist > entry_hash.probe_distance(Self::mask(), probe) {
+                // give up when probe distance is too long
                 return None;
+            } else if entry_hash == hash
+                // SAFETY: We know that the entry is valid ande therefore so is its index
+                && unsafe { self.entries.get_unchecked(i).key.borrow() == query }
+            {
+                return Some((probe, i));
             }
 
             dist += 1;
@@ -216,7 +289,7 @@ where
         probe_loop!(probe < self.indices.len(), {
             let pos = &mut self.indices[probe];
 
-            if let Some(pos) = *pos {
+            if let Some(pos) = pos.as_valid_mut::<N>(self.entries.len()) {
                 let entry_hash = pos.hash();
                 // NOTE(i) we use unchecked indexing below
                 let i = pos.index();
@@ -230,17 +303,23 @@ where
                     }
                     // robin hood: steal the spot if it's better for us
                     let index = self.entries.len();
+                    // SAFETY: we checked just above that the entries vec is not full
                     unsafe { self.entries.push_unchecked(Bucket { hash, key, value }) };
                     Self::insert_phase_2(&mut self.indices, probe, Pos::new(index, hash));
                     return Insert::Success(Inserted {
                         index,
                         old_value: None,
                     });
-                } else if entry_hash == hash && unsafe { self.entries.get_unchecked(i).key == key }
+                } else if entry_hash == hash
+                // SAFETY: we know that the entry is valid, and therefore
+                // its index is occupied
+                    && unsafe { self.entries.get_unchecked(i).key == key }
                 {
                     return Insert::Success(Inserted {
                         index: i,
                         old_value: Some(mem::replace(
+                            // SAFETY: we know that the entry is valid, and therefore
+                            // its index is occupied
                             unsafe { &mut self.entries.get_unchecked_mut(i).value },
                             value,
                         )),
@@ -252,7 +331,8 @@ where
                 }
                 // empty bucket, insert here
                 let index = self.entries.len();
-                *pos = Some(Pos::new(index, hash));
+                *pos = Pos::new(index, hash);
+                // SAFETY: we checked just above that entries is not full
                 unsafe { self.entries.push_unchecked(Bucket { hash, key, value }) };
                 return Insert::Success(Inserted {
                     index,
@@ -264,28 +344,35 @@ where
     }
 
     // phase 2 is post-insert where we forward-shift `Pos` in the indices.
-    fn insert_phase_2(indices: &mut [Option<Pos>; N], mut probe: usize, mut old_pos: Pos) -> usize {
+    fn insert_phase_2(indices: &mut [Pos; N], mut probe: usize, mut old_pos: Pos) -> usize {
         probe_loop!(probe < indices.len(), {
-            let pos = unsafe { indices.get_unchecked_mut(probe) };
+            let pos = &mut indices[probe];
 
-            let mut is_none = true; // work around lack of NLL
-            if let Some(pos) = pos.as_mut() {
-                old_pos = mem::replace(pos, old_pos);
-                is_none = false;
-            }
+            // SAFETY: We just inserted a key, meaning that the only
+            // `pos` that can have index `0xFFFF` is the one
+            // passed as argument to this function
+            //
+            // Since `pos` is read from the existing entries
+            // none can have index `0xFFFF`
+            if let Some(pos) = unsafe { pos.assume_not_full() } {
+                old_pos = pos.replace(old_pos);
+            } else {
+                *pos = old_pos;
 
-            if is_none {
-                *pos = Some(old_pos);
                 return probe;
             }
         });
     }
 
-    fn remove_found(&mut self, probe: usize, found: usize) -> (K, V) {
+    /// SAFETY: found must be a valid entry and probe the index of the corresponding `Pos`
+    unsafe fn swap_remove_found(&mut self, probe: usize, found: usize) -> (K, V) {
         // index `probe` and entry `found` is to be removed
         // use swap_remove, but then we need to update the index that points
         // to the other entry that has to move
-        self.indices[probe] = None;
+        self.indices[probe] = Pos::none();
+        let old_probe = probe;
+        // SAFETY: We know that the entry at `found` is valid as an invariant
+        // held by the caller
         let entry = unsafe { self.entries.swap_remove_unchecked(found) };
 
         // correct index that points to the entry that had to swap places
@@ -295,14 +382,47 @@ where
             let mut probe = entry.hash.desired_pos(Self::mask());
 
             probe_loop!(probe < self.indices.len(), {
-                if let Some(pos) = self.indices[probe] {
-                    if pos.index() >= self.entries.len() {
-                        // found it
-                        self.indices[probe] = Some(Pos::new(found, entry.hash));
-                        break;
-                    }
+                if probe == old_probe {
+                    continue;
+                }
+                // SAFETY: We know that the `Pos` are all valid because
+                // because any `None` would mean the index of the removed entry
+                // is further away than it has to.
+                let pos = unsafe { self.indices[probe].assume_valid() };
+                debug_assert!(pos.index() <= self.entries.len());
+                if pos.index() == self.entries.len() {
+                    // found it
+                    self.indices[probe] = Pos::new(found, entry.hash);
+                    break;
                 }
             });
+        }
+
+        self.backward_shift_after_removal(probe);
+
+        (entry.key, entry.value)
+    }
+
+    /// SAFETY: found must be a valid entry and probe the index of the corresponding `Pos`
+    unsafe fn shift_remove_found(&mut self, probe: usize, found: usize) -> (K, V) {
+        let old_len = self.entries.len();
+        self.indices[probe] = Pos::none();
+        // Unlike `swap_remove_found`, every entry after `found` is shifted towards the front.
+        let entry = self.entries.remove(found);
+
+        // Validate against the old length so a full-capacity `Pos` that shares the empty
+        // sentinel encoding is still updated. The removed probe is the sole empty slot.
+        for (table_index, pos) in self.indices.iter_mut().enumerate() {
+            if table_index == probe {
+                continue;
+            }
+
+            if let Some(valid) = pos.as_valid_mut::<N>(old_len) {
+                let entry_index = valid.index();
+                if entry_index > found {
+                    valid.replace(Pos::new(entry_index - 1, valid.hash()));
+                }
+            }
         }
 
         self.backward_shift_after_removal(probe);
@@ -314,43 +434,47 @@ where
     where
         F: FnMut(&mut K, &mut V) -> bool,
     {
-        const INIT: Option<Pos> = None;
-
-        self.entries
-            .retain_mut(|entry| keep(&mut entry.key, &mut entry.value));
-
-        if self.entries.len() < self.indices.len() {
-            for index in self.indices.iter_mut() {
-                *index = INIT;
+        struct DropGuard<'a, K: Eq + Hash, V, const N: usize>(&'a mut CoreMap<K, V, N>);
+        impl<'a, K: Eq + Hash, V, const N: usize> Drop for DropGuard<'a, K, V, N> {
+            fn drop(&mut self) {
+                self.0.reinsert_all();
             }
+        }
+        DropGuard(self)
+            .0
+            .entries
+            .retain_mut(|entry| keep(&mut entry.key, &mut entry.value));
+    }
 
-            for (index, entry) in self.entries.iter().enumerate() {
-                let mut probe = entry.hash.desired_pos(Self::mask());
-                let mut dist = 0;
+    fn reinsert_all(&mut self) {
+        if self.entries.len() >= self.indices.len() {
+            return;
+        }
+        self.indices = [Pos::none(); N];
 
-                probe_loop!(probe < self.indices.len(), {
-                    let pos = &mut self.indices[probe];
+        for (index, entry) in self.entries.iter().enumerate() {
+            let mut probe = entry.hash.desired_pos(Self::mask());
+            let mut dist = 0;
 
-                    if let Some(pos) = *pos {
-                        let entry_hash = pos.hash();
+            probe_loop!(probe < self.indices.len(), {
+                let pos = &mut self.indices[probe];
 
-                        // robin hood: steal the spot if it's better for us
-                        let their_dist = entry_hash.probe_distance(Self::mask(), probe);
-                        if their_dist < dist {
-                            Self::insert_phase_2(
-                                &mut self.indices,
-                                probe,
-                                Pos::new(index, entry.hash),
-                            );
-                            break;
-                        }
-                    } else {
-                        *pos = Some(Pos::new(index, entry.hash));
+                // SAFETY: we checked above that the entries vec is not full
+                if let Some(pos) = unsafe { pos.assume_not_full() } {
+                    let entry_hash = pos.hash();
+
+                    // robin hood: steal the spot if it's better for us
+                    let their_dist = entry_hash.probe_distance(Self::mask(), probe);
+                    if their_dist < dist {
+                        Self::insert_phase_2(&mut self.indices, probe, Pos::new(index, entry.hash));
                         break;
                     }
-                    dist += 1;
-                });
-            }
+                } else {
+                    *pos = Pos::new(index, entry.hash);
+                    break;
+                }
+                dist += 1;
+            });
         }
     }
 
@@ -361,12 +485,17 @@ where
         let mut probe = probe_at_remove + 1;
 
         probe_loop!(probe < self.indices.len(), {
-            if let Some(pos) = self.indices[probe] {
+            // SAFETY: We know that `pos.index() == 0xFFFF `is not possible because
+            // we just removed the last entry and removed the corresponding
+            // `Pos` in `self.indices`
+            if let Some(pos) = unsafe { self.indices[probe].assume_not_full() } {
                 let entry_hash = pos.hash();
 
                 if entry_hash.probe_distance(Self::mask(), probe) > 0 {
-                    unsafe { *self.indices.get_unchecked_mut(last_probe) = self.indices[probe] }
-                    self.indices[probe] = None;
+                    // SAFETY: we know that last_probe is < than N from the caller
+                    // or because last_probe was overwritten by the loop
+                    *unsafe { self.indices.get_unchecked_mut(last_probe) } = self.indices[probe];
+                    self.indices[probe] = Pos::none();
                 } else {
                     break;
                 }
@@ -592,9 +721,38 @@ where
         &self.key
     }
 
-    /// Removes this entry from the map and yields its corresponding key and value
+    /// Removes this entry from the map and yields its corresponding key and value.
+    ///
+    /// **NOTE**: This is equivalent to [`.swap_remove_entry()`](OccupiedEntry::swap_remove_entry),
+    /// replacing this entry’s position with the last element, and it is deprecated in favor of
+    /// calling that explicitly.
+    #[deprecated(
+        note = "`remove_entry` disrupts the map order -- use `swap_remove_entry` for explicit behavior."
+    )]
     pub fn remove_entry(self) -> (K, V) {
-        self.core.remove_found(self.probe, self.pos)
+        self.swap_remove_entry()
+    }
+
+    /// Removes this entry from the map and yields its corresponding key and value.
+    ///
+    /// Like `Vec::swap_remove`, the value is removed by swapping it with the last element of the
+    /// map and popping it off. **This perturbs the position of what used to be the last element!**.
+    pub fn swap_remove_entry(self) -> (K, V) {
+        // SAFETY: We know that `pos` is valid from the creation of the entry
+        // and that cannot have changed since we held a mutable entry to the map
+        unsafe { self.core.swap_remove_found(self.probe, self.pos) }
+    }
+
+    /// Removes this entry from the map and yields its corresponding key and value.
+    ///
+    /// Like `Vec::remove`, the pair is removed by shifting all of the elements that follow it,
+    /// preserving their relative order.
+    ///
+    /// Computes in **O(n)** time on average
+    pub fn shift_remove_entry(self) -> (K, V) {
+        // SAFETY: We know that `pos` is valid from the creation of the entry
+        // and that cannot have changed since we held a mutable reference to the map
+        unsafe { self.core.shift_remove_found(self.probe, self.pos) }
     }
 
     /// Gets a reference to the value associated with this entry
@@ -630,9 +788,34 @@ where
         }
     }
 
-    /// Removes this entry from the map and yields its value
+    /// Removes this entry from the map and yields its value.
+    ///
+    /// **NOTE**: This is equivalent to [`.swap_remove()`](OccupiedEntry::swap_remove), replacing
+    /// this entry’s position with the last element, and it is deprecated in favor of calling
+    /// that explicitly.
+    #[deprecated(
+        note = "`remove` disrupts the map order -- use `swap_remove` for explicit behavior."
+    )]
     pub fn remove(self) -> V {
-        self.remove_entry().1
+        self.swap_remove()
+    }
+
+    /// Removes this entry from the map and yields its value.
+    ///
+    /// Like `Vec::swap_remove`, the pair is removed by swapping it with the last element of the map
+    /// and popping it off. **This perturbs the position of what used to be the last element!**.
+    pub fn swap_remove(self) -> V {
+        self.swap_remove_entry().1
+    }
+
+    /// Removes this entry from the map and yields its value.
+    ///
+    /// Like `Vec::remove`, the pair is removed by shifting all of the elements that follow it,
+    /// preserving their relative order.
+    ///
+    /// Computes in **O(n)** time on average
+    pub fn shift_remove(self) -> V {
+        self.shift_remove_entry().1
     }
 }
 
@@ -664,11 +847,9 @@ where
         } else {
             match self.core.insert(self.hash_val, self.key, value) {
                 Insert::Success(inserted) => {
-                    unsafe {
-                        // SAFETY: Already checked existence at instantiation and the only mutable
-                        // reference to the map is internally held.
-                        Ok(&mut (*self.core.entries.as_mut_ptr().add(inserted.index)).value)
-                    }
+                    // SAFETY: Already checked existence at instantiation and the only mutable
+                    // reference to the map is internally held.
+                    unsafe { Ok(&mut (*self.core.entries.as_mut_ptr().add(inserted.index)).value) }
                 }
                 Insert::Full((_, v)) => Err(v),
             }
@@ -751,6 +932,7 @@ impl<K, V, S, const N: usize> IndexMap<K, V, BuildHasherDefault<S>, N> {
         const {
             assert!(N > 1);
             assert!(N.is_power_of_two());
+            assert!(N <= MAX_SIZE);
         }
 
         Self {
@@ -982,7 +1164,7 @@ impl<K, V, S, const N: usize> IndexMap<K, V, S, N> {
         impl<'a, K, V, S, const N: usize> Drop for Guard<'a, K, V, S, N> {
             fn drop(&mut self) {
                 for pos in self.0.core.indices.iter_mut() {
-                    *pos = None;
+                    *pos = Pos::none();
                 }
             }
         }
@@ -1052,8 +1234,10 @@ where
         K: Borrow<Q>,
         Q: ?Sized + Hash + Eq,
     {
-        self.find(key)
-            .map(|(_, found)| unsafe { &self.core.entries.get_unchecked(found).value })
+        self.find(key).map(|(_, found)| {
+            // SAFETY: Find gives a correct bucket and the corresponding probe
+            unsafe { &self.core.entries.get_unchecked(found).value }
+        })
     }
 
     /// Returns true if the map contains a value for the specified key.
@@ -1106,6 +1290,7 @@ where
         Q: ?Sized + Hash + Eq,
     {
         if let Some((_, found)) = self.find(key) {
+            // SAFETY: Find gives a correct bucket and the corresponding probe
             Some(unsafe { &mut self.core.entries.get_unchecked_mut(found).value })
         } else {
             None
@@ -1218,7 +1403,7 @@ where
         }
     }
 
-    /// Same as [`swap_remove`](Self::swap_remove)
+    /// Removes an element.
     ///
     /// Computes in *O*(1) time (average).
     ///
@@ -1232,6 +1417,13 @@ where
     /// assert_eq!(map.remove(&1), Some("a"));
     /// assert_eq!(map.remove(&1), None);
     /// ```
+    ///
+    /// **NOTE**: This is equivalent to [`.swap_remove(key)`](IndexMap::swap_remove), replacing this
+    /// entry’s position with the last element, and it is deprecated in favor of calling that
+    /// explicitly.
+    #[deprecated(
+        note = "`remove` disrupts the map order -- use `swap_remove` for explicit behavior."
+    )]
     pub fn remove<Q>(&mut self, key: &Q) -> Option<V>
     where
         K: Borrow<Q>,
@@ -1243,18 +1435,118 @@ where
     /// Remove the key-value pair equivalent to `key` and return its value.
     ///
     /// Like `Vec::swap_remove`, the pair is removed by swapping it with the last element of the map
-    /// and popping it off. **This perturbs the position of what used to be the last element!**
+    /// and popping it off. **This perturbs the position of what used to be the last element!**.
     ///
     /// Return `None` if `key` is not in map.
     ///
     /// Computes in *O*(1) time (average).
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use heapless::index_map::FnvIndexMap;
+    ///
+    /// let mut map = FnvIndexMap::<_, _, 8>::new();
+    /// map.insert(1, "a").unwrap();
+    /// assert_eq!(map.swap_remove(&1), Some("a"));
+    /// assert_eq!(map.swap_remove(&1), None);
+    /// ```
     pub fn swap_remove<Q>(&mut self, key: &Q) -> Option<V>
     where
         K: Borrow<Q>,
         Q: ?Sized + Hash + Eq,
     {
-        self.find(key)
-            .map(|(probe, found)| self.core.remove_found(probe, found).1)
+        self.find(key).map(|(probe, found)| {
+            // SAFETY: Find gives a correct bucket and the corresponding probe
+            unsafe { self.core.swap_remove_found(probe, found) }.1
+        })
+    }
+
+    /// Remove the key-value pair equivalent to `key` and return its value.
+    ///
+    /// Like `Vec::remove`, the pair is removed by shifting all of the elements that
+    /// follow it, preserving their relative order. **This perturbs the index of all of
+    /// those elements!**
+    ///
+    /// Return `None` if `key` is not in map.
+    ///
+    /// Computes in *O*(n) time (average).
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use heapless::index_map::FnvIndexMap;
+    ///
+    /// let mut map = FnvIndexMap::<_, _, 8>::new();
+    /// map.insert(1, "a").unwrap();
+    /// map.insert(2, "b").unwrap();
+    /// map.insert(3, "c").unwrap();
+    /// map.insert(4, "d").unwrap();
+    /// assert_eq!(map.shift_remove(&2), Some("b"));
+    /// assert_eq!(
+    ///     map.keys().copied().collect::<heapless::Vec<_, 8>>().as_slice(),
+    ///     &[1, 3, 4]
+    /// );
+    /// assert_eq!(map.shift_remove(&2), None);
+    /// ```
+    pub fn shift_remove<Q>(&mut self, key: &Q) -> Option<V>
+    where
+        K: Borrow<Q>,
+        Q: ?Sized + Hash + Eq,
+    {
+        self.find(key).map(|(probe, found)| {
+            // SAFETY: Find gives a correct bucket and the corresponding probe
+            unsafe { self.core.shift_remove_found(probe, found) }.1
+        })
+    }
+
+    /// Remove and return the key-value pair equivalent to `key`.
+    ///
+    /// Like `Vec::remove`, the pair is removed by shifting all of the elements that
+    /// follow it, preserving their relative order. **This perturbs the index of all of
+    /// those elements!**
+    ///
+    /// Return `None` if `key` is not in map.
+    ///
+    /// Computes in *O*(n) time (average).
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use heapless::index_map::FnvIndexMap;
+    ///
+    /// let mut map = FnvIndexMap::<_, _, 8>::new();
+    /// map.insert(1, "a").unwrap();
+    /// assert_eq!(map.shift_remove_entry(&1), Some((1, "a")));
+    /// assert_eq!(map.shift_remove_entry(&1), None);
+    /// ```
+    pub fn shift_remove_entry<Q>(&mut self, key: &Q) -> Option<(K, V)>
+    where
+        K: Borrow<Q>,
+        Q: ?Sized + Hash + Eq,
+    {
+        self.find(key).map(|(probe, found)| {
+            // SAFETY: Find gives a correct bucket and the corresponding probe
+            unsafe { self.core.shift_remove_found(probe, found) }
+        })
+    }
+
+    /// Remove and return the key-value pair at `index`.
+    ///
+    /// Valid indices are `0 <= index < self.len()`.
+    ///
+    /// The pair is removed by shifting all of the elements that follow it, preserving the
+    /// insertion order of the remaining elements.
+    ///
+    /// Computes in *O*(n) time (average).
+    pub fn shift_remove_index(&mut self, index: usize) -> Option<(K, V)> {
+        let probe = self.core.indices.iter().position(|pos| {
+            pos.as_valid::<N>(self.core.entries.len())
+                .is_some_and(|pos| pos.index() == index)
+        })?;
+
+        // SAFETY: The position search found a valid entry and its corresponding probe
+        Some(unsafe { self.core.shift_remove_found(probe, index) })
     }
 
     /// Retains only the elements specified by the predicate.
@@ -1292,16 +1584,23 @@ where
     /// assert_eq!(iter.next(), None);
     /// ```
     pub fn truncate(&mut self, len: usize) {
-        self.core.entries.truncate(len);
-
-        if self.core.indices.len() > self.core.entries.len() {
-            for index in self.core.indices.iter_mut() {
-                match index {
-                    Some(pos) if pos.index() >= len => *index = None,
-                    _ => (),
+        struct DropGuard<'a, K: Eq + Hash, V, S: BuildHasher, const N: usize>(
+            &'a mut IndexMap<K, V, S, N>,
+        );
+        impl<'a, K: Eq + Hash, V, S: BuildHasher, const N: usize> Drop for DropGuard<'a, K, V, S, N> {
+            fn drop(&mut self) {
+                let len = self.0.core.entries.len();
+                if N > self.0.core.entries.len() {
+                    for pos in self.0.core.indices.iter_mut() {
+                        if pos.maybe_valid.index() >= len {
+                            *pos = Pos::none();
+                        }
+                    }
                 }
+                self.0.core.reinsert_all();
             }
         }
+        DropGuard(self).0.core.entries.truncate(len);
     }
 
     /* Private API */
@@ -1375,6 +1674,7 @@ where
         const {
             assert!(N > 1);
             assert!(N.is_power_of_two());
+            assert!(N <= MAX_SIZE);
         }
 
         Self {
@@ -1626,6 +1926,7 @@ where
 mod tests {
     use core::mem;
     use std::{
+        hash::{BuildHasher, Hash, Hasher},
         mem::ManuallyDrop,
         panic::{catch_unwind, AssertUnwindSafe},
         sync::atomic::{AtomicI32, Ordering},
@@ -1633,7 +1934,36 @@ mod tests {
 
     use static_assertions::assert_not_impl_any;
 
-    use super::{BuildHasherDefault, Entry, FnvIndexMap, IndexMap};
+    use crate::index_map::MAX_SIZE;
+
+    use super::{BuildHasherDefault, Entry, FnvIndexMap, IndexMap, Pos};
+
+    /// A hasher that returns the `u16` value as the hash
+    /// This makes testing weird hashes easier
+    #[derive(Default)]
+    struct DummyHasher(u16);
+
+    #[derive(Default)]
+    struct DummyHasherBuilder;
+
+    impl Hasher for DummyHasher {
+        fn finish(&self) -> u64 {
+            self.0 as _
+        }
+
+        fn write(&mut self, _bytes: &[u8]) {}
+        fn write_u16(&mut self, i: u16) {
+            self.0 = i;
+        }
+    }
+
+    impl BuildHasher for DummyHasherBuilder {
+        type Hasher = DummyHasher;
+
+        fn build_hasher(&self) -> Self::Hasher {
+            DummyHasher(0)
+        }
+    }
 
     // Ensure a `IndexMap` containing `!Send` keys stays `!Send` itself.
     assert_not_impl_any!(IndexMap<*const (), (), BuildHasherDefault<()>, 4>: Send);
@@ -1771,7 +2101,7 @@ mod tests {
         src.insert("k4", "v4").unwrap();
         let clone = src.clone();
         for (k, v) in clone.into_iter() {
-            assert_eq!(v, src.remove(k).unwrap());
+            assert_eq!(v, src.swap_remove(k).unwrap());
         }
         assert!(src.is_empty());
     }
@@ -1894,7 +2224,7 @@ mod tests {
         let entry = src.entry(key);
         match entry {
             Entry::Occupied(o) => {
-                assert_eq!((key, value), o.remove_entry());
+                assert_eq!((key, value), o.swap_remove_entry());
             }
             Entry::Vacant(_) => {
                 panic!("Entry not found")
@@ -1913,13 +2243,81 @@ mod tests {
         let entry = src.entry(key);
         match entry {
             Entry::Occupied(o) => {
-                assert_eq!(value, o.remove());
+                assert_eq!(value, o.swap_remove());
             }
             Entry::Vacant(_) => {
                 panic!("Entry not found");
             }
         };
         assert_eq!(MAP_SLOTS - 1, src.len());
+    }
+
+    #[test]
+    fn shift_remove_preserves_order() {
+        let mut map = FnvIndexMap::<_, _, 8>::new();
+        for key in 0..5 {
+            map.insert(key, key * 10).unwrap();
+        }
+
+        assert_eq!(map.shift_remove(&2), Some(20));
+        assert_eq!(map.shift_remove(&9), None);
+        assert_eq!(
+            map.keys().copied().collect::<std::vec::Vec<_>>(),
+            [0, 1, 3, 4]
+        );
+        assert_eq!(map.get(&0), Some(&0));
+        assert_eq!(map.get(&1), Some(&10));
+        assert_eq!(map.get(&3), Some(&30));
+        assert_eq!(map.get(&4), Some(&40));
+    }
+
+    #[test]
+    fn shift_remove_entry_preserves_order() {
+        let mut map = FnvIndexMap::<_, _, 8>::new();
+        for key in 0..5 {
+            map.insert(key, key * 10).unwrap();
+        }
+
+        assert_eq!(map.shift_remove_entry(&2), Some((2, 20)));
+        assert_eq!(map.shift_remove_entry(&9), None);
+        assert_eq!(
+            map.keys().copied().collect::<std::vec::Vec<_>>(),
+            [0, 1, 3, 4]
+        );
+    }
+
+    #[test]
+    fn occupied_entry_shift_remove_methods_preserve_order() {
+        let mut map = FnvIndexMap::<_, _, 8>::new();
+        for key in 0..5 {
+            map.insert(key, key * 10).unwrap();
+        }
+
+        let Entry::Occupied(entry) = map.entry(2) else {
+            panic!("Entry not found");
+        };
+        assert_eq!(entry.shift_remove_entry(), (2, 20));
+
+        let Entry::Occupied(entry) = map.entry(1) else {
+            panic!("Entry not found");
+        };
+        assert_eq!(entry.shift_remove(), 10);
+        assert_eq!(map.keys().copied().collect::<std::vec::Vec<_>>(), [0, 3, 4]);
+    }
+
+    #[test]
+    fn shift_remove_index_preserves_order() {
+        let mut map = FnvIndexMap::<_, _, 8>::new();
+        for key in 0..5 {
+            map.insert(key, key * 10).unwrap();
+        }
+
+        assert_eq!(map.shift_remove_index(2), Some((2, 20)));
+        assert_eq!(map.shift_remove_index(4), None);
+        assert_eq!(
+            map.keys().copied().collect::<std::vec::Vec<_>>(),
+            [0, 1, 3, 4]
+        );
     }
 
     #[test]
@@ -1976,7 +2374,7 @@ mod tests {
         for i in 0..MAP_SLOTS {
             match src.entry(i) {
                 Entry::Occupied(o) => {
-                    assert_eq!((i, i + add_mod), o.remove_entry());
+                    assert_eq!((i, i + add_mod), o.swap_remove_entry());
                 }
                 Entry::Vacant(_) => {
                     panic!("Entry not found after insert");
@@ -2108,5 +2506,233 @@ mod tests {
         assert_eq!(history_buf.len(), 0);
         history_buf.clear();
         assert_eq!(Dropper::count(), 0);
+    }
+
+    /// See <https://github.com/rust-embedded/heapless/issues/674>
+    #[test]
+    fn truncate_invalid() {
+        let mut map: FnvIndexMap<u16, u32, 4> = FnvIndexMap::new();
+        map.insert(4, 444).unwrap();
+        map.insert(2, 222).unwrap();
+        map.insert(0, 0).unwrap();
+        map.insert(7, 7).unwrap();
+
+        assert_eq!(map.get(&2), Some(&222)); // ok before map.truncate(2);
+        map.truncate(2);
+        assert_eq!(map.iter().collect::<Vec<_>>(), vec![(&4, &444), (&2, &222)]); // ok
+        assert_eq!(map.get(&4), Some(&444)); // ok
+        assert_eq!(map.get(&2), Some(&222)); // <-- key present in iter() but unreachable
+    }
+
+    /// see <https://github.com/rust-embedded/heapless/issues/672>
+    #[test]
+    #[cfg_attr(miri, ignore)] // too slow
+    fn insert_overflow() {
+        #[derive(PartialEq, Eq, Debug)]
+        struct CustomHashU16(u16);
+
+        impl Hash for CustomHashU16 {
+            fn hash<H: Hasher>(&self, state: &mut H) {
+                state.write_u16(self.0);
+            }
+        }
+
+        let mut map = max_size_map::<CustomHashU16, u16, DummyHasherBuilder>();
+        for x in 0..=u16::MAX {
+            map.insert(CustomHashU16(x), x).unwrap();
+        }
+        assert!(map.is_full());
+        assert!(map.core.indices[0xFFFF] == Pos::none());
+        for x in 0..=u16::MAX {
+            assert_eq!(map.get(&CustomHashU16(x)).unwrap(), &x);
+        }
+        assert_eq!(map.swap_remove(&CustomHashU16(0x123)).unwrap(), 0x123);
+        for x in 0..=u16::MAX {
+            if x == 0x123 {
+                continue;
+            }
+            assert_eq!(map.get(&CustomHashU16(x)).unwrap(), &x);
+        }
+        assert_eq!(map.swap_remove(&CustomHashU16(u16::MAX)).unwrap(), u16::MAX);
+        for x in 0..=u16::MAX {
+            if x == 0x123 || x == u16::MAX {
+                continue;
+            }
+            assert_eq!(map.get(&CustomHashU16(x)).unwrap(), &x);
+        }
+    }
+
+    fn max_size_map<K, V, S>() -> Box<IndexMap<K, V, S, { MAX_SIZE }>> {
+        // We have to manually allocate and initialize to avoid overflowing the stack in the dev
+        // profile.
+        let map: Box<mem::MaybeUninit<IndexMap<K, V, S, 0x10000>>> = Box::new_zeroed();
+        // SAFETY: the default value of FnvIndexMap is zeros
+        unsafe { map.assume_init() }
+    }
+
+    /// Test that `as_valid` doesn't fail in the case N = `0x10000`
+    ///
+    /// The first implementation used `indices.len()` instead of `entries.len()`
+    /// causing `as_valid` to return incorrectly always return `Some` when N = `0x10000`
+    #[test]
+    fn indices_valid() {
+        let mut map = max_size_map::<u16, u32, DummyHasherBuilder>();
+        map.insert(11, 11).unwrap();
+        assert!(map.find(&10).is_none());
+    }
+
+    /// Test that `as_valid` doesn't fail in the case N = `0x10000`
+    ///
+    /// Unlike the above test, here the queried value compares equal to a zeroed
+    /// value, which is the case for the uninitialized entries in the `entries` vec
+    /// because of the zeored allocation.
+    ///
+    /// This test doesn't rely on the `debug_assert` to detect incorrect behaviour
+    #[test]
+    fn indices_valid2() {
+        /// A key whose hash is *always* `0xFFFF`.
+        #[derive(PartialEq, Eq, Debug)]
+        struct ConstantHash(u16);
+
+        impl Hash for ConstantHash {
+            fn hash<H: Hasher>(&self, state: &mut H) {
+                state.write_u16(0xFFFF);
+            }
+        }
+
+        let mut map = max_size_map::<ConstantHash, u32, DummyHasherBuilder>();
+
+        map.insert(ConstantHash(1), 1).unwrap();
+        // Distinct key, same hash
+        assert!(map.get(&ConstantHash(0)).is_none());
+    }
+
+    #[test]
+    #[cfg_attr(miri, ignore)] // too slow
+    fn index_none_valid() {
+        /// A key whose hash is *always* `0xFFFF`.
+        #[derive(PartialEq, Eq, Debug)]
+        struct ControlledHash(u16, u16);
+
+        impl Hash for ControlledHash {
+            fn hash<H: Hasher>(&self, state: &mut H) {
+                state.write_u16(self.0);
+            }
+        }
+
+        let mut map = max_size_map::<ControlledHash, u32, DummyHasherBuilder>();
+        for i in 0..=u16::MAX {
+            map.insert(ControlledHash(i, 0), i as u32).unwrap();
+        }
+
+        let Entry::Vacant(entry) = map.entry(ControlledHash(0xFFFF, 1)) else {
+            panic!("Should be vacant");
+        };
+        entry.insert(0xFFFF).unwrap_err();
+        let Entry::Occupied(entry) = map.entry(ControlledHash(0xFFFF, 0)) else {
+            panic!("Should be occupied");
+        };
+        entry.insert(0x10000);
+
+        assert_eq!(map.get(&ControlledHash(0xFFFF, 0)), Some(&0x10000));
+        assert_eq!(map.swap_remove(&ControlledHash(0xFFFF, 0)), Some(0x10000));
+        map.insert(ControlledHash(0xFFFF, 0), 0xFFFF).unwrap();
+        assert_eq!(map.swap_remove(&ControlledHash(0xFFFE, 0)), Some(0xFFFE));
+        assert_eq!(map.get(&ControlledHash(0xFFFF, 0)), Some(&0xFFFF));
+        assert_eq!(map.swap_remove(&ControlledHash(0xFFFF, 0)), Some(0xFFFF));
+        assert!(map.get(&ControlledHash(0xFFFF, 0)).is_none());
+    }
+
+    /// Test that `swap_remove_found` doesn't fail
+    ///
+    /// Ensures that `probe_loop!` works correctly with the `continue` in the body
+    #[test]
+    fn swap_remove_found_loop() {
+        let mut map: FnvIndexMap<u16, u16, 4> = IndexMap::default();
+        map.insert(0, 0).unwrap();
+        map.insert(4, 4).unwrap();
+        map.insert(8, 8).unwrap();
+        map.swap_remove(&0).unwrap(); // never returns
+    }
+
+    #[test]
+    /// Test for <https://github.com/rust-embedded/heapless/issues/688>.
+    fn unwind_safe_retain() {
+        // Capacity must be a power of two > 1.
+        let mut map: FnvIndexMap<u64, u8, 8> = FnvIndexMap::new();
+        let keys = [10u64, 20, 30, 40, 50, 60];
+        for (i, k) in keys.iter().enumerate() {
+            map.insert(*k, i as u8).unwrap();
+        }
+        assert_eq!(map.len(), keys.len());
+
+        // The predicate removes early elements (returning `false`) and then panics on a
+        // later element. `Vec::retain_mut` runs a drop guard that backshifts and shrinks
+        // `entries`, but `self.indices` is only rebuilt *after*.
+        // This then tests that the IndexMap is in a valid state.
+        let res = catch_unwind(AssertUnwindSafe(|| {
+            map.retain(|k, _| {
+                if *k == 10u64 {
+                    true
+                } else if *k == 20u64 {
+                    false
+                } else {
+                    panic!("user predicate panic");
+                }
+            });
+        }));
+        assert!(res.is_err(), "expected the predicate to panic");
+
+        assert!(map.len() < keys.len(), "entries should have shrunk");
+
+        // Querying removed keys may probe stale `indices` slots whose stored entry index
+        // is now out of bounds w.r.t. the shrunk `entries`, leading to OOB get_unchecked.
+        for k in keys.iter() {
+            let _ = map.get(k);
+        }
+
+        println!("survived; map.len={}", map.len());
+    }
+
+    #[test]
+    fn truncate_exception_safe() {
+        #[derive(Debug, PartialEq, Eq)]
+        struct Item {
+            data: Box<u64>,
+            bomb: bool,
+        }
+        impl Drop for Item {
+            fn drop(&mut self) {
+                if self.bomb {
+                    panic!("controlled drop panic");
+                }
+            }
+        }
+        let mut map = FnvIndexMap::<u8, Item, 4>::new();
+        map.insert(
+            1,
+            Item {
+                data: Box::new(11),
+                bomb: false,
+            },
+        )
+        .unwrap();
+        map.insert(
+            2,
+            Item {
+                data: Box::new(22),
+                bomb: true,
+            },
+        )
+        .unwrap();
+        assert!(catch_unwind(AssertUnwindSafe(|| map.truncate(1))).is_err());
+        assert_eq!(map.get(&2), None);
+        assert_eq!(
+            map.get(&1),
+            Some(&Item {
+                data: Box::new(11),
+                bomb: false
+            })
+        );
     }
 }

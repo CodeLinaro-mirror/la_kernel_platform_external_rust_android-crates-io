@@ -8,12 +8,12 @@ categories = ["data-structures", "no-std"]
 description = "`static` friendly data structures that don't require dynamic memory allocation"
 documentation = "https://docs.rs/heapless"
 edition = "2021"
-rust-version = "1.87"
+rust-version = "1.88"
 keywords = ["static", "no-heap"]
 license = "MIT OR Apache-2.0"
 name = "heapless"
 repository = "https://github.com/rust-embedded/heapless"
-version = "0.9.3"
+version = "0.9.4"
 
 [features]
 bytes = ["dep:bytes"]
@@ -79,11 +79,15 @@ stable_deref_trait = { version = "1", default-features = false }
 [dev-dependencies]
 critical-section = { version = "1.1", features = ["std"] }
 static_assertions = "1.1.0"
+# For testing with Box
+zeroize = {version = "1.8", default-features = true }
 
 [package.metadata.docs.rs]
 features = [
     "bytes",
+    "embedded-io-v0.7",
     "ufmt",
+    "zeroize",
     "serde",
     "defmt",
     "mpmc_large",
@@ -93,3 +97,8 @@ features = [
 # for the pool module
 targets = ["i686-unknown-linux-gnu"]
 rustdoc-args = ["--cfg", "docsrs"]
+
+[lints.cargo]
+# stable_deref_trait is dependended on but not always used
+# The cfg under which it is used cannot be encoded accurately in Cargo.toml.
+unused_dependencies = "allow"

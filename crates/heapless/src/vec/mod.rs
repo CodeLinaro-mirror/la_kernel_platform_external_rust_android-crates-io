@@ -661,7 +661,8 @@ impl<T, LenT: LenType, S: VecStorage<T> + ?Sized> VecInner<T, LenT, S> {
         where
             T: Clone,
         {
-            if len.into_usize() + other.len() > buf.len() {
+            let available = buf.len() - len.into_usize();
+            if other.len() > available {
                 // won't fit in the `Vec`; don't modify anything and return an error
                 Err(CapacityError)
             } else {
@@ -687,13 +688,24 @@ impl<T, LenT: LenType, S: VecStorage<T> + ?Sized> VecInner<T, LenT, S> {
         }
     }
 
-    /// Appends an `item` to the back of the collection
+    /// Appends an `item` to the back of the collection.
     ///
     /// Returns back the `item` if the vector is full.
     pub fn push(&mut self, item: T) -> Result<(), T> {
-        if self.len() < self.capacity() {
-            unsafe { self.push_unchecked(item) }
-            Ok(())
+        self.push_mut(item).map(|_| ())
+    }
+
+    /// Appends an `item` to the back of the collection.
+    ///
+    /// Returns back an mutable reference to the `item` or the `item` if the vector is full.
+    pub fn push_mut(&mut self, item: T) -> Result<&mut T, T> {
+        let len = self.len();
+        if len < self.capacity() {
+            // Safety: len has been checked to be less than capacity, enough for one more item.
+            unsafe { self.push_unchecked(item) };
+            // Safety: len which was obtained before insertion now corresponds to self.len() - 1
+            // representing the index for the just added item.
+            Ok(unsafe { self.get_unchecked_mut(len) })
         } else {
             Err(item)
         }
@@ -745,7 +757,7 @@ impl<T, LenT: LenType, S: VecStorage<T> + ?Sized> VecInner<T, LenT, S> {
         unsafe {
             // Note: It's intentional that this is `>` and not `>=`.
             //       Changing it to `>=` has negative performance
-            //       implications in some cases. See rust-lang/rust#78884 for more.
+            //       implications in some cases. See https://github.com/rust-lang/rust/issues/78884 for more.
             if len > self.len() {
                 return;
             }
@@ -762,7 +774,7 @@ impl<T, LenT: LenType, S: VecStorage<T> + ?Sized> VecInner<T, LenT, S> {
     /// difference, with each additional slot filled with value. If
     /// `new_len` is less than len, the Vec is simply truncated.
     ///
-    /// See also [`resize_default`](Self::resize_default).
+    /// See also [`resize_default`](Self::resize_default) and [`resize_with`](Self::resize_with).
     pub fn resize(&mut self, new_len: usize, value: T) -> Result<(), CapacityError>
     where
         T: Clone,
@@ -794,6 +806,58 @@ impl<T, LenT: LenType, S: VecStorage<T> + ?Sized> VecInner<T, LenT, S> {
         T: Clone + Default,
     {
         self.resize(new_len, T::default())
+    }
+
+    ///  Resizes the `Vec` in-place so that `len` is equal to `new_len`.
+    ///
+    ///  If `new_len` is greater than `len`, the `Vec` is extended by the
+    ///  difference, with each additional slot filled with calling the closure
+    ///  `f`. The return value from `f` will end up in the `Vec` in the order they
+    ///  have been generated.
+    ///
+    ///  If `new_len` is less than `len`, the `Vec` is simply truncated.
+    ///
+    /// The method uses a closure to create new values on every push. If you'd
+    /// rather [`Clone`] a given value, use [`Vec::resize`]. If you want to use the
+    /// [`Default`] trait to generate values, use [`Vec::resize_default`].
+    ///
+    /// [`resize`]: Self::resize
+    /// [`resize_default`]: Self::resize_default
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use heapless::Vec;
+    ///
+    /// let mut vec: Vec<usize, 8> = Vec::new();
+    /// vec.extend_from_slice(&[1, 2, 3]).unwrap();
+    ///
+    /// let mut p = 1;
+    /// vec.resize_with(7, || { p *= 2; p }).unwrap();
+    /// assert_eq!(vec, [1, 2, 3, 2, 4, 8, 16]);
+    /// ```
+    pub fn resize_with<F>(&mut self, new_len: usize, mut f: F) -> Result<(), CapacityError>
+    where
+        F: FnMut() -> T,
+    {
+        if new_len > self.capacity() {
+            return Err(CapacityError);
+        }
+
+        if new_len > self.len() {
+            while self.len() < new_len {
+                // SAFETY: `new_len` <= capacity as checked above, and the loop condition
+                // ensures len() < new_len <= capacity, so there it is guaranteed to have
+                // room to push.
+                unsafe {
+                    self.push_unchecked(f());
+                }
+            }
+        } else {
+            self.truncate(new_len);
+        }
+
+        Ok(())
     }
 
     /// Forces the length of the vector to `new_len`.
@@ -1198,13 +1262,13 @@ impl<T, LenT: LenType, S: VecStorage<T> + ?Sized> VecInner<T, LenT, S> {
         impl<T, LenT: LenType, S: VecStorage<T> + ?Sized> Drop for BackshiftOnDrop<'_, T, LenT, S> {
             fn drop(&mut self) {
                 if self.deleted_cnt > LenT::ZERO {
+                    let v_mut_ptr: *mut T = self.v.as_mut_ptr();
+                    let v_ptr = v_mut_ptr as *const T;
                     // SAFETY: Trailing unchecked items must be valid since we never touch them.
                     unsafe {
                         ptr::copy(
-                            self.v.as_ptr().add(self.processed_len.into_usize()),
-                            self.v
-                                .as_mut_ptr()
-                                .add((self.processed_len - self.deleted_cnt).into_usize()),
+                            v_ptr.add(self.processed_len.into_usize()),
+                            v_mut_ptr.add((self.processed_len - self.deleted_cnt).into_usize()),
                             (self.original_len - self.processed_len).into_usize(),
                         );
                     }
@@ -1571,11 +1635,21 @@ where
 
 impl<T, LenT: LenType, const N: usize> Drop for IntoIter<T, N, LenT> {
     fn drop(&mut self) {
+        let len = self.vec.len;
+        self.vec.len = LenT::ZERO;
+        // SAFETY: `self.vec` is a vec where the first `self.next` elements have
+        // been moved through iteration. The rest a have not been consumed yet,
+        // so it is safe to create a mutable slice and drop them
+        //
+        // `self.vec.len` is set to `0` before dropping the elements so that
+        // a panicking `Drop` implementation does not result in inconsistent
+        // state during unwinding that could lead to undefined behaviour.
         unsafe {
-            // Drop all the elements that have not been moved out of vec
-            ptr::drop_in_place(&mut self.vec.as_mut_slice()[self.next.into_usize()..]);
-            // Prevent dropping of other elements
-            self.vec.len = LenT::ZERO;
+            let remaining = slice::from_raw_parts_mut(
+                self.vec.as_mut_ptr().add(self.next.into_usize()),
+                (len - self.next).into_usize(),
+            );
+            ptr::drop_in_place(remaining);
         }
     }
 }
@@ -1740,6 +1814,28 @@ where
     }
 }
 
+impl<T, I, LenT: LenType, S: VecStorage<T> + ?Sized> ops::Index<I> for VecInner<T, LenT, S>
+where
+    I: slice::SliceIndex<[T]>,
+{
+    type Output = I::Output;
+
+    #[inline]
+    fn index(&self, index: I) -> &Self::Output {
+        ops::Index::index(self.as_slice(), index)
+    }
+}
+
+impl<T, I, LenT: LenType, S: VecStorage<T> + ?Sized> ops::IndexMut<I> for VecInner<T, LenT, S>
+where
+    I: slice::SliceIndex<[T]>,
+{
+    #[inline]
+    fn index_mut(&mut self, index: I) -> &mut Self::Output {
+        ops::IndexMut::index_mut(self.as_mut_slice(), index)
+    }
+}
+
 impl<T, LenT: LenType, S: VecStorage<T> + ?Sized> ops::Deref for VecInner<T, LenT, S> {
     type Target = [T];
 
@@ -1805,6 +1901,10 @@ where
 #[cfg(test)]
 mod tests {
     use core::fmt::Write;
+    use std::{
+        panic::{catch_unwind, AssertUnwindSafe},
+        sync::atomic::{AtomicI32, Ordering::Relaxed},
+    };
 
     use static_assertions::assert_not_impl_any;
 
@@ -1821,6 +1921,37 @@ mod tests {
     #[test]
     fn stack_new() {
         let mut _v: Vec<i32, 4> = Vec::new();
+    }
+
+    #[test]
+    fn index() {
+        let mut v: Vec<i32, 4> = Vec::from_array([1, 2, 3]);
+        assert_eq!(v[1], 2);
+        v[1] = 9;
+        assert_eq!(v[1], 9);
+
+        // Now we test if code using `Index` and `IndexMut` trait bounds
+        // actually works.
+
+        fn increment<C>(container: &mut C, index: usize)
+        where
+            C: std::ops::IndexMut<usize>,
+            C::Output: std::ops::AddAssign<i32>,
+        {
+            container[index] += 1;
+        }
+
+        increment(&mut v, 1);
+        assert_eq!(v[1], 10);
+
+        fn get<C>(container: &mut C, index: usize) -> &<C as core::ops::Index<usize>>::Output
+        where
+            C: std::ops::Index<usize>,
+        {
+            &container[index]
+        }
+
+        assert_eq!(*get(&mut v, 1), 10);
     }
 
     #[test]
@@ -1848,7 +1979,7 @@ mod tests {
     }
 
     #[test]
-    fn drop() {
+    fn drop_impl() {
         droppable!();
 
         {
@@ -2189,6 +2320,86 @@ mod tests {
     }
 
     #[test]
+    fn resize_with_size_limit() {
+        let mut v: Vec<u8, 4> = Vec::new();
+        let f = || 0;
+
+        v.resize_with(0, f).unwrap();
+        v.resize_with(4, f).unwrap();
+        v.resize_with(5, f).expect_err("full");
+    }
+
+    #[test]
+    fn resize_with_length_cases() {
+        let mut v: Vec<u8, 4> = Vec::new();
+        let f = || 0;
+
+        assert_eq!(v.len(), 0);
+
+        // Grow by 1
+        v.resize_with(1, f).unwrap();
+        assert_eq!(v.len(), 1);
+
+        // Grow by 2
+        v.resize_with(3, f).unwrap();
+        assert_eq!(v.len(), 3);
+
+        // Resize to current size
+        v.resize_with(3, f).unwrap();
+        assert_eq!(v.len(), 3);
+
+        // Shrink by 1
+        v.resize_with(2, f).unwrap();
+        assert_eq!(v.len(), 2);
+
+        // Shrink by 2
+        v.resize_with(0, f).unwrap();
+        assert_eq!(v.len(), 0);
+    }
+
+    #[test]
+    fn resize_with_contents() {
+        let mut v: Vec<u8, 4> = Vec::new();
+
+        // New entries take the closure's return value when growing
+        v.resize_with(1, || 17).unwrap();
+        assert_eq!(v[0], 17);
+
+        // Old values aren't changed when growing
+        v.resize_with(2, || 18).unwrap();
+        assert_eq!(v[0], 17);
+        assert_eq!(v[1], 18);
+
+        // Old values aren't changed when length unchanged
+        v.resize_with(2, || 0).unwrap();
+        assert_eq!(v[0], 17);
+        assert_eq!(v[1], 18);
+
+        // Old values aren't changed when shrinking
+        v.resize_with(1, || 0).unwrap();
+        assert_eq!(v[0], 17);
+    }
+
+    #[test]
+    fn resize_with_calls_closure_per_slot_in_order() {
+        let mut v: Vec<u8, 8> = Vec::new();
+        v.extend_from_slice(&[1, 2, 3]).unwrap();
+
+        // The closure is called exactly once per new slot, and the values
+        // end up in the Vec in the order they were generated.
+        let mut counter = 0;
+        v.resize_with(7, || {
+            counter += 1;
+            counter
+        })
+        .unwrap();
+
+        assert_eq!(v, [1, 2, 3, 1, 2, 3, 4]);
+        // 4 new slots => closure called exactly 4 times
+        assert_eq!(counter, 4);
+    }
+
+    #[test]
     fn write() {
         let mut v: Vec<u8, 4> = Vec::new();
         write!(v, "{:x}", 1234).unwrap();
@@ -2208,6 +2419,16 @@ mod tests {
         assert!(v.extend_from_slice(&[4, 5]).is_err());
         assert_eq!(v.len(), 3);
         assert_eq!(v.as_slice(), &[1, 2, 3]);
+        v.extend_from_slice(&[4]).unwrap();
+        assert_eq!(v.len(), 4);
+        assert_eq!(v.as_slice(), &[1, 2, 3, 4]);
+    }
+
+    #[test]
+    fn extend_beyond_usize_max() {
+        let mut v: Vec<(), 1> = Vec::new();
+        v.push(()).unwrap();
+        assert!(v.extend_from_slice(&[(); usize::MAX]).is_err());
     }
 
     #[test]
@@ -2311,9 +2532,7 @@ mod tests {
     #[test]
     #[cfg(feature = "alloc")]
     fn alloc_to_heapless() {
-        let mut av: alloc::vec::Vec<u8> = alloc::vec::Vec::new();
-        av.push(0);
-        av.push(1);
+        let av = vec![0, 1];
 
         let hv: Vec<u8, 2> = av.clone().try_into().unwrap();
         assert_eq!(hv.as_slice(), av.as_slice());
@@ -2385,10 +2604,89 @@ mod tests {
         }
     }
 
+    // Tests that a panic in a downstream drop implementation does not lead to an
+    // inconsistent state during unwinding that could lead to undefined behaviour.
+    // For more info see https://github.com/rust-embedded/heapless/issues/659
+    #[test]
+    fn use_after_free_intoiter_drop() {
+        static COUNT: AtomicI32 = AtomicI32::new(0);
+
+        #[derive(Debug)]
+        #[allow(unused)]
+        struct Dropper();
+
+        impl Dropper {
+            fn new() -> Self {
+                COUNT.fetch_add(1, Relaxed);
+                Self()
+            }
+            fn count() -> i32 {
+                COUNT.load(Relaxed)
+            }
+        }
+        impl Drop for Dropper {
+            fn drop(&mut self) {
+                COUNT.fetch_sub(1, Relaxed);
+                panic!("Testing  panicking");
+            }
+        }
+
+        let mut vec = Vec::<Dropper, 5>::new();
+        vec.push(Dropper::new()).unwrap();
+        let iterator = vec.into_iter();
+
+        catch_unwind(move || drop(iterator)).unwrap_err();
+        assert_eq!(Dropper::count(), 0);
+    }
+
     fn _test_variance<'a: 'b, 'b>(x: Vec<&'a (), 42>) -> Vec<&'b (), 42> {
         x
     }
     fn _test_variance_view<'a: 'b, 'b, 'c>(x: &'c VecView<&'a ()>) -> &'c VecView<&'b ()> {
         x
+    }
+
+    #[test]
+    fn push_mut() {
+        let mut vec = Vec::<u32, 16>::new();
+        *vec.push_mut(3).unwrap() += 2;
+        vec.push_mut(4).unwrap();
+        *vec.push_mut(5).unwrap() += 10;
+        assert_eq!(&vec[..], &[5, 4, 15]);
+    }
+
+    #[test]
+    fn vec_retain_panic() {
+        let mut vec = Vec::<u64, 6>::new();
+        let values = [10u64, 20, 30, 40, 50, 60];
+        for v in values {
+            vec.push(v).unwrap();
+        }
+
+        let res = catch_unwind(AssertUnwindSafe(|| {
+            vec.retain(|k| {
+                if *k == 10u64 {
+                    true
+                } else if *k == 20u64 {
+                    false
+                } else {
+                    panic!("user predicate panic");
+                }
+            });
+        }));
+        assert!(res.is_err(), "expected the predicate to panic");
+    }
+
+    #[test]
+    fn vec_retain() {
+        let mut vec = Vec::<u64, 6>::new();
+        let values = [10u64, 20, 30, 40, 50, 60];
+        for v in values {
+            vec.push(v).unwrap();
+        }
+
+        vec.retain(|k| *k == 10u64);
+
+        assert_eq!(vec, &[10u64]);
     }
 }
