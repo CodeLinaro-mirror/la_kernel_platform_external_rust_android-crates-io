@@ -173,6 +173,9 @@
     },
     {
       "name": "bytes_test_tests_test_serde"
+    },
+    {
+      "name": "bytes_test_tests_test_writer"
     }
   ]
 }
