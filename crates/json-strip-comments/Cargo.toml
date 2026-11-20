@@ -13,7 +13,7 @@
 edition = "2024"
 rust-version = "1.85.0"
 name = "json-strip-comments"
-version = "3.1.2"
+version = "3.1.3"
 build = false
 include = [
     "src/lib.rs",
@@ -53,3 +53,9 @@ default-features = false
 
 [dev-dependencies.serde_json]
 version = "1.0.142"
+
+[profile.dev]
+debug = "line-tables-only"
+
+[profile.dev.package."*"]
+debug = 0
