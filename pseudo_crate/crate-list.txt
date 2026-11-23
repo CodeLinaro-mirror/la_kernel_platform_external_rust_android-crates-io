@@ -309,6 +309,7 @@ itertools
 itoa
 java-locator
 jiff
+jiff-core
 jiff-tzdb
 jni
 jni-macros
