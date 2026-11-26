@@ -22,5 +22,10 @@
   ],
   "product_available": true,
   "vendor_available": true,
-  "vendor_ramdisk_available": true
+  "vendor_ramdisk_available": true,
+  "package": {
+    "utf8_iter": {
+      "target_windows": true
+    }
+  }
 }

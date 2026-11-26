@@ -22,6 +22,11 @@ rust_library {
     cargo_pkg_version: "1.0.4",
     crate_root: "src/lib.rs",
     edition: "2021",
+    target: {
+        windows: {
+            enabled: true,
+        },
+    },
     apex_available: [
         "//apex_available:anyapex",
         "//apex_available:platform",
@@ -52,4 +57,9 @@ rust_test {
         unit_test: true,
     },
     edition: "2021",
+    target: {
+        windows: {
+            enabled: true,
+        },
+    },
 }

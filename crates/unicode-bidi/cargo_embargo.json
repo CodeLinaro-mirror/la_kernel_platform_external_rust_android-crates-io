@@ -10,7 +10,9 @@
   "variants": [
     {},
     {
-      "features": ["hardcoded-data"],
+      "features": [
+        "hardcoded-data"
+      ],
       "tests": false,
       "package": {
         "unicode-bidi": {
@@ -18,5 +20,10 @@
         }
       }
     }
-  ]
+  ],
+  "package": {
+    "unicode-bidi": {
+      "target_windows": true
+    }
+  }
 }
