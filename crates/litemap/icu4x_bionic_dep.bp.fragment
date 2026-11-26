@@ -2,4 +2,7 @@ target: {
     linux_bionic: {
         enabled: true,
     },
+    windows: {
+        enabled: true,
+    },
 }

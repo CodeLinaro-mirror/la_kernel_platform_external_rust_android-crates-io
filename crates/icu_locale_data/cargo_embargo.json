@@ -20,7 +20,8 @@
           "data/locale_likely_subtags_language_v1.rs.data",
           "data/locale_exemplar_characters_numbers_v1.rs.data",
           "data/locale_exemplar_characters_main_v1.rs.data"
-      ]
+      ],
+      "target_windows": true
     }
   },
   "variants": [

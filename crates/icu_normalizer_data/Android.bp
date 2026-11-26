@@ -26,6 +26,11 @@ rust_library {
         "data/*.rs.data",
     ],
     edition: "2021",
+    target: {
+        windows: {
+            enabled: true,
+        },
+    },
     apex_available: [
         "//apex_available:platform",
         "//apex_available:anyapex",
