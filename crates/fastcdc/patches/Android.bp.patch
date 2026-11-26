@@ -1,0 +1,15 @@
+diff --git a/Android.bp b/Android.bp
+index f413aae51..d6026320e 100644
+--- a/Android.bp
++++ b/Android.bp
+@@ -20,7 +20,9 @@ rust_library {
+     cargo_env_compat: true,
+     cargo_pkg_version: "4.0.1",
+     crate_root: "src/lib.rs",
+-    edition: "2024",
++    // Rust on android15-tests-dev is 1.78, which can't build edition 2024
++    // (stable since 1.85). See patches/Android.bp.patch.
++    edition: "2021",
+     features: ["default"],
+     apex_available: [
+         "//apex_available:platform",
